@@ -1,0 +1,61 @@
+@import "tailwindcss";
+@import "@mtb/ui/styles.css";
+
+/* Scan the shared UI package for class names too. */
+@source "../../../packages/ui/src";
+
+/*
+ * Teacher app (phone). The design system's tokens and components, with the mobile rules from the brief:
+ * 16px body text, 44px controls, no zoom-on-focus, toasts above the bottom bar, the user's motion choice.
+ */
+html {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+}
+body {
+  font-size: 16px;
+  line-height: 24px;
+  overscroll-behavior-y: contain;
+}
+
+/* 44px touch targets; 16px text in fields so phones don't zoom in when one is focused. */
+.mtb-input,
+.mtb-select {
+  height: 44px;
+  font-size: 16px;
+}
+.mtb-textarea {
+  font-size: 16px;
+}
+.mtb-menu-item {
+  height: 44px;
+}
+.mtb-switch {
+  min-height: 44px;
+}
+
+/* Toasts sit above the bottom navigation or the action bar, full width on a phone. */
+.mtb-toaster {
+  left: 16px;
+  right: 16px;
+  bottom: calc(env(safe-area-inset-bottom) + 92px);
+  max-width: none;
+  align-items: stretch;
+}
+@media (min-width: 600px) {
+  .mtb-toaster {
+    left: auto;
+    max-width: 420px;
+  }
+}
+
+/* "Reduce motion" chosen in More → Appearance, on top of the phone's own setting (base.css). */
+:root[data-motion="reduce"] *,
+:root[data-motion="reduce"] *::before,
+:root[data-motion="reduce"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  animation-delay: 0ms !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}

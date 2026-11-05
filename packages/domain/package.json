@@ -1,0 +1,23 @@
+{
+  "name": "@mtb/domain",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@date-fns/tz": "^1.5.0",
+    "date-fns": "^4.4.0"
+  },
+  "devDependencies": {
+    "@mtb/config": "workspace:*",
+    "typescript": "~6.0.3",
+    "vitest": "^4.1.12"
+  }
+}

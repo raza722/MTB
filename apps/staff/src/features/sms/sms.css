@@ -1,0 +1,84 @@
+/*
+ * Messages centre: MTB additions built only from design-system tokens. Buttons, badges, fields and tables
+ * inside are the design system's own classes. Motion is cut by the reduced-motion rule in @mtb/ui base.css.
+ */
+
+/* Slim delivered / on the way / failed bar in outbox rows. */
+.sms-mini-bar { display: flex; gap: 2px; height: 6px; width: 140px; max-width: 100%; border-radius: var(--radius-full); overflow: hidden; background: var(--chart-track); }
+.sms-mini-bar > span { display: block; height: 100%; transition: width var(--motion-slow) var(--ease-out); }
+
+/* Phone preview: what the family's phone shows. */
+.sms-phone {
+  position: relative; width: 100%; max-width: 320px; margin: 0 auto; padding: var(--space-4) var(--space-3) var(--space-5);
+  border: 1px solid var(--border-strong); border-radius: 28px; background: var(--surface-sunken); box-shadow: var(--shadow-sm);
+}
+.sms-phone::before { content: ""; display: block; width: 72px; height: 5px; margin: 0 auto var(--space-3); border-radius: var(--radius-full); background: var(--border-strong); }
+.sms-phone-head { display: flex; align-items: center; gap: var(--space-2); padding: 0 var(--space-1) var(--space-2); color: var(--ink-muted); font-size: 12px; }
+.sms-bubble {
+  position: relative; padding: var(--space-3); border-radius: 16px 16px 16px 4px; background: var(--surface-raised); border: 1px solid var(--border);
+  color: var(--ink); font-size: 13px; line-height: 19px; white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.sms-push {
+  display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: var(--space-2); padding: var(--space-3);
+  border-radius: 14px; background: var(--surface-raised); border: 1px solid var(--border); box-shadow: var(--shadow-sm);
+}
+.sms-push-icon { width: 32px; height: 32px; border-radius: 8px; display: grid; place-content: center; background: var(--brand); color: var(--on-brand); font-weight: 700; font-size: 11px; }
+.sms-push b { display: block; font-size: 13px; color: var(--ink); }
+.sms-push p { margin: 0; font-size: 12px; line-height: 17px; color: var(--ink-muted); overflow-wrap: anywhere; }
+
+/* Toggle chips (class-sections, recipients). */
+.sms-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.sms-chip {
+  display: inline-flex; align-items: center; gap: 4px; height: 30px; padding: 0 10px; border-radius: var(--radius-full);
+  border: 1px solid var(--border-strong); background: var(--surface-raised); color: var(--ink); font: inherit; font-size: 13px; cursor: pointer;
+  transition: background var(--motion-fast) ease, border-color var(--motion-fast) ease, transform var(--motion-fast) var(--ease-out);
+}
+.sms-chip:hover { background: var(--surface-hover); }
+.sms-chip:active { transform: scale(0.97); }
+.sms-chip[aria-pressed="true"] { background: var(--brand-tint); border-color: var(--brand); color: var(--brand-ink); font-weight: 600; }
+.sms-chip:disabled { opacity: 0.55; cursor: not-allowed; }
+.sms-class-row { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: var(--space-2); align-items: center; }
+
+/* Channel choice cards. */
+.sms-options { display: grid; gap: var(--space-2); }
+.sms-option {
+  display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; gap: var(--space-3); align-items: start; padding: var(--space-3);
+  border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-raised); cursor: pointer;
+  transition: border-color var(--motion-fast) ease, background var(--motion-fast) ease;
+}
+.sms-option:hover { border-color: var(--border-strong); }
+.sms-option:has(input:checked) { border-color: var(--brand); background: var(--brand-tint); }
+.sms-option input { margin-top: 2px; accent-color: var(--brand); }
+.sms-option b { display: block; color: var(--ink); }
+.sms-option span.sms-option-note { display: block; font-size: 13px; color: var(--ink-muted); }
+
+/* Figures in the "Before you send" panel. */
+.sms-figures { display: grid; gap: var(--space-2); grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.sms-figure { display: grid; gap: 2px; align-content: start; padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); background: var(--surface-sunken); }
+.sms-figure-label { font-size: 12px; color: var(--ink-muted); }
+.sms-figure-value { font-size: 20px; line-height: 28px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+.sms-figure-note { font-size: 12px; color: var(--ink-muted); }
+.sms-figure-good { background: var(--success-tint); }
+.sms-figure-good .sms-figure-value { color: var(--success-ink); }
+
+/* Sticky preview column on wide screens. */
+@media (min-width: 1280px) {
+  .sms-sticky { position: sticky; top: 84px; }
+}
+
+/* Notice cards. */
+.sms-notice { display: grid; gap: var(--space-2); padding: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface-raised); box-shadow: var(--shadow-sm); transition: border-color var(--motion-fast) ease, box-shadow var(--motion-base) ease; }
+.sms-notice:hover { border-color: var(--border-strong); box-shadow: var(--shadow-md); }
+.sms-notice-ur { color: var(--ink-muted); }
+.sms-notice-meta { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3); align-items: center; font-size: 13px; color: var(--ink-muted); }
+.sms-portal-card { display: grid; gap: var(--space-2); padding: var(--space-4); border-radius: var(--radius-lg); border: 1px solid var(--border); background: var(--surface-sunken); }
+
+/* Overview: list rows that open something. */
+.sms-row { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3); border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--surface-raised); color: inherit; text-decoration: none; text-align: left; font: inherit; width: 100%; cursor: pointer; transition: border-color var(--motion-fast) ease, transform var(--motion-base) var(--ease-out); }
+.sms-row:hover { border-color: var(--border-strong); transform: translateX(2px); }
+.sms-row-icon { width: 36px; height: 36px; flex: none; display: grid; place-content: center; border-radius: var(--radius-md); background: var(--brand-tint); color: var(--brand-ink); }
+.sms-row-icon.is-warning { background: var(--warning-tint); color: var(--warning-ink); }
+.sms-row-icon.is-info { background: var(--info-tint); color: var(--info-ink); }
+.sms-legend { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.sms-legend li { display: flex; align-items: center; gap: var(--space-2); font-size: 13px; color: var(--ink-muted); }
+.sms-legend b { margin-left: auto; color: var(--ink); font-variant-numeric: tabular-nums; }

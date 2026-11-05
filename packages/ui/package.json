@@ -1,0 +1,39 @@
+{
+  "name": "@mtb/ui",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./styles.css": "./src/styles/index.css",
+    "./tokens.css": "./src/styles/tokens.css",
+    "./docs-states.css": "./src/styles/docs-states.css"
+  },
+  "scripts": {
+    "tokens": "node scripts/build-tokens.mjs",
+    "icons": "node scripts/extract-icons.mjs",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@mtb/domain": "workspace:*",
+    "cmdk": "^1.1.1",
+    "date-fns": "^4.4.0",
+    "radix-ui": "^1.8.1",
+    "react-day-picker": "^9.14.0"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@mtb/config": "workspace:*",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "typescript": "~6.0.3",
+    "vitest": "^4.1.12"
+  }
+}

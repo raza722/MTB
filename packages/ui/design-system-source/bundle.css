@@ -1,0 +1,281 @@
+/* MTB Campus — component styles. Every value comes from tokens.css (var(--…)). Prefix: mtb- */
+
+/* ---------- base ---------- */
+.mtb-root, .mtb-root * { box-sizing: border-box; }
+.mtb-root { font-family: var(--font-sans); font-size: 14px; line-height: 20px; color: var(--ink); background: var(--surface); }
+.mtb-root :focus-visible, .mtb-focus:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.mtb-root :focus:not(:focus-visible) { outline: none; }
+[lang="ur"], .mtb-ur { font-family: var(--font-urdu); direction: rtl; unicode-bidi: isolate; }
+.mtb-num, .mtb-td-num, .mtb-money { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
+.mtb-td-num, .mtb-th-num { text-align: right; }
+.mtb-mono { font-family: var(--font-mono); font-size: 13px; font-weight: 500; letter-spacing: 0.01em; }
+.mtb-muted { color: var(--ink-muted); }
+.mtb-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.mtb-row { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.mtb-stack { display: flex; flex-direction: column; gap: var(--space-4); }
+
+/* ---------- Button ---------- */
+.mtb-btn { -webkit-appearance: none; appearance: none; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
+  height: var(--space-10); min-width: var(--space-10); padding: 0 var(--space-4); border-radius: var(--radius-md); border: 1px solid transparent;
+  font: inherit; font-weight: 500; line-height: 20px; cursor: pointer; white-space: nowrap; text-decoration: none; color: var(--ink);
+  background: var(--surface-raised); transition: background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease; }
+.mtb-btn svg { width: 18px; height: 18px; flex: none; }
+.mtb-btn:disabled, .mtb-btn[aria-disabled="true"] { opacity: 0.55; cursor: not-allowed; }
+.mtb-btn-primary { background: var(--brand); color: var(--on-brand); border-color: var(--brand); }
+.mtb-btn-primary:hover:not(:disabled) { background: var(--brand-hover); border-color: var(--brand-hover); }
+.mtb-btn-primary:active:not(:disabled) { background: var(--brand-active); border-color: var(--brand-active); }
+.mtb-btn-secondary { background: var(--surface-raised); color: var(--ink); border-color: var(--border-strong); }
+.mtb-btn-secondary:hover:not(:disabled) { background: var(--surface-hover); }
+.mtb-btn-quiet { background: transparent; color: var(--brand-ink); }
+.mtb-btn-quiet:hover:not(:disabled) { background: var(--brand-tint); }
+.mtb-btn-ghost { background: transparent; color: var(--ink-muted); }
+.mtb-btn-ghost:hover:not(:disabled) { background: var(--surface-hover); color: var(--ink); }
+.mtb-btn-danger { background: var(--danger); color: var(--on-danger); border-color: var(--danger); }
+.mtb-btn-danger:hover:not(:disabled) { background: var(--danger-hover); border-color: var(--danger-hover); }
+.mtb-btn-danger-quiet { background: transparent; color: var(--danger-ink); border-color: var(--border-strong); }
+.mtb-btn-danger-quiet:hover:not(:disabled) { background: var(--danger-tint); }
+.mtb-btn-sm { height: 32px; min-width: 32px; padding: 0 var(--space-3); font-size: 13px; }
+.mtb-btn-sm svg { width: 16px; height: 16px; }
+.mtb-btn-lg, .mtb-btn-touch { height: var(--space-11); min-width: var(--space-11); padding: 0 var(--space-5); font-size: 16px; }
+.mtb-btn-block { width: 100%; }
+.mtb-btn-icon { padding: 0; width: var(--space-10); }
+.mtb-btn-icon.mtb-btn-sm { width: 32px; }
+.mtb-btn-icon.mtb-btn-touch { width: var(--space-11); }
+.mtb-btn-loading { position: relative; color: transparent !important; }
+.mtb-btn-loading::after { content: ""; position: absolute; width: 16px; height: 16px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent;
+  color: var(--on-brand); animation: mtb-spin 700ms linear infinite; }
+.mtb-btn-secondary.mtb-btn-loading::after, .mtb-btn-quiet.mtb-btn-loading::after { color: var(--brand-ink); }
+@keyframes mtb-spin { to { transform: rotate(360deg); } }
+
+/* ---------- Field / Input ---------- */
+.mtb-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.mtb-label { font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.02em; color: var(--ink-muted); text-transform: uppercase; }
+.mtb-label .mtb-req { color: var(--danger-ink); margin-left: 2px; }
+.mtb-input-wrap { position: relative; display: flex; align-items: center; }
+.mtb-input-wrap > svg { position: absolute; left: var(--space-3); width: 18px; height: 18px; color: var(--ink-muted); pointer-events: none; }
+.mtb-input-wrap.has-icon .mtb-input { padding-left: 38px; }
+.mtb-input-wrap .mtb-input-suffix { position: absolute; right: var(--space-3); color: var(--ink-muted); font-size: 13px; }
+.mtb-input, .mtb-select, .mtb-textarea { -webkit-appearance: none; appearance: none; width: 100%; height: var(--space-10); padding: 0 var(--space-3); font: inherit; line-height: 20px; color: var(--ink);
+  background: var(--surface-raised); border: 1px solid var(--border-strong); border-radius: var(--radius-md); transition: border-color 120ms ease, box-shadow 120ms ease; }
+.mtb-textarea { height: auto; min-height: 96px; padding: var(--space-2) var(--space-3); resize: vertical; }
+.mtb-input::placeholder, .mtb-textarea::placeholder { color: var(--ink-subtle); }
+.mtb-input:hover, .mtb-select:hover, .mtb-textarea:hover { border-color: var(--ink-muted); }
+.mtb-input:focus-visible, .mtb-select:focus-visible, .mtb-textarea:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-color: var(--focus-ring); }
+.mtb-input:disabled, .mtb-select:disabled { background: var(--surface-sunken); color: var(--ink-muted); cursor: not-allowed; }
+.mtb-input[readonly] { background: var(--surface-sunken); }
+.mtb-input.is-invalid, .mtb-select.is-invalid, .mtb-textarea.is-invalid { border-color: var(--danger); box-shadow: 0 0 0 1px var(--danger); }
+.mtb-input-lg { height: var(--space-11); font-size: 16px; }
+.mtb-select { padding-right: 36px; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235a6761' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>"); background-repeat: no-repeat; background-position: right 12px center; }
+[data-theme="dark"] .mtb-select { background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a7b3ac' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>"); }
+.mtb-help { font-size: 13px; line-height: 18px; color: var(--ink-muted); }
+.mtb-error { display: flex; align-items: flex-start; gap: 6px; font-size: 13px; line-height: 18px; color: var(--danger-ink); }
+.mtb-error svg { width: 16px; height: 16px; flex: none; margin-top: 1px; }
+.mtb-input-urdu { font-family: var(--font-urdu); direction: rtl; font-size: 15px; height: var(--space-11); }
+
+/* checkbox / radio */
+.mtb-check { display: inline-flex; align-items: center; gap: var(--space-2); cursor: pointer; min-height: 24px; }
+.mtb-check input { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; margin: 0; flex: none; border: 1.5px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface-raised); display: grid; place-content: center; cursor: pointer; }
+.mtb-check input[type="radio"] { border-radius: 50%; }
+.mtb-check input:checked { background: var(--brand); border-color: var(--brand); }
+.mtb-check input[type="checkbox"]:checked::after { content: ""; width: 10px; height: 6px; border-left: 2px solid var(--on-brand); border-bottom: 2px solid var(--on-brand); transform: translateY(-1px) rotate(-45deg); }
+.mtb-check input[type="radio"]:checked::after { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--on-brand); }
+.mtb-check input:indeterminate { background: var(--brand); border-color: var(--brand); }
+.mtb-check input:indeterminate::after { content: ""; width: 10px; height: 2px; background: var(--on-brand); }
+.mtb-check input:disabled { opacity: 0.5; cursor: not-allowed; }
+.mtb-check-lg input { width: 24px; height: 24px; }
+
+/* switch */
+.mtb-switch { position: relative; display: inline-flex; align-items: center; gap: var(--space-2); cursor: pointer; }
+.mtb-switch input { -webkit-appearance: none; appearance: none; width: 40px; height: 24px; margin: 0; border-radius: var(--radius-full); background: var(--border-strong); position: relative; cursor: pointer; transition: background 120ms ease; }
+.mtb-switch input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--surface-raised); transition: transform 120ms ease; box-shadow: var(--shadow-sm); }
+.mtb-switch input:checked { background: var(--brand); }
+.mtb-switch input:checked::after { transform: translateX(16px); }
+.mtb-switch-danger input:checked { background: var(--danger); }
+
+/* segmented */
+.mtb-seg { display: inline-flex; padding: 2px; background: var(--surface-sunken); border-radius: var(--radius-md); gap: 2px; }
+.mtb-seg button { font: inherit; font-weight: 500; height: 32px; padding: 0 var(--space-3); border: 0; border-radius: 4px; background: transparent; color: var(--ink-muted); cursor: pointer; }
+.mtb-seg button[aria-pressed="true"] { background: var(--surface-raised); color: var(--ink); box-shadow: var(--shadow-sm); }
+.mtb-seg-touch button { height: 40px; padding: 0 var(--space-4); font-size: 15px; }
+
+/* ---------- DataTable ---------- */
+.mtb-table-wrap { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface-raised); overflow: hidden; }
+.mtb-table-scroll { overflow-x: auto; }
+.mtb-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 14px; line-height: 20px; }
+.mtb-table th { position: sticky; top: 0; z-index: 1; background: var(--surface-sunken); color: var(--ink-muted); font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.02em; text-transform: uppercase;
+  text-align: left; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); white-space: nowrap; }
+.mtb-table th button { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font: inherit; color: inherit; text-transform: inherit; letter-spacing: inherit; }
+.mtb-table th button svg { width: 14px; height: 14px; }
+.mtb-table td { padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); vertical-align: middle; color: var(--ink); }
+.mtb-table-dense td { padding: 6px var(--space-3); }
+.mtb-table-roomy td { padding: var(--space-3); }
+.mtb-table tbody tr:last-child td { border-bottom: 0; }
+.mtb-table tbody tr.is-clickable { cursor: pointer; }
+.mtb-table tbody tr.is-clickable:hover td, .mtb-table tbody tr:hover td.mtb-hoverable { background: var(--surface-hover); }
+.mtb-table tbody tr.is-selected td { background: var(--surface-selected); }
+.mtb-table tbody tr.is-muted td { color: var(--ink-muted); }
+.mtb-table tbody tr:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.mtb-table .mtb-td-check { width: 44px; padding-right: 0; }
+.mtb-table .mtb-td-actions { text-align: right; white-space: nowrap; }
+.mtb-table tfoot td { background: var(--surface-sunken); font-weight: 600; border-top: 1px solid var(--border-strong); border-bottom: 0; }
+.mtb-cell-primary { font-weight: 500; color: var(--ink); }
+.mtb-cell-secondary { font-size: 13px; line-height: 18px; color: var(--ink-muted); }
+.mtb-table-toolbar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.mtb-table-footer { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-2) var(--space-4); border-top: 1px solid var(--border); color: var(--ink-muted); font-size: 13px; }
+.mtb-strike { text-decoration: line-through; color: var(--ink-muted); }
+
+/* ---------- Skeleton / Empty ---------- */
+.mtb-skeleton { display: block; background: linear-gradient(90deg, var(--surface-sunken) 25%, var(--surface-hover) 50%, var(--surface-sunken) 75%); background-size: 200% 100%; border-radius: var(--radius-sm); animation: mtb-shimmer 1.4s ease infinite; height: 14px; }
+@keyframes mtb-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+.mtb-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: var(--space-2); padding: var(--space-8) var(--space-6); color: var(--ink-muted); }
+.mtb-empty-icon { width: 48px; height: 48px; border-radius: var(--radius-lg); background: var(--surface-sunken); display: grid; place-content: center; color: var(--ink-muted); margin-bottom: var(--space-2); }
+.mtb-empty-icon svg { width: 24px; height: 24px; }
+.mtb-empty h3 { margin: 0; font-size: 15px; line-height: 20px; font-weight: 600; color: var(--ink); }
+.mtb-empty p { margin: 0; max-width: 360px; font-size: 13px; line-height: 18px; }
+.mtb-empty .mtb-btn { margin-top: var(--space-2); }
+
+/* ---------- StatusBadge ---------- */
+.mtb-badge { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 var(--space-2); border-radius: var(--radius-sm); font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.01em; white-space: nowrap;
+  background: var(--neutral-tint); color: var(--neutral-ink); border: 1px solid transparent; }
+.mtb-badge-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex: none; }
+.mtb-badge-lg { height: 28px; padding: 0 10px; font-size: 13px; }
+.mtb-badge-paid, .mtb-badge-present, .mtb-badge-success { background: var(--status-paid-tint); color: var(--status-paid-ink); }
+.mtb-badge-paid .mtb-badge-dot, .mtb-badge-present .mtb-badge-dot, .mtb-badge-success .mtb-badge-dot { background: var(--status-paid); }
+.mtb-badge-unpaid, .mtb-badge-late, .mtb-badge-warning, .mtb-badge-pending { background: var(--status-unpaid-tint); color: var(--status-unpaid-ink); }
+.mtb-badge-unpaid .mtb-badge-dot, .mtb-badge-late .mtb-badge-dot, .mtb-badge-warning .mtb-badge-dot, .mtb-badge-pending .mtb-badge-dot { background: var(--status-unpaid); }
+.mtb-badge-overdue, .mtb-badge-absent, .mtb-badge-danger, .mtb-badge-failed { background: var(--status-overdue-tint); color: var(--status-overdue-ink); }
+.mtb-badge-overdue .mtb-badge-dot, .mtb-badge-absent .mtb-badge-dot, .mtb-badge-danger .mtb-badge-dot, .mtb-badge-failed .mtb-badge-dot { background: var(--status-overdue); }
+.mtb-badge-cancelled, .mtb-badge-neutral { background: var(--status-cancelled-tint); color: var(--status-cancelled-ink); }
+.mtb-badge-leave, .mtb-badge-info, .mtb-badge-queued { background: var(--status-leave-tint); color: var(--status-leave-ink); }
+.mtb-badge-leave .mtb-badge-dot, .mtb-badge-info .mtb-badge-dot, .mtb-badge-queued .mtb-badge-dot { background: var(--status-leave); }
+.mtb-badge-holiday { background: var(--status-holiday-tint); color: var(--status-holiday-ink); }
+.mtb-badge-draft { background: var(--status-draft-tint); color: var(--status-draft-ink); border: 1px dashed var(--status-draft); }
+.mtb-badge-declared { background: var(--status-declared-tint); color: var(--status-declared-ink); }
+.mtb-badge-declared .mtb-badge-dot { background: var(--status-declared); }
+.mtb-badge-brand { background: var(--brand-tint); color: var(--brand-ink); }
+
+/* ---------- StatCard ---------- */
+.mtb-card { background: var(--surface-raised); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); }
+.mtb-card-pad { padding: var(--space-5); }
+.mtb-card-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-4) var(--space-5); border-bottom: 1px solid var(--border); }
+.mtb-card-header h2, .mtb-card-header h3 { margin: 0; font-size: 15px; line-height: 20px; font-weight: 600; }
+.mtb-card-body { padding: var(--space-5); }
+.mtb-stat { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-5); background: var(--surface-raised); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); min-width: 0; }
+.mtb-stat-top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.mtb-stat-label { font-size: 13px; line-height: 18px; font-weight: 500; color: var(--ink-muted); }
+.mtb-stat-icon { width: 32px; height: 32px; border-radius: var(--radius-md); background: var(--brand-tint); color: var(--brand-ink); display: grid; place-content: center; flex: none; }
+.mtb-stat-icon svg { width: 18px; height: 18px; }
+.mtb-stat-icon.tone-warning { background: var(--warning-tint); color: var(--warning-ink); }
+.mtb-stat-icon.tone-danger { background: var(--danger-tint); color: var(--danger-ink); }
+.mtb-stat-icon.tone-info { background: var(--info-tint); color: var(--info-ink); }
+.mtb-stat-icon.tone-neutral { background: var(--neutral-tint); color: var(--neutral-ink); }
+.mtb-stat-value { font-size: 28px; line-height: 36px; font-weight: 600; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; color: var(--ink); }
+.mtb-stat-foot { display: flex; align-items: center; gap: var(--space-2); font-size: 13px; line-height: 18px; color: var(--ink-muted); flex-wrap: wrap; }
+.mtb-delta { display: inline-flex; align-items: center; gap: 2px; font-weight: 500; }
+.mtb-delta svg { width: 14px; height: 14px; }
+.mtb-delta-up { color: var(--success-ink); }
+.mtb-delta-down { color: var(--danger-ink); }
+.mtb-delta-flat { color: var(--ink-muted); }
+.mtb-meter { position: relative; height: 6px; border-radius: var(--radius-full); background: var(--chart-track); overflow: hidden; }
+.mtb-meter > span { position: absolute; inset: 0 auto 0 0; background: var(--chart-1); border-radius: inherit; }
+.mtb-meter.tone-warning > span { background: var(--chart-2); }
+.mtb-meter.tone-danger > span { background: var(--danger); }
+.mtb-meter-lg { height: 10px; }
+
+/* ---------- Tabs ---------- */
+.mtb-tabs { display: flex; gap: var(--space-1); border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; }
+.mtb-tabs::-webkit-scrollbar { display: none; }
+.mtb-tab { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; height: var(--space-10); padding: 0 var(--space-3); margin-bottom: -1px; border-bottom: 2px solid transparent; font: inherit; font-weight: 500; color: var(--ink-muted); cursor: pointer; white-space: nowrap; }
+.mtb-tab:hover { color: var(--ink); }
+.mtb-tab[aria-selected="true"] { color: var(--brand-ink); border-bottom-color: var(--brand); }
+.mtb-tab:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; border-radius: var(--radius-sm); }
+.mtb-tab .mtb-tab-count { display: inline-grid; place-content: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: var(--radius-full); background: var(--neutral-tint); color: var(--neutral-ink); font-size: 12px; }
+.mtb-tab[aria-selected="true"] .mtb-tab-count { background: var(--brand-tint); color: var(--brand-ink); }
+.mtb-tabs-touch .mtb-tab { height: var(--space-11); font-size: 15px; }
+.mtb-tabpanel { padding-top: var(--space-5); }
+
+/* ---------- SidePanel ---------- */
+.mtb-scrim { position: fixed; inset: 0; background: var(--surface-overlay); z-index: 50; animation: mtb-fade 150ms ease; }
+@keyframes mtb-fade { from { opacity: 0; } }
+.mtb-panel { position: fixed; top: 0; right: 0; bottom: 0; width: min(480px, 100vw); background: var(--surface-raised); box-shadow: var(--shadow-lg); z-index: 51; display: flex; flex-direction: column; animation: mtb-slide-in 180ms ease; border-left: 1px solid var(--border); }
+.mtb-panel-wide { width: min(720px, 100vw); }
+@keyframes mtb-slide-in { from { transform: translateX(24px); opacity: 0; } }
+.mtb-panel-header, .mtb-modal-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); padding: var(--space-5) var(--space-6); border-bottom: 1px solid var(--border); }
+.mtb-panel-header h2, .mtb-modal-header h2 { margin: 0; font-size: 18px; line-height: 24px; font-weight: 600; }
+.mtb-panel-header p, .mtb-modal-header p { margin: 4px 0 0; color: var(--ink-muted); font-size: 13px; line-height: 18px; }
+.mtb-panel-body, .mtb-modal-body { padding: var(--space-6); overflow-y: auto; flex: 1; }
+.mtb-panel-footer, .mtb-modal-footer { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-2); padding: var(--space-4) var(--space-6); border-top: 1px solid var(--border); background: var(--surface-raised); }
+.mtb-modal-footer.is-split { justify-content: space-between; }
+
+/* ---------- Modal ---------- */
+.mtb-modal-center { position: fixed; inset: 0; z-index: 51; display: grid; place-items: center; padding: var(--space-4); pointer-events: none; }
+.mtb-modal { pointer-events: auto; width: 100%; max-width: 520px; max-height: calc(100vh - 32px); background: var(--surface-raised); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); border: 1px solid var(--border); display: flex; flex-direction: column; animation: mtb-pop 160ms ease; }
+.mtb-modal-lg { max-width: 760px; }
+.mtb-modal-xl { max-width: 960px; }
+@keyframes mtb-pop { from { transform: translateY(8px) scale(0.98); opacity: 0; } }
+.mtb-modal-icon { width: 40px; height: 40px; border-radius: var(--radius-full); display: grid; place-content: center; flex: none; background: var(--brand-tint); color: var(--brand-ink); }
+.mtb-modal-icon svg { width: 20px; height: 20px; }
+.mtb-modal-icon.tone-danger { background: var(--danger-tint); color: var(--danger-ink); }
+.mtb-modal-icon.tone-warning { background: var(--warning-tint); color: var(--warning-ink); }
+.mtb-confirm-body { display: flex; gap: var(--space-4); padding: var(--space-6); }
+.mtb-confirm-body h2 { margin: 0 0 6px; font-size: 18px; line-height: 24px; font-weight: 600; }
+.mtb-confirm-body p { margin: 0; color: var(--ink-muted); }
+.mtb-confirm-list { margin: var(--space-3) 0 0; padding: var(--space-3) var(--space-4); background: var(--surface-sunken); border-radius: var(--radius-md); list-style: none; display: grid; gap: 4px; font-size: 13px; }
+.mtb-confirm-list li { display: flex; justify-content: space-between; gap: var(--space-3); }
+.mtb-confirm-list li b { font-weight: 600; color: var(--ink); }
+
+/* ---------- Toast ---------- */
+.mtb-toaster { position: fixed; right: var(--space-6); bottom: var(--space-6); display: flex; flex-direction: column; gap: var(--space-2); z-index: 60; pointer-events: none; max-width: min(420px, calc(100vw - 32px)); }
+.mtb-toast { pointer-events: auto; display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--surface-raised); color: var(--ink); border: 1px solid var(--border); border-left: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); animation: mtb-toast-in 180ms ease; min-width: 280px; }
+@keyframes mtb-toast-in { from { transform: translateY(8px); opacity: 0; } }
+.mtb-toast svg.mtb-toast-icon { width: 20px; height: 20px; flex: none; margin-top: 1px; }
+.mtb-toast-success .mtb-toast-icon { color: var(--success); }
+.mtb-toast-danger .mtb-toast-icon { color: var(--danger); }
+.mtb-toast-warning .mtb-toast-icon { color: var(--warning); }
+.mtb-toast-info .mtb-toast-icon { color: var(--info); }
+.mtb-toast-text { flex: 1; min-width: 0; }
+.mtb-toast-text b { display: block; font-weight: 600; }
+.mtb-toast-text span { color: var(--ink-muted); font-size: 13px; line-height: 18px; }
+.mtb-toast .mtb-btn-ghost { margin: -6px -8px -6px 0; }
+
+/* ---------- Banner (inline alert) ---------- */
+.mtb-banner { display: flex; gap: var(--space-3); align-items: flex-start; padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); border: 1px solid transparent; background: var(--info-tint); color: var(--info-ink); font-size: 13px; line-height: 18px; }
+.mtb-banner svg { width: 18px; height: 18px; flex: none; margin-top: 0; }
+.mtb-banner b { font-weight: 600; }
+.mtb-banner-warning { background: var(--warning-tint); color: var(--warning-ink); }
+.mtb-banner-danger { background: var(--danger-tint); color: var(--danger-ink); }
+.mtb-banner-success { background: var(--success-tint); color: var(--success-ink); }
+.mtb-banner-neutral { background: var(--neutral-tint); color: var(--neutral-ink); }
+.mtb-banner .mtb-banner-actions { margin-left: auto; display: flex; gap: var(--space-2); flex: none; }
+
+/* ---------- Avatar ---------- */
+.mtb-avatar { width: 36px; height: 36px; border-radius: var(--radius-full); display: grid; place-content: center; background: var(--brand-tint); color: var(--brand-ink); font-weight: 600; font-size: 13px; flex: none; overflow: hidden; letter-spacing: 0.02em; }
+.mtb-avatar-sm { width: 28px; height: 28px; font-size: 11px; }
+.mtb-avatar-lg { width: 56px; height: 56px; font-size: 18px; }
+.mtb-avatar-xl { width: 80px; height: 80px; font-size: 24px; border-radius: var(--radius-lg); }
+.mtb-avatar.tone-2 { background: var(--info-tint); color: var(--info-ink); }
+.mtb-avatar.tone-3 { background: var(--warning-tint); color: var(--warning-ink); }
+.mtb-avatar.tone-4 { background: var(--slate-tint); color: var(--slate-ink); }
+
+/* ---------- Stepper ---------- */
+.mtb-steps { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.mtb-step { display: inline-flex; align-items: center; gap: var(--space-2); font-size: 13px; font-weight: 500; color: var(--ink-muted); }
+.mtb-step-n { width: 24px; height: 24px; border-radius: 50%; display: grid; place-content: center; background: var(--surface-sunken); color: var(--ink-muted); font-size: 12px; border: 1px solid var(--border-strong); }
+.mtb-step.is-active { color: var(--ink); }
+.mtb-step.is-active .mtb-step-n { background: var(--brand); color: var(--on-brand); border-color: var(--brand); }
+.mtb-step.is-done .mtb-step-n { background: var(--brand-tint); color: var(--brand-ink); border-color: transparent; }
+.mtb-step-sep { width: 24px; height: 1px; background: var(--border-strong); }
+
+/* ---------- Key-value list ---------- */
+.mtb-kv { display: grid; grid-template-columns: minmax(120px, max-content) 1fr; gap: 6px var(--space-4); font-size: 14px; }
+.mtb-kv dt { color: var(--ink-muted); }
+.mtb-kv dd { margin: 0; color: var(--ink); }
+
+/* ---------- Dropdown menu ---------- */
+.mtb-menu { position: absolute; z-index: 40; min-width: 200px; background: var(--surface-raised); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); padding: var(--space-1); }
+.mtb-menu-item { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: var(--space-2); width: 100%; height: 36px; padding: 0 var(--space-3); border-radius: var(--radius-md); font: inherit; color: var(--ink); cursor: pointer; }
+.mtb-menu-item:hover, .mtb-menu-item:focus-visible { background: var(--surface-hover); }
+.mtb-menu-item[aria-checked="true"] { background: var(--surface-selected); color: var(--brand-ink); font-weight: 500; }
+.mtb-menu-item svg { width: 16px; height: 16px; color: var(--ink-muted); }
+.mtb-menu-sep { height: 1px; background: var(--border); margin: var(--space-1) 0; }
+.mtb-menu-label { padding: 6px var(--space-3) 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-subtle); }

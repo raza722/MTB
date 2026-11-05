@@ -1,0 +1,80 @@
+@import "tailwindcss";
+@import "@mtb/ui/styles.css";
+
+/* Scan the shared UI package for class names too. */
+@source "../../../packages/ui/src";
+
+@layer components {
+  /* Global search (cmdk) */
+  .mtb-search-group [cmdk-group-heading] {
+    padding: 8px 12px 4px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ink-subtle);
+  }
+  .mtb-search-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    border-radius: var(--radius-md);
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .mtb-search-item[data-selected="true"] {
+    background: var(--surface-hover);
+  }
+}
+
+/* Printing: only the receipt (A5) or a statement prints; the rest of the app is hidden. */
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  .mtb-receipt-print,
+  .mtb-receipt-print *,
+  .mtb-print-area,
+  .mtb-print-area * {
+    visibility: visible !important;
+  }
+  .mtb-receipt-print,
+  .mtb-print-area {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+  }
+  .mtb-receipt-print article {
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+  .mtb-no-print {
+    display: none !important;
+  }
+}
+@page {
+  size: A5 portrait;
+  margin: 8mm;
+}
+
+/* ---------- Shell motion (MTB addition; cut by the reduced-motion rule) ---------- */
+/* Top bar: the page scrolls under frosted glass. */
+.mtb-topbar {
+  background: color-mix(in srgb, var(--surface-raised) 82%, transparent);
+  -webkit-backdrop-filter: saturate(1.4) blur(12px);
+  backdrop-filter: saturate(1.4) blur(12px);
+}
+/* The page area is the only part that moves on a page change (view transition in motion.css). */
+.mtb-page { view-transition-name: mtb-page; }
+/* Sidebar: one highlight slides to the active item; icons nudge on hover. */
+.mtb-nav-indicator {
+  position: absolute; top: var(--space-2); left: var(--space-2); right: var(--space-2); height: 40px;
+  border-radius: var(--radius-md); background: var(--brand-tint);
+  transition: transform 320ms var(--ease-spring);
+}
+.mtb-nav-indicator::before {
+  content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 0 3px 3px 0; background: var(--brand);
+}
+.mtb-nav-icon { transition: transform var(--motion-base) var(--ease-out); }
+.mtb-nav-link:hover .mtb-nav-icon { transform: translateX(2px); }

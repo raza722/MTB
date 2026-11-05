@@ -1,0 +1,72 @@
+/* Library, warehouse and transport — shared styles (MTB addition). Colours come from the design-system tokens only. */
+
+/* ---------- Search a person (student or staff) ---------- */
+.ops-picker { position: relative; }
+.ops-picker-list {
+  position: absolute; z-index: 30; left: 0; right: 0; top: calc(100% + 4px);
+  max-height: 300px; overflow-y: auto; margin: 0; padding: var(--space-1); list-style: none;
+  background: var(--surface-raised); border: 1px solid var(--border-strong); border-radius: var(--radius-md); box-shadow: var(--shadow-lg, 0 8px 24px rgb(0 0 0 / 0.12));
+}
+.ops-picker-list button {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px var(--space-3); width: 100%; padding: 8px 10px; text-align: left;
+  border: 0; background: none; border-radius: var(--radius-sm); color: var(--ink); font: inherit; cursor: pointer;
+}
+.ops-picker-list button:hover, .ops-picker-list button:focus-visible { background: var(--surface-hover); outline: none; }
+.ops-picker-chosen { display: flex; align-items: center; gap: var(--space-3); padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-sunken); }
+
+/* ---------- Bars in tables (share of seats, stock against reorder level) ---------- */
+.ops-meter { height: 6px; min-width: 64px; border-radius: 99px; background: var(--chart-track); overflow: hidden; }
+.ops-meter > span { display: block; height: 100%; border-radius: inherit; background: var(--chart-1); transform-origin: left; animation: mtb-grow-x 700ms var(--ease-out, ease) both; }
+.ops-meter.is-warn > span { background: var(--warning); }
+.ops-meter.is-full > span { background: var(--danger); }
+
+/* ---------- Route stops as a line ---------- */
+.ops-stops { list-style: none; margin: 0; padding: 0; display: grid; }
+.ops-stops li { position: relative; display: grid; grid-template-columns: 56px 16px minmax(0, 1fr) auto; align-items: start; gap: var(--space-2); padding: 6px 0; }
+.ops-stops li::before { content: ""; position: absolute; left: 63px; top: 0; bottom: 0; width: 2px; background: var(--border); }
+.ops-stops li:first-child::before { top: 14px; }
+.ops-stops li:last-child::before { bottom: calc(100% - 14px); }
+.ops-stops .dot { position: relative; z-index: 1; width: 12px; height: 12px; margin-top: 4px; border-radius: 99px; background: var(--surface-raised); border: 2px solid var(--brand); }
+
+/* ---------- Spine label for a copy ---------- */
+.ops-spine { display: inline-flex; align-items: center; padding: 1px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-strong); background: var(--surface-sunken); font-family: var(--font-mono, ui-monospace, monospace); font-size: 12px; line-height: 18px; white-space: nowrap; }
+
+/* ---------- Scanner feedback (stock counts) ---------- */
+.ops-scan-flash { animation: ops-flash 900ms var(--ease-out, ease) both; }
+@keyframes ops-flash { from { background: var(--brand-tint); } to { background: transparent; } }
+
+/* ---------- Printable documents (A4 lists, A5 shop receipt, route sheets) ---------- */
+.ops-print-layer { display: none; }
+.ops-doc { box-sizing: border-box; width: 100%; padding: 0; background: var(--surface-raised); color: var(--ink); font-size: 9.5pt; line-height: 1.4; }
+.ops-doc-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; border-bottom: 1.2pt solid var(--ink); padding-bottom: 3mm; margin-bottom: 4mm; }
+.ops-doc-head h1 { margin: 0; font-size: 14pt; }
+.ops-doc-head p { margin: 0; color: var(--ink-muted); font-size: 8.5pt; }
+.ops-doc h2 { font-size: 10.5pt; margin: 4mm 0 2mm; }
+.ops-doc table { width: 100%; border-collapse: collapse; margin-bottom: 3mm; }
+.ops-doc th, .ops-doc td { border: 0.5pt solid var(--border-strong); padding: 1mm 1.6mm; text-align: left; vertical-align: top; }
+.ops-doc th { background: var(--surface-sunken); font-weight: 600; }
+.ops-doc td.n, .ops-doc th.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ops-doc tr.tot td { font-weight: 700; border-top: 1pt solid var(--ink); }
+.ops-doc-kv { display: grid; grid-template-columns: repeat(4, auto); justify-content: start; gap: 1mm 5mm; margin: 0 0 3mm; }
+.ops-doc-kv dt { color: var(--ink-muted); }
+.ops-doc-kv dd { margin: 0; font-weight: 600; }
+.ops-doc-sign { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10mm; margin-top: 14mm; }
+.ops-doc-sign div { border-top: 0.6pt solid var(--ink); padding-top: 1mm; text-align: center; color: var(--ink-muted); font-size: 8pt; }
+.ops-doc-foot { margin-top: 4mm; display: flex; justify-content: space-between; color: var(--ink-muted); font-size: 7.5pt; }
+.ops-doc-urdu { font-family: var(--font-urdu, "Noto Nastaliq Urdu Variable", serif); line-height: 2; }
+
+.ops-receipt { box-sizing: border-box; width: 148mm; min-height: 200mm; margin: 0 auto; padding: 8mm; background: var(--surface-raised); color: var(--ink); font-size: 9.5pt; line-height: 1.4; display: grid; align-content: start; gap: 4mm; }
+.ops-receipt table { width: 100%; border-collapse: collapse; }
+.ops-receipt th, .ops-receipt td { padding: 1.2mm 1mm; border-bottom: 0.5pt solid var(--border); text-align: left; }
+.ops-receipt th { font-size: 8pt; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-muted); border-bottom: 1pt solid var(--border-strong); }
+.ops-receipt td.n, .ops-receipt th.n { text-align: right; font-variant-numeric: tabular-nums; }
+
+@media print {
+  .ops-print-layer { display: block !important; }
+  .ops-doc, .ops-receipt { box-shadow: none !important; border: 0 !important; }
+  /* 148mm x 200mm is the on-screen preview only. On paper the A5 @page margin (6mm, set by PrintLayer) is the only
+     margin, so the receipt fills the 136mm x 198mm printable area and never spills onto a second page. */
+  .ops-print-layer .ops-receipt { width: 100%; max-width: 100%; min-height: 0; margin: 0; padding: 0; break-inside: avoid; }
+  .ops-doc + .ops-doc { break-before: page; }
+  .ops-doc tr { break-inside: avoid; }
+}

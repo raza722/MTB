@@ -1,0 +1,174 @@
+/* MTB Campus — generated from tokens.json by scripts/build-tokens.mjs. Do not edit. */
+
+@source inline("text-display text-title-1 text-title-2 text-title-3 text-body text-body-strong text-body-large text-small text-caption text-numeric text-numeric-large urdu-title urdu-body urdu-small shadow-sm shadow-md shadow-lg");
+
+@theme inline {
+  --color-*: initial;
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-surface-hover: var(--surface-hover);
+  --color-surface-selected: var(--surface-selected);
+  --color-surface-overlay: var(--surface-overlay);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-subtle: var(--ink-subtle);
+  --color-ink-inverse: var(--ink-inverse);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-active: var(--brand-active);
+  --color-brand-tint: var(--brand-tint);
+  --color-brand-ink: var(--brand-ink);
+  --color-on-brand: var(--on-brand);
+  --color-focus-ring: var(--focus-ring);
+  --color-success: var(--success);
+  --color-success-tint: var(--success-tint);
+  --color-success-ink: var(--success-ink);
+  --color-warning: var(--warning);
+  --color-warning-tint: var(--warning-tint);
+  --color-warning-ink: var(--warning-ink);
+  --color-danger: var(--danger);
+  --color-danger-hover: var(--danger-hover);
+  --color-danger-tint: var(--danger-tint);
+  --color-danger-ink: var(--danger-ink);
+  --color-on-danger: var(--on-danger);
+  --color-info: var(--info);
+  --color-info-tint: var(--info-tint);
+  --color-info-ink: var(--info-ink);
+  --color-neutral-tint: var(--neutral-tint);
+  --color-neutral-ink: var(--neutral-ink);
+  --color-slate-tint: var(--slate-tint);
+  --color-slate-ink: var(--slate-ink);
+  --color-status-paid: var(--status-paid);
+  --color-status-paid-tint: var(--status-paid-tint);
+  --color-status-paid-ink: var(--status-paid-ink);
+  --color-status-unpaid: var(--status-unpaid);
+  --color-status-unpaid-tint: var(--status-unpaid-tint);
+  --color-status-unpaid-ink: var(--status-unpaid-ink);
+  --color-status-overdue: var(--status-overdue);
+  --color-status-overdue-tint: var(--status-overdue-tint);
+  --color-status-overdue-ink: var(--status-overdue-ink);
+  --color-status-cancelled: var(--status-cancelled);
+  --color-status-cancelled-tint: var(--status-cancelled-tint);
+  --color-status-cancelled-ink: var(--status-cancelled-ink);
+  --color-status-present: var(--status-present);
+  --color-status-present-tint: var(--status-present-tint);
+  --color-status-present-ink: var(--status-present-ink);
+  --color-status-absent: var(--status-absent);
+  --color-status-absent-tint: var(--status-absent-tint);
+  --color-status-absent-ink: var(--status-absent-ink);
+  --color-status-leave: var(--status-leave);
+  --color-status-leave-tint: var(--status-leave-tint);
+  --color-status-leave-ink: var(--status-leave-ink);
+  --color-status-late: var(--status-late);
+  --color-status-late-tint: var(--status-late-tint);
+  --color-status-late-ink: var(--status-late-ink);
+  --color-status-holiday: var(--status-holiday);
+  --color-status-holiday-tint: var(--status-holiday-tint);
+  --color-status-holiday-ink: var(--status-holiday-ink);
+  --color-status-draft: var(--status-draft);
+  --color-status-draft-tint: var(--status-draft-tint);
+  --color-status-draft-ink: var(--status-draft-ink);
+  --color-status-declared: var(--status-declared);
+  --color-status-declared-tint: var(--status-declared-tint);
+  --color-status-declared-ink: var(--status-declared-ink);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-track: var(--chart-track);
+
+  --font-*: initial;
+  --font-sans: var(--font-sans);
+  --font-urdu: var(--font-urdu);
+  --font-mono: var(--font-mono);
+
+  --radius-*: initial;
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-full: var(--radius-full);
+}
+
+@theme {
+  --shadow-*: initial;
+  --text-*: initial;
+  --text-display: 28px;
+  --text-display--line-height: 36px;
+  --text-display--font-weight: 600;
+  --text-display--letter-spacing: -0.01em;
+  --text-title-1: 22px;
+  --text-title-1--line-height: 28px;
+  --text-title-1--font-weight: 600;
+  --text-title-1--letter-spacing: -0.01em;
+  --text-title-2: 18px;
+  --text-title-2--line-height: 24px;
+  --text-title-2--font-weight: 600;
+  --text-title-3: 15px;
+  --text-title-3--line-height: 20px;
+  --text-title-3--font-weight: 600;
+  --text-body: 14px;
+  --text-body--line-height: 20px;
+  --text-body--font-weight: 400;
+  --text-body-strong: 14px;
+  --text-body-strong--line-height: 20px;
+  --text-body-strong--font-weight: 500;
+  --text-body-large: 16px;
+  --text-body-large--line-height: 24px;
+  --text-body-large--font-weight: 400;
+  --text-small: 13px;
+  --text-small--line-height: 18px;
+  --text-small--font-weight: 400;
+  --text-caption: 12px;
+  --text-caption--line-height: 16px;
+  --text-caption--font-weight: 500;
+  --text-caption--letter-spacing: 0.02em;
+  --text-numeric: 14px;
+  --text-numeric--line-height: 20px;
+  --text-numeric--font-weight: 500;
+  --text-numeric-large: 24px;
+  --text-numeric-large--line-height: 28px;
+  --text-numeric-large--font-weight: 600;
+}
+
+@utility shadow-sm {
+  box-shadow: var(--shadow-sm);
+}
+
+@utility shadow-md {
+  box-shadow: var(--shadow-md);
+}
+
+@utility shadow-lg {
+  box-shadow: var(--shadow-lg);
+}
+
+@utility urdu-title {
+  font-family: var(--font-urdu);
+  font-size: 20px;
+  line-height: 44px;
+  font-weight: 500;
+  direction: rtl;
+  unicode-bidi: isolate;
+}
+
+@utility urdu-body {
+  font-family: var(--font-urdu);
+  font-size: 15px;
+  line-height: 34px;
+  font-weight: 400;
+  direction: rtl;
+  unicode-bidi: isolate;
+}
+
+@utility urdu-small {
+  font-family: var(--font-urdu);
+  font-size: 13px;
+  line-height: 30px;
+  font-weight: 400;
+  direction: rtl;
+  unicode-bidi: isolate;
+}

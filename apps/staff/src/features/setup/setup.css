@@ -1,0 +1,129 @@
+/*
+ * Setup module layout. MTB additions built only from design-system tokens; the cards, tables, meters, badges
+ * and buttons inside are the design system's own classes. Motion is cut by the reduced-motion rule in @mtb/ui.
+ */
+
+/* ---------- Password rules (live) ---------- */
+.setup-rules { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-1); grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.setup-rules li { display: flex; align-items: center; gap: var(--space-2); font-size: 13px; line-height: 18px; color: var(--ink-muted); transition: color 160ms ease; }
+.setup-rules li svg { color: var(--ink-subtle); transition: color 160ms ease, transform 200ms var(--ease-out, ease); }
+.setup-rules li.is-ok { color: var(--success-ink); }
+.setup-rules li.is-ok svg { color: var(--success); transform: scale(1.08); }
+.setup-reveal { display: grid; place-content: center; width: 28px; height: 28px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--ink-muted); cursor: pointer; }
+.setup-reveal:hover { background: var(--surface-hover); color: var(--ink); }
+
+/* ---------- Overview tiles ---------- */
+.setup-stats { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.setup-grid { display: grid; gap: var(--space-6); grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 1100px) { .setup-grid { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); } }
+.setup-tiles { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+.setup-tile {
+  position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--space-1) var(--space-3); align-items: start;
+  padding: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface-raised);
+  color: inherit; text-decoration: none; transition: border-color 140ms ease, transform 180ms var(--ease-out, ease), box-shadow 180ms ease;
+}
+.setup-tile:hover { border-color: var(--brand); transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.setup-tile:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.setup-tile-icon { grid-row: span 2; display: grid; place-content: center; width: 36px; height: 36px; border-radius: var(--radius-md); background: var(--brand-tint); color: var(--brand-ink); }
+.setup-tile-title { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); font-weight: 600; color: var(--ink); }
+.setup-tile-count { font-size: 13px; font-weight: 500; color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+.setup-tile-desc { font-size: 13px; line-height: 18px; color: var(--ink-muted); }
+
+/* ---------- Lists inside panels ---------- */
+.setup-list { list-style: none; margin: 0; padding: 0; display: grid; }
+.setup-list > li + li { border-top: 1px solid var(--border); }
+.setup-row { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) 0; min-width: 0; }
+.setup-row-icon { display: grid; place-content: center; width: 32px; height: 32px; border-radius: var(--radius-full); flex: none; }
+.setup-row-icon.tone-danger { background: var(--danger-tint); color: var(--danger-ink); }
+.setup-row-icon.tone-warning { background: var(--warning-tint); color: var(--warning-ink); }
+.setup-row-icon.tone-info { background: var(--info-tint); color: var(--info-ink); }
+.setup-row-icon.tone-success { background: var(--success-tint); color: var(--success-ink); }
+.setup-row-icon.tone-neutral { background: var(--surface-sunken); color: var(--ink-muted); }
+
+.setup-legend { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-1); }
+.setup-legend li { display: flex; align-items: center; gap: var(--space-2); font-size: 13px; color: var(--ink-muted); }
+.setup-legend b { margin-left: auto; color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
+
+/* ---------- Campus cards ---------- */
+.setup-campuses { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+.setup-campus-figures { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3); padding: var(--space-3) 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.setup-campus-figures span { display: block; }
+.setup-print-preview { border: 1px dashed var(--border-strong); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); background: var(--surface-sunken); text-align: center; }
+
+/* ---------- Session strip ---------- */
+.setup-lifecycle { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-2); }
+@media (max-width: 760px) { .setup-lifecycle { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.setup-lifecycle > div { display: grid; gap: var(--space-1); padding: var(--space-3); border-radius: var(--radius-md); background: var(--surface-sunken); font-size: 13px; line-height: 18px; color: var(--ink-muted); }
+
+/* ---------- Two-pane editors (class subjects, teachers) ---------- */
+.setup-split { display: grid; gap: var(--space-4); grid-template-columns: minmax(0, 1fr); align-items: start; }
+@media (min-width: 1000px) { .setup-split { grid-template-columns: 280px minmax(0, 1fr); } }
+.setup-picker { list-style: none; margin: 0; padding: var(--space-2); display: grid; gap: 2px; max-height: 640px; overflow-y: auto; }
+.setup-picker button {
+  display: flex; width: 100%; align-items: center; justify-content: space-between; gap: var(--space-2);
+  padding: var(--space-2) var(--space-3); border: 0; border-radius: var(--radius-md); background: transparent; color: var(--ink);
+  font: inherit; text-align: left; cursor: pointer; transition: background 120ms ease;
+}
+.setup-picker button:hover { background: var(--surface-hover); }
+.setup-picker button[aria-current="true"] { background: var(--brand-tint); color: var(--brand-ink); font-weight: 500; }
+.setup-picker .setup-picker-sub { padding-left: var(--space-6); font-size: 13px; }
+
+/* ---------- Meters that grow in on first show ---------- */
+.setup-meter-grow > span, .setup-bar .mtb-meter > span, .setup-campus-card .mtb-meter > span { transform-origin: left center; animation: mtb-grow-x 900ms var(--ease-out, ease) 300ms both; }
+
+/* ---------- Inline load bar in tables ---------- */
+.setup-bar { display: grid; grid-template-columns: minmax(80px, 1fr) auto; align-items: center; gap: var(--space-2); }
+.setup-bar .mtb-meter > span { transition: width 600ms var(--ease-out, ease); }
+
+/* ---------- Roles matrix ---------- */
+.setup-matrix { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 13px; }
+.setup-matrix th, .setup-matrix td { padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); background: var(--surface-raised); }
+.setup-matrix thead th { position: sticky; top: 0; z-index: 2; vertical-align: bottom; font-weight: 600; color: var(--ink); text-align: center; }
+.setup-matrix thead th:first-child { text-align: left; }
+.setup-matrix tbody th { position: sticky; left: 0; z-index: 1; text-align: left; font-weight: 400; color: var(--ink); min-width: 260px; }
+.setup-matrix thead th:first-child { left: 0; z-index: 3; }
+.setup-matrix td { text-align: center; color: var(--brand-ink); }
+.setup-matrix tr.setup-matrix-group th { background: var(--surface-sunken); font-weight: 600; color: var(--ink-muted); text-transform: uppercase; font-size: 12px; letter-spacing: 0.02em; }
+.setup-matrix tr.setup-matrix-group td { background: var(--surface-sunken); }
+.setup-matrix tbody tr:not(.setup-matrix-group):hover th, .setup-matrix tbody tr:not(.setup-matrix-group):hover td { background: var(--surface-hover); }
+.setup-matrix .setup-col-btn { display: inline-grid; justify-items: center; gap: 2px; border: 0; background: transparent; font: inherit; color: inherit; cursor: pointer; padding: var(--space-1); border-radius: var(--radius-sm); }
+.setup-matrix .setup-col-btn:hover { background: var(--surface-hover); color: var(--brand-ink); }
+.setup-matrix .setup-col-sel { box-shadow: inset 0 -2px 0 var(--brand); }
+
+/* ---------- Settings ---------- */
+.setup-setting { display: grid; gap: var(--space-3); padding: var(--space-4) 0; grid-template-columns: minmax(0, 1fr); }
+.setup-setting + .setup-setting { border-top: 1px solid var(--border); }
+@media (min-width: 900px) { .setup-setting { grid-template-columns: minmax(220px, 1fr) minmax(0, 1.4fr); } }
+.setup-savebar {
+  position: sticky; bottom: var(--space-4); z-index: 5; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3);
+  padding: var(--space-3) var(--space-4); border: 1px solid var(--border-strong); border-radius: var(--radius-lg); background: var(--surface-raised); box-shadow: var(--shadow-lg);
+  animation: mtb-rise var(--motion-slow, 240ms) var(--ease-out, ease) both;
+}
+.setup-sms { max-width: 340px; padding: var(--space-3) var(--space-4); border-radius: 18px 18px 18px 4px; background: var(--surface-sunken); font-size: 13px; line-height: 19px; color: var(--ink); }
+.setup-voucher { display: grid; gap: var(--space-2); }
+.setup-voucher-copy { padding: var(--space-3); border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); font-size: 12px; line-height: 16px; color: var(--ink-muted); background: var(--surface); }
+
+/* ---------- Printed sheets (A4 landscape: access review, roles matrix) ---------- */
+.setup-print-only { display: none; }
+@page setup-a4 { size: A4 landscape; margin: 12mm; }
+@media print {
+  .setup-print-only { display: block; }
+  /* Paper is always light: system colours instead of theme tokens, so a dark screen theme still prints black on white. */
+  .setup-print-a4 { page: setup-a4; color: CanvasText; background: Canvas; font-size: 10pt; line-height: 1.35; }
+  .setup-print-a4 table { width: 100%; border-collapse: collapse; }
+  .setup-print-a4 th, .setup-print-a4 td { border: 0.5pt solid GrayText; padding: 3pt 5pt; text-align: left; vertical-align: top; }
+  .setup-print-a4 th { font-weight: 700; }
+  .setup-print-a4 td.setup-print-c { text-align: center; }
+  .setup-print-a4 tr { break-inside: avoid; }
+}
+.setup-print-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12pt; margin-bottom: 8pt; border-bottom: 1pt solid CanvasText; padding-bottom: 6pt; }
+.setup-print-head h1 { margin: 0; font-size: 14pt; }
+.setup-print-sign { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24pt; margin-top: 28pt; }
+.setup-print-sign div { border-top: 0.5pt solid CanvasText; padding-top: 4pt; font-size: 9pt; }
+
+/* ---------- Audit ---------- */
+.setup-changes { width: 100%; border-collapse: collapse; font-size: 13px; }
+.setup-changes th, .setup-changes td { text-align: left; padding: var(--space-2); border-bottom: 1px solid var(--border); vertical-align: top; }
+.setup-changes th { color: var(--ink-muted); font-weight: 500; }
+.setup-changes del { color: var(--danger-ink); text-decoration-thickness: 1px; }
+.setup-changes ins { color: var(--success-ink); text-decoration: none; font-weight: 500; }

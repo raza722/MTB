@@ -1,0 +1,18 @@
+/*
+ * @mtb/ui styles. Import after Tailwind in each app:
+ *   @import "tailwindcss";
+ *   @import "@mtb/ui/styles.css";
+ *   @source "<path to>/packages/ui/src";
+ *
+ * Order: tokens (generated) → Tailwind theme mapping (generated) → design-system component CSS
+ * (MTB Campus bundle.css, unchanged, in the components layer so utilities can still override it)
+ * → MTB additions → base.
+ */
+@import "./tokens.css";
+@import "./accent-navy.css";
+@import "./theme.css";
+@import "../../design-system-source/bundle.css" layer(components);
+@import "./components-ext.css" layer(components);
+@import "./charts.css" layer(components);
+@import "./motion.css";
+@import "./base.css";

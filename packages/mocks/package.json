@@ -1,0 +1,20 @@
+{
+  "name": "@mtb/mocks",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./browser": "./src/browser.ts"
+  },
+  "scripts": { "typecheck": "tsc -p tsconfig.json" },
+  "dependencies": {
+    "@mtb/api": "workspace:*",
+    "@mtb/domain": "workspace:*",
+    "msw": "^2.15.0"
+  },
+  "devDependencies": {
+    "@mtb/config": "workspace:*",
+    "typescript": "~6.0.3"
+  }
+}

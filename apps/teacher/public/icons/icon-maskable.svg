@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="MTB Teacher">
+  <!-- Maskable version: full-bleed background, artwork inside the 80% safe zone. -->
+  <rect width="512" height="512" fill="#0e5a3a"/>
+  <g transform="translate(51.2 51.2) scale(0.8)">
+    <path d="M136 152h104c22 0 40 18 40 40v192c0-16-13-28-28-28H136z" fill="none" stroke="#ffffff" stroke-width="28" stroke-linejoin="round"/>
+    <path d="M376 152H272c-22 0-40 18-40 40v192c0-16 13-28 28-28h116z" fill="none" stroke="#ffffff" stroke-width="28" stroke-linejoin="round"/>
+    <path d="M300 236l26 26 48-52" fill="none" stroke="#ffffff" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

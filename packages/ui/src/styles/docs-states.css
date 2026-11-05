@@ -1,0 +1,21 @@
+/*
+ * Design-system page only: freezes interaction states (data-force="hover|active|focus") so every
+ * state can be shown side by side. Mirrors the :hover / :active / :focus-visible rules in bundle.css.
+ * Never import this in an app screen.
+ */
+.mtb-btn-primary[data-force~="hover"] { background: var(--brand-hover); border-color: var(--brand-hover); }
+.mtb-btn-primary[data-force~="active"] { background: var(--brand-active); border-color: var(--brand-active); }
+.mtb-btn-secondary[data-force~="hover"], .mtb-btn-secondary[data-force~="active"] { background: var(--surface-hover); }
+.mtb-btn-quiet[data-force~="hover"], .mtb-btn-quiet[data-force~="active"] { background: var(--brand-tint); }
+.mtb-btn-ghost[data-force~="hover"], .mtb-btn-ghost[data-force~="active"] { background: var(--surface-hover); color: var(--ink); }
+.mtb-btn-danger[data-force~="hover"], .mtb-btn-danger[data-force~="active"] { background: var(--danger-hover); border-color: var(--danger-hover); }
+.mtb-btn-danger-quiet[data-force~="hover"], .mtb-btn-danger-quiet[data-force~="active"] { background: var(--danger-tint); }
+
+.mtb-input[data-force~="hover"], .mtb-select[data-force~="hover"], .mtb-textarea[data-force~="hover"] { border-color: var(--ink-muted); }
+.mtb-input[data-force~="focus"], .mtb-select[data-force~="focus"], .mtb-textarea[data-force~="focus"] { border-color: var(--focus-ring); }
+
+.mtb-tab[data-force~="hover"] { color: var(--ink); }
+.mtb-table tbody tr[data-force~="hover"] td { background: var(--surface-hover); }
+
+[data-force~="focus"] { outline: 2px solid var(--focus-ring) !important; outline-offset: 2px; }
+.mtb-tab[data-force~="focus"], .mtb-table tr[data-force~="focus"] { outline-offset: -2px; }

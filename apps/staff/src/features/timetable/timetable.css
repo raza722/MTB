@@ -1,0 +1,138 @@
+/*
+ * Timetable module layout. MTB additions built only from design-system tokens (subject tints mix the chart palette
+ * into the surface; text stays in ink colours). Motion is cut by the reduced-motion rule in @mtb/ui.
+ */
+
+.tt-split { display: grid; gap: var(--space-4); grid-template-columns: minmax(0, 1fr); align-items: start; }
+@media (min-width: 1100px) { .tt-split { grid-template-columns: 250px minmax(0, 1fr); } }
+
+.tt-kpis { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+.tt-kpis > * { animation: mtb-rise var(--motion-slow, 240ms) var(--ease-out, ease) both; animation-delay: calc(var(--i, 0) * 60ms); }
+
+/* ---------- Section list ---------- */
+.tt-sections { list-style: none; margin: 0; padding: var(--space-2); display: grid; gap: 2px; max-height: 640px; overflow: auto; }
+.tt-sections button {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: 8px 10px; border: 0; border-radius: var(--radius-md);
+  background: transparent; color: var(--ink); font: inherit; text-align: left; cursor: pointer; transition: background 120ms ease;
+}
+.tt-sections button:hover { background: var(--surface-hover); }
+.tt-sections button[aria-current="true"] { background: var(--brand-tint); color: var(--brand-ink); }
+.tt-sections button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.tt-sections small { display: block; font-size: 12px; color: var(--ink-muted); }
+
+/* ---------- Weekly grid ---------- */
+.tt-scroll { overflow-x: auto; }
+.tt-grid { width: 100%; border-collapse: separate; border-spacing: 4px; table-layout: fixed; min-width: 860px; }
+.tt-grid th { font-weight: 500; color: var(--ink-muted); font-size: 12px; line-height: 16px; text-align: center; padding: 2px 4px; }
+.tt-grid thead th b { display: block; color: var(--ink); font-size: 13px; }
+.tt-grid th.tt-day { width: 84px; text-align: left; vertical-align: middle; }
+.tt-grid th.tt-day b { display: block; color: var(--ink); font-size: 13px; }
+.tt-grid th.tt-day.is-today b { color: var(--brand-ink); }
+.tt-grid .tt-break { width: 34px; padding: 0; }
+.tt-grid td.tt-break { background: var(--surface-sunken); border-radius: var(--radius-sm); writing-mode: vertical-rl; transform: rotate(180deg); font-size: 11px; color: var(--ink-subtle); text-align: center; letter-spacing: 0.06em; }
+.tt-grid td { padding: 0; height: 64px; vertical-align: stretch; }
+
+.tt-cell {
+  position: relative; width: 100%; height: 100%; min-height: 64px; display: grid; align-content: start; gap: 1px; padding: 6px 8px 6px 10px; text-align: left;
+  border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-raised); color: var(--ink); font: inherit; font-size: 12px; line-height: 16px;
+  overflow: hidden; transition: transform 160ms var(--ease-out, ease), box-shadow 160ms ease, border-color 120ms ease;
+  animation: mtb-pop 220ms var(--ease-out, ease) both; animation-delay: calc(var(--i, 0) * 12ms);
+}
+.tt-cell::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 3px; background: var(--tt-c, transparent); }
+.tt-cell b { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tt-cell span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink-muted); }
+.tt-cell .tt-time { position: absolute; top: 4px; right: 6px; font-size: 10px; color: var(--ink-subtle); font-variant-numeric: tabular-nums; }
+button.tt-cell { cursor: pointer; }
+button.tt-cell:hover { transform: translateY(-1px); box-shadow: var(--shadow-sm); border-color: var(--border-strong); }
+button.tt-cell:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.tt-cell.is-free { background: transparent; border-style: dashed; color: var(--ink-subtle); align-content: center; justify-items: center; }
+.tt-cell.is-free span { color: var(--ink-subtle); }
+.tt-cell.is-closed { background: var(--surface-sunken); border-color: transparent; color: var(--ink-subtle); align-content: center; justify-items: center; animation: none; }
+.tt-cell.is-clash { border-color: var(--danger); box-shadow: inset 0 0 0 1px var(--danger); }
+.tt-cell.is-warn { border-color: var(--warning); }
+.tt-cell.is-cover { border-style: dashed; border-color: var(--info); }
+.tt-cell.is-dim { opacity: 0.45; }
+.tt-cell .tt-flag { position: absolute; right: 5px; bottom: 5px; color: var(--danger-ink); }
+.tt-cell.is-warn .tt-flag { color: var(--warning-ink); }
+
+/* Subject tints (chart palette mixed into the surface). */
+.tt-c0 { --tt-c: var(--chart-1); background: color-mix(in srgb, var(--chart-1) 9%, var(--surface-raised)); }
+.tt-c1 { --tt-c: var(--chart-2); background: color-mix(in srgb, var(--chart-2) 10%, var(--surface-raised)); }
+.tt-c2 { --tt-c: var(--chart-3); background: color-mix(in srgb, var(--chart-3) 10%, var(--surface-raised)); }
+.tt-c3 { --tt-c: var(--chart-4); background: color-mix(in srgb, var(--chart-4) 10%, var(--surface-raised)); }
+.tt-c4 { --tt-c: var(--chart-5); background: color-mix(in srgb, var(--chart-5) 10%, var(--surface-raised)); }
+.tt-c5 { --tt-c: var(--info); background: color-mix(in srgb, var(--info) 8%, var(--surface-raised)); }
+.tt-c6 { --tt-c: var(--brand); background: color-mix(in srgb, var(--brand) 7%, var(--surface-raised)); }
+.tt-c7 { --tt-c: var(--warning); background: color-mix(in srgb, var(--warning) 8%, var(--surface-raised)); }
+
+/* ---------- Requirement chips ---------- */
+.tt-reqs { display: grid; gap: var(--space-2); grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+.tt-req { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-raised); }
+.tt-req-top { display: flex; justify-content: space-between; gap: var(--space-2); font-size: 13px; }
+.tt-req-top b { font-weight: 600; }
+.tt-req small { font-size: 12px; color: var(--ink-muted); }
+
+/* ---------- Weekly matrix ---------- */
+.tt-matrix-wrap { overflow: auto; max-height: 620px; border-top: 1px solid var(--border); }
+.tt-matrix { border-collapse: separate; border-spacing: 0; font-size: 13px; font-variant-numeric: tabular-nums; min-width: 100%; }
+.tt-matrix th, .tt-matrix td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: center; white-space: nowrap; }
+.tt-matrix thead th { position: sticky; top: 0; z-index: 2; background: var(--surface-raised); color: var(--ink-muted); font-weight: 500; font-size: 12px; }
+.tt-matrix .tt-sticky { position: sticky; left: 0; z-index: 1; background: var(--surface-raised); text-align: left; border-right: 1px solid var(--border); }
+.tt-matrix thead .tt-sticky { z-index: 3; }
+.tt-matrix td.ok { color: var(--success-ink); }
+.tt-matrix td.short { background: var(--warning-tint); color: var(--warning-ink); font-weight: 600; }
+.tt-matrix td.over { background: var(--danger-tint); color: var(--danger-ink); font-weight: 600; }
+.tt-matrix td.none { color: var(--ink-subtle); }
+.tt-matrix tbody tr { animation: mtb-slide-in var(--motion-slow, 240ms) var(--ease-out, ease) both; animation-delay: calc(min(var(--i, 0), 20) * 25ms); }
+.tt-matrix tbody tr:hover td { background-color: var(--surface-hover); }
+
+/* ---------- Lists ---------- */
+.tt-list { list-style: none; margin: 0; padding: 0; display: grid; }
+.tt-list > li { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) 0; border-top: 1px solid var(--border); min-width: 0; }
+.tt-list > li:first-child { border-top: 0; }
+.tt-list button.tt-link { border: 0; background: transparent; padding: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.tt-list button.tt-link:hover b { text-decoration: underline; text-underline-offset: 2px; }
+
+/* The SMS a teacher receives, as a message bubble (same look as the parents' absence SMS preview). */
+.tt-sms { max-width: 460px; margin: 0; padding: var(--space-3) var(--space-4); border-radius: 18px 18px 18px 4px; background: var(--surface-sunken); font-size: 13px; line-height: 19px; color: var(--ink); }
+
+.tt-preview { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.tt-preview th, .tt-preview td { padding: 7px 10px; border-bottom: 1px solid var(--border); text-align: left; }
+.tt-preview th { color: var(--ink-muted); font-weight: 500; }
+.tt-preview tr.is-break td { background: var(--surface-sunken); color: var(--ink-muted); font-style: italic; }
+.tt-preview tr.is-off td { font-weight: 600; }
+.tt-preview tr { animation: mtb-slide-in var(--motion-slow, 240ms) var(--ease-out, ease) both; animation-delay: calc(var(--i, 0) * 30ms); }
+
+.tt-schedules { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.tt-schedule { display: grid; gap: var(--space-3); padding: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface-raised); transition: border-color 140ms ease, box-shadow 160ms ease; }
+.tt-schedule.is-on { border-color: var(--brand); box-shadow: inset 0 0 0 1px var(--brand); }
+.tt-form { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); align-items: start; }
+.tt-form h3 { grid-column: 1 / -1; margin: var(--space-2) 0 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-muted); }
+
+/* ---------- Printing ---------- */
+.tt-print-only { display: none; }
+@media print {
+  .tt-print-only { display: block; color: CanvasText; background: Canvas; font-size: 9pt; line-height: 1.3; }
+  .tt-print-only table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .tt-print-only th, .tt-print-only td { border: 0.5pt solid GrayText; padding: 3pt 4pt; text-align: center; vertical-align: middle; }
+  .tt-print-only td.l, .tt-print-only th.l { text-align: left; }
+  .tt-print-only .shade { background: color-mix(in srgb, GrayText 18%, Canvas); }
+  .tt-print-page + .tt-print-page { break-before: page; }
+  .tt-print-only tr { break-inside: avoid; }
+}
+.tt-print-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12pt; margin-bottom: 8pt; border-bottom: 1pt solid CanvasText; padding-bottom: 6pt; }
+.tt-print-head h1 { margin: 2pt 0; font-size: 14pt; }
+.tt-print-cell b { display: block; font-size: 9.5pt; }
+.tt-print-cell span { display: block; font-size: 8pt; }
+
+/* ---------- Groups (G column) and master sheets ---------- */
+.tt-grid .tt-group { width: 58px; font-size: 11px; color: var(--ink-muted); text-align: center; vertical-align: middle; }
+.tt-grid th.tt-group { font-weight: 600; }
+.tt-matrix td.tt-wrap { white-space: normal; min-width: 120px; text-align: left; font-size: 12px; line-height: 16px; vertical-align: top; }
+.tt-matrix td.tt-wrap span { display: block; }
+@media print {
+  .tt-print-only .tt-print-matrix td.tt-print-small { font-size: 7pt; line-height: 1.2; text-align: left; vertical-align: top; }
+  .tt-print-only .tt-print-matrix td.tt-print-small span { display: block; }
+  .tt-print-only .tt-print-slip { break-inside: avoid; margin-bottom: 8pt; }
+  .tt-print-only .tt-print-slip h2 { font-size: 10pt; margin: 0 0 2pt; }
+}

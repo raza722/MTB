@@ -1,0 +1,113 @@
+/* Accounts module (MTB addition). Design-system tokens only; no raw colours. */
+
+/* Figures inside panels */
+.acc-figures { display: flex; flex-wrap: wrap; gap: var(--space-4) var(--space-8); margin: 0; }
+.acc-figures dt { font-size: 12px; line-height: 16px; font-weight: 500; color: var(--ink-muted); }
+.acc-figures dd { margin: 2px 0 0; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+.acc-figure-lg { font-size: 28px; line-height: 36px; font-weight: 600; letter-spacing: -0.01em; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+/* Voucher type chip: "BP" with the full name in a tooltip */
+.acc-type { display: inline-grid; place-content: center; min-width: 30px; height: 22px; padding: 0 6px; border-radius: var(--radius-sm); background: var(--surface-sunken); color: var(--ink-muted); border: 1px solid var(--border); font-family: var(--font-mono); font-size: 11px; font-weight: 600; letter-spacing: 0.04em; }
+.acc-type.is-system { background: var(--info-tint); color: var(--info-ink); border-color: transparent; }
+
+/* Small kind/control chips in the chart */
+.acc-chip { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 6px; border-radius: var(--radius-sm); font-size: 11px; font-weight: 600; letter-spacing: 0.02em; background: var(--surface-sunken); color: var(--ink-muted); }
+.acc-chip svg { width: 12px; height: 12px; }
+.acc-chip.tone-brand { background: var(--brand-tint); color: var(--brand-ink); }
+.acc-chip.tone-info { background: var(--info-tint); color: var(--info-ink); }
+.acc-chip.tone-warning { background: var(--warning-tint); color: var(--warning-ink); }
+
+/* Balance with its side (Dr/Cr) */
+.acc-side { display: inline-block; width: 22px; margin-left: 4px; text-align: left; font-size: 12px; color: var(--ink-muted); }
+
+/* Needs-attention list */
+.acc-todo { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.acc-todo li > a, .acc-todo li > button { all: unset; box-sizing: border-box; width: 100%; display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); padding: var(--space-3); border-radius: var(--radius-md); border: 1px solid var(--border); cursor: pointer; transition: border-color 120ms ease, background 120ms ease; }
+.acc-todo li > a:hover, .acc-todo li > button:hover { border-color: var(--border-strong); background: var(--surface-hover); }
+.acc-todo li > a:focus-visible, .acc-todo li > button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.acc-todo-icon { width: 32px; height: 32px; border-radius: var(--radius-full); display: grid; place-content: center; background: var(--neutral-tint); color: var(--neutral-ink); }
+.acc-todo-icon svg { width: 16px; height: 16px; }
+.acc-todo-icon.tone-warning { background: var(--warning-tint); color: var(--warning-ink); }
+.acc-todo-icon.tone-danger { background: var(--danger-tint); color: var(--danger-ink); }
+.acc-todo-icon.tone-info { background: var(--info-tint); color: var(--info-ink); }
+.acc-todo-icon.tone-success { background: var(--success-tint); color: var(--success-ink); }
+.acc-todo-title { font-weight: 500; color: var(--ink); }
+.acc-todo-desc { font-size: 13px; line-height: 18px; color: var(--ink-muted); }
+
+/* Cash and bank account rows */
+.acc-banks { list-style: none; margin: 0; padding: 0; display: grid; }
+.acc-banks li + li { border-top: 1px solid var(--border); }
+.acc-banks a { display: grid; grid-template-columns: minmax(0, 1fr) 96px auto; align-items: center; gap: var(--space-3); padding: var(--space-3) 0; color: inherit; text-decoration: none; }
+.acc-banks a:hover .acc-bank-name { color: var(--brand-ink); text-decoration: underline; text-underline-offset: 2px; }
+
+/* Table rows enter one after another */
+.acc-stagger tbody tr { animation: mtb-slide-in var(--motion-slow) var(--ease-out) both; }
+.acc-stagger tbody tr:nth-child(2) { animation-delay: 30ms; }
+.acc-stagger tbody tr:nth-child(3) { animation-delay: 60ms; }
+.acc-stagger tbody tr:nth-child(4) { animation-delay: 90ms; }
+.acc-stagger tbody tr:nth-child(5) { animation-delay: 120ms; }
+.acc-stagger tbody tr:nth-child(6) { animation-delay: 150ms; }
+.acc-stagger tbody tr:nth-child(7) { animation-delay: 180ms; }
+.acc-stagger tbody tr:nth-child(8) { animation-delay: 210ms; }
+.acc-stagger tbody tr:nth-child(n + 9) { animation-delay: 240ms; }
+
+/* Statement layout (income and expenditure, balance sheet, reconciliation) */
+.acc-stmt { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.acc-stmt th, .acc-stmt td { padding: 8px 0; text-align: left; vertical-align: top; }
+.acc-stmt td.num, .acc-stmt th.num { text-align: right; white-space: nowrap; padding-left: var(--space-4); }
+.acc-stmt .grp td { padding-top: var(--space-4); font-weight: 600; color: var(--ink); }
+.acc-stmt .sub td { color: var(--ink-muted); padding-left: var(--space-5); }
+.acc-stmt .sub td.num { color: var(--ink); }
+.acc-stmt .tot td { border-top: 1px solid var(--border-strong); font-weight: 600; }
+.acc-stmt .grand td { border-top: 2px solid var(--ink); font-weight: 700; font-size: 15px; }
+.acc-stmt a { color: inherit; text-decoration: none; }
+.acc-stmt a:hover { color: var(--brand-ink); text-decoration: underline; text-underline-offset: 2px; }
+
+/* Month cards on the month-close page */
+.acc-months { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+.acc-month { display: grid; gap: var(--space-2); padding: var(--space-4); border-radius: var(--radius-lg); border: 1px solid var(--border); background: var(--surface-raised); text-align: left; font: inherit; color: inherit; }
+.acc-month.is-open { border-color: var(--brand); box-shadow: inset 0 0 0 1px var(--brand); }
+.acc-month.is-future { background: var(--surface-sunken); color: var(--ink-muted); border-style: dashed; }
+button.acc-month { cursor: pointer; transition: border-color 120ms ease, transform 120ms ease; }
+button.acc-month:hover { border-color: var(--border-strong); transform: translateY(-1px); }
+button.acc-month:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+/* Matrix of campuses × months */
+.acc-matrix td, .acc-matrix th { text-align: center; }
+.acc-matrix td:first-child, .acc-matrix th:first-child { text-align: left; }
+.acc-cell { all: unset; box-sizing: border-box; display: inline-grid; place-content: center; width: 30px; height: 30px; border-radius: var(--radius-md); cursor: pointer; }
+.acc-cell svg { width: 16px; height: 16px; }
+.acc-cell.is-closed { background: var(--success-tint); color: var(--success-ink); }
+.acc-cell.is-open { background: var(--warning-tint); color: var(--warning-ink); }
+.acc-cell.is-future { color: var(--ink-subtle); }
+.acc-cell:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+/* Check list */
+.acc-checks { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); }
+.acc-checks li { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: var(--space-3); }
+.acc-check-ok { color: var(--success-ink); }
+.acc-check-no { color: var(--danger-ink); }
+
+/* Printable documents: vouchers, ledgers, statements on A4 */
+.acc-print-only { display: none; }
+@page acc-a4 { size: A4 portrait; margin: 12mm; }
+.acc-doc { font-size: 12px; line-height: 16px; color: var(--ink); background: var(--surface-raised); }
+.acc-doc h1 { margin: 0; font-size: 18px; line-height: 24px; }
+.acc-doc h2 { margin: 0; font-size: 14px; line-height: 20px; }
+.acc-doc table { width: 100%; border-collapse: collapse; }
+.acc-doc th, .acc-doc td { border: 1px solid var(--border-strong); padding: 4px 6px; text-align: left; vertical-align: top; }
+.acc-doc th { background: var(--surface-sunken); font-weight: 600; }
+.acc-doc td.num, .acc-doc th.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.acc-doc .acc-doc-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding-bottom: 8px; margin-bottom: 10px; border-bottom: 2px solid var(--ink); }
+.acc-doc .acc-doc-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 24px; margin: 10px 0; }
+.acc-doc .acc-doc-sign { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-top: 48px; }
+.acc-doc .acc-doc-sign div { border-top: 1px solid var(--ink); padding-top: 4px; text-align: center; font-size: 11px; }
+.acc-doc .acc-doc-draft { margin: 8px 0; padding: 6px 10px; border: 2px dashed var(--danger-ink); color: var(--danger-ink); font-weight: 700; text-align: center; letter-spacing: 0.08em; }
+.acc-doc .acc-doc-foot { margin-top: 12px; font-size: 10px; color: var(--ink-muted); display: flex; justify-content: space-between; }
+
+@media print {
+  .acc-print-only { display: block !important; page: acc-a4; }
+  .acc-doc { background: none; }
+  .acc-doc tr { break-inside: avoid; }
+  .acc-stagger tbody tr { animation: none !important; }
+}

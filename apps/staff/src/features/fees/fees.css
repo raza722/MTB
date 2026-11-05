@@ -1,0 +1,68 @@
+/* Fee office: bank vouchers (A4 landscape, up to three tear-off copies), report print-outs (A4 portrait)
+   and the candidate fee slip (A5). Colours come from design-system tokens; paper always prints light. */
+
+/* ---------- Bank voucher ---------- */
+.fees-voucher-sheet {
+  box-sizing: border-box; width: 277mm; min-height: 186mm; padding: 4mm; background: var(--surface-raised); color: var(--ink);
+  display: grid; grid-template-columns: repeat(var(--copies, 3), 1fr); font-size: 8.4pt; line-height: 1.3;
+}
+.fees-voucher-copy { box-sizing: border-box; padding: 3mm 4mm; display: grid; align-content: start; gap: 2mm; position: relative; }
+.fees-voucher-copy + .fees-voucher-copy { border-left: 0.8pt dashed var(--border-strong); }
+.fees-voucher-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 3mm; border-bottom: 1.2pt solid var(--ink); padding-bottom: 1.5mm; }
+.fees-voucher-head strong { display: block; font-size: 10.5pt; line-height: 1.2; }
+.fees-voucher-tag { border: 0.8pt solid var(--ink); border-radius: 1mm; padding: 0.4mm 1.6mm; font-size: 7pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
+.fees-voucher-bank { background: var(--surface-sunken); border-radius: 1mm; padding: 1.5mm 2mm; display: grid; gap: 0.3mm; }
+.fees-voucher-kv { display: grid; grid-template-columns: auto 1fr; gap: 0.4mm 3mm; margin: 0; }
+.fees-voucher-kv dt { color: var(--ink-muted); }
+.fees-voucher-kv dd { margin: 0; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+.fees-voucher table { width: 100%; border-collapse: collapse; }
+.fees-voucher th, .fees-voucher td { border-bottom: 0.5pt solid var(--border-strong); padding: 0.9mm 0.6mm; text-align: left; vertical-align: top; }
+.fees-voucher th { font-weight: 600; color: var(--ink-muted); font-size: 7.4pt; }
+.fees-voucher td.n, .fees-voucher th.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fees-voucher tr.fees-voucher-total td { border-top: 1pt solid var(--ink); border-bottom: 0; font-weight: 700; font-size: 9.6pt; }
+.fees-voucher-words { font-style: italic; color: var(--ink-muted); }
+.fees-voucher-sign { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; margin-top: 5mm; }
+.fees-voucher-sign div { border-top: 0.6pt solid var(--ink); padding-top: 0.8mm; text-align: center; color: var(--ink-muted); font-size: 7pt; }
+.fees-voucher-mark { position: absolute; inset: 0; display: grid; place-content: center; pointer-events: none; font-size: 30pt; font-weight: 700; letter-spacing: 0.14em; color: var(--danger); opacity: 0.12; transform: rotate(-24deg); }
+
+/* ---------- Printed reports (A4 portrait) ---------- */
+.fees-doc { box-sizing: border-box; width: 190mm; padding: 8mm 10mm; background: var(--surface-raised); color: var(--ink); font-size: 9.5pt; line-height: 1.35; }
+.fees-doc-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; border-bottom: 1.2pt solid var(--ink); padding-bottom: 3mm; margin-bottom: 4mm; }
+.fees-doc-head h1 { margin: 0; font-size: 13pt; }
+.fees-doc-head p { margin: 0; color: var(--ink-muted); font-size: 8.5pt; }
+.fees-doc table { width: 100%; border-collapse: collapse; margin-bottom: 4mm; }
+.fees-doc th, .fees-doc td { border: 0.5pt solid var(--border-strong); padding: 1.2mm 1.8mm; text-align: left; }
+.fees-doc th { background: var(--surface-sunken); font-weight: 600; }
+.fees-doc td.n, .fees-doc th.n { text-align: right; font-variant-numeric: tabular-nums; }
+.fees-doc h2 { font-size: 10.5pt; margin: 4mm 0 2mm; }
+.fees-doc-sign { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10mm; margin-top: 12mm; }
+.fees-doc-sign div { border-top: 0.6pt solid var(--ink); padding-top: 1mm; text-align: center; color: var(--ink-muted); font-size: 8pt; }
+
+/* ---------- Candidate fee slip (A5) ---------- */
+.fees-slip { box-sizing: border-box; width: 148mm; padding: 7mm; background: var(--surface-raised); color: var(--ink); font-size: 10pt; line-height: 1.4; display: grid; gap: 3mm; border: 1px solid var(--border); }
+
+/* ---------- Screen-only preview desk ---------- */
+@media screen {
+  .fees-desk { background: var(--surface-sunken); border-radius: var(--radius-lg); padding: 16px; overflow: auto; display: grid; justify-items: center; gap: 16px; }
+  .fees-desk-zoom { zoom: var(--doc-zoom, 0.72); display: grid; gap: 18px; justify-items: center; }
+  .fees-voucher-sheet, .fees-doc { box-shadow: var(--shadow-md); }
+  .fees-print-only { display: none; }
+}
+
+/* ---------- Bars in tables (share of a whole) ---------- */
+.fees-meter { height: 6px; border-radius: 99px; background: var(--chart-track); overflow: hidden; min-width: 60px; }
+.fees-meter > span { display: block; height: 100%; border-radius: inherit; background: var(--chart-1); transform-origin: left; animation: mtb-grow-x 700ms var(--ease-out, ease) both; }
+
+@page fees-voucher { size: A4 landscape; margin: 6mm; }
+@page fees-a4 { size: A4 portrait; margin: 10mm; }
+
+@media print {
+  .fees-desk, .fees-desk-zoom { display: block !important; padding: 0 !important; background: none !important; zoom: 1 !important; overflow: visible !important; }
+  .fees-print-voucher { page: fees-voucher; }
+  .fees-print-a4 { page: fees-a4; }
+  .fees-voucher-sheet, .fees-doc { box-shadow: none !important; }
+  .fees-voucher-sheet + .fees-voucher-sheet { break-before: page; }
+  .fees-voucher-sheet { break-inside: avoid; }
+  .fees-doc tr { break-inside: avoid; }
+  .fees-print-only { display: block; }
+}

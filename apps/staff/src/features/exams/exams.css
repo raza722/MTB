@@ -1,0 +1,118 @@
+/* Exams module: the marks grid, the progress board and printed exam documents (A4 portrait and landscape).
+   Colours come from the design-system tokens; printed paper is always the light theme. */
+
+/* ---------- Marks grid ---------- */
+.exams-grid-wrap { overflow: auto; max-height: 620px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-raised); }
+.exams-grid { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 14px; }
+.exams-grid th, .exams-grid td { border-bottom: 1px solid var(--border); padding: 4px 8px; text-align: left; white-space: nowrap; background: var(--surface-raised); }
+.exams-grid thead th { position: sticky; top: 0; z-index: 2; background: var(--surface-sunken); font-weight: 600; font-size: 12px; color: var(--ink-muted); vertical-align: bottom; padding: 8px; }
+.exams-grid th.exams-grid-sticky, .exams-grid td.exams-grid-sticky { position: sticky; left: 0; z-index: 1; box-shadow: 1px 0 0 var(--border); }
+.exams-grid thead th.exams-grid-sticky { z-index: 3; }
+.exams-grid td.exams-grid-num, .exams-grid th.exams-grid-num { text-align: right; font-variant-numeric: tabular-nums; }
+.exams-grid tr:hover td { background: var(--surface-hover); }
+.exams-grid td.is-missing { background: var(--warning-tint); }
+.exams-grid td.is-absent { background: var(--status-absent-tint, var(--surface-sunken)); }
+.exams-grid td.is-error { background: var(--danger-tint); }
+.exams-grid td.is-na { background: var(--surface-sunken); }
+.exams-cell-na { display: inline-block; width: 68px; text-align: center; color: var(--ink-muted); }
+.exams-cell {
+  width: 68px; height: 32px; box-sizing: border-box; border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+  background: var(--surface-raised); color: var(--ink); text-align: right; padding: 0 8px; font: inherit; font-variant-numeric: tabular-nums;
+}
+.exams-cell:focus { outline: 2px solid var(--focus-ring, var(--brand)); outline-offset: 1px; border-color: var(--brand); }
+.exams-cell.is-invalid { border-color: var(--danger); color: var(--danger-ink); }
+.exams-cell.is-letter { color: var(--ink-muted); font-weight: 600; text-align: center; }
+.exams-cell[readonly] { background: transparent; border-color: transparent; }
+.exams-grid-head { display: grid; gap: 2px; min-width: 76px; }
+.exams-grid-head b { color: var(--ink); font-size: 13px; }
+
+/* ---------- Progress board ---------- */
+.exams-board { display: grid; gap: 8px; }
+.exams-board-row { display: grid; grid-template-columns: 96px repeat(var(--cols), minmax(118px, 1fr)); gap: 8px; align-items: stretch; }
+.exams-board-cell {
+  display: grid; gap: 2px; padding: 8px 10px; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--surface-raised);
+  text-align: left; font: inherit; color: var(--ink); cursor: pointer; transition: border-color var(--motion-fast, 120ms) ease, transform var(--motion-fast, 120ms) ease;
+}
+.exams-board-cell:hover { border-color: var(--brand); transform: translateY(-1px); }
+.exams-board-cell:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.exams-board-cell[data-status="NOT_STARTED"] { background: var(--surface-sunken); }
+.exams-board-cell[data-status="IN_PROGRESS"] { background: var(--warning-tint); border-color: transparent; }
+.exams-board-cell[data-status="SUBMITTED"] { background: var(--info-tint); border-color: transparent; }
+.exams-board-cell[data-status="CHECKED"] { background: var(--success-tint); border-color: transparent; }
+.exams-board-meter { height: 4px; border-radius: 99px; background: color-mix(in srgb, var(--ink) 10%, transparent); overflow: hidden; }
+.exams-board-meter span { display: block; height: 100%; background: var(--ink-muted); border-radius: inherit; }
+
+/* ---------- Bars (grade spread, subject pass rates) ---------- */
+.exams-bars { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.exams-bars li { display: grid; grid-template-columns: 56px 1fr 72px; gap: 12px; align-items: center; font-size: 14px; }
+.exams-bar { height: 12px; border-radius: 99px; background: var(--surface-sunken); overflow: hidden; }
+.exams-bar span { display: block; height: 100%; border-radius: inherit; background: var(--brand); transform-origin: left; animation: exams-grow 600ms var(--ease-out, ease) both; }
+.exams-bar span.is-fail { background: var(--danger); }
+@keyframes exams-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@media (prefers-reduced-motion: reduce) { .exams-bar span { animation: none; } }
+
+/* ---------- Printed documents ---------- */
+.exams-doc { box-sizing: border-box; background: var(--surface-raised); color: var(--ink); font-size: 10.5pt; line-height: 1.4; position: relative; overflow: hidden; }
+.exams-doc-a4 { width: 190mm; min-height: 277mm; padding: 10mm 12mm; }
+.exams-doc-land { width: 277mm; min-height: 190mm; padding: 8mm 10mm; font-size: 8.5pt; }
+.exams-doc-half { min-height: 0; }
+.exams-doc-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1.4pt solid var(--ink); padding-bottom: 3mm; margin-bottom: 4mm; }
+.exams-doc-head h1 { margin: 0; font-size: 14pt; line-height: 1.2; }
+.exams-doc-head p { margin: 0; color: var(--ink-muted); font-size: 9pt; }
+.exams-doc-seal { width: 14mm; height: 14mm; border-radius: 999px; display: grid; place-content: center; background: var(--brand); color: var(--on-brand); font-weight: 700; font-size: 10pt; flex-shrink: 0; }
+.exams-doc-title { text-align: right; }
+.exams-doc-title strong { display: block; font-size: 13pt; }
+.exams-doc table { width: 100%; border-collapse: collapse; }
+.exams-doc th, .exams-doc td { border: 0.6pt solid var(--border-strong); padding: 1.6mm 2mm; text-align: left; vertical-align: middle; }
+.exams-doc-land th, .exams-doc-land td { padding: 1mm 1.4mm; }
+.exams-doc th { background: var(--surface-sunken); font-weight: 600; }
+.exams-doc td.n, .exams-doc th.n { text-align: right; font-variant-numeric: tabular-nums; }
+.exams-doc td.c, .exams-doc th.c { text-align: center; }
+.exams-doc .fail { color: var(--danger-ink); font-weight: 600; }
+.exams-doc-info { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5mm 6mm; margin-bottom: 4mm; font-size: 10pt; }
+.exams-doc-info dt { color: var(--ink-muted); font-size: 8.5pt; }
+.exams-doc-info dd { margin: 0; font-weight: 600; }
+.exams-doc-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; margin-top: 3mm; border: 0.6pt solid var(--border-strong); }
+.exams-doc-summary div { padding: 2mm; border-right: 0.6pt solid var(--border-strong); }
+.exams-doc-summary div:last-child { border-right: 0; }
+.exams-doc-summary span { display: block; font-size: 8.5pt; color: var(--ink-muted); }
+.exams-doc-summary b { font-size: 12pt; }
+.exams-doc-signs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10mm; margin-top: 14mm; }
+.exams-doc-signs div { border-top: 0.8pt solid var(--ink); padding-top: 1.5mm; text-align: center; font-size: 9pt; color: var(--ink-muted); }
+.exams-doc-foot { position: absolute; left: 12mm; right: 12mm; bottom: 6mm; display: flex; justify-content: space-between; font-size: 8pt; color: var(--ink-muted); }
+.exams-doc-mark { position: absolute; inset: 0; display: grid; place-content: center; pointer-events: none; font-size: 54pt; font-weight: 700; letter-spacing: 0.16em; color: var(--danger); opacity: 0.1; transform: rotate(-24deg); }
+.exams-doc-key { margin-top: 4mm; font-size: 8.5pt; color: var(--ink-muted); }
+.exams-label-sheet { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; }
+.exams-label { border: 0.8pt dashed var(--border-strong); border-radius: 2mm; padding: 4mm; display: grid; gap: 1mm; break-inside: avoid; min-height: 58mm; }
+.exams-label strong { font-size: 13pt; }
+.exams-slip-sheet { display: grid; grid-template-columns: 1fr; gap: 6mm; }
+.exams-slip { border: 0.8pt solid var(--border-strong); border-radius: 2mm; padding: 4mm; break-inside: avoid; display: grid; gap: 2mm; }
+.exams-blank { height: 7mm; }
+/* Award list, two copies on one sheet; blank lines to write on; vertical column headings. */
+.exams-award-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; align-items: start; padding: 8mm; font-size: 8pt; }
+.exams-award-pair th, .exams-award-pair td { padding: 0.8mm 1mm; }
+.exams-award-pair .exams-doc-info { margin-bottom: 2mm; gap: 1mm 3mm; }
+.exams-award-head { display: grid; gap: 0.5mm; text-align: center; margin-bottom: 2mm; padding-bottom: 1.5mm; border-bottom: 1pt solid var(--ink); }
+.exams-award-head b { font-size: 11pt; }
+.exams-award-head span { color: var(--ink-muted); font-size: 7.5pt; }
+.exams-fill { display: inline-block; min-width: 24mm; height: 1em; border-bottom: 0.6pt solid var(--ink); vertical-align: bottom; }
+.exams-tally { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5mm 4mm; margin-top: 3mm; font-size: 8pt; }
+.exams-tally span { display: flex; align-items: flex-end; gap: 1.5mm; }
+.exams-vert { display: inline-block; writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; }
+/* Per-student cards (consolidated results) and summary boxes. */
+.exams-card-grid { display: grid; grid-template-columns: max-content max-content; gap: 2mm 10mm; margin-top: 4mm; align-items: start; }
+
+@media screen {
+  .exams-desk { background: var(--surface-sunken); border-radius: var(--radius-lg); padding: 16px; overflow: auto; display: grid; justify-items: center; }
+  .exams-zoom { zoom: var(--doc-zoom, 0.7); display: grid; justify-items: center; gap: 20px; }
+  .exams-doc { box-shadow: var(--shadow-md); }
+  .exams-zoom .mtb-print-area { display: grid; gap: 20px; justify-items: center; }
+}
+
+@media print {
+  .exams-doc { box-shadow: none !important; }
+  .exams-desk, .exams-zoom { display: block !important; padding: 0 !important; background: none !important; zoom: 1 !important; overflow: visible !important; }
+  .exams-doc + .exams-doc { break-before: page; }
+  .exams-doc-a4, .exams-doc-land { min-height: 0; }
+  .exams-doc tr { break-inside: avoid; }
+}

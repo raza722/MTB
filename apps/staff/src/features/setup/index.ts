@@ -1,0 +1,11 @@
+export { SetupHome } from "./SetupHome";
+export { CampusesPage } from "./CampusesPage";
+export { SessionsPage } from "./SessionsPage";
+export { ClassesPage, type ClassesTab } from "./ClassesPage";
+export { SubjectsPage, type SubjectsTab } from "./SubjectsPage";
+export { TeachersPage } from "./TeachersPage";
+export { UsersPage } from "./UsersPage";
+export { RolesPage } from "./RolesPage";
+export { CampusSettingsPage } from "./CampusSettingsPage";
+export { AuditPage } from "./AuditPage";
+export { RequireAny } from "./shared";

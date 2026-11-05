@@ -1,0 +1,146 @@
+/*
+ * Attendance module layout. MTB additions built only from design-system tokens; badges, meters, buttons and cards
+ * inside are the design system's own classes. Motion is cut by the reduced-motion rule in @mtb/ui.
+ */
+
+/* ---------- KPI row ---------- */
+.att-kpis { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+.att-kpis > * { animation: mtb-rise var(--motion-slow, 240ms) var(--ease-out, ease) both; animation-delay: calc(var(--i, 0) * 60ms); }
+
+.att-grid-2 { display: grid; gap: var(--space-6); grid-template-columns: minmax(0, 1fr); align-items: start; }
+@media (min-width: 1100px) { .att-grid-2 { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); } }
+
+.att-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-3); }
+.att-filters > .att-f { min-width: 180px; }
+
+/* ---------- Register ---------- */
+.att-register { list-style: none; margin: 0; padding: 0; display: grid; }
+.att-register > li { display: grid; grid-template-columns: 40px 36px minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); padding: 10px var(--space-4); border-top: 1px solid var(--border); }
+.att-register > li:first-child { border-top: 0; }
+.att-register > li.is-absent { background: color-mix(in srgb, var(--status-absent-tint) 55%, transparent); }
+.att-register > li.is-pending { background: color-mix(in srgb, var(--warning-tint) 50%, transparent); }
+.att-roll { font-variant-numeric: tabular-nums; color: var(--ink-muted); font-size: 13px; text-align: right; }
+.att-name { display: grid; min-width: 0; }
+.att-name a, .att-name b { font-weight: 500; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.att-name a { text-decoration: none; }
+.att-name a:hover { text-decoration: underline; text-underline-offset: 2px; }
+.att-name small { font-size: 12px; color: var(--ink-muted); }
+.att-row-actions { display: flex; align-items: center; gap: var(--space-2); justify-content: flex-end; flex-wrap: wrap; }
+@media (max-width: 720px) {
+  .att-register > li { grid-template-columns: 32px minmax(0, 1fr); }
+  .att-register > li > .mtb-avatar { display: none; }
+  .att-row-actions { grid-column: 1 / -1; justify-content: flex-start; }
+}
+
+/* The P / A / L / LT picker: each option takes its status tint when chosen. */
+.att-marks { display: inline-flex; gap: 4px; padding: 3px; border-radius: var(--radius-md); background: var(--surface-sunken); }
+.att-marks button {
+  min-width: 40px; height: 30px; padding: 0 8px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--ink-muted);
+  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 120ms ease, color 120ms ease, transform 160ms var(--ease-out, ease);
+}
+.att-marks button:hover { color: var(--ink); background: var(--surface-hover); }
+.att-marks button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.att-marks button[aria-pressed="true"] { transform: scale(1.04); }
+.att-marks button[aria-pressed="true"].is-P { background: var(--status-present-tint); color: var(--status-present-ink); }
+.att-marks button[aria-pressed="true"].is-A { background: var(--status-absent-tint); color: var(--status-absent-ink); }
+.att-marks button[aria-pressed="true"].is-L { background: var(--status-leave-tint); color: var(--status-leave-ink); }
+.att-marks button[aria-pressed="true"].is-LT { background: var(--status-late-tint); color: var(--status-late-ink); }
+
+/* Sticky bar while the office marks a register. */
+.att-submitbar {
+  position: sticky; bottom: var(--space-4); z-index: 5; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3);
+  padding: var(--space-3) var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface-raised); box-shadow: var(--shadow-md);
+  animation: mtb-rise var(--motion-slow, 240ms) var(--ease-out, ease) both;
+}
+.att-counts { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+/* ---------- Monthly sheet ---------- */
+.att-sheet-wrap { overflow: auto; max-height: 640px; border-top: 1px solid var(--border); }
+.att-sheet { border-collapse: separate; border-spacing: 0; font-size: 12px; font-variant-numeric: tabular-nums; min-width: 100%; }
+.att-sheet th, .att-sheet td { padding: 0; height: 30px; text-align: center; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.att-sheet thead th { position: sticky; top: 0; z-index: 2; background: var(--surface-raised); color: var(--ink-muted); font-weight: 500; height: 40px; }
+.att-sheet thead th .wd { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
+.att-sheet .att-sticky { position: sticky; left: 0; z-index: 1; background: var(--surface-raised); text-align: left; padding: 0 var(--space-3); min-width: 210px; border-right: 1px solid var(--border); }
+.att-sheet thead .att-sticky { z-index: 3; }
+.att-sheet .att-day { min-width: 28px; width: 28px; }
+.att-sheet .att-tot { min-width: 44px; padding: 0 6px; font-weight: 600; color: var(--ink); background: var(--surface-sunken); }
+.att-sheet tbody tr { animation: mtb-slide-in var(--motion-slow, 240ms) var(--ease-out, ease) both; animation-delay: calc(min(var(--i, 0), 20) * 25ms); }
+.att-sheet tbody tr:hover td { background-color: var(--surface-hover); }
+.att-sheet td.is-A { background: var(--status-absent-tint); color: var(--status-absent-ink); font-weight: 600; }
+.att-sheet td.is-L { background: var(--status-leave-tint); color: var(--status-leave-ink); font-weight: 600; }
+.att-sheet td.is-LT { background: var(--status-late-tint); color: var(--status-late-ink); font-weight: 600; }
+.att-sheet td.is-P { color: var(--status-present-ink); }
+.att-sheet .is-off { background: var(--surface-sunken); color: var(--ink-subtle); }
+.att-sheet .is-closed { color: var(--status-holiday-ink); background-color: var(--status-holiday-tint);
+  background-image: repeating-linear-gradient(135deg, transparent 0 5px, color-mix(in srgb, var(--status-holiday-ink) 22%, transparent) 5px 6px); }
+.att-sheet .is-future { color: var(--ink-subtle); }
+.att-sheet .is-today { box-shadow: inset 0 -2px 0 var(--brand); }
+.att-sheet tfoot td { position: sticky; bottom: 0; background: var(--surface-sunken); font-weight: 600; color: var(--ink); }
+.att-sheet .low { color: var(--danger-ink); }
+
+/* ---------- Calendar ---------- */
+.att-cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.att-cal-wd { font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.02em; color: var(--ink-muted); text-align: center; padding-bottom: 2px; }
+.att-cal-day { min-height: 92px; display: grid; align-content: start; gap: 4px; padding: 6px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-raised); font-size: 12px; min-width: 0; }
+.att-cal-day .d { color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+.att-cal-day.is-pad { visibility: hidden; }
+.att-cal-day.is-sun { background: var(--surface-sunken); border-style: dashed; }
+.att-cal-day.is-today { box-shadow: inset 0 0 0 2px var(--brand); }
+.att-cal-day.is-closed { background-color: var(--status-holiday-tint);
+  background-image: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--status-holiday-ink) 14%, transparent) 6px 7px); }
+.att-chip { display: block; padding: 2px 6px; border-radius: var(--radius-sm); font-size: 11px; line-height: 15px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border: 0; text-align: left; font-family: inherit; cursor: pointer; }
+.att-chip.k-HOLIDAY { background: var(--danger-tint); color: var(--danger-ink); }
+.att-chip.k-VACATION { background: var(--info-tint); color: var(--info-ink); }
+.att-chip.k-EXAM { background: var(--warning-tint); color: var(--warning-ink); }
+.att-chip.k-EVENT { background: var(--brand-tint); color: var(--brand-ink); }
+.att-chip:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+@media (max-width: 720px) { .att-cal-day { min-height: 56px; } .att-chip { font-size: 0; padding: 0; height: 6px; } }
+.att-kind-dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; vertical-align: -1px; }
+.att-kind-dot.k-HOLIDAY { background: var(--danger); }
+.att-kind-dot.k-VACATION { background: var(--info); }
+.att-kind-dot.k-EXAM { background: var(--warning); }
+.att-kind-dot.k-EVENT { background: var(--brand); }
+
+/* ---------- Lists inside panels ---------- */
+.att-list { list-style: none; margin: 0; padding: 0; display: grid; }
+.att-list > li { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) 0; border-top: 1px solid var(--border); min-width: 0; }
+.att-list > li:first-child { border-top: 0; }
+.att-when { display: grid; place-content: center; width: 48px; height: 48px; flex: none; border-radius: var(--radius-md); background: var(--surface-sunken); text-align: center; line-height: 1.1; }
+.att-when b { font-size: 18px; font-variant-numeric: tabular-nums; }
+.att-when span { font-size: 11px; text-transform: uppercase; color: var(--ink-muted); }
+
+.att-sms { max-width: 420px; padding: var(--space-3) var(--space-4); border-radius: 18px 18px 18px 4px; background: var(--surface-sunken); font-size: 13px; line-height: 19px; color: var(--ink); }
+.att-sms[dir="rtl"] { border-radius: 18px 18px 4px 18px; font-family: var(--font-urdu); font-size: 15px; line-height: 2; }
+
+.att-months { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+
+/* ---------- Printing ---------- */
+.att-print-only { display: none; }
+@media print {
+  .att-print-only { display: block; }
+  .att-print-only { color: CanvasText; background: Canvas; font-size: 9pt; line-height: 1.35; }
+  .att-print-only table { width: 100%; border-collapse: collapse; }
+  .att-print-only th, .att-print-only td { border: 0.5pt solid GrayText; padding: 2pt 3pt; text-align: center; vertical-align: middle; }
+  .att-print-only td.l, .att-print-only th.l { text-align: left; }
+  .att-print-only tr { break-inside: avoid; }
+  .att-print-only .hatch { background: repeating-linear-gradient(135deg, transparent 0 3pt, GrayText 3pt 3.5pt); }
+  .att-print-only .shade { background: color-mix(in srgb, GrayText 18%, Canvas); }
+  .att-print-portrait { font-size: 10pt; }
+}
+.att-print-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12pt; margin-bottom: 8pt; border-bottom: 1pt solid CanvasText; padding-bottom: 6pt; }
+.att-print-head h1 { margin: 2pt 0; font-size: 14pt; }
+.att-print-school { font-size: 9pt; font-weight: 600; }
+.att-print-date { font-size: 9pt; }
+.att-print-sign { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24pt; margin-top: 26pt; }
+.att-print-sign div { border-top: 0.5pt solid CanvasText; padding-top: 4pt; font-size: 9pt; }
+.att-print-kv { display: grid; grid-template-columns: 120pt 1fr; gap: 6pt 12pt; max-width: 360pt; margin: 12pt 0; }
+.att-print-kv dt { font-weight: 600; }
+.att-print-kv dd { margin: 0; border-bottom: 0.5pt solid CanvasText; }
+
+/* Table rows that need attention (below the attendance line). */
+.mtb-table tbody tr.att-low td { background: color-mix(in srgb, var(--danger-tint) 45%, transparent); }
+.mtb-table tbody tr.att-warn td { background: color-mix(in srgb, var(--warning-tint) 45%, transparent); }
+
+/* Monthly register: G.R. and father beside the name; the second header row carries the total labels. */
+.att-sheet .att-info { padding: 0 var(--space-2); text-align: left; color: var(--ink-muted); max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+.att-sheet thead tr.att-sub th { top: 40px; height: 22px; font-size: 11px; }

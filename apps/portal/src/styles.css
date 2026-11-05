@@ -1,0 +1,169 @@
+@import "tailwindcss";
+@import "@mtb/ui/styles.css";
+
+/* Scan the shared UI package for class names too. */
+@source "../../../packages/ui/src";
+
+/*
+ * MTB Parent Portal. Mobile first (390 × 844) with a proper desktop layout from 1024px. Everything here is built
+ * from design-system tokens; layout direction comes from <html dir>, so the same markup mirrors for Urdu.
+ */
+
+/* Phones: body text is 16px (brief §3). Desktop keeps the design system's 14px. */
+@media (max-width: 1023px) {
+  body.mtb-root {
+    font-size: 16px;
+    line-height: 24px;
+  }
+}
+
+/* ---------- Urdu: Noto Nastaliq Urdu about 1.15× the English size, line height about 2 (never clipped) ---------- */
+body.mtb-root:lang(ur) {
+  font-family: var(--font-urdu);
+  font-size: 16px;
+  line-height: 32px;
+}
+.text-display:lang(ur) { font-size: 32px; line-height: 64px; }
+.text-title-1:lang(ur) { font-size: 25px; line-height: 52px; }
+.text-title-2:lang(ur) { font-size: 21px; line-height: 44px; }
+.text-title-3:lang(ur) { font-size: 17px; line-height: 36px; }
+.text-body:lang(ur), .text-body-strong:lang(ur) { font-size: 16px; line-height: 32px; }
+.text-body-large:lang(ur) { font-size: 18px; line-height: 36px; }
+.text-small:lang(ur) { font-size: 15px; line-height: 30px; }
+.text-caption:lang(ur) { font-size: 13px; line-height: 26px; letter-spacing: 0; }
+.mtb-block-head h2:lang(ur) { font-size: 17px; line-height: 36px; }
+.mtb-block-head p:lang(ur), .mtb-help:lang(ur), .mtb-error:lang(ur), .mtb-banner:lang(ur), .mtb-stat-label:lang(ur), .mtb-stat-foot:lang(ur),
+.mtb-empty p:lang(ur), .mtb-toast-text span:lang(ur), .mtb-attcal-legend:lang(ur) { font-size: 15px; line-height: 30px; }
+.mtb-empty h3:lang(ur), .mtb-modal-header h2:lang(ur) { font-size: 17px; line-height: 36px; }
+.mtb-label:lang(ur) { font-size: 14px; line-height: 28px; text-transform: none; letter-spacing: 0; }
+.mtb-btn:lang(ur), .mtb-seg button:lang(ur), .mtb-tab:lang(ur) { line-height: 1.9; }
+.mtb-btn-sm:lang(ur) { font-size: 14px; }
+.mtb-badge:lang(ur) { height: auto; min-height: 22px; font-size: 13px; line-height: 26px; letter-spacing: 0; }
+.mtb-input:lang(ur) { font-family: var(--font-sans); }
+.mtb-kv:lang(ur) { font-size: 16px; line-height: 32px; }
+.mtb-menu-item:lang(ur) { height: auto; min-height: 40px; line-height: 1.9; }
+.mtb-menu-label:lang(ur) { font-size: 13px; line-height: 26px; text-transform: none; letter-spacing: 0; }
+.mtb-table:lang(ur) { font-size: 15px; line-height: 30px; }
+.mtb-table th:lang(ur) { font-size: 14px; line-height: 28px; text-transform: none; letter-spacing: 0; }
+
+/* Left-to-right pieces inside Urdu (amounts, dates, phones, G.R. and class names) stay in Inter. */
+.portal-ltr { font-family: var(--font-sans); unicode-bidi: isolate; }
+.portal-ltr.portal-mono { font-family: var(--font-mono); }
+
+/* Icons that point a direction turn round in Urdu. */
+[dir="rtl"] .portal-flip { transform: scaleX(-1); }
+
+/* ---------- Shell ---------- */
+.portal-topbar {
+  background: color-mix(in srgb, var(--surface-raised) 86%, transparent);
+  -webkit-backdrop-filter: saturate(1.4) blur(12px);
+  backdrop-filter: saturate(1.4) blur(12px);
+}
+.portal-nav-link[aria-current="page"] { background: var(--brand-tint); color: var(--brand-ink); }
+.portal-nav-link[aria-current="page"] .portal-nav-dot { background: var(--brand); }
+.portal-page { view-transition-name: mtb-page; }
+
+/* Home hero: the dashboard's calm brand wash. */
+.portal-hero {
+  position: relative; isolation: isolate; overflow: hidden;
+  border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);
+  background: radial-gradient(120% 160% at 0% 0%, var(--brand-tint) 0%, transparent 60%), var(--surface-raised);
+}
+[dir="rtl"] .portal-hero { background: radial-gradient(120% 160% at 100% 0%, var(--brand-tint) 0%, transparent 60%), var(--surface-raised); }
+.portal-hero::after {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background-image: radial-gradient(var(--border) 1px, transparent 1.5px); background-size: 20px 20px;
+  -webkit-mask-image: linear-gradient(to left, #000 0%, transparent 60%); mask-image: linear-gradient(to left, #000 0%, transparent 60%);
+}
+[dir="rtl"] .portal-hero::after { -webkit-mask-image: linear-gradient(to right, #000 0%, transparent 60%); mask-image: linear-gradient(to right, #000 0%, transparent 60%); }
+
+/* Hero figure on the fees card. */
+.portal-figure { font-size: 40px; line-height: 48px; font-weight: 600; letter-spacing: -0.02em; color: var(--ink); font-family: var(--font-sans); }
+@media (min-width: 1024px) { .portal-figure { font-size: 48px; line-height: 56px; } }
+
+/* Unread dot on notices. */
+.portal-unread-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--brand); flex: none; }
+
+/* Subject bars on the result card. */
+.portal-bar { height: 6px; border-radius: var(--radius-full); background: var(--chart-track); overflow: hidden; }
+.portal-bar > span { display: block; height: 100%; border-radius: inherit; background: var(--chart-1); transform-origin: left; animation: mtb-grow-x 700ms var(--ease-out) both; }
+[dir="rtl"] .portal-bar > span { transform-origin: right; }
+
+/* ---------- Attendance calendar (the design system's AttendanceCalendar) ---------- */
+/* The portal shows its own bilingual heading and legend; the calendar's English heading is hidden. */
+.portal-attcal .mtb-attcal-head { display: none; }
+.portal-attcal .mtb-attcal-cell { font-family: var(--font-sans); }
+@media (max-width: 420px) {
+  .portal-attcal .mtb-attcal-cell { min-height: 40px; padding: 3px 4px; }
+}
+/* Weekday names in Urdu (the component prints Mon … Sun); the grid itself mirrors with the page. */
+.portal-attcal:lang(ur) .mtb-attcal-wd { font-size: 0; letter-spacing: 0; text-transform: none; }
+.portal-attcal:lang(ur) .mtb-attcal-wd::after { font-size: 13px; line-height: 26px; font-family: var(--font-urdu); }
+.portal-attcal:lang(ur) .mtb-attcal-wd:nth-child(1)::after { content: "پیر"; }
+.portal-attcal:lang(ur) .mtb-attcal-wd:nth-child(2)::after { content: "منگل"; }
+.portal-attcal:lang(ur) .mtb-attcal-wd:nth-child(3)::after { content: "بدھ"; }
+.portal-attcal:lang(ur) .mtb-attcal-wd:nth-child(4)::after { content: "جمعرات"; }
+.portal-attcal:lang(ur) .mtb-attcal-wd:nth-child(5)::after { content: "جمعہ"; }
+.portal-attcal:lang(ur) .mtb-attcal-wd:nth-child(6)::after { content: "ہفتہ"; }
+.portal-attcal:lang(ur) .mtb-attcal-wd:nth-child(7)::after { content: "اتوار"; }
+
+/* ---------- Documents: receipt (A5), fee voucher (A4 landscape), result card (A4) ---------- */
+/* Official documents are printed in English, left to right, in the light theme, whatever the screen shows. */
+.portal-doc { font-family: var(--font-sans); color: var(--ink); }
+.portal-doc-desk { background: var(--surface-sunken); border-radius: var(--radius-lg); padding: 12px; overflow: hidden; }
+.portal-doc-zoom { zoom: var(--doc-zoom, 1); }
+
+/* Fee voucher: three tear-off copies side by side. */
+.portal-voucher-sheet {
+  box-sizing: border-box; width: 277mm; min-height: 186mm; padding: 4mm; background: var(--surface-raised); color: var(--ink);
+  display: grid; grid-template-columns: repeat(var(--copies, 3), 1fr); font-size: 8.4pt; line-height: 1.3;
+}
+.portal-voucher-copy { box-sizing: border-box; padding: 3mm 4mm; display: grid; align-content: start; gap: 2mm; }
+.portal-voucher-copy + .portal-voucher-copy { border-left: 0.8pt dashed var(--border-strong); }
+.portal-voucher-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 3mm; border-bottom: 1.2pt solid var(--ink); padding-bottom: 1.5mm; }
+.portal-voucher-head strong { display: block; font-size: 10.5pt; line-height: 1.2; }
+.portal-voucher-tag { border: 0.8pt solid var(--ink); border-radius: 1mm; padding: 0.4mm 1.6mm; font-size: 7pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
+.portal-voucher-bank { background: var(--surface-sunken); border-radius: 1mm; padding: 1.5mm 2mm; display: grid; gap: 0.3mm; }
+.portal-voucher-kv { display: grid; grid-template-columns: auto 1fr; gap: 0.4mm 3mm; margin: 0; }
+.portal-voucher-kv dt { color: var(--ink-muted); }
+.portal-voucher-kv dd { margin: 0; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+.portal-voucher table { width: 100%; border-collapse: collapse; }
+.portal-voucher th, .portal-voucher td { border-bottom: 0.5pt solid var(--border-strong); padding: 0.9mm 0.6mm; text-align: left; vertical-align: top; }
+.portal-voucher th { font-weight: 600; color: var(--ink-muted); font-size: 7.4pt; }
+.portal-voucher td.n, .portal-voucher th.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.portal-voucher tr.total td { border-top: 1pt solid var(--ink); border-bottom: 0; font-weight: 700; font-size: 9.6pt; }
+.portal-voucher-words { font-style: italic; color: var(--ink-muted); }
+.portal-voucher-sign { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; margin-top: 5mm; }
+.portal-voucher-sign div { border-top: 0.6pt solid var(--ink); padding-top: 0.8mm; text-align: center; color: var(--ink-muted); font-size: 7pt; }
+
+/* Result card (A4 portrait). */
+.portal-resultcard { box-sizing: border-box; width: 190mm; padding: 10mm 12mm; background: var(--surface-raised); color: var(--ink); font-size: 10pt; line-height: 1.4; }
+.portal-resultcard table { width: 100%; border-collapse: collapse; }
+.portal-resultcard th, .portal-resultcard td { border: 0.5pt solid var(--border-strong); padding: 1.6mm 2mm; text-align: left; }
+.portal-resultcard th { background: var(--surface-sunken); font-weight: 600; }
+.portal-resultcard td.n, .portal-resultcard th.n { text-align: right; font-variant-numeric: tabular-nums; }
+
+@media screen {
+  .portal-print-only { display: none; }
+  .portal-voucher-sheet, .portal-resultcard { box-shadow: var(--shadow-md); }
+}
+
+@page portal-voucher { size: A4 landscape; margin: 6mm; }
+@page portal-a4 { size: A4 portrait; margin: 10mm; }
+
+/* Printing a page with a document (receipt, voucher, result card): only the document prints; everything that doesn't
+   contain it is taken out of the layout, so there are no blank pages. The receipt uses the design system's A5 page.
+   Other pages print as they are, without the navigation. */
+@media print {
+  html, body { background: none !important; }
+  body:has(.portal-print) *:not(:has(.portal-print)):not(.portal-print):not(.portal-print *) { display: none !important; }
+  /* The document's containers (shell, page, panel) step out of the way: no grid, padding, border or shadow. */
+  body:has(.portal-print) *:has(.portal-print) { display: block !important; min-height: 0 !important; max-width: none !important; margin: 0 !important; padding: 0 !important; border: 0 !important; box-shadow: none !important; background: none !important; }
+  .portal-print .portal-doc-desk, .portal-print .portal-doc-zoom { padding: 0 !important; background: none !important; zoom: 1 !important; overflow: visible !important; border-radius: 0 !important; }
+  .portal-print article { width: auto !important; min-height: 0 !important; border: 0 !important; box-shadow: none !important; }
+  .portal-voucher-sheet, .portal-resultcard { box-shadow: none !important; }
+  .portal-print-voucher { page: portal-voucher; }
+  .portal-print-a4 { page: portal-a4; }
+  .portal-print-only { display: block; }
+  .portal-no-print { display: none !important; }
+}

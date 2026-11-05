@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en" dir="ltr" data-theme="light" data-accent="green">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <title>MTB Parent Portal</title>
+    <meta name="description" content="Fees, attendance, results and notices for MTB families, in English and Urdu." />
+    <meta name="theme-color" content="#0e5a3a" />
+    <script>
+      // Apply the saved theme and language before first paint, so there is no light flash in dark mode and an
+      // Urdu reader never sees the page jump from left-to-right to right-to-left.
+      (function () {
+        var root = document.documentElement;
+        try {
+          var theme = localStorage.getItem("mtb.theme");
+          var accent = localStorage.getItem("mtb.accent");
+          var lang = localStorage.getItem("mtb.portal.lang");
+          if (theme !== "light" && theme !== "dark") {
+            theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+          }
+          root.setAttribute("data-theme", theme);
+          if (accent === "navy" || accent === "green") root.setAttribute("data-accent", accent);
+          if (lang === "ur") {
+            root.setAttribute("lang", "ur");
+            root.setAttribute("dir", "rtl");
+          }
+        } catch (e) {
+          /* storage blocked: keep defaults */
+        }
+      })();
+    </script>
+  </head>
+  <body class="mtb-root">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,23 @@
+{
+  "id": "/",
+  "name": "MTB Teacher",
+  "short_name": "MTB Teacher",
+  "description": "Registers, marks and timetable for MTB teachers. Works offline.",
+  "lang": "en",
+  "dir": "ltr",
+  "start_url": "/today",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f4f6f5",
+  "theme_color": "#0e5a3a",
+  "categories": ["education", "productivity"],
+  "icons": [
+    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icons/icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Today's register", "short_name": "Register", "url": "/registers" },
+    { "name": "Enter marks", "short_name": "Marks", "url": "/marks" }
+  ]
+}

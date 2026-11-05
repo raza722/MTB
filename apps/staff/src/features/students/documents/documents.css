@@ -1,0 +1,97 @@
+/* Printable student documents: ID cards (CR80), admission slips (A5), certificates and letters (A4).
+   Sizes are real paper sizes; the screen preview is zoomed down, printing is 1:1. Colours come from tokens. */
+
+.mtb-doc {
+  position: relative;
+  box-sizing: border-box;
+  background: var(--surface-raised);
+  color: var(--ink);
+  font-size: 11.5pt;
+  line-height: 1.55;
+  overflow: hidden;
+}
+.mtb-doc-a4 { width: 190mm; min-height: 277mm; padding: 12mm 14mm; }
+.mtb-doc-a5 { width: 132mm; min-height: 194mm; padding: 8mm; font-size: 10pt; }
+.mtb-doc-frame { border: 1.2mm double var(--brand); }
+.mtb-doc-line { border-bottom: 1px dotted var(--ink-subtle); padding: 0 2mm 0.5mm; min-width: 30mm; display: inline-block; text-align: center; font-weight: 600; }
+.mtb-doc-sign { border-top: 1px solid var(--ink); padding-top: 1.5mm; text-align: center; font-size: 9.5pt; color: var(--ink-muted); min-width: 40mm; }
+.mtb-doc-mark {
+  position: absolute; inset: 0; display: grid; place-content: center; pointer-events: none;
+  font-size: 60pt; font-weight: 700; letter-spacing: 0.18em; color: var(--danger); opacity: 0.12; transform: rotate(-24deg);
+}
+.mtb-doc-copy { position: absolute; top: 5mm; right: 6mm; font-size: 8pt; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-muted); border: 1px solid var(--border-strong); border-radius: 2px; padding: 0.5mm 1.5mm; }
+.mtb-doc-seal { width: 16mm; height: 16mm; border-radius: 999px; display: grid; place-content: center; background: var(--brand); color: var(--on-brand); font-weight: 700; font-size: 11pt; letter-spacing: 0.04em; flex-shrink: 0; }
+
+/* ID card, CR80: 85.6 × 54 mm */
+.mtb-idcard {
+  width: 85.6mm; height: 54mm; box-sizing: border-box; border-radius: 3mm; overflow: hidden; position: relative;
+  border: 0.3mm solid var(--border-strong); background: var(--surface-raised); color: var(--ink);
+  font-size: 7.2pt; line-height: 1.35; display: grid; grid-template-rows: 11mm 1fr 6mm; break-inside: avoid;
+}
+.mtb-idcard-head { background: var(--brand); color: var(--on-brand); display: flex; align-items: center; gap: 2mm; padding: 0 3mm; }
+.mtb-idcard-body { display: grid; grid-template-columns: 20mm 1fr; gap: 2.5mm; padding: 2mm 3mm 1mm; }
+.mtb-idcard-photo { width: 20mm; height: 24mm; border-radius: 1.5mm; background: var(--brand-tint); color: var(--brand-ink); display: grid; place-content: center; font-size: 15pt; font-weight: 700; border: 0.3mm solid var(--border); }
+.mtb-idcard-foot { background: var(--surface-sunken); display: flex; align-items: center; justify-content: space-between; padding: 0 3mm; font-size: 6.4pt; color: var(--ink-muted); }
+.mtb-idcard dl { margin: 0; display: grid; grid-template-columns: auto 1fr; column-gap: 1.5mm; row-gap: 0.2mm; }
+.mtb-idcard dt { color: var(--ink-muted); }
+.mtb-idcard dd { margin: 0; font-weight: 600; }
+
+/* Back of the card: details and return address, seal area, holder's signature line */
+.mtb-idcard-back { grid-template-rows: 1fr 9mm; }
+.mtb-idcard-back-body { display: grid; grid-template-columns: 1fr 19mm; gap: 2.5mm; padding: 3mm 3mm 1mm; }
+.mtb-idcard-seal { width: 19mm; height: 19mm; border-radius: 999px; border: 0.3mm dashed var(--ink-subtle); display: grid; place-content: center; text-align: center; font-size: 5.6pt; color: var(--ink-subtle); align-self: center; }
+.mtb-idcard-signs { display: flex; justify-content: space-between; align-items: end; gap: 4mm; padding: 0 3mm 2mm; }
+.mtb-idcard-sign { flex: 1; border-top: 0.25mm solid var(--ink); padding-top: 0.6mm; text-align: center; font-size: 6pt; color: var(--ink-muted); }
+.mtb-idcard-blank { width: 85.6mm; height: 54mm; }
+
+/* A sheet of ten cards on A4 (8 mm margins) */
+.mtb-idsheet { width: 194mm; display: grid; grid-template-columns: repeat(2, 85.6mm); justify-content: center; column-gap: 8mm; row-gap: 2.5mm; align-content: start; }
+
+/* A4 landscape sheet (10 mm margins): the board-document collection sheet */
+.mtb-doc-a4l { width: 277mm; padding: 6mm 0; font-size: 9.5pt; line-height: 1.3; }
+.mtb-collect { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.mtb-collect th, .mtb-collect td { border: 0.25mm solid var(--border-strong); padding: 1.2mm 1.5mm; vertical-align: middle; }
+.mtb-collect thead th { background: var(--surface-sunken); font-weight: 600; text-align: center; font-size: 8.5pt; }
+.mtb-collect thead tr.mtb-collect-head th { background: none; border: 0; padding: 0 0 2mm; text-align: left; font-weight: 400; font-size: inherit; }
+.mtb-collect tbody td { height: 8.5mm; }
+.mtb-collect .num { text-align: right; font-variant-numeric: tabular-nums; }
+.mtb-collect .mid { text-align: center; font-variant-numeric: tabular-nums; }
+.mtb-collect-field { display: inline-block; min-width: 38mm; border-bottom: 0.25mm solid var(--ink); padding: 0 1.5mm; font-weight: 600; }
+
+/* Postal address labels: eight to an A4 sheet (two across, four down), each with a dashed cut line */
+.mtb-labelsheet { width: 190mm; display: grid; grid-template-columns: repeat(2, 1fr); grid-auto-rows: 68mm; align-content: start; background: var(--surface-raised); }
+.mtb-addr-label { box-sizing: border-box; padding: 5mm 6mm; border-right: 0.3mm dashed var(--ink-subtle); border-bottom: 0.3mm dashed var(--ink-subtle); display: grid; align-content: start; gap: 1.6mm; font-size: 10pt; color: var(--ink); break-inside: avoid; overflow: hidden; }
+.mtb-addr-label:nth-child(2n) { border-right: 0; }
+.mtb-addr-label dl { margin: 0; display: grid; grid-template-columns: 24mm 1fr; column-gap: 2mm; row-gap: 1.4mm; }
+.mtb-addr-label dt { font-weight: 700; }
+.mtb-addr-label dd { margin: 0; border-bottom: 0.25mm solid var(--border-strong); min-height: 5mm; overflow-wrap: anywhere; }
+.mtb-addr-label-from { font-size: 7.5pt; color: var(--ink-muted); }
+
+/* Screen: paper on a grey desk, zoomed to fit the panel */
+@media screen {
+  .mtb-doc-desk { background: var(--surface-sunken); border-radius: var(--radius-lg); padding: 16px; overflow: auto; display: grid; justify-items: center; gap: 16px; }
+  .mtb-doc-zoom { zoom: var(--doc-zoom, 0.72); display: grid; justify-items: center; gap: 20px; }
+  .mtb-doc { box-shadow: var(--shadow-md); }
+  .mtb-doc-zoom .mtb-print-area > * + * { margin-top: 20px; }
+  .mtb-idsheet { padding: 6mm 0; background: var(--surface); }
+  .mtb-doc-a4l { padding: 8mm; }
+  .mtb-labelsheet { box-shadow: var(--shadow-md); }
+}
+
+@media print {
+  .mtb-doc, .mtb-idcard { box-shadow: none !important; }
+  .mtb-doc-desk, .mtb-doc-zoom { display: block !important; padding: 0 !important; background: none !important; zoom: 1 !important; }
+  .mtb-doc + .mtb-doc, .mtb-idsheet + .mtb-idsheet, .mtb-labelsheet + .mtb-labelsheet { break-before: page; }
+  .mtb-doc-screen-only { display: none !important; }
+  .mtb-doc-a4l { padding: 0; overflow: visible; }
+  .mtb-collect thead { display: table-header-group; }
+  .mtb-collect tr { break-inside: avoid; }
+}
+
+/* Admission slips two to an A4 sheet (landscape, side by side). */
+.mtb-slip-pair { display: flex; gap: 6mm; align-items: flex-start; }
+@media print {
+  .mtb-slip-pair > .mtb-doc + .mtb-doc { break-before: auto; }
+  .mtb-slip-pair + .mtb-slip-pair { break-before: page; }
+}
+.mtb-slip-pair > .mtb-doc-a5 { min-height: 182mm; }

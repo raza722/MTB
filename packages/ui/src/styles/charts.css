@@ -1,0 +1,47 @@
+/*
+ * MTB addition: charts (Sparkline, AreaChart, DeviationChart, SegmentedBar).
+ * Marks use the design system's chart colours; text stays in ink tokens, never in a series colour.
+ * Lines 2px, markers 8px or more with a 2px surface ring, hairline solid grid, recessive axes.
+ */
+.mtb-chart { display: block; overflow: visible; font-family: var(--font-sans); }
+.mtb-chart text { fill: var(--ink-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.mtb-chart .mtb-chart-label-strong { fill: var(--ink); font-weight: 600; }
+.mtb-chart-grid { stroke: var(--border); stroke-width: 1; opacity: 0.7; }
+.mtb-chart-baseline { stroke: var(--border-strong); stroke-width: 1; opacity: 0.6; }
+.mtb-chart-reference { stroke: var(--ink-subtle); stroke-width: 1; stroke-dasharray: none; }
+.mtb-chart-line { fill: none; stroke: var(--chart-1); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.mtb-chart-stem { stroke: var(--chart-1); stroke-width: 2; stroke-linecap: round; opacity: 0.55; }
+.mtb-chart-dot { fill: var(--chart-1); stroke: var(--surface-raised); stroke-width: 2; }
+.mtb-chart-pulse { fill: var(--chart-1); transform-box: fill-box; transform-origin: center; animation: mtb-pulse-ring 2.4s var(--ease-out) 1.2s infinite; opacity: 0; }
+.mtb-chart-crosshair { stroke: var(--border-strong); stroke-width: 1; }
+.mtb-chart-band { fill: var(--surface-hover); }
+
+/* Draw-in: the line is drawn left to right, then the wash and the markers arrive. */
+.mtb-chart-draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: mtb-draw var(--motion-chart) var(--ease-in-out) 120ms forwards; }
+.mtb-chart-stem.mtb-chart-draw { animation-duration: 600ms; animation-timing-function: var(--ease-out); }
+.mtb-chart-area-in { animation: mtb-fade 700ms var(--ease-out) 500ms both; }
+.mtb-chart-pop { transform-box: fill-box; transform-origin: center; animation: mtb-pop 420ms var(--ease-spring) 1000ms both; }
+.mtb-chart-fade-late { animation: mtb-fade 400ms var(--ease-out) 1100ms both; }
+
+/* The frame holds the SVG and the HTML tooltip; it is focusable for the arrow keys. */
+.mtb-chart-frame { position: relative; width: 100%; min-width: 0; border-radius: var(--radius-md); touch-action: pan-y; }
+.mtb-chart-frame:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 4px; }
+.mtb-chart-tip {
+  position: absolute; top: 4px; z-index: 2; pointer-events: none; min-width: 168px;
+  padding: 8px 12px; border-radius: var(--radius-md); border: 1px solid var(--border);
+  background: var(--surface-raised); box-shadow: var(--shadow-md);
+  font-size: 13px; line-height: 18px; color: var(--ink);
+  animation: mtb-fade var(--motion-fast) ease both;
+}
+.mtb-chart-tip-title { font-size: 12px; line-height: 16px; color: var(--ink-muted); margin-bottom: 2px; }
+.mtb-chart-tip-value { font-size: 15px; line-height: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.mtb-chart-tip-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+.mtb-chart-key { display: inline-block; width: 10px; height: 10px; border-radius: 3px; flex: none; }
+
+/* Sparkline */
+.mtb-spark { width: 100%; min-width: 0; }
+
+/* Segmented bar: 2px surface gap between parts, rounded ends, parts fill in one after another. */
+.mtb-segbar { display: flex; gap: 2px; width: 100%; border-radius: var(--radius-full); overflow: hidden; }
+.mtb-segbar-part { min-width: 6px; height: 100%; transform-origin: left center; animation: mtb-grow-x 800ms var(--ease-out) both; }
+.mtb-segbar-part:hover { filter: brightness(1.08); }

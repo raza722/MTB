@@ -1,0 +1,102 @@
+/*
+ * Staff and payroll (MTB additions built only from design-system tokens; motion is cut by the reduced-motion rule).
+ * Printed documents always print light: payslip (A5), appointment letter, profile and reports (A4), salary sheet and
+ * registers (A4 landscape), staff ID card (86 × 54 mm).
+ */
+
+.hr-kpis { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+
+/* ---------- Profile header ---------- */
+.hr-hero { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4); }
+.hr-hero-meta { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); color: var(--ink-muted); font-size: 13px; }
+.hr-split { display: grid; gap: var(--space-6); grid-template-columns: minmax(0, 1fr); align-items: start; }
+@media (min-width: 1180px) { .hr-split { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); } }
+
+/* ---------- Attendance marks ---------- */
+.hr-code { display: inline-grid; place-items: center; min-width: 26px; height: 22px; padding: 0 4px; border-radius: var(--radius-sm); font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.hr-code-P { background: var(--status-present-tint); color: var(--status-present-ink); }
+.hr-code-LT { background: var(--status-late-tint); color: var(--status-late-ink); }
+.hr-code-A { background: var(--status-absent-tint); color: var(--status-absent-ink); }
+.hr-code-LV, .hr-code-HD { background: var(--status-leave-tint); color: var(--status-leave-ink); }
+.hr-code-H { background: var(--status-holiday-tint); color: var(--status-holiday-ink); }
+.hr-code-OFF { background: transparent; color: var(--ink-subtle); }
+/* Time in over time out in the date-range sheet (MTB addition). */
+.hr-times { display: inline-grid; min-width: 38px; padding: 1px 3px; border-radius: var(--radius-sm); font-size: 10.5px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.hr-times > span + span { opacity: 0.8; }
+
+.hr-sheet-scroll { overflow-x: auto; }
+.hr-sheet { border-collapse: separate; border-spacing: 2px; font-size: 12px; min-width: 100%; }
+.hr-sheet th { font-weight: 500; color: var(--ink-muted); padding: 2px; text-align: center; white-space: nowrap; }
+.hr-sheet th.hr-name, .hr-sheet td.hr-name { text-align: left; position: sticky; left: 0; background: var(--surface-raised); padding: 2px 8px 2px 0; min-width: 190px; z-index: 1; }
+.hr-sheet td { text-align: center; padding: 0; }
+.hr-sheet th.is-off { color: var(--ink-subtle); }
+.hr-sheet td.hr-tot { font-variant-numeric: tabular-nums; padding: 0 6px; color: var(--ink); }
+.hr-sheet tbody tr { animation: mtb-slide-in 260ms var(--ease-out, ease) both; animation-delay: calc(var(--i, 0) * 18ms); }
+
+/* ---------- Meter in tables ---------- */
+.hr-meter { height: 6px; border-radius: 99px; background: var(--chart-track); overflow: hidden; min-width: 56px; }
+.hr-meter > span { display: block; height: 100%; border-radius: inherit; background: var(--chart-1); transform-origin: left; animation: mtb-grow-x 700ms var(--ease-out, ease) both; }
+.hr-meter.is-low > span { background: var(--warning); }
+
+/* ---------- Import drop zone ---------- */
+.hr-drop { display: grid; place-items: center; gap: var(--space-2); padding: var(--space-6); border: 1.5px dashed var(--border-strong); border-radius: var(--radius-lg); background: var(--surface-sunken); text-align: center; transition: border-color 120ms ease, background 120ms ease; }
+.hr-drop.is-over { border-color: var(--brand); background: var(--brand-tint); }
+
+/* ---------- Status pipeline (prepare → approve → pay) ---------- */
+.hr-steps { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.hr-step { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 99px; font-size: 12px; font-weight: 500; background: var(--surface-sunken); color: var(--ink-muted); }
+.hr-step.is-done { background: var(--success-tint); color: var(--success-ink); }
+.hr-step.is-now { background: var(--brand-tint); color: var(--brand-ink); box-shadow: inset 0 0 0 1px var(--brand); }
+
+/* ---------- Print ---------- */
+@media screen { .hr-print { display: none; } }
+@media print {
+  .hr-print { display: block; }
+  .hr-doc, .hr-slip, .hr-card { box-shadow: none !important; }
+  .hr-break { break-before: page; }
+  .hr-doc tr { break-inside: avoid; }
+}
+
+.hr-doc { box-sizing: border-box; width: 100%; background: var(--surface-raised); color: var(--ink); font-size: 9.5pt; line-height: 1.4; }
+.hr-doc-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; border-bottom: 1.2pt solid var(--ink); padding-bottom: 3mm; margin-bottom: 4mm; }
+.hr-doc-head h1 { margin: 0; font-size: 13pt; }
+.hr-doc-head p { margin: 0; color: var(--ink-muted); font-size: 8.5pt; }
+.hr-doc h2 { font-size: 10.5pt; margin: 4mm 0 2mm; }
+.hr-doc table { width: 100%; border-collapse: collapse; margin-bottom: 3mm; }
+.hr-doc th, .hr-doc td { border: 0.5pt solid var(--border-strong); padding: 1mm 1.6mm; text-align: left; vertical-align: top; }
+.hr-doc th { background: var(--surface-sunken); font-weight: 600; }
+.hr-doc td.n, .hr-doc th.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hr-doc tr.tot td { font-weight: 700; border-top: 1pt solid var(--ink); }
+.hr-doc-small { font-size: 8pt; }
+.hr-doc-small th, .hr-doc-small td { padding: 0.6mm 1mm; }
+.hr-doc-sign { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10mm; margin-top: 14mm; }
+.hr-doc-sign div { border-top: 0.6pt solid var(--ink); padding-top: 1mm; text-align: center; color: var(--ink-muted); font-size: 8pt; }
+/* Blank cell for a signature on receipt (salary sheet). */
+.hr-sign-cell { display: block; min-width: 20mm; height: 5mm; }
+.hr-slip .hr-doc-sign { margin-top: 10mm; gap: 18mm; }
+.hr-doc-kv { display: grid; grid-template-columns: 38mm 1fr; gap: 1mm 4mm; margin: 0 0 3mm; }
+.hr-doc-kv dt { color: var(--ink-muted); }
+.hr-doc-kv dd { margin: 0; }
+
+.hr-letter { font-size: 11pt; line-height: 1.7; }
+.hr-letter p { margin: 0 0 4mm; }
+.hr-letter ol { margin: 0 0 4mm; padding-left: 6mm; }
+
+.hr-slip { box-sizing: border-box; width: 100%; min-height: 190mm; padding: 2mm; background: var(--surface-raised); color: var(--ink); font-size: 9pt; line-height: 1.35; display: grid; align-content: start; gap: 3mm; }
+.hr-slip-head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1.2pt solid var(--ink); padding-bottom: 2mm; }
+.hr-slip-head strong { display: block; font-size: 11pt; }
+.hr-slip-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; }
+.hr-slip table { width: 100%; border-collapse: collapse; }
+.hr-slip th, .hr-slip td { border-bottom: 0.5pt solid var(--border-strong); padding: 0.8mm 0.6mm; text-align: left; vertical-align: top; }
+.hr-slip td.n, .hr-slip th.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hr-slip tr.tot td { font-weight: 700; border-top: 1pt solid var(--ink); border-bottom: 0; }
+.hr-slip-net { display: flex; justify-content: space-between; align-items: center; padding: 2mm 3mm; border: 1pt solid var(--ink); border-radius: 1.5mm; font-size: 11pt; font-weight: 700; }
+.hr-slip-words { font-style: italic; color: var(--ink-muted); }
+.hr-slip-note { color: var(--ink-muted); font-size: 7.6pt; }
+
+.hr-card { box-sizing: border-box; width: 86mm; height: 54mm; padding: 3mm 3.5mm; border-radius: 2.5mm; background: var(--surface-raised); color: var(--ink); border: 0.4pt solid var(--border-strong); display: grid; grid-template-rows: auto 1fr auto; gap: 1.5mm; overflow: hidden; font-size: 7.5pt; line-height: 1.25; }
+.hr-card-band { display: flex; justify-content: space-between; align-items: center; margin: -3mm -3.5mm 0; padding: 2mm 3.5mm; background: var(--brand); color: var(--on-brand); font-weight: 700; font-size: 8pt; }
+.hr-card-body { display: grid; grid-template-columns: 19mm 1fr; gap: 3mm; align-items: center; }
+.hr-card-photo { width: 19mm; height: 23mm; border-radius: 1.5mm; background: var(--surface-sunken); display: grid; place-items: center; color: var(--ink-subtle); font-size: 13pt; font-weight: 700; border: 0.4pt solid var(--border-strong); }
+.hr-card-name { font-size: 10pt; font-weight: 700; }
+.hr-card-foot { display: flex; justify-content: space-between; color: var(--ink-muted); font-size: 6.5pt; border-top: 0.4pt solid var(--border); padding-top: 1mm; }

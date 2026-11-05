@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en" dir="ltr" data-theme="light" data-accent="green">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <title>MTB Teacher</title>
+    <meta name="description" content="Registers, marks and timetable for MTB teachers, on the phone and offline." />
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="MTB Teacher" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icons/icon.svg" />
+    <script>
+      // Apply the saved theme and motion choice before first paint so there is no light flash in dark mode.
+      (function () {
+        var root = document.documentElement;
+        try {
+          var theme = localStorage.getItem("mtb.theme");
+          var accent = localStorage.getItem("mtb.accent");
+          if (theme !== "light" && theme !== "dark") {
+            theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+          }
+          root.setAttribute("data-theme", theme);
+          if (accent === "navy" || accent === "green") root.setAttribute("data-accent", accent);
+          if (localStorage.getItem("mtb.motion") === "reduce") root.setAttribute("data-motion", "reduce");
+        } catch (e) {
+          /* storage blocked: keep defaults */
+        }
+      })();
+    </script>
+  </head>
+  <body class="mtb-root">
+    <noscript>MTB Teacher needs JavaScript turned on.</noscript>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
