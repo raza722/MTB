@@ -52,7 +52,7 @@ import { librarySnapshot, transportSnapshot, warehouseSnapshot } from "./operati
 import { examReportGenerators, liveExamDefinition } from "./reports-exams";
 import { genderOfName, outboxSnapshot, queueBatch, rosterPeople } from "./sms";
 import { admissionsSeats, admissionsStore } from "./admissions";
-import { allMovements, sessionOfDate, streamFor } from "./student-records";
+import { allMovements, sessionOfDate, streamFor } from "./student-records-model";
 import { portalFamilies } from "./portal";
 import { timetableReportBoard } from "./timetable";
 

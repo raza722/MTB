@@ -5,6 +5,9 @@ import { useQuery } from "@tanstack/react-query";
 import { SubNav } from "../../app/shell/SubNav";
 import { useCtx } from "../../app/session";
 
+/** Today in the Admissions demo (the mock server's clock). Admissions is still mocked; it moves to the real date with its module. */
+export const TODAY = "2026-11-04";
+
 const STAGE_STATUS: Record<AdmissionsStage, Status> = { APPLIED: "neutral", TEST: "info", MERIT: "pending", OFFERED: "warning", ADMITTED: "success", WITHDRAWN: "cancelled" };
 
 export function StageBadge({ stage }: { stage: AdmissionsStage }) {

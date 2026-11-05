@@ -12,8 +12,8 @@ import { Link } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { PrintSheet, printNow } from "../students/documents/print";
-import { apiMessage, TODAY } from "../students/shared";
-import { DiamondMindsBadge, offerDeadline, StageBadge } from "./shared";
+import { apiMessage } from "../students/shared";
+import { DiamondMindsBadge, offerDeadline, StageBadge, TODAY } from "./shared";
 import { ApplicationForm, TestSlip } from "./slips";
 
 /** One applicant: details, candidate fee, test booking and marks, offer, history, and the next step. */

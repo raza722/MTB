@@ -21,6 +21,7 @@ import {
   maskCnic,
   mobileToE164,
   normalizeCnic,
+  pakistanToday,
   parseDateInput,
   parseRs,
   sumRs,
@@ -74,6 +75,13 @@ describe("dates", () => {
     expect(formatDateTime("2026-11-04T10:39:00+05:00")).toBe("04-Nov-2026, 10:39 AM");
     // late evening UTC rolls over to the next Pakistani day
     expect(formatDate("2026-11-04T20:30:00Z")).toBe("05-Nov-2026");
+  });
+
+  it("knows today's date in Pakistan", () => {
+    expect(pakistanToday(new Date("2026-11-04T18:59:00Z"))).toBe("2026-11-04");
+    // 19:00 UTC is midnight in Pakistan
+    expect(pakistanToday(new Date("2026-11-04T19:00:00Z"))).toBe("2026-11-05");
+    expect(pakistanToday()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 
   it("formats the academic session with an en dash", () => {

@@ -8,7 +8,7 @@ import { Page, PageHeader, RequirePermission } from "../../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../../app/session";
 import { PrintSheet, printNow } from "../documents/print";
 import { StatusNotice } from "../documents/templates";
-import { EnrolmentBadge, LoadError, stagger, StudentsSubNav, TODAY } from "../shared";
+import { EnrolmentBadge, LoadError, stagger, StudentsSubNav, today } from "../shared";
 import { StatusChangePanel } from "./StatusChangePanel";
 
 const KIND_TONE: Record<StudentMovementKind, Status> = { LEFT: "neutral", STRUCK_OFF: "warning", EXPELLED: "danger", RESTORED: "success", TRANSFER: "info", PASSED_OUT: "info" };
@@ -86,7 +86,7 @@ export function MovementsPage({ kind, setKind }: { kind: StudentMovementKind | "
   const [to, setTo] = useState<string | null>(null);
   const [cls, setCls] = useState("");
   const sessionStart = `${ctx.session}-04-01`;
-  const sessionEnd = `${ctx.session + 1}-03-31` < TODAY ? `${ctx.session + 1}-03-31` : TODAY;
+  const sessionEnd = `${ctx.session + 1}-03-31` < today() ? `${ctx.session + 1}-03-31` : today();
   const rangeError = from && to && from > to ? "The first date must be on or before the second." : undefined;
   const filter: StudentMovementsFilter = rangeError ? {} : { ...(from ? { from } : {}), ...(to ? { to } : {}), ...(cls ? { className: cls } : {}) };
   const list = useQuery(studentMovementsQueries.list(ctx, kind, filter));
@@ -183,10 +183,10 @@ export function MovementsPage({ kind, setKind }: { kind: StudentMovementKind | "
                 <Input label="Search" icon="search" placeholder="Name, G.R. or reason" value={q} onChange={(e) => setQ(e.target.value)} />
               </div>
               <div className="w-40">
-                <DatePicker label="From" value={from} onValueChange={setFrom} today={TODAY} minDate={sessionStart} maxDate={sessionEnd} error={rangeError} />
+                <DatePicker label="From" value={from} onValueChange={setFrom} today={today()} minDate={sessionStart} maxDate={sessionEnd} error={rangeError} />
               </div>
               <div className="w-40">
-                <DatePicker label="To" value={to} onValueChange={setTo} today={TODAY} minDate={sessionStart} maxDate={sessionEnd} />
+                <DatePicker label="To" value={to} onValueChange={setTo} today={today()} minDate={sessionStart} maxDate={sessionEnd} />
               </div>
               <Select label="Class" value={cls} onChange={(e) => setCls(e.target.value)} options={[{ value: "", label: "All classes" }, ...(classes.data ?? []).map((c) => ({ value: c.short, label: c.name }))]} />
               {(from || to || cls) && (

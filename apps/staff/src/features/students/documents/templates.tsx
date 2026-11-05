@@ -1,6 +1,7 @@
 import { STUDENT_DOC_LABEL, type StudentDocDetails, type StudentDocSnapshot, type StudentDocType, type StudentFamilyDetail, type StudentMovement } from "@mtb/api";
 import { formatCnic, formatDate, formatMobile, formatRs, formatSession, type IsoDate } from "@mtb/domain";
 import { Fragment, type ReactNode } from "react";
+import { classShortOf, sectionOf } from "../shared";
 
 /** What every document needs to render: the frozen snapshot plus issue details. */
 export interface DocInput {
@@ -18,7 +19,11 @@ export interface DocInput {
 const pron = (s: StudentDocSnapshot) =>
   s.gender === "F" ? { he: "She", his: "her", him: "her", title: "Ms" } : { he: "He", his: "his", him: "him", title: "Mr" };
 
-const principalOf = (s: StudentDocSnapshot) => (s.campus === "KC" ? "Mrs Sadia Rehman" : `Principal, ${s.campusName}`);
+/** The principal's name from the snapshot (spec 01_students C6), else the post and campus. */
+const principalOf = (s: StudentDocSnapshot) => s.principalName ?? `Principal, ${s.campusName}`;
+
+/** Date of birth as printed: many migrated records have none (C1), and a blank line is left to fill in by hand. */
+const dobOf = (s: StudentDocSnapshot, empty = "") => (s.dob ? formatDate(s.dob) : empty);
 
 const initialsOf = (name: string) =>
   name
@@ -128,7 +133,7 @@ export function IdCard({ d }: { d: DocInput }) {
             <dd>{s.father}</dd>
             <dt>Born</dt>
             <dd className="tabular-nums">
-              {formatDate(s.dob)}
+              {dobOf(s, "—")}
               {s.bloodGroup ? ` · Blood ${s.bloodGroup}` : ""}
             </dd>
             <dt>Issued</dt>
@@ -293,7 +298,7 @@ export function LeavingCertificate({ d }: { d: DocInput }) {
           <span className="mtb-mono">{s.grNo}</span>
         </Row>
         <Row label="Father's name">{s.father}</Row>
-        <Row label="Date of birth (in figures)">{formatDate(s.dob)}</Row>
+        <Row label="Date of birth (in figures)">{dobOf(s)}</Row>
         <Row label="Gender">{s.gender === "F" ? "Female" : "Male"}</Row>
         <Row label="(in words)" wide>
           {s.dobInWords}
@@ -371,9 +376,11 @@ export function CharacterCertificate({ d }: { d: DocInput }) {
             .
           </p>
         )}
-        <p className="m-0">
-          {p.his.charAt(0).toUpperCase() + p.his.slice(1)} date of birth, according to the school's General Register, is <b>{formatDate(s.dob)}</b> ({s.dobInWords}).
-        </p>
+        {s.dob && (
+          <p className="m-0">
+            {p.his.charAt(0).toUpperCase() + p.his.slice(1)} date of birth, according to the school's General Register, is <b>{formatDate(s.dob)}</b> ({s.dobInWords}).
+          </p>
+        )}
         <p className="m-0">
           {p.he} bears a <b>{(d.details.character ?? "good").toLowerCase()}</b> moral character and {p.his} conduct in the school has been commendable. I wish {p.him} success in {p.his} future studies and career.
         </p>
@@ -457,7 +464,7 @@ export function BirthCertificate({ d }: { d: DocInput }) {
           {s.leftOn ? "" : <>, at present in <b>{s.classSection}</b></>}.
         </p>
         <p className="m-0">
-          According to the school's General Register, {p.his} date of birth is <b className="tabular-nums">{formatDate(s.dob)}</b> (in words: <b>{s.dobInWords}</b>), as recorded on admission on <b className="tabular-nums">{formatDate(s.admissionDate)}</b> in {s.admittedInClass}.
+          According to the school's General Register, {p.his} date of birth is {s.dob ? <><b className="tabular-nums">{formatDate(s.dob)}</b> (in words: <b>{s.dobInWords}</b>)</> : <b>not recorded</b>}, as recorded on admission on <b className="tabular-nums">{formatDate(s.admissionDate)}</b> in {s.admittedInClass}.
         </p>
         <p className="m-0">This certificate is issued on the request of the parent{d.details.remarks ? ` for ${d.details.remarks}` : ""}.</p>
       </div>
@@ -553,7 +560,8 @@ export function FamilySheet({ f, session, printedOn }: { f: StudentFamilyDetail;
         </thead>
         <tbody>
           {kids.map((c, i) => {
-            const [cls = "", sec = ""] = c.classSection.split("-");
+            const cls = classShortOf(c.classSection);
+            const sec = sectionOf(c.classSection);
             return (
               <tr key={c.grNo}>
                 <td className="mid">{i + 1}</td>
@@ -607,7 +615,7 @@ function noticeHead(m: StudentMovement): StudentDocSnapshot {
   const lh = m.letterhead;
   return {
     campusName: m.campusName,
-    campusAddress: lh?.address ?? (m.campus === "KC" ? "Khalid Campus, Sadiqabad" : m.campusName),
+    campusAddress: lh?.address ?? m.campusName,
     ...(lh?.phone ? { campusPhone: lh.phone } : {}),
     ...(lh?.email ? { campusEmail: lh.email } : {}),
   } as StudentDocSnapshot;
@@ -739,8 +747,8 @@ export interface CollectionSheetInput {
  * and a signature and date box for each document. Signature boxes stay empty; a date already in the register is
  * filled in. The heading is part of the table head, so it repeats on every printed page.
  */
-export function CollectionSheet({ sheet, printedAt }: { sheet: CollectionSheetInput; printedAt: string }) {
-  const cls = sheet.className === "Prep" ? "Prep" : `Class ${sheet.className}`;
+export function CollectionSheet({ sheet, printedAt, classLabel }: { sheet: CollectionSheetInput; printedAt: string; /** The class's name from Setup, e.g. "Class 9" or "First Year". */ classLabel?: string }) {
+  const cls = classLabel ?? sheet.className;
   const date = (d?: IsoDate) => (d ? formatDate(d) : "");
   return (
     <article className="mtb-doc mtb-doc-a4l" aria-label={`Collection sheet ${cls}`}>
@@ -940,7 +948,7 @@ export function StudentRecordForm({ s, printedOn }: { s: StudentDocSnapshot; pri
           rows={[
             ["Name", <span className="flex flex-wrap items-baseline justify-between gap-2">{s.name}{s.nameUr && <span lang="ur" dir="rtl" className="urdu-small">{s.nameUr}</span>}</span>],
             ["Gender", s.gender === "F" ? "Female" : "Male"],
-            ["Date of birth", <span className="tabular-nums">{formatDate(s.dob)}</span>],
+            ["Date of birth", <span className="tabular-nums">{dobOf(s)}</span>],
             ["Religion", r?.religion ?? ""],
             ["Date of birth in words", s.dobInWords],
             ["B-form no.", r?.bForm ? <span className="mtb-mono">{formatCnic(r.bForm)}</span> : ""],

@@ -35,7 +35,7 @@ import { findStudent, STUDENTS } from "../fixtures/students";
 import { ctxFrom, fail, HttpResponse, latency, requirePermission } from "../util";
 import { currentUser } from "./auth-state";
 import { preparedFor, queueSms } from "./sms";
-import { admitStudent, familyIdOf, mergeStudentRecords, peekGrNo, sectionStats, toSummary } from "./student-records";
+import { admitStudent, familyIdOf, mergeStudentRecords, peekGrNo, sectionStats, toSummary } from "./student-records-model";
 
 type TestRecord = Omit<AdmissionsTest, "candidates" | "feePaid" | "marked" | "status">;
 

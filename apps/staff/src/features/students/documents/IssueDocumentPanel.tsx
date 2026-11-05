@@ -19,12 +19,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import { useCan, useCtx, useSessionUser } from "../../../app/session";
-import { apiMessage, fieldError, LoadError, TODAY } from "../shared";
+import { apiMessage, fieldError, LoadError, today } from "../shared";
 import { CardBackSwitch, PrintSheet, printNow } from "./print";
 import { DocumentView, docPaper, type DocInput } from "./templates";
 
 const CHARACTER = ["Excellent", "Very good", "Good", "Satisfactory"];
-const LEAVING_REASONS = ["Completed Class 10", ...STUDENT_MOVEMENT_REASONS.LEFT];
+/** "Completed Class 10" (the student's own class, from Setup) first, then the usual leaving reasons. */
+const leavingReasons = (className?: string) => [...new Set([...(className ? [`Completed ${className}`] : []), ...STUDENT_MOVEMENT_REASONS.LEFT])];
 
 /** Short names for the document switch. */
 export const DOC_SHORT: Record<StudentDocType, string> = {
@@ -51,7 +52,7 @@ const datedSchema = (sessionStart: string) =>
     dated: z
       .string()
       .optional()
-      .refine((v) => !v || v <= TODAY, { error: "The date can't be in the future." })
+      .refine((v) => !v || v <= today(), { error: "The date can't be in the future." })
       .refine((v) => !v || v >= sessionStart, { error: `Choose a date in this session (from ${formatDate(sessionStart)}).` }),
   });
 const handoverSchema = (sessionStart: string, slip: boolean) =>
@@ -59,7 +60,7 @@ const handoverSchema = (sessionStart: string, slip: boolean) =>
     receivedBy: z.string({ error: "Enter who received the document." }).trim().min(1, { error: "Enter who received the document." }),
     handedOverOn: z
       .string({ error: "Choose the date it was handed over." })
-      .refine((v) => v <= TODAY, { error: "The hand-over date can't be in the future." })
+      .refine((v) => v <= today(), { error: "The hand-over date can't be in the future." })
       .refine((v) => v >= sessionStart, { error: `Choose a date in this session (from ${formatDate(sessionStart)}).` }),
     part: slip ? z.enum(["I", "II"], { error: "Choose Part-I or Part-II." }) : z.enum(["I", "II"]).optional(),
   });
@@ -99,20 +100,21 @@ export function IssueDocumentPanel({ open, onClose, grNo, initialType }: { open:
     const d = data.data;
     if (!d) return;
     const by = user?.name ?? "";
-    if (type === "ID_CARD") setDetails({ validUntil: `${d.snapshot.session + 1}-03-31` });
-    else if (type === "APPRECIATION_LETTER") setDetails({ attendanceDays: d.attendance.present, totalDays: d.attendance.total, dated: TODAY });
-    else if (type === "LEAVING_CERT") setDetails({ character: "Good", leavingReason: d.snapshot.leftOn ? "Completed Class 10" : "", dated: TODAY });
+    // ID card: valid until the session's end at the campus unless a date is chosen (the server sets it).
+    if (type === "ID_CARD") setDetails({});
+    else if (type === "APPRECIATION_LETTER") setDetails({ attendanceDays: d.attendance.present, totalDays: d.attendance.total, dated: today() });
+    else if (type === "LEAVING_CERT") setDetails({ character: "Good", leavingReason: d.snapshot.leftOn ? `Completed ${d.snapshot.className}` : "", dated: today() });
     else if (type === "CHARACTER_CERT") {
       // Board exam lines start from the student's board exam record or the board result in Exams; all stay editable.
       const b = d.boardPrefill;
-      setDetails({ character: "Good", dated: TODAY, ...(b?.boardExam ? { boardExam: b.boardExam } : {}), ...(b?.boardRollNo ? { boardRollNo: b.boardRollNo } : {}), ...(b?.boardMarks ? { boardMarks: b.boardMarks } : {}) });
+      setDetails({ character: "Good", dated: today(), ...(b?.boardExam ? { boardExam: b.boardExam } : {}), ...(b?.boardRollNo ? { boardRollNo: b.boardRollNo } : {}), ...(b?.boardMarks ? { boardMarks: b.boardMarks } : {}) });
     }
-    else if (type === "DOB_CERT") setDetails({ dated: TODAY });
+    else if (type === "DOB_CERT") setDetails({ dated: today() });
     else if (type === "ROLL_NO_SLIP") {
       // The part not yet handed over.
       const done = new Set(d.issued.filter((x) => x.type === "ROLL_NO_SLIP" && x.status === "ISSUED").map((x) => x.details.part ?? "I"));
-      setDetails({ part: done.has("I") ? "II" : "I", handedOverOn: TODAY, handedOverBy: by });
-    } else if (type === "RESULT_CARD" || type === "BOARD_CERTIFICATE") setDetails({ handedOverOn: TODAY, handedOverBy: by });
+      setDetails({ part: done.has("I") ? "II" : "I", handedOverOn: today(), handedOverBy: by });
+    } else if (type === "RESULT_CARD" || type === "BOARD_CERTIFICATE") setDetails({ handedOverOn: today(), handedOverBy: by });
     else setDetails({});
     setErrors({});
   }, [type, loadedFor]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -167,7 +169,7 @@ export function IssueDocumentPanel({ open, onClose, grNo, initialType }: { open:
   const preview: DocInput | null = issued
     ? { ...issued, copy: 1 }
     : d
-      ? { type, serialNo: "Assigned on issue", issuedOn: details.dated ?? TODAY, details: type === "ID_CARD" ? { validUntil: `${d.snapshot.session + 1}-03-31`, ...details } : details, snapshot: d.snapshot, issuedBy: "You" }
+      ? { type, serialNo: "Assigned on issue", issuedOn: details.dated ?? today(), details, snapshot: d.snapshot, issuedBy: "You" }
       : null;
 
   return (
@@ -237,11 +239,11 @@ export function IssueDocumentPanel({ open, onClose, grNo, initialType }: { open:
             {!block && (
               <div className="grid gap-4 sm:grid-cols-2">
                 {type === "ID_CARD" && (
-                  <DatePicker label="Valid until" value={details.validUntil ?? null} onValueChange={(v) => set({ validUntil: v ?? undefined })} minDate={TODAY} help="The end of the session by default." />
+                  <DatePicker label="Valid until" value={details.validUntil ?? null} onValueChange={(v) => set({ validUntil: v ?? undefined })} minDate={today()} help="Leave empty for the last day of the session." />
                 )}
                 {type === "LEAVING_CERT" && (
                   <>
-                    <Select label="Reason for leaving" required value={details.leavingReason ?? ""} error={err("leavingReason")} onChange={(e) => set({ leavingReason: e.target.value })} options={[{ value: "", label: "Choose…" }, ...LEAVING_REASONS]} />
+                    <Select label="Reason for leaving" required value={details.leavingReason ?? ""} error={err("leavingReason")} onChange={(e) => set({ leavingReason: e.target.value })} options={[{ value: "", label: "Choose…" }, ...leavingReasons(data.data?.snapshot.className)]} />
                     <Select label="Character and conduct" value={details.character ?? "Good"} onChange={(e) => set({ character: e.target.value })} options={CHARACTER} />
                     {d.snapshot.balance > 0 && (
                       <div className="sm:col-span-2">
@@ -285,7 +287,7 @@ export function IssueDocumentPanel({ open, onClose, grNo, initialType }: { open:
                   </>
                 )}
                 {DATED.includes(type) && (
-                  <DatePicker label="Date on the document" value={details.dated ?? null} onValueChange={(v) => set({ dated: v ?? undefined })} today={TODAY} minDate={sessionStart} maxDate={TODAY} error={err("dated")} help="Today, or the day it was signed." />
+                  <DatePicker label="Date on the document" value={details.dated ?? null} onValueChange={(v) => set({ dated: v ?? undefined })} today={today()} minDate={sessionStart} maxDate={today()} error={err("dated")} help="Today, or the day it was signed." />
                 )}
                 {(type === "LEAVING_CERT" || type === "CHARACTER_CERT" || type === "DOB_CERT" || type === "APPRECIATION_LETTER") && (
                   <div className="sm:col-span-2">
@@ -306,7 +308,7 @@ export function IssueDocumentPanel({ open, onClose, grNo, initialType }: { open:
                         {err("part") && <span className="text-small text-danger-ink">{err("part")}</span>}
                       </div>
                     )}
-                    <DatePicker label="Date handed over" required value={details.handedOverOn ?? null} onValueChange={(v) => set({ handedOverOn: v ?? undefined })} today={TODAY} minDate={sessionStart} maxDate={TODAY} error={err("handedOverOn")} />
+                    <DatePicker label="Date handed over" required value={details.handedOverOn ?? null} onValueChange={(v) => set({ handedOverOn: v ?? undefined })} today={today()} minDate={sessionStart} maxDate={today()} error={err("handedOverOn")} />
                     <Input label="Received by" required placeholder={`${d.snapshot.father} (father)`} value={details.receivedBy ?? ""} error={err("receivedBy")} onChange={(e) => set({ receivedBy: e.target.value || undefined })} help="The person who signed for it." />
                     <Input label="Issued by" value={details.handedOverBy ?? ""} onChange={(e) => set({ handedOverBy: e.target.value || undefined })} help="Who handed it over. You, unless someone else did." />
                   </>

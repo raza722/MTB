@@ -2,8 +2,12 @@ import type { CampusCode, EnrolmentEvent, FeeStatusCode, Guardian, StudentProfil
 import type { IsoDate } from "@mtb/domain";
 import { campusName } from "./campuses";
 
-/** A student as stored by the mock server. Siblings are derived from fatherCnic; balances come from the fees store. */
-export type StudentRecord = Omit<StudentProfile, "siblings">;
+/**
+ * A fictional student as the unfinished modules' mocks (fees, attendance, exams, admissions, SMS…) still store it.
+ * Students itself is real (backend module 01); these records stay until those modules are built. Every fictional
+ * student has a date of birth, unlike migrated ones.
+ */
+export type StudentRecord = Omit<StudentProfile, "siblings" | "dob"> & { dob: IsoDate };
 
 /** The brief's family, grouped by father's CNIC 36302-4567890-1, across two campuses. */
 const IMRAN: Guardian = {

@@ -16,7 +16,7 @@ import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Page, PageHeader, RequirePermission, RequireSingleCampus } from "../../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../../app/session";
-import { apiMessage, classLabel, LoadError, SeatMeter, stagger, StudentsSubNav, TODAY } from "../shared";
+import { apiMessage, LoadError, SeatMeter, stagger, StudentsSubNav, today, useClassLabel } from "../shared";
 
 const REASONS = ["Class strength balancing", "Parent's request", "Sibling in the same section", "Group change", "Discipline", "Other"];
 
@@ -139,10 +139,11 @@ function MoveModal({
   onMoved: () => void;
 }) {
   const ctx = useCtx();
+  const classLabel = useClassLabel(ctx.campus);
   const toast = useToast();
   const queryClient = useQueryClient();
   const [toSection, setToSection] = useState("");
-  const [date, setDate] = useState<string | null>(TODAY);
+  const [date, setDate] = useState<string | null>(today());
   const [reason, setReason] = useState("");
   const [stream, setStream] = useState("");
   const [tried, setTried] = useState(false);
@@ -150,7 +151,7 @@ function MoveModal({
   useEffect(() => {
     if (open) {
       setToSection("");
-      setDate(TODAY);
+      setDate(today());
       setReason("");
       setStream("");
       setTried(false);
@@ -162,7 +163,7 @@ function MoveModal({
   const movers = students.filter((s) => from.get(s.grNo) !== `${className}-${toSection}`);
   const free = target ? target.seats - target.students.length : 0;
   const move = useMutation({
-    mutationFn: () => sectionAllotmentApi.move(ctx, { grNos: students.map((s) => s.grNo), toSection, effectiveDate: date ?? TODAY, reason, ...(stream ? { stream } : {}) }, key),
+    mutationFn: () => sectionAllotmentApi.move(ctx, { grNos: students.map((s) => s.grNo), toSection, effectiveDate: date ?? today(), reason, ...(stream ? { stream } : {}) }, key),
     onSuccess: (r) => {
       void queryClient.invalidateQueries({ queryKey: sectionAllotmentQueries.all() });
       void queryClient.invalidateQueries({ queryKey: studentsQueries.all() });
@@ -226,8 +227,10 @@ export function SectionsPage({ cls, setCls }: { cls: string; setCls: (c: string)
   const readOnly = useReadOnly();
   const editable = canEdit && !readOnly;
   const classes = useQuery(metaQueries.classes(ctx.campus));
-  const className = cls || "7";
-  const board = useQuery({ ...sectionAllotmentQueries.board(ctx, className), enabled: ctx.campus !== "ALL" });
+  // The class in the URL, else the first class at this campus with sections (Setup order).
+  const classList = (classes.data ?? []).filter((c) => c.sections.length > 0);
+  const className = cls || classList[0]?.short || "";
+  const board = useQuery({ ...sectionAllotmentQueries.board(ctx, className), enabled: ctx.campus !== "ALL" && Boolean(className) });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [moving, setMoving] = useState(false);
   const [rolls, setRolls] = useState<SectionAllotmentSection | null>(null);
@@ -266,7 +269,11 @@ export function SectionsPage({ cls, setCls }: { cls: string; setCls: (c: string)
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div className="grid gap-1.5">
               <span className="mtb-label">Class</span>
-              <Segmented aria-label="Class" value={className} onChange={setCls} options={(classes.data ?? []).map((c) => ({ value: c.short, label: c.short === "Prep" ? "Prep" : c.short }))} />
+              {classList.length > 12 ? (
+                <Select aria-label="Class" value={className} onChange={(e) => setCls(e.target.value)} options={classList.map((c) => ({ value: c.short, label: c.name }))} />
+              ) : (
+                <Segmented aria-label="Class" value={className} onChange={setCls} options={classList.map((c) => ({ value: c.short, label: c.short }))} />
+              )}
             </div>
             {editable && (
               <div className="flex flex-wrap items-center gap-2" aria-live="polite">

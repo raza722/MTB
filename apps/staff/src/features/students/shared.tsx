@@ -1,17 +1,45 @@
-import { ApiError, ENROLMENT_STATUS_LABEL, type EnrolmentStatusCode } from "@mtb/api";
+import { ApiError, ENROLMENT_STATUS_LABEL, metaQueries, type CampusCode, type ClassInfo, type EnrolmentStatusCode } from "@mtb/api";
+import { formatDate, pakistanToday, type IsoDate, type IsoDateTime } from "@mtb/domain";
 import { Banner, Button, StatusBadge, type Status } from "@mtb/ui";
-import type { CSSProperties, ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useCallback, type CSSProperties, type ReactNode } from "react";
 import { SubNav } from "../../app/shell/SubNav";
 
-/** Today in the demo (the mock server's clock). */
-export const TODAY = "2026-11-04";
+/** Today in Pakistan (read on every call, so a page left open past midnight moves on). */
+export const today = (): IsoDate => pakistanToday();
 
-/** Now, on the demo's date with the real time of day in Pakistan (for "Printed …" lines). */
-export function nowIso(): string {
-  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Karachi", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(new Date());
-  const hh = parts.find((p) => p.type === "hour")?.value ?? "10";
-  const mm = parts.find((p) => p.type === "minute")?.value ?? "00";
-  return `${TODAY}T${hh === "24" ? "00" : hh}:${mm}:00+05:00`;
+/** This moment (for "Printed …" lines; shown in Pakistan time by formatDateTime). */
+export const nowIso = (): IsoDateTime => new Date().toISOString();
+
+/**
+ * A date that may be missing: many migrated students have no date of birth (null, or "" until the API sends null;
+ * spec 01_students C1). Returns `empty` instead of throwing on a blank value.
+ */
+export const dateOrBlank = (value: IsoDate | null | undefined, empty = "—"): string => (value ? formatDate(value) : empty);
+
+/** "7" from "7-B": the class short name before the first dash (short names are letters and digits only). */
+export const classShortOf = (classSection: string): string => classSection.split("-")[0] ?? "";
+
+/** "B" from "7-B": everything after the first dash (real section names may contain dashes and slashes). */
+export const sectionOf = (classSection: string): string => {
+  const i = classSection.indexOf("-");
+  return i < 0 ? "" : classSection.slice(i + 1);
+};
+
+/**
+ * Whether a class sits a board exam (Part-I or Part-II), from Setup's `boardExamPart` (spec 01_students D8).
+ * `undefined` while the server does not send that field yet: then nothing is hidden and the server decides
+ * (it refuses board roll numbers and board documents for other classes, with the reason).
+ */
+export function isBoardClass(classes: ClassInfo[] | undefined, classShort: string): boolean | undefined {
+  if (!classes?.some((c) => c.boardExamPart !== undefined)) return undefined;
+  return Boolean(classes.find((c) => c.short === classShort)?.boardExamPart);
+}
+
+/** The class's name from Setup ("Class 7", "Prep", "First Year"), falling back to the short name while it loads. */
+export function useClassLabel(campus: CampusCode | "ALL"): (short: string) => string {
+  const classes = useQuery(metaQueries.classes(campus));
+  return useCallback((short: string) => classes.data?.find((c) => c.short === short)?.name ?? short, [classes.data]);
 }
 
 export const STATUS_TONE: Record<EnrolmentStatusCode, Status> = { ACTIVE: "success", LEFT: "neutral", STRUCK_OFF: "warning", PASSED_OUT: "info", EXPELLED: "danger" };
@@ -22,9 +50,6 @@ export function EnrolmentBadge({ status }: { status: EnrolmentStatusCode }) {
 
 /** Stagger index for .mtb-rise / .mtb-slide-in. */
 export const stagger = (i: number) => ({ "--i": i }) as CSSProperties;
-
-/** "Prep" or "Class 7". */
-export const classLabel = (short: string) => (short === "Prep" ? "Prep" : `Class ${short}`);
 
 /** The server's message, or a plain retry hint when the connection dropped. */
 export function apiMessage(error: unknown, fallback = "Something went wrong. Try again."): string | undefined {

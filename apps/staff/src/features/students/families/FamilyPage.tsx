@@ -43,7 +43,7 @@ import { Page, PageHeader, RequirePermission } from "../../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../../app/session";
 import { PrintSheet, printNow } from "../documents/print";
 import { FamilySheet } from "../documents/templates";
-import { apiMessage, EnrolmentBadge, fieldError, LoadError, stagger, StudentsSubNav, TODAY } from "../shared";
+import { apiMessage, EnrolmentBadge, fieldError, LoadError, stagger, StudentsSubNav, today } from "../shared";
 
 const RELATIONS: StudentFamilyGuardianRelation[] = ["Father", "Mother", "Grandfather", "Grandmother", "Uncle", "Aunt", "Brother", "Other"];
 const CHILD_COLOURS = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"];
@@ -157,7 +157,7 @@ function FamilySheetPanel({ f, open, onClose }: { f: StudentFamilyDetail; open: 
         <EmptyState icon="students" title="No child enrolled" description="The sheet lists the children enrolled now." />
       ) : (
         <PrintSheet paper="A4" label="Family sheet" zoom={0.55}>
-          <FamilySheet f={f} session={ctx.session} printedOn={TODAY} />
+          <FamilySheet f={f} session={ctx.session} printedOn={today()} />
         </PrintSheet>
       )}
     </SidePanel>

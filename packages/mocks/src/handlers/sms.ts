@@ -45,7 +45,7 @@ import { ctxFrom, fail, HttpResponse, latency, requirePermission, requireUser } 
 import { admissionApplicants } from "./admissions";
 import { declaredResultsFor, examRows, examsStore } from "./exams";
 import { chargesOf } from "./fees-state";
-import { allMovements, sessionOfDate } from "./student-records";
+import { allMovements, sessionOfDate } from "./student-records-model";
 
 // Messages centre. The kill switch store is read by the attendance and fee modules too.
 

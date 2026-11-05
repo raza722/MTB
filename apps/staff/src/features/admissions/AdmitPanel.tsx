@@ -19,7 +19,8 @@ import { useEffect, useState } from "react";
 import { useCan, useCtx } from "../../app/session";
 import { PrintSheet, printNow } from "../students/documents/print";
 import { AdmissionSlip } from "../students/documents/templates";
-import { apiMessage, SeatMeter, TODAY } from "../students/shared";
+import { apiMessage, SeatMeter } from "../students/shared";
+import { TODAY } from "./shared";
 
 const HOUSES = ["Iqbal House", "Jinnah House", "Liaquat House", "Sir Syed House"];
 

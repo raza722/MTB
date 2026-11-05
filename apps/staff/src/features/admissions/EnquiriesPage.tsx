@@ -16,8 +16,8 @@ import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { Page, PageHeader } from "../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
-import { apiMessage, fieldError, LoadError, stagger, TODAY } from "../students/shared";
-import { AdmissionsSubNav } from "./shared";
+import { apiMessage, fieldError, LoadError, stagger } from "../students/shared";
+import { AdmissionsSubNav, TODAY } from "./shared";
 import { BlankFormModal } from "./NewApplicationPage";
 
 const CLASSES = ["Prep", ...Array.from({ length: 10 }, (_, i) => `Class ${i + 1}`)];

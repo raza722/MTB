@@ -4,7 +4,7 @@ import { Banner, Button, EmptyState, Segmented, Select, SidePanel, Skeleton } fr
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useCtx, useSessionUser } from "../../../app/session";
-import { LoadError, nowIso } from "../shared";
+import { isBoardClass, LoadError, nowIso } from "../shared";
 import { PrintSheet } from "./print";
 import { CollectionSheet } from "./templates";
 
@@ -17,8 +17,9 @@ export function CollectionSheetPanel({ open, onClose }: { open: boolean; onClose
   const ctx = useCtx();
   const user = useSessionUser();
   const classes = useQuery(metaQueries.classes(ctx.campus));
-  // Board documents belong to the classes that sit board exams: the ones with groups (9 and 10).
-  const boardClasses = (classes.data ?? []).filter((c) => (c.groups?.length ?? 0) > 0);
+  // Board documents belong to the classes that sit board exams: Setup's boardExamPart, or (until the server sends
+  // it) the classes with groups.
+  const boardClasses = (classes.data ?? []).filter((c) => isBoardClass(classes.data, c.short) ?? (c.groups?.length ?? 0) > 0);
   const [q, setQ] = useState<StudentDocsCollectionQuery>({ className: "" });
   const [tried, setTried] = useState(false);
   useEffect(() => {
@@ -96,7 +97,7 @@ export function CollectionSheetPanel({ open, onClose }: { open: boolean; onClose
               Preview · {rows.length} {rows.length === 1 ? "student" : "students"} · {rows.filter((r) => r.rollPartI || r.rollPartII).length} with a board roll no.
             </span>
             <PrintSheet paper="A4_LANDSCAPE" label="Collection sheet preview" zoom={0.48} footer={footer}>
-              <CollectionSheet sheet={sheet.data} printedAt={footer.replace(/^Printed /, "")} />
+              <CollectionSheet sheet={sheet.data} classLabel={cls?.name ?? q.className} printedAt={footer.replace(/^Printed /, "")} />
             </PrintSheet>
           </div>
         )}

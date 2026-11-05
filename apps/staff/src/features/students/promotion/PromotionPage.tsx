@@ -16,7 +16,7 @@ import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Page, PageHeader, RequirePermission, RequireSingleCampus } from "../../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../../app/session";
-import { apiMessage, classLabel, LoadError, SeatMeter, stagger, StudentsSubNav } from "../shared";
+import { apiMessage, classShortOf, LoadError, SeatMeter, sectionOf, stagger, StudentsSubNav, useClassLabel } from "../shared";
 
 type Decision = { outcome: StudentPromotionOutcome; toSection: string; stream: string };
 type Gender = "all" | "M" | "F";
@@ -25,11 +25,13 @@ const GRADE_TONE = (g: string) => (g === "A+" || g === "A" ? "success" : g === "
 
 function ClassDetail({ cs, detail, onDone }: { cs: string; detail: StudentPromotionClassDetail; onDone: () => void }) {
   const ctx = useCtx();
+  const classLabel = useClassLabel(ctx.campus);
   const toast = useToast();
   const queryClient = useQueryClient();
   const canEdit = useCan("students.edit");
   const readOnly = useReadOnly();
-  const [curShort, curSec] = cs.split("-") as [string, string];
+  const curShort = classShortOf(cs);
+  const curSec = sectionOf(cs);
   const next = detail.nextClass;
   const destSections = detail.destination.map((d) => d.section);
   // Groups of the class each student lands in: next class when promoted, this class when repeating.
@@ -174,7 +176,7 @@ function ClassDetail({ cs, detail, onDone }: { cs: string; detail: StudentPromot
           <span className="text-ink-subtle">—</span>
         ),
     },
-    { key: "att", header: "Attendance", align: "right", width: 100, render: (c) => <span className={cx("tabular-nums", c.attendancePercent < 75 && "font-semibold text-warning-ink")}>{c.attendancePercent}%</span> },
+    { key: "att", header: "Attendance", align: "right", width: 100, render: (c) => (c.attendancePercent === null ? <span className="text-ink-subtle" title="No attendance registers for this session yet">—</span> : <span className={cx("tabular-nums", c.attendancePercent < 75 && "font-semibold text-warning-ink")}>{c.attendancePercent}%</span>) },
     { key: "fee", header: "Fees", width: 100, render: (c) => <StatusBadge status={c.feeStatus} /> },
     {
       key: "outcome",
@@ -401,6 +403,7 @@ function ClassDetail({ cs, detail, onDone }: { cs: string; detail: StudentPromot
 
 export function PromotionPage({ cls, setCls }: { cls: string; setCls: (cs: string) => void }) {
   const ctx = useCtx();
+  const classLabel = useClassLabel(ctx.campus);
   const readOnly = useReadOnly();
   const overview = useQuery({ ...studentPromotionQueries.overview(ctx), enabled: ctx.campus !== "ALL" });
   const o = overview.data;

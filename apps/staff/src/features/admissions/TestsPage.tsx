@@ -7,8 +7,8 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import { Page, PageHeader, RequireSingleCampus } from "../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { PrintSheet, printNow } from "../students/documents/print";
-import { apiMessage, fieldError, LoadError, stagger, TODAY } from "../students/shared";
-import { AdmissionsSubNav, DiamondMindsBadge } from "./shared";
+import { apiMessage, fieldError, LoadError, stagger } from "../students/shared";
+import { AdmissionsSubNav, DiamondMindsBadge, TODAY } from "./shared";
 import { AttendanceSheet, MarksSheetPrint, TestSlip } from "./slips";
 
 type Row = { absent: boolean; marks: Record<string, string> };

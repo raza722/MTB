@@ -1,7 +1,7 @@
 import { studentDocsQueries } from "@mtb/api";
 import { Button, Modal, Skeleton } from "@mtb/ui";
 import { useQuery } from "@tanstack/react-query";
-import { LoadError, TODAY } from "../shared";
+import { LoadError, today } from "../shared";
 import { PrintSheet, printNow } from "./print";
 import { StudentRecordForm } from "./templates";
 
@@ -31,7 +31,7 @@ export function AdmissionFormModal({ grNo, open, onClose }: { grNo: string; open
       ) : (
         open && (
           <PrintSheet paper="A4" label="Admission form" zoom={0.55}>
-            <StudentRecordForm s={q.data.snapshot} printedOn={TODAY} />
+            <StudentRecordForm s={q.data.snapshot} printedOn={today()} />
           </PrintSheet>
         )
       )}

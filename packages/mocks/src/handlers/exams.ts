@@ -95,7 +95,7 @@ import { ctxFrom, fail, HttpResponse, latency, requirePermission, requireUser } 
 import { admissionsStore } from "./admissions";
 import { setupCreditHours } from "../fixtures/setup";
 import { genderOfName, queueBatch } from "./sms";
-import { patchStudent } from "./student-records";
+import { patchStudent } from "./student-records-model";
 
 // Exams: one engine for term exams, class tests, board exams and entrance tests, plus university semesters.
 // The stores and helpers below are exported so the teacher app and parent portal mocks share the same marks.

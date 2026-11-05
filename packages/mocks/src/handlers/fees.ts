@@ -8,8 +8,7 @@ import { findStudent } from "../fixtures/students";
 import { fail, HttpResponse, latency, requirePermission, requireUser } from "../util";
 import { feeHeadByCode, openVoucherWith, receiptNotesFor } from "./fee-setup";
 import { chargesOf, feesStore, financeOf, POLICY, receiptsOf } from "./fees-state";
-import { statusNoteOf } from "./student-records";
-import { toSummary } from "./students";
+import { statusNoteOf, toSummary } from "./student-records-model";
 
 /** A receipt as the client sees it: with the campus's receipt notes for the print. */
 const withNotes = (r: Receipt): Receipt => ({ ...r, policyNotes: receiptNotesFor(r.campus) });

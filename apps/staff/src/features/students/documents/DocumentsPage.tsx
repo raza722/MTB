@@ -46,7 +46,7 @@ import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { Page, PageHeader, RequirePermission, RequireSingleCampus } from "../../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../../app/session";
-import { apiMessage, fieldError, LoadError, stagger, StudentsSubNav, TODAY } from "../shared";
+import { apiMessage, classShortOf, fieldError, isBoardClass, LoadError, stagger, StudentsSubNav, today } from "../shared";
 import { AdmissionFormsPanel, AdmissionSlipsPanel, LettersPanel } from "./BatchPanels";
 import { CollectionSheetPanel } from "./CollectionSheetPanel";
 import { DOC_SHORT, IssueDocumentPanel } from "./IssueDocumentPanel";
@@ -71,7 +71,7 @@ const returnSchema = (issuedOn: string) =>
     returnedOn: z
       .string({ error: "Choose the date the card was handed back." })
       .min(1, { error: "Choose the date the card was handed back." })
-      .refine((v) => v <= TODAY, { error: "The date can't be in the future." })
+      .refine((v) => v <= today(), { error: "The date can't be in the future." })
       .refine((v) => v >= issuedOn, { error: `The card was issued on ${formatDate(issuedOn)}. Choose that day or later.` }),
   });
 
@@ -90,14 +90,14 @@ function DocumentPanel({ doc, open, onClose }: { doc: StudentDocIssued | null; o
   const [current, setCurrent] = useState<StudentDocIssued | null>(doc);
   const [backs, setBacks] = useState(false);
   const [returning, setReturning] = useState(false);
-  const [returnedOn, setReturnedOn] = useState<string>(TODAY);
+  const [returnedOn, setReturnedOn] = useState<string>(today());
   const [returnError, setReturnError] = useState("");
   useEffect(() => {
     setCurrent(doc);
     setReprinting(false);
     setCancelling(false);
     setReturning(false);
-    setReturnedOn(TODAY);
+    setReturnedOn(today());
     setReturnError("");
     setReason("");
     setOther("");
@@ -135,7 +135,7 @@ function DocumentPanel({ doc, open, onClose }: { doc: StudentDocIssued | null; o
     },
   });
   const confirmReturn = () => {
-    const r = returnSchema(current?.issuedOn ?? TODAY).safeParse({ returnedOn });
+    const r = returnSchema(current?.issuedOn ?? today()).safeParse({ returnedOn });
     if (!r.success) {
       setReturnError(r.error.issues[0]?.message ?? "");
       return;
@@ -304,7 +304,7 @@ function DocumentPanel({ doc, open, onClose }: { doc: StudentDocIssued | null; o
         }
       >
         <div className="grid gap-4">
-          <DatePicker label="Returned on" required value={returnedOn || null} onValueChange={(v) => setReturnedOn(v ?? "")} today={TODAY} minDate={d.issuedOn} maxDate={TODAY} error={returnError || fieldError(markReturned.error, "returnedOn")} />
+          <DatePicker label="Returned on" required value={returnedOn || null} onValueChange={(v) => setReturnedOn(v ?? "")} today={today()} minDate={d.issuedOn} maxDate={today()} error={returnError || fieldError(markReturned.error, "returnedOn")} />
           {markReturned.error && !fieldError(markReturned.error, "returnedOn") && <Banner tone="danger">{apiMessage(markReturned.error)}</Banner>}
         </div>
       </Modal>
@@ -334,7 +334,7 @@ function ClassCardsPanel({ open, onClose }: { open: boolean; onClose: () => void
     }
   }, [open]);
   const issue = useMutation({
-    mutationFn: () => studentDocsApi.issue(ctx, { type: "ID_CARD", grNos: (roster.data ?? []).map((s) => s.grNo), details: { validUntil: `${ctx.session + 1}-03-31` } }, key),
+    mutationFn: () => studentDocsApi.issue(ctx, { type: "ID_CARD", grNos: (roster.data ?? []).map((s) => s.grNo), details: {} }, key), // valid until the session's end at this campus (server default)
     onSuccess: (r) => {
       setConfirming(false);
       setIssued(r.issued);
@@ -347,7 +347,7 @@ function ClassCardsPanel({ open, onClose }: { open: boolean; onClose: () => void
   const options = (classes.data ?? []).flatMap((c) => c.sections.map((s) => `${c.short}-${s}`));
   const preview: DocInput[] = issued
     ? issued.map((d) => asInput(d, 1))
-    : (roster.data ?? []).map((s) => ({ type: "ID_CARD" as const, serialNo: "Assigned on issue", issuedOn: TODAY, details: { validUntil: `${ctx.session + 1}-03-31` }, snapshot: s }));
+    : (roster.data ?? []).map((s) => ({ type: "ID_CARD" as const, serialNo: "Assigned on issue", issuedOn: today(), details: {}, snapshot: s }));
   return (
     <SidePanel
       open={open}
@@ -403,7 +403,7 @@ function ClassCardsPanel({ open, onClose }: { open: boolean; onClose: () => void
         details={[
           ["Class", cs],
           ["Cards", String(roster.data?.length ?? 0)],
-          ["Valid until", formatDate(`${ctx.session + 1}-03-31`)],
+          ["Valid until", "The last day of the session at this campus"],
           ["A4 sheets", String(Math.ceil((roster.data?.length ?? 0) / 10) * (backs ? 2 : 1)) + (backs ? " (fronts and backs)" : "")],
         ]}
         confirmLabel="Issue and print"
@@ -421,6 +421,7 @@ export function DocumentsPage({ type, setType }: { type: StudentDocType | ""; se
   const readOnly = useReadOnly();
   const register = useQuery(studentDocsQueries.register(ctx, type));
   const roster = useQuery({ ...studentsQueries.list(ctx, { status: "" }), enabled: ctx.campus !== "ALL" });
+  const classes = useQuery(metaQueries.classes(ctx.campus));
   const [q, setQ] = useState("");
   const [open, setOpen] = useState<StudentDocIssued | null>(null);
   const [picking, setPicking] = useState<StudentDocType | null>(null);
@@ -437,7 +438,7 @@ export function DocumentsPage({ type, setType }: { type: StudentDocType | ""; se
     return (r?.items ?? []).filter((d) => !n || d.studentName.toLowerCase().includes(n) || d.grNo.toLowerCase().includes(n) || d.serialNo.toLowerCase().includes(n));
   }, [r, q]);
   const editable = canEdit && !readOnly;
-  const studentOptions = (roster.data?.items ?? []).map((s) => ({ value: s.grNo, label: s.name, hint: `${s.grNo} · ${s.classSection}`, keywords: [s.grNo, s.father] }));
+  const studentOptions = (roster.data?.items ?? []).map((s) => ({ value: s.grNo, label: s.name, hint: `${s.grNo} · ${s.classSection}`, keywords: [s.grNo, s.father], classSection: s.classSection }));
 
   const columns: Array<Column<StudentDocIssued>> = [
     { key: "serialNo", header: "Serial no.", width: 170, render: (d) => <span className="mtb-mono">{d.serialNo}</span> },
@@ -488,7 +489,8 @@ export function DocumentsPage({ type, setType }: { type: StudentDocType | ""; se
         ),
     },
   ];
-  const pickOptions = picking && isHandoverDoc(picking) ? studentOptions.filter((o) => /· (9|10)-/.test(o.hint)) : studentOptions;
+  // Board documents: only students of board-exam classes (Setup's boardExamPart; everyone while the server doesn't send it).
+  const pickOptions = picking && isHandoverDoc(picking) ? studentOptions.filter((o) => isBoardClass(classes.data, classShortOf(o.classSection)) !== false) : studentOptions;
   const handedOver = r ? STUDENT_HANDOVER_DOC_TYPES.reduce((a, t) => a + r.counts[t], 0) : 0;
   const tile = (t: StudentDocType, i: number) => (
     <li key={t} className="mtb-slide-in" style={stagger(i)}>
