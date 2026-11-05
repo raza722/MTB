@@ -245,8 +245,10 @@ function ClassSubjectsView() {
   const ctx = useCtx();
   const classes = useQuery(setupQueries.classes(ctx));
   const groups = useQuery(setupQueries.groups(ctx)).data ?? [];
-  const [sel, setSel] = useState<{ classId: string; groupId: string | null }>({ classId: "c-7", groupId: null });
+  const [picked, setSel] = useState<{ classId: string; groupId: string | null } | null>(null);
   const list = (classes.data ?? []).filter((c) => c.active);
+  // until the user picks one: the first active class (its first group, when it has groups)
+  const sel = picked ?? (list[0] ? { classId: list[0].id, groupId: list[0].groupIds[0] ?? null } : null);
   return (
     <div className="setup-split">
       <div className="mtb-card">
@@ -262,7 +264,7 @@ function ClassSubjectsView() {
             {list.map((c) =>
               c.groupIds.length === 0 ? (
                 <li key={c.id}>
-                  <button type="button" aria-current={sel.classId === c.id && !sel.groupId ? "true" : undefined} onClick={() => setSel({ classId: c.id, groupId: null })}>
+                  <button type="button" aria-current={sel?.classId === c.id && !sel?.groupId ? "true" : undefined} onClick={() => setSel({ classId: c.id, groupId: null })}>
                     {c.name}
                   </button>
                 </li>
@@ -272,7 +274,7 @@ function ClassSubjectsView() {
                   <ul className="m-0 grid list-none gap-0.5 p-0">
                     {c.groupIds.map((g) => (
                       <li key={g}>
-                        <button type="button" className="setup-picker-sub" aria-current={sel.classId === c.id && sel.groupId === g ? "true" : undefined} onClick={() => setSel({ classId: c.id, groupId: g })}>
+                        <button type="button" className="setup-picker-sub" aria-current={sel?.classId === c.id && sel?.groupId === g ? "true" : undefined} onClick={() => setSel({ classId: c.id, groupId: g })}>
                           {groups.find((x) => x.id === g)?.name ?? g}
                         </button>
                       </li>
@@ -284,7 +286,7 @@ function ClassSubjectsView() {
           </ul>
         )}
       </div>
-      <ClassSubjectsEditor classId={sel.classId} groupId={sel.groupId} />
+      {sel && <ClassSubjectsEditor classId={sel.classId} groupId={sel.groupId} />}
     </div>
   );
 }

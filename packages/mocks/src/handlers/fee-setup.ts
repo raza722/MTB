@@ -291,21 +291,13 @@ export const concessionOff = (gross: number, pct: number) => Math.round((gross *
 
 const typeInfo = (t: FeeConcessionType) => CONCESSION_TYPES.find((x) => x.code === t)!;
 
-/** A campus setting from Setup → Campus settings (the campus's own value, else the default). Setup owns them. */
+/**
+ * A campus setting (the campus's own value, else the default), from the fictional fixtures. Setup → Campus settings is
+ * served by the real backend now; this mock keeps the fixture values until Fee setup is built.
+ */
 export function campusSetting(campus: CampusCode, key: string): string {
-  let own: Record<string, string> = initialCampusSettings()[campus] ?? {};
-  let defaults: Record<string, string> = {};
-  try {
-    const raw = sessionStorage.getItem("mtb.demo.setup");
-    if (raw) {
-      const st = JSON.parse(raw) as { settings?: Record<string, Record<string, string>>; settingDefaults?: Record<string, string> };
-      own = st.settings?.[campus] ?? own;
-      defaults = st.settingDefaults ?? {};
-    }
-  } catch {
-    /* fixtures only */
-  }
-  return own[key] ?? defaults[key] ?? SETTING_DEFS.find((d) => d.key === key)?.defaultValue ?? "";
+  const own: Record<string, string> = initialCampusSettings()[campus] ?? {};
+  return own[key] ?? SETTING_DEFS.find((d) => d.key === key)?.defaultValue ?? "";
 }
 
 /** Notes printed at the foot of every receipt (Setup → Campus settings → Receipts), then the footer. */
@@ -320,21 +312,10 @@ export function receiptNotesFor(campus: CampusCode): string[] {
   return footer && !repeats ? [...notes, footer] : notes;
 }
 
-/** Bank details from Setup → Campus settings (read-only here; Setup owns them). */
+/** Bank details from the campus settings fixtures (Setup → Campus settings lives on the real backend now). */
 function bankFor(campus: CampusCode): FeeBankDetails {
-  let own: Record<string, string> = initialCampusSettings()[campus] ?? {};
-  let defaults: Record<string, string> = {};
-  try {
-    const raw = sessionStorage.getItem("mtb.demo.setup");
-    if (raw) {
-      const st = JSON.parse(raw) as { settings?: Record<string, Record<string, string>>; settingDefaults?: Record<string, string> };
-      own = st.settings?.[campus] ?? own;
-      defaults = st.settingDefaults ?? {};
-    }
-  } catch {
-    /* fixtures only */
-  }
-  const val = (key: string) => own[key] ?? defaults[key] ?? SETTING_DEFS.find((d) => d.key === key)?.defaultValue ?? "";
+  const own: Record<string, string> = initialCampusSettings()[campus] ?? {};
+  const val = (key: string) => own[key] ?? SETTING_DEFS.find((d) => d.key === key)?.defaultValue ?? "";
   const copies = Math.min(3, Math.max(1, Number(val("voucher.copies")) || 3));
   const labels = val("voucher.copyLabels")
     .split("·")

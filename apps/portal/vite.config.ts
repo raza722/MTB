@@ -15,5 +15,17 @@ export default defineConfig({
   server: {
     port: 5175,
     strictPort: true,
+    // The apps call /api/<path>; the backend serves /api/v1/<path> (backend/docs/INTEGRATION_CONVENTIONS.md §1).
+    // MSW still answers the modules that are not built yet and lets the rest through to here. The sign-in cookie
+    // (mtb_session, Path=/, no Domain) passes through, so the browser keeps it for this dev origin.
+    proxy: {
+      "/api": {
+        target: "http://127.0.0.1:8100",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, "/api/v1"),
+        // Keep the cookie on this origin even if the backend ever names a Domain (127.0.0.1 is not localhost).
+        cookieDomainRewrite: { "*": "" },
+      },
+    },
   },
 });

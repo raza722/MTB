@@ -40,8 +40,9 @@ export default function DemoPanel() {
     await clearOutbox();
     await clearPersisted();
     queryClient.clear();
-    toast({ title: "Demo data reset", message: "Sign in again as Ms Hina Javed." });
-    await navigate({ to: "/login" });
+    // Sign-in is real now and survives a reset of the fictional data: the teacher stays signed in.
+    toast({ title: "Demo data reset", message: "Screens from modules not built yet start again from the demo data." });
+    await navigate({ to: "/today" });
   };
 
   return (

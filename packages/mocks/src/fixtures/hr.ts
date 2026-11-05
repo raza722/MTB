@@ -26,7 +26,7 @@ import { campusName, tuitionFor } from "./campuses";
 import { initialTeachers } from "./setup";
 
 // Staff and payroll fixtures — owned by the hr feature. Every person here is fictional. Staff numbers, names and
-// sign-in links match the users list (fixtures/users.ts, fixtures/setup.ts) and the class teachers in the timetable.
+// sign-in user names were chosen to match the old demo accounts and the class teachers in the timetable.
 
 /* ================================================================== Deterministic randomness */
 

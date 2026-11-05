@@ -63,7 +63,6 @@ import { findStudent, STUDENTS, type StudentRecord } from "../fixtures/students"
 import { currentUser } from "./auth-state";
 import { examRows, examsStore, followGroupChange } from "./exams";
 import { studentSessionFee } from "./fee-setup";
-import { setupCampusContact } from "./setup";
 import { preparedFor, queueSms } from "./sms";
 import { chargesOf, feesStore, financeOf } from "./fees-state";
 import { ctxFrom, fail, HttpResponse, latency, requirePermission, requireUser } from "../util";
@@ -547,23 +546,13 @@ const DUES_MONTH = /–\s*(\w{3} \d{4})/;
 
 let seedContacts: Map<string, { phone: string; email: string }> | null = null;
 /**
- * Campus office phone and email for the letterhead, live from Setup → Campuses (a campus without an email prints
- * none). `pure` snapshots (built while this store is created, possibly before the Setup mock has loaded) read the
- * Setup fixtures instead.
+ * Campus office phone and email for the letterhead, from the campus fixtures (a campus without an email prints none).
+ * Setup → Campuses is served by the real backend now; this mock keeps its fictional letterheads until Student records
+ * is built.
  */
-function campusContactOf(campus: CampusCode, pure?: boolean): { phone?: string; email?: string } {
-  let c: { phone: string; email: string } | undefined;
-  if (!pure) {
-    try {
-      c = setupCampusContact(campus);
-    } catch {
-      /* Setup mock not loaded yet: fixtures below */
-    }
-  }
-  if (!c) {
-    if (!seedContacts) seedContacts = new Map(initialCampuses().map((x) => [x.code, { phone: x.phone ?? "", email: x.email ?? "" }]));
-    c = seedContacts.get(campus);
-  }
+function campusContactOf(campus: CampusCode): { phone?: string; email?: string } {
+  if (!seedContacts) seedContacts = new Map(initialCampuses().map((x) => [x.code, { phone: x.phone ?? "", email: x.email ?? "" }]));
+  const c = seedContacts.get(campus);
   return { ...(c?.phone ? { phone: c.phone } : {}), ...(c?.email ? { email: c.email } : {}) };
 }
 
@@ -587,7 +576,7 @@ export function snapshotOf(s: StudentRecord, opts: { balance?: number; session?:
     dues = month ? `${month} (no dues outstanding)` : "No dues outstanding";
   }
   const stream = streamOf(s);
-  const contact = campusContactOf(s.campus, opts.pure);
+  const contact = campusContactOf(s.campus);
   const readmitted = s.enrolment.some((e) => e.kind === "RESTORED") || s.enrolment.filter((e) => e.kind === "ADMITTED").length > 1;
   return {
     grNo: s.grNo,

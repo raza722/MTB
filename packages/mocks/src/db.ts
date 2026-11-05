@@ -12,7 +12,8 @@ export interface Store<T> {
 
 const resets = new Map<string, () => void>();
 
-export function createStore<T>(name: string, initial: () => T): Store<T> {
+/** `keepOnReset`: Reset demo data leaves this store alone (the real sign-in the mocks follow, for one). */
+export function createStore<T>(name: string, initial: () => T, options: { keepOnReset?: boolean } = {}): Store<T> {
   const key = PREFIX + name;
   let value: T | undefined;
 
@@ -50,7 +51,7 @@ export function createStore<T>(name: string, initial: () => T): Store<T> {
       }
     },
   };
-  resets.set(name, store.reset);
+  if (!options.keepOnReset) resets.set(name, store.reset);
   return store;
 }
 

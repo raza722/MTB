@@ -2,11 +2,9 @@ import { ApiError, authApi, authQueries } from "@mtb/api";
 import { Banner, Button, IconButton, Input } from "@mtb/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { lazy, Suspense, useState, type KeyboardEvent } from "react";
+import { useState, type KeyboardEvent } from "react";
 import { z } from "zod";
 import { AuthLayout } from "./AuthLayout";
-
-const DemoAccount = lazy(() => import("./DemoAccount"));
 
 const schema = z.object({
   username: z.string().trim().min(1, { error: "Enter your username." }),
@@ -42,22 +40,7 @@ export function LoginPage({ redirectTo, username: initialUser, changed }: { redi
   const checkCaps = (e: KeyboardEvent<HTMLInputElement>) => setCaps(e.getModifierState?.("CapsLock") ?? false);
 
   return (
-    <AuthLayout
-      title="Sign in"
-      subtitle="Use the same username and password as the school system."
-      aside={
-        import.meta.env.VITE_USE_MOCKS !== "false" ? (
-          <Suspense fallback={null}>
-            <DemoAccount
-              onPick={(u, p) => {
-                setUsername(u);
-                setPassword(p);
-              }}
-            />
-          </Suspense>
-        ) : undefined
-      }
-    >
+    <AuthLayout title="Sign in" subtitle="Use the same username and password as the school system.">
       <form
         className="grid gap-4"
         noValidate

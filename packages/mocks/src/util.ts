@@ -1,9 +1,14 @@
 import { can, type CampusScope, type Ctx, type Permission, type SessionUser } from "@mtb/api";
 import { delay, HttpResponse } from "msw";
-import { currentUser } from "./handlers/auth-state";
+import { currentUser, sessionSettled } from "./handlers/auth-state";
 
-/** Every mocked request waits a little, like a real server. */
-export const latency = () => delay(180 + Math.round(Math.random() * 260));
+/**
+ * Every mocked request waits a little, like a real server, and for a real session check that is still on its way, so
+ * the permission checks after it see the signed-in user.
+ */
+export async function latency() {
+  await Promise.all([delay(180 + Math.round(Math.random() * 260)), sessionSettled()]);
+}
 
 export function fail(status: number, code: string, message: string, extra: { field?: string; details?: unknown } = {}) {
   return HttpResponse.json({ code, message, ...extra }, { status });

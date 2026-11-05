@@ -93,7 +93,7 @@ import {
 import { findStudent, STUDENTS } from "../fixtures/students";
 import { ctxFrom, fail, HttpResponse, latency, requirePermission, requireUser } from "../util";
 import { admissionsStore } from "./admissions";
-import { setupCreditHours } from "./setup";
+import { setupCreditHours } from "../fixtures/setup";
 import { genderOfName, queueBatch } from "./sms";
 import { patchStudent } from "./student-records";
 
