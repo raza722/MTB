@@ -2,7 +2,7 @@ import { HR_PAYMENT_LABEL, hrMonthLabel, type HrBankList, type HrPayrollRun, typ
 import { amountInWords, formatCnic, formatDate, formatMobile, formatRs } from "@mtb/domain";
 import { Urdu } from "@mtb/ui";
 import type { ReactNode } from "react";
-import { campusHeading, employmentLabel, Ltr, TODAY, years } from "./shared";
+import { campusHeading, cnicOrDash, dateOrDash, employmentLabel, Ltr, mobileOrDash, orDash, sessionOf, today, years } from "./shared";
 
 /** Heading used by every printed HR document. */
 export function DocHead({ campus, title, sub }: { campus: string; title: ReactNode; sub?: ReactNode }) {
@@ -13,7 +13,7 @@ export function DocHead({ campus, title, sub }: { campus: string; title: ReactNo
         <h1>{title}</h1>
         {sub && <p>{sub}</p>}
       </div>
-      <p>Printed {formatDate(TODAY)}</p>
+      <p>Printed {formatDate(today())}</p>
     </div>
   );
 }
@@ -95,7 +95,7 @@ export function ReportDoc({
 /** Appointment letter (legacy "Appointment Letter" report), filled from the profile. */
 export function AppointmentLetterDoc({ s, principal }: { s: HrStaffProfile; principal: string }) {
   const p = s.postings.find((x) => x.primary) ?? s.postings[0]!;
-  const title = s.gender === "F" ? (s.maritalStatus === "MARRIED" ? "Mrs" : "Miss") : "Mr";
+  const title = s.gender === "F" ? (s.maritalStatus === "MARRIED" ? "Mrs" : s.maritalStatus === null ? "Ms" : "Miss") : "Mr";
   const plain = s.name.replace(/^(Mr|Ms|Mrs|Dr|Qari)\s+/, "");
   return (
     <div className="hr-doc hr-letter">
@@ -104,7 +104,16 @@ export function AppointmentLetterDoc({ s, principal }: { s: HrStaffProfile; prin
         <strong>Subject: Appointment</strong>
       </p>
       <p>
-        {title} {plain}, {s.relation} {s.guardianName}, resident of {s.address}, CNIC <Ltr>{formatCnic(s.cnic)}</Ltr>, is appointed as <strong>{p.designation}</strong> ({p.department}) at {p.campusName} on a{" "}
+        {title} {plain}
+        {s.guardianName ? `, ${s.relation} ${s.guardianName}` : ""}
+        {s.address ? `, resident of ${s.address}` : ""}
+        {s.cnic && (
+          <>
+            , CNIC <Ltr>{formatCnic(s.cnic)}</Ltr>
+          </>
+        )}
+        , is appointed as <strong>{p.designation}</strong>
+        {p.department ? ` (${p.department})` : ""} at {p.campusName} on a{" "}
         {employmentLabel[p.employmentType].toLowerCase()} basis from <strong>{formatDate(p.startDate)}</strong>
         {p.payScale ? `, in pay scale ${p.payScale}` : ""}.
       </p>
@@ -152,15 +161,22 @@ export function ProfileDoc({ s }: { s: HrStaffProfile }) {
       <h2>Personal</h2>
       {kv([
         ["Name", <>{s.name}{s.nameUrdu && <> · <Urdu size="small">{s.nameUrdu}</Urdu></>}</>],
-        [s.relation === "w/o" ? "Husband" : "Father", s.guardianName],
-        ["CNIC", <Ltr>{formatCnic(s.cnic)}</Ltr>],
-        ["Date of birth", formatDate(s.dob)],
-        ["Blood group", s.bloodGroup],
-        ["Mobile", <Ltr>{formatMobile(s.mobile)}{s.mobile2 ? `, ${formatMobile(s.mobile2)}` : ""}</Ltr>],
+        [s.relation === "w/o" ? "Husband" : "Father", orDash(s.guardianName)],
+        ["CNIC", <Ltr>{cnicOrDash(s.cnic)}</Ltr>],
+        ["Date of birth", dateOrDash(s.dob)],
+        ["Blood group", orDash(s.bloodGroup)],
+        ["Marital status", s.maritalStatus ? s.maritalStatus.charAt(0) + s.maritalStatus.slice(1).toLowerCase() : "—"],
+        [
+          "Mobile",
+          <Ltr>
+            {mobileOrDash(s.mobile)}
+            {s.mobile2 ? `, ${formatMobile(s.mobile2)}` : ""}
+          </Ltr>,
+        ],
         ["Email", s.email ? <Ltr>{s.email}</Ltr> : "—"],
-        ["Address", s.address],
-        ["City", s.city],
-        ["Emergency contact", `${s.emergency.name} (${s.emergency.relation}) ${formatMobile(s.emergency.mobile)}`],
+        ["Address", orDash(s.address)],
+        ["City", orDash(s.city)],
+        ["Emergency contact", s.emergency ? `${s.emergency.name} (${s.emergency.relation}) ${mobileOrDash(s.emergency.mobile)}` : "—"],
         ["Reference", s.reference ?? "—"],
         ["Caste", s.caste ?? "—"],
       ])}
@@ -185,7 +201,7 @@ export function ProfileDoc({ s }: { s: HrStaffProfile }) {
                 {x.primary ? " (main)" : ""}
               </td>
               <td>{x.designation}</td>
-              <td>{x.department}</td>
+              <td>{orDash(x.department)}</td>
               <td>{employmentLabel[x.employmentType]}</td>
               <td>{x.payScale ?? "—"}</td>
               <td>{formatDate(x.startDate)}</td>
@@ -199,7 +215,7 @@ export function ProfileDoc({ s }: { s: HrStaffProfile }) {
         ["Service", `${years(s.serviceYears)}${s.priorServiceYears ? ` (includes ${years(s.priorServiceYears)} earlier MTB service)` : ""}`],
         ["Teaching", s.teachingLevels.length ? `${s.teachingLevels.join(", ")}${s.subjects.length ? ` · ${s.subjects.join(", ")}` : ""}` : "—"],
         // Pay roles only: the profile carries pay only when the viewer may see it.
-        ...(s.pay ? ([["Basic pay", `${formatRs(s.pay.basic)} a month${s.pay.payScale ? ` · scale ${s.pay.payScale}` : ""}`]] as Array<[string, ReactNode]>) : []),
+        ...(s.pay ? ([["Basic pay", `${s.pay.basic ? `${formatRs(s.pay.basic)} a month` : "Not set yet"}${s.pay.payScale ? ` · scale ${s.pay.payScale}` : ""}`]] as Array<[string, ReactNode]>) : []),
       ])}
       <h2>Qualifications</h2>
       <table>
@@ -215,9 +231,9 @@ export function ProfileDoc({ s }: { s: HrStaffProfile }) {
           {s.qualifications.map((q) => (
             <tr key={q.id}>
               <td>{q.degree}</td>
-              <td>{q.institution}</td>
-              <td>{q.year}</td>
-              <td>{q.result}</td>
+              <td>{orDash(q.institution)}</td>
+              <td>{q.year ?? "—"}</td>
+              <td>{orDash(q.result)}</td>
             </tr>
           ))}
         </tbody>
@@ -270,15 +286,17 @@ export function IdCardDoc({ s }: { s: HrStaffProfile }) {
           <span>{p.designation}</span>
           <span>{p.campusName}</span>
           <span>
-            <Ltr>{s.employeeNo}</Ltr> · Blood {s.bloodGroup}
+            <Ltr>{s.employeeNo}</Ltr>
+            {s.bloodGroup ? ` · Blood ${s.bloodGroup}` : ""}
           </span>
         </div>
       </div>
       <div className="hr-card-foot">
         <span>
-          CNIC <Ltr>{formatCnic(s.cnic)}</Ltr>
+          CNIC <Ltr>{cnicOrDash(s.cnic)}</Ltr>
         </span>
-        <span>Valid until 31-Mar-2027</span>
+        {/* Valid to the end of the session it is printed in (sessions run April to March). */}
+        <span>Valid until {formatDate(`${sessionOf(today()) + 1}-03-31`)}</span>
       </div>
     </div>
   );
@@ -320,6 +338,7 @@ export function PayslipDoc({ run, slip, first }: { run: Pick<HrPayrollRun, "camp
           <tr>
             <td colSpan={2} className="hr-slip-note">
               Days paid {slip.paidDays} of {slip.monthDays} · present {slip.presentDays} · leave {slip.leaveDays} · unpaid {slip.unpaidDays} · late {slip.lateCount}
+              {slip.notMarkedDays ? ` · not marked ${slip.notMarkedDays}` : ""}
             </td>
           </tr>
         </tbody>

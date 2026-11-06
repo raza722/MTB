@@ -1,10 +1,9 @@
-import { ApiError, hrApi, hrQueries, newIdempotencyKey, teacherQueries, type HrLeaveRequest, type HrMyLeave } from "@mtb/api";
-import { formatDate, toIsoDate } from "@mtb/domain";
+import { ApiError, hrApi, hrQueries, newIdempotencyKey, type HrLeaveRequest, type HrMyLeave } from "@mtb/api";
+import { formatDate, pakistanToday } from "@mtb/domain";
 import { Banner, BottomSheet, Button, DatePicker, EmptyState, Select, Skeleton, StatusBadge, Switch, Textarea, useToast } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState, type CSSProperties } from "react";
 import { z } from "zod";
-import { useCtx } from "../../app/session";
 import { QueryState, errorText } from "../../app/shell/QueryState";
 import { Screen } from "../../app/shell/Screen";
 import { useOnline } from "../../app/sync/network";
@@ -33,6 +32,8 @@ const STATUS: Record<HrLeaveRequest["status"], { status: "pending" | "approved" 
 export function LeavePage() {
   const q = useQuery(hrQueries.myLeave());
   const [asking, setAsking] = useState(false);
+  // Sign-ins without a staff record (HR answers 404 NOT_LINKED): nothing to show and nothing to ask for.
+  const notLinked = q.error instanceof ApiError && q.error.code === "NOT_LINKED";
   const online = useOnline();
   return (
     <Screen
@@ -46,22 +47,26 @@ export function LeavePage() {
         </Button>
       }
     >
-      <QueryState
-        query={q}
-        skeleton={
-          <div className="grid gap-2" aria-busy="true" aria-label="Loading your leave">
-            <Skeleton height={120} className="rounded-lg" />
-            <Skeleton height={200} className="rounded-lg" />
-          </div>
-        }
-      >
-        {(d) => (
-          <>
-            <LeaveBody d={d} />
-            <AskSheet open={asking} onClose={() => setAsking(false)} d={d} />
-          </>
-        )}
-      </QueryState>
+      {notLinked ? (
+        <EmptyState icon="user" title="Not linked to a staff record" description="Your sign-in isn't linked to a staff record yet, so there is no leave to show. Ask the office to link it." />
+      ) : (
+        <QueryState
+          query={q}
+          skeleton={
+            <div className="grid gap-2" aria-busy="true" aria-label="Loading your leave">
+              <Skeleton height={120} className="rounded-lg" />
+              <Skeleton height={200} className="rounded-lg" />
+            </div>
+          }
+        >
+          {(d) => (
+            <>
+              <LeaveBody d={d} />
+              <AskSheet open={asking} onClose={() => setAsking(false)} d={d} />
+            </>
+          )}
+        </QueryState>
+      )}
     </Screen>
   );
 }
@@ -127,9 +132,8 @@ function LeaveBody({ d }: { d: HrMyLeave }) {
 function AskSheet({ open, onClose, d }: { open: boolean; onClose: () => void; d: HrMyLeave }) {
   const toast = useToast();
   const queryClient = useQueryClient();
-  const ctx = useCtx();
-  // The school's "today" (the demo runs on 04-Nov-2026); the phone's date when the server hasn't said.
-  const TODAY = useQuery(teacherQueries.today(ctx)).data?.date ?? toIsoDate(new Date());
+  // Today in Pakistan: leave is real HR data (module 02), checked by the server against the same date.
+  const TODAY = pakistanToday();
   const key = useRef(newIdempotencyKey());
   const [typeId, setTypeId] = useState("");
   const [from, setFrom] = useState<string | null>(null);

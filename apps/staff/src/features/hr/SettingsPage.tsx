@@ -182,6 +182,7 @@ function PayDefaultsPanel({ s, onClose }: { s: HrSettings; onClose: () => void }
     >
       <div className="grid gap-4">
         <Input label="House rent (% of basic, staff with a pay scale)" suffix="%" inputMode="numeric" value={String(v.houseRentPct)} onChange={(e) => setV({ ...v, houseRentPct: Number(e.target.value.replace(/\D/g, "")) })} />
+        <Input label="House rent (% of basic, staff without a pay scale)" suffix="%" inputMode="numeric" value={String(v.houseRentPctNoScale)} onChange={(e) => setV({ ...v, houseRentPctNoScale: Number(e.target.value.replace(/\D/g, "")) })} />
         <AmountInput label="Conveyance a month" value={v.conveyance} onValueChange={(x) => setV({ ...v, conveyance: x ?? 0 })} />
         <AmountInput label="Medical a month" value={v.medical} onValueChange={(x) => setV({ ...v, medical: x ?? 0 })} />
         <AmountInput label="EOBI (employee's share) a month" value={v.eobi} onValueChange={(x) => setV({ ...v, eobi: x ?? 0 })} />
@@ -248,7 +249,7 @@ export function HrSettingsPage() {
 
             <Panel id="defaults" title="Allowances and standard deductions" description="Worked out on every salary sheet." rise={1} actions={canPay ? <Button size="sm" variant="quiet" icon="edit" onClick={() => setDefaults(true)}>Edit</Button> : undefined}>
               <p className="m-0 text-small">
-                House rent {s.payDefaults.houseRentPct}% of basic (30% for staff without a pay scale) · conveyance {formatRs(s.payDefaults.conveyance)} · medical {formatRs(s.payDefaults.medical)} · EOBI {formatRs(s.payDefaults.eobi)} · provident fund {s.payDefaults.providentFundPct}% of basic · income tax on the salaried slabs.
+                House rent {s.payDefaults.houseRentPct}% of basic ({s.payDefaults.houseRentPctNoScale}% for staff without a pay scale) · conveyance {formatRs(s.payDefaults.conveyance)} · medical {formatRs(s.payDefaults.medical)} · EOBI {formatRs(s.payDefaults.eobi)} · provident fund {s.payDefaults.providentFundPct}% of basic · income tax on the salaried slabs.
               </p>
             </Panel>
 
@@ -332,7 +333,7 @@ export function HrSettingsPage() {
               rowVer={s.rowVer}
               canEdit={canPay}
               rise={6}
-              blank={() => ({ id: "", payScale: "12", fromYears: 0, toYears: 3, amount: 500, active: true })}
+              blank={() => ({ id: "", payScale: s.payScales[0] ?? "", fromYears: 0, toYears: 3, amount: 0, active: true })}
               cols={[
                 { key: "scale", header: "Pay scale", view: (r) => `Scale ${r.payScale}`, edit: (r, set) => <Select aria-label="Scale" value={r.payScale} onChange={(e) => set({ payScale: e.target.value })} options={s.payScales.map((x) => ({ value: x, label: `Scale ${x}` }))} /> },
                 { key: "from", header: "From (years)", view: (r) => r.fromYears, edit: (r, set) => <Input aria-label="From years" inputMode="decimal" value={String(r.fromYears)} onChange={(e) => set({ fromYears: num(e.target.value) })} className="w-24" /> },

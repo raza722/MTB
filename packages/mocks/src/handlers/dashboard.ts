@@ -8,7 +8,7 @@ import { attendanceCorrectionApprovals, attendanceDayFor, decideAttendanceCorrec
 import { activityFor, ALL_CODES, attendanceTrendFor, classGroupsFor, collectionsFor, feeStatusFor, upcomingFor } from "./dashboard-data";
 import { chargeCancellationApprovals, decideCancellation, decideChargeCancellation } from "./fees";
 import { feesStore } from "./fees-state";
-import { hrStaffToday } from "./hr";
+import { hrStaffToday } from "./hr-model";
 
 /** Staff on roll and in today, from Staff & payroll attendance (one campus, or every campus added up). */
 function staffToday(codes: CampusCode[]): NonNullable<DashboardSummary["staff"]> {

@@ -9,7 +9,7 @@ import { RequirePermission } from "../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { ReportDoc } from "./print";
 import { useHrSettings } from "./StaffPanels";
-import { campusHeading, CampusTags, downloadCsv, filterNote, HrShell, LoadError, slide, StaffStatusBadge, usePayAccess, usePrint, years } from "./shared";
+import { campusHeading, CampusTags, cnicOrDash, dateOrDash, downloadCsv, filterNote, HrShell, LoadError, mobileOrDash, slide, StaffStatusBadge, usePayAccess, usePrint, years } from "./shared";
 
 const CAT_COLOR: Record<HrCategory, string> = {
   TEACHING: "var(--chart-1)",
@@ -20,6 +20,8 @@ const CAT_COLOR: Record<HrCategory, string> = {
 };
 
 const PAGE = 25;
+/** Department filter value for staff whose posting has no department (migrated records). */
+const NO_DEPT = "__none__";
 
 /** Staff directory across campuses: one row per person, filters in one row, click through to the profile. */
 export function StaffDirectoryPage() {
@@ -48,7 +50,12 @@ export function StaffDirectoryPage() {
 
   const all = list.data ?? [];
   const designations = useMemo(() => [...new Map(all.map((s) => [s.designationId, s.designation])).entries()].sort((a, b) => a[1].localeCompare(b[1])), [all]);
-  const departments = useMemo(() => [...new Map(all.map((s) => [s.departmentId, s.department])).entries()].sort((a, b) => a[1].localeCompare(b[1])), [all]);
+  // Migrated postings have no department (null): they are found under "No department".
+  const departments = useMemo(
+    () => [...new Map(all.filter((s) => s.departmentId).map((s) => [s.departmentId as string, s.department ?? ""])).entries()].sort((a, b) => a[1].localeCompare(b[1])),
+    [all],
+  );
+  const noDepartment = useMemo(() => all.some((s) => !s.departmentId), [all]);
   const q = query.trim().toLowerCase().replace(/-/g, "");
   const rows = all
     .filter((s) => {
@@ -56,7 +63,7 @@ export function StaffDirectoryPage() {
       if (campus && s.campus !== campus && !s.otherCampuses.includes(campus)) return false;
       if (category && s.category !== category) return false;
       if (designation && s.designationId !== designation) return false;
-      if (department && s.departmentId !== department) return false;
+      if (department && (department === NO_DEPT ? Boolean(s.departmentId) : s.departmentId !== department)) return false;
       if (gender && s.gender !== gender) return false;
       if (level && !s.teachingLevels.includes(level)) return false;
       if (subject && !s.subjects.includes(subject)) return false;
@@ -81,7 +88,7 @@ export function StaffDirectoryPage() {
   const filterText = filterNote([
     category && HR_CATEGORY_LABEL[category],
     designation && designations.find(([id]) => id === designation)?.[1],
-    department && departments.find(([id]) => id === department)?.[1],
+    department && (department === NO_DEPT ? "No department" : departments.find(([id]) => id === department)?.[1]),
     level && `Level: ${level}`,
     subject && `Subject: ${subject}`,
     gender === "F" ? "Women" : gender === "M" ? "Men" : "",
@@ -114,7 +121,7 @@ export function StaffDirectoryPage() {
       render: (s) => (
         <span className="grid">
           <span>{s.designation}</span>
-          <span className="text-small text-ink-muted">{s.department}</span>
+          {s.department && <span className="text-small text-ink-muted">{s.department}</span>}
         </span>
       ),
     },
@@ -122,7 +129,7 @@ export function StaffDirectoryPage() {
     { key: "joined", header: "Joined", sortable: true, render: (s) => <span className="mtb-num text-small">{formatDate(s.joiningDate)}</span> },
     { key: "service", header: "Service", sortable: true, align: "right", render: (s) => <span className="mtb-num">{years(s.serviceYears)}</span> },
     ...(showPay ? [{ key: "basic", header: "Basic pay", sortable: true, align: "right" as const, render: (s: HrStaffSummary) => <span className="mtb-num">{s.basic ? formatRs(s.basic) : "—"}</span> }] : []),
-    { key: "mobile", header: "Mobile", render: (s) => <span className="mtb-num text-small">{formatMobile(s.mobile)}</span> },
+    { key: "mobile", header: "Mobile", render: (s) => <span className="mtb-num text-small">{mobileOrDash(s.mobile)}</span> },
     {
       key: "status",
       header: "Status",
@@ -135,12 +142,12 @@ export function StaffDirectoryPage() {
     },
   ];
 
-  const guardianLabel = (s: HrStaffSummary) => `${s.relation} ${s.guardianName}`;
+  const guardianLabel = (s: HrStaffSummary) => (s.guardianName ? `${s.relation} ${s.guardianName}` : "—");
   const exportRows = () =>
     downloadCsv(
       `staff-${ctx.campus.toLowerCase()}.csv`,
       ["Employee no", "Name", "Father/husband name", "Gender", "Date of birth", "Qualification", "Designation", "Department", "Category", "Levels taught", "Subjects", "CNIC", "Campus", "Also at", "Joined", "Service (years)", "Mobile", "Status"],
-      rows.map((s) => [s.employeeNo, s.name, guardianLabel(s), s.gender === "F" ? "Female" : "Male", formatDate(s.dob), s.highestQualification ?? "", s.designation, s.department, HR_CATEGORY_LABEL[s.category], s.teachingLevels.join("; "), s.subjects.join("; "), formatCnic(s.cnic), campusLabel(s.campus), s.otherCampuses.map(campusLabel).join("; "), formatDate(s.joiningDate), s.serviceYears, formatMobile(s.mobile), s.status === "LEFT" ? "Left" : "Active"]),
+      rows.map((s) => [s.employeeNo, s.name, guardianLabel(s), s.gender === "F" ? "Female" : "Male", s.dob ? formatDate(s.dob) : "", s.highestQualification ?? "", s.designation, s.department ?? "", HR_CATEGORY_LABEL[s.category], s.teachingLevels.join("; "), s.subjects.join("; "), formatCnic(s.cnic), campusLabel(s.campus), s.otherCampuses.map(campusLabel).join("; "), formatDate(s.joiningDate), s.serviceYears, formatMobile(s.mobile), s.status === "LEFT" ? "Left" : "Active"]),
     );
 
   const heading = ctx.campus === "ALL" ? "All campuses" : campusHeading(ctx.campus);
@@ -152,7 +159,7 @@ export function StaffDirectoryPage() {
         sub={filterNote([`Total staff: ${rows.length}`, filterText])}
         head={["#", "Emp. no", "Name", "Designation", "Department", "Joined", "Service", "Mobile"]}
         numeric={[6]}
-        rows={rows.map((s, i) => [i + 1, s.employeeNo, s.name, s.designation, s.department, formatDate(s.joiningDate), years(s.serviceYears), formatMobile(s.mobile)])}
+        rows={rows.map((s, i) => [i + 1, s.employeeNo, s.name, s.designation, s.department ?? "", formatDate(s.joiningDate), years(s.serviceYears), mobileOrDash(s.mobile)])}
         signatures={["Office", "Principal"]}
       />,
       "A4",
@@ -167,7 +174,7 @@ export function StaffDirectoryPage() {
         sub={filterNote([`Total staff: ${rows.length}`, filterText])}
         small
         head={["#", "Emp. no", "Name", "Father/husband name", "Date of birth", "Joined", "Qualification", "Designation", "Subjects", "CNIC", "Mobile"]}
-        rows={rows.map((s, i) => [i + 1, s.employeeNo, s.name, guardianLabel(s), formatDate(s.dob), formatDate(s.joiningDate), s.highestQualification ?? "", s.designation, s.subjects.join(", "), formatCnic(s.cnic), formatMobile(s.mobile)])}
+        rows={rows.map((s, i) => [i + 1, s.employeeNo, s.name, guardianLabel(s), dateOrDash(s.dob), formatDate(s.joiningDate), s.highestQualification ?? "", s.designation, s.subjects.join(", "), cnicOrDash(s.cnic), mobileOrDash(s.mobile)])}
         signatures={["Office", "Principal"]}
       />,
       "A4L",
@@ -280,7 +287,7 @@ export function StaffDirectoryPage() {
                 </div>
               )}
               <div className="w-44">
-                <Select aria-label="Department" value={department} onChange={(e) => setDepartment(e.target.value)} options={[{ value: "", label: "Every department" }, ...departments.map(([v, l]) => ({ value: v, label: l }))]} />
+                <Select aria-label="Department" value={department} onChange={(e) => setDepartment(e.target.value)} options={[{ value: "", label: "Every department" }, ...departments.map(([v, l]) => ({ value: v, label: l })), ...(noDepartment ? [{ value: NO_DEPT, label: "No department" }] : [])]} />
               </div>
               <div className="w-48">
                 <Select aria-label="Designation" value={designation} onChange={(e) => setDesignation(e.target.value)} options={[{ value: "", label: "Every designation" }, ...designations.map(([v, l]) => ({ value: v, label: l }))]} />

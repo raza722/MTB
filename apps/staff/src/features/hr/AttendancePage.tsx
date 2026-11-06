@@ -30,7 +30,7 @@ import { RequirePermission, RequireSingleCampus } from "../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { ReportDoc } from "./print";
 import { issues } from "./StaffPanels";
-import { campusHeading, DesignationSelect, downloadCsv, errorField, errorText, filterNote, HrShell, LoadError, slide, staffOptions, THIS_MONTH, TODAY, useDesignationTitle, usePrint } from "./shared";
+import { campusHeading, DesignationSelect, downloadCsv, errorField, errorText, filterNote, HrShell, LoadError, slide, staffOptions, thisMonth, today, useDesignationTitle, usePrint } from "./shared";
 
 export type AttendanceView = "day" | "month" | "range" | "late" | "imports";
 export interface AttendanceSearch {
@@ -77,8 +77,8 @@ const draftSchema = z
 export function StaffAttendancePage({ search, setSearch }: { search: AttendanceSearch; setSearch: (s: AttendanceSearch) => void }) {
   const ctx = useCtx();
   const view = search.view ?? "day";
-  const date = search.date ?? TODAY;
-  const month = search.month ?? THIS_MONTH;
+  const date = search.date ?? today();
+  const month = search.month ?? thisMonth();
   const [importing, setImporting] = useState(false);
   const canManage = useCan("hr.manage");
   const readOnly = useReadOnly();
@@ -115,7 +115,7 @@ export function StaffAttendancePage({ search, setSearch }: { search: AttendanceS
           />
           {view === "day" && <DayView date={date} setDate={(d) => setSearch({ ...search, date: d })} onImport={() => setImporting(true)} />}
           {view === "month" && <MonthView month={month} setMonth={(m) => setSearch({ ...search, month: m })} />}
-          {view === "range" && <RangeView from={search.from ?? `${THIS_MONTH}-01`} to={search.to ?? TODAY} staffId={search.staff ?? ""} set={(p) => setSearch({ ...search, ...p })} />}
+          {view === "range" && <RangeView from={search.from ?? `${thisMonth()}-01`} to={search.to ?? today()} staffId={search.staff ?? ""} set={(p) => setSearch({ ...search, ...p })} />}
           {view === "late" && <LateView month={month} setMonth={(m) => setSearch({ ...search, month: m })} />}
           {view === "imports" && <ImportsView />}
           {importing && ctx.campus !== "ALL" && <ImportModal campus={ctx.campus} deviceName={device ?? "Fingerprint machine"} onClose={() => setImporting(false)} onDone={(d) => setSearch({ view: "day", date: d })} />}
@@ -234,12 +234,12 @@ function DayView({ date, setDate, onImport }: { date: string; setDate: (d: strin
     {
       key: "in",
       header: "Time in",
-      render: (r) => (editing ? <Input aria-label={`${r.name} time in`} mono value={draftOf(r).timeIn} onChange={(e) => setDraft(r, { timeIn: e.target.value.replace(/[^\d:]/g, "").slice(0, 5) })} placeholder="07:40" className="w-24" error={cellError(r, "timeIn")} /> : <span className="mtb-num">{r.timeIn ?? "—"}</span>),
+      render: (r) => (editing && r.source !== "LEAVE" ? <Input aria-label={`${r.name} time in`} mono value={draftOf(r).timeIn} onChange={(e) => setDraft(r, { timeIn: e.target.value.replace(/[^\d:]/g, "").slice(0, 5) })} placeholder="07:40" className="w-24" error={cellError(r, "timeIn")} /> : <span className="mtb-num">{r.timeIn ?? "—"}</span>),
     },
     {
       key: "out",
       header: "Time out",
-      render: (r) => (editing ? <Input aria-label={`${r.name} time out`} mono value={draftOf(r).timeOut} onChange={(e) => setDraft(r, { timeOut: e.target.value.replace(/[^\d:]/g, "").slice(0, 5) })} placeholder="14:10" className="w-24" error={cellError(r, "timeOut")} /> : <span className="mtb-num">{r.timeOut ?? "—"}</span>),
+      render: (r) => (editing && r.source !== "LEAVE" ? <Input aria-label={`${r.name} time out`} mono value={draftOf(r).timeOut} onChange={(e) => setDraft(r, { timeOut: e.target.value.replace(/[^\d:]/g, "").slice(0, 5) })} placeholder="14:10" className="w-24" error={cellError(r, "timeOut")} /> : <span className="mtb-num">{r.timeOut ?? "—"}</span>),
     },
     {
       key: "status",
@@ -250,7 +250,8 @@ function DayView({ date, setDate, onImport }: { date: string; setDate: (d: strin
             aria-label={`${r.name} status`}
             value={draftOf(r).status}
             onChange={(e) => setDraft(r, { status: e.target.value as HrDayStatus })}
-            options={(["PRESENT", "LATE", "ABSENT", "HALF_DAY", "LEAVE", "OFF"] as HrDayStatus[]).map((s) => ({ value: s, label: s === "OFF" ? "Day off / rest day" : HR_DAY_LABEL[s] }))}
+            // Leave is not marked here: an approved leave request puts the day on leave (and can't be overwritten).
+            options={(["PRESENT", "LATE", "ABSENT", "HALF_DAY", "OFF"] as HrDayStatus[]).map((s) => ({ value: s, label: s === "OFF" ? "Day off / rest day" : HR_DAY_LABEL[s] }))}
             className="w-40"
           />
         ) : r.status ? (
@@ -276,14 +277,14 @@ function DayView({ date, setDate, onImport }: { date: string; setDate: (d: strin
     columns.push({
       key: "note",
       header: "Note",
-      render: (r) => <Input aria-label={`${r.name} note`} value={draftOf(r).note} onChange={(e) => setDraft(r, { note: e.target.value })} placeholder={draftOf(r).status === "OFF" ? "Rest day for Saturday duty" : "Forgot to punch"} className="w-44" error={cellError(r, "note")} />,
+      render: (r) => r.source === "LEAVE" ? null : <Input aria-label={`${r.name} note`} value={draftOf(r).note} onChange={(e) => setDraft(r, { note: e.target.value })} placeholder={draftOf(r).status === "OFF" ? "Rest day for Saturday duty" : "Forgot to punch"} className="w-44" error={cellError(r, "note")} />,
     });
 
   return (
     <>
       <div className="flex flex-wrap items-end gap-3">
         <div className="w-48">
-          <DatePicker label="Day" value={date} onValueChange={(v) => v && setDate(v)} today={TODAY} maxDate={TODAY} />
+          <DatePicker label="Day" value={date} onValueChange={(v) => v && setDate(v)} today={today()} maxDate={today()} />
         </div>
         <span className="pb-2 text-small text-ink-muted">
           {formatWeekday(date)}
@@ -304,7 +305,7 @@ function DayView({ date, setDate, onImport }: { date: string; setDate: (d: strin
             <StatCard label="Absent or on leave" icon="calendar" loading={q.isLoading} value={<AnimatedNumber value={(d?.summary.absent ?? 0) + (d?.summary.leave ?? 0)} format={formatCount} />} foot={d ? `${d.summary.leave} on approved leave` : undefined} onClick={() => setFilter("LEAVE")} />
             <StatCard label="Not marked yet" icon="alertCircle" tone={(d?.summary.notMarked ?? 0) > 0 ? "info" : "neutral"} loading={q.isLoading} value={<AnimatedNumber value={d?.summary.notMarked ?? 0} format={formatCount} />} foot={d?.deviceName ? "Import from the machine" : "Mark them by hand"} onClick={() => setFilter("NOT")} />
           </div>
-          {d && d.summary.notMarked > 0 && date === TODAY && canManage && !readOnly && !editing && (
+          {d && d.summary.notMarked > 0 && date === today() && canManage && !readOnly && !editing && (
             <Banner
               tone="info"
               title={d.deviceName ? `${d.summary.notMarked} staff not marked yet today` : `${d.summary.notMarked} staff not marked yet`}
@@ -413,7 +414,7 @@ function DayView({ date, setDate, onImport }: { date: string; setDate: (d: strin
 
 function MonthPicker({ month, setMonth }: { month: string; setMonth: (m: string) => void }) {
   const ctx = useCtx();
-  const months = hrSessionMonths(ctx.session).filter((m) => m <= THIS_MONTH);
+  const months = hrSessionMonths(ctx.session).filter((m) => m <= thisMonth());
   return (
     <div className="w-48">
       <Select label="Month" value={months.includes(month) ? month : (months.at(-1) ?? month)} onChange={(e) => setMonth(e.target.value)} options={months.map((m) => ({ value: m, label: hrMonthLabel(m) })).reverse()} />
@@ -423,7 +424,7 @@ function MonthPicker({ month, setMonth }: { month: string; setMonth: (m: string)
 
 function useMonth(month: string) {
   const ctx = useCtx();
-  const months = hrSessionMonths(ctx.session).filter((m) => m <= THIS_MONTH);
+  const months = hrSessionMonths(ctx.session).filter((m) => m <= thisMonth());
   const m = months.includes(month) ? month : (months.at(-1) ?? month);
   return { m, q: useQuery(hrQueries.attendanceMonth(ctx, m)) };
 }
@@ -550,7 +551,7 @@ const rangeSchema = z
     to: z.string().min(1, "Choose the last day."),
   })
   .refine((v) => v.to >= v.from, { path: ["to"], message: "The last day can't be before the first day." })
-  .refine((v) => v.to <= TODAY, { path: ["to"], message: "The last day can be today at the latest." })
+  .refine((v) => v.to <= today(), { path: ["to"], message: "The last day can be today at the latest." })
   .refine((v) => v.to < v.from || spanDays(v.from, v.to) <= RANGE_MAX_DAYS, { path: ["from"], message: `Choose ${RANGE_MAX_DAYS} days or fewer (about three months).` });
 
 /** One cell of the range grid: the code, or time in over time out. */
@@ -677,10 +678,10 @@ function RangeView({ from, to, staffId, set }: { from: string; to: string; staff
     <>
       <div className="flex flex-wrap items-end gap-3">
         <div className="w-44">
-          <DatePicker label="From" required value={from} onValueChange={(v) => v && set({ from: v })} today={TODAY} maxDate={TODAY} error={err("from")} />
+          <DatePicker label="From" required value={from} onValueChange={(v) => v && set({ from: v })} today={today()} maxDate={today()} error={err("from")} />
         </div>
         <div className="w-44">
-          <DatePicker label="To" required value={to} onValueChange={(v) => v && set({ to: v })} today={TODAY} maxDate={TODAY} minDate={from} error={err("to")} />
+          <DatePicker label="To" required value={to} onValueChange={(v) => v && set({ to: v })} today={today()} maxDate={today()} minDate={from} error={err("to")} />
         </div>
         <DesignationSelect
           label="Designation"
@@ -931,7 +932,6 @@ function ImportModal({ campus, deviceName, onClose, onDone }: { campus: CampusCo
       setStep(1);
     },
   });
-  const sample = useMutation({ mutationFn: () => hrApi.deviceFile(campus), onSuccess: (f) => read.mutate({ name: f.fileName, text: f.text }) });
   const commit = useMutation({
     mutationFn: () => hrApi.importCommit({ campus, previewId: preview!.previewId, mapping, remember }, key),
     onSuccess: (r) => {
@@ -972,7 +972,7 @@ function ImportModal({ campus, deviceName, onClose, onDone }: { campus: CampusCo
           <Button
             variant="primary"
             onClick={() => {
-              onDone(result?.batch.days.at(-1) ?? TODAY);
+              onDone(result?.batch.days.at(-1) ?? today());
               onClose();
             }}
           >
@@ -1001,16 +1001,13 @@ function ImportModal({ campus, deviceName, onClose, onDone }: { campus: CampusCo
               <span className="text-title-3">Drop the attendance file here</span>
               <span className="text-small text-ink-muted">The CSV or attlog file exported from the machine (USB or the ZKTeco software). Punches already imported are skipped.</span>
               <span className="flex flex-wrap justify-center gap-2">
-                <Button icon="upload" loading={read.isPending && !sample.isPending} onClick={() => fileRef.current?.click()}>
+                <Button icon="upload" loading={read.isPending} onClick={() => fileRef.current?.click()}>
                   Choose file
-                </Button>
-                <Button variant="quiet" icon="download" loading={sample.isPending} onClick={() => sample.mutate()}>
-                  Use today's file from the machine (demo)
                 </Button>
               </span>
               <input ref={fileRef} type="file" accept=".csv,.txt,.dat" hidden onChange={(e) => void readFile(e.target.files?.[0])} />
             </div>
-            {(read.error || sample.error) && <Banner tone="danger">{errorText(read.error ?? sample.error)}</Banner>}
+            {read.error && <Banner tone="danger">{errorText(read.error)}</Banner>}
           </>
         )}
         {step === 1 && preview && (

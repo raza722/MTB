@@ -1,5 +1,5 @@
-import { ApiError, HR_CATEGORY_LABEL, HR_EMPLOYMENT_LABEL, hrMonthLabel, hrQueries, type CampusCode, type HrCategory, type HrLeaveStatus, type HrLoanStatus, type HrPayrollStatus, type HrRunStatus, type HrStaffSummary } from "@mtb/api";
-import { formatSession } from "@mtb/domain";
+import { ApiError, HR_CATEGORY_LABEL, HR_EMPLOYMENT_LABEL, hrMonthLabel, hrQueries, type CampusCode, type HrCategory, type HrLeaveStatus, type HrLoanStatus, type HrMonth, type HrPayrollStatus, type HrRunStatus, type HrStaffSummary } from "@mtb/api";
+import { formatCnic, formatDate, formatMobile, formatRs, formatSession, pakistanToday, type IsoDate } from "@mtb/domain";
 import { Banner, Button, Select, StatusBadge, type ComboboxOption } from "@mtb/ui";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
@@ -10,9 +10,28 @@ import { SubNav, type SubNavItem } from "../../app/shell/SubNav";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
 import "./hr.css";
 
-/** The demo's today (Wednesday 04-Nov-2026). Only for form defaults; the server decides. */
-export const TODAY = "2026-11-04";
-export const THIS_MONTH = "2026-11";
+/** Today in Pakistan ("2026-11-06"). Only for form defaults and limits; the server decides. */
+export const today = (): IsoDate => pakistanToday();
+/** This month in Pakistan ("2026-11"). */
+export const thisMonth = (): HrMonth => today().slice(0, 7);
+/** The session (April to March, by its start year) a date falls in: "2027-02-10" → 2026. */
+export function sessionOf(date: IsoDate): number {
+  const y = Number(date.slice(0, 4));
+  return Number(date.slice(5, 7)) >= 4 ? y : y - 1;
+}
+/** Last month in Pakistan ("2026-10"). */
+export const lastMonth = (): HrMonth => addMonths(thisMonth(), -1);
+/** "2026-11" + 1 → "2026-12". */
+export function addMonths(month: HrMonth, n: number): HrMonth {
+  const [y, m] = month.split("-").map(Number) as [number, number];
+  const i = y * 12 + (m - 1) + n;
+  return `${Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, "0")}`;
+}
+/** The last calendar day of a month: "2026-11" → "2026-11-30". */
+export function monthEnd(month: HrMonth): IsoDate {
+  const [y, m] = month.split("-").map(Number) as [number, number];
+  return `${month}-${String(new Date(Date.UTC(y, m, 0)).getUTCDate()).padStart(2, "0")}`;
+}
 
 /** Pay, bank details, loans and salary sheets: the accountant (payroll) and the principal (approvals). */
 export function usePayAccess(): boolean {
@@ -92,6 +111,16 @@ export function LoadError({ what, error, onRetry }: { what: string; error: unkno
 
 /** Stagger style for list rows (.mtb-slide-in). */
 export const slide = (i: number) => ({ "--i": Math.min(i, 14) }) as CSSProperties;
+
+/** A value that may be missing on migrated records ("" or null): shown as "—". */
+export const orDash = (v: string | null | undefined) => (v && v.trim() ? v : "—");
+/** A date that may be missing on migrated records (date of birth): shown as "—". */
+export const dateOrDash = (v: IsoDate | null | undefined) => (v ? formatDate(v) : "—");
+/** CNIC / mobile that may be "" on migrated records: shown as "—". */
+export const cnicOrDash = (v: string | null | undefined) => (v ? formatCnic(v) : "—");
+export const mobileOrDash = (v: string | null | undefined) => (v ? formatMobile(v) : "—");
+/** Basic pay (or pay worked out from it): 0 means "no salary set yet" (migrated staff), shown as "—" rather than "Rs 0". */
+export const basicRs = (n: number | null | undefined) => (n ? formatRs(n) : "—");
 
 export const years = (n: number) => `${n.toFixed(1)} ${n === 1 ? "year" : "years"}`;
 export const categoryLabel = (c: HrCategory) => HR_CATEGORY_LABEL[c];

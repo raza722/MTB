@@ -22,7 +22,7 @@ import { useState, type ReactNode } from "react";
 import { z } from "zod";
 import { campusLabel } from "../../app/shell/campus";
 import { useCtx } from "../../app/session";
-import { errorField, errorText, TODAY } from "./shared";
+import { errorField, errorText, today } from "./shared";
 
 /* ================================================================== Personal details (add and edit) */
 
@@ -35,7 +35,8 @@ export interface PersonalForm {
   cnic: string;
   dob: IsoDate | null;
   bloodGroup: string;
-  maritalStatus: HrMaritalStatus;
+  /** "" = not on file yet (migrated staff): the form asks for it. */
+  maritalStatus: HrMaritalStatus | "";
   religion: string;
   mobile: string;
   mobile2: string;
@@ -51,7 +52,7 @@ export interface PersonalForm {
   caste: string;
 }
 
-export const emptyPersonal = (city = "Sadiqabad"): PersonalForm => ({
+export const emptyPersonal = (city = ""): PersonalForm => ({
   name: "",
   nameUrdu: "",
   gender: "F",
@@ -59,8 +60,8 @@ export const emptyPersonal = (city = "Sadiqabad"): PersonalForm => ({
   guardianName: "",
   cnic: "",
   dob: null,
-  bloodGroup: "B+",
-  maritalStatus: "SINGLE",
+  bloodGroup: "",
+  maritalStatus: "",
   religion: "Islam",
   mobile: "",
   mobile2: "",
@@ -68,7 +69,7 @@ export const emptyPersonal = (city = "Sadiqabad"): PersonalForm => ({
   address: "",
   city,
   emergencyName: "",
-  emergencyRelation: "Father",
+  emergencyRelation: "",
   emergencyMobile: "",
   priorServiceYears: "0",
   reference: "",
@@ -84,16 +85,17 @@ export const personalFromProfile = (s: HrStaffProfile): PersonalForm => ({
   cnic: s.cnic,
   dob: s.dob,
   bloodGroup: s.bloodGroup,
-  maritalStatus: s.maritalStatus,
+  maritalStatus: s.maritalStatus ?? "",
   religion: s.religion,
   mobile: s.mobile,
   mobile2: s.mobile2 ?? "",
   email: s.email ?? "",
   address: s.address,
   city: s.city,
-  emergencyName: s.emergency.name,
-  emergencyRelation: s.emergency.relation,
-  emergencyMobile: s.emergency.mobile,
+  // Most migrated records have no emergency contact: the form asks for one when the record is edited.
+  emergencyName: s.emergency?.name ?? "",
+  emergencyRelation: s.emergency?.relation ?? "",
+  emergencyMobile: s.emergency?.mobile ?? "",
   priorServiceYears: String(s.priorServiceYears),
   reference: s.reference ?? "",
   caste: s.caste ?? "",
@@ -109,13 +111,15 @@ export const personalSchema = z.object({
   dob: z
     .string({ error: "Enter the date of birth." })
     .min(1, "Enter the date of birth.")
-    .refine((d) => ageOn(d, TODAY) >= 18 && ageOn(d, TODAY) <= 75, "Staff must be between 18 and 75. Check the date of birth."),
+    .refine((d) => ageOn(d, today()) >= 18 && ageOn(d, today()) <= 75, "Staff must be between 18 and 75. Check the date of birth."),
+  maritalStatus: z.string().min(1, "Choose the marital status."),
   mobile: z.string().refine(mobileOk, "Enter a mobile number like 0300-1234567."),
   mobile2: z.string().refine((v) => !v.trim() || mobileOk(v), "Should look like 0300-1234567, or leave it empty."),
   email: z.string().refine((v) => !v.trim() || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()), "Enter a valid email address, or leave it empty."),
   address: z.string().trim().min(8, "Enter the home address (house, street, area)."),
   city: z.string().trim().min(2, "Enter the city."),
   emergencyName: z.string().trim().min(3, "Enter someone to call in an emergency."),
+  emergencyRelation: z.string().min(1, "Choose how they are related."),
   emergencyMobile: z.string().refine(mobileOk, "Enter their mobile number like 0300-1234567."),
   priorServiceYears: z.coerce.number({ error: "Enter a number of years (0 if none)." }).min(0, "Can't be negative.").max(40, "At most 40 years."),
   reference: z.string().trim().max(80, "Keep it to 80 characters."),
@@ -137,7 +141,7 @@ export const toPersonalInput = (f: PersonalForm): HrPersonalInput => ({
   cnic: f.cnic,
   dob: f.dob ?? "",
   bloodGroup: f.bloodGroup,
-  maritalStatus: f.maritalStatus,
+  maritalStatus: f.maritalStatus as HrMaritalStatus,
   religion: f.religion,
   mobile: normalizeMobile(f.mobile) ?? f.mobile,
   mobile2: f.mobile2.trim() ? (normalizeMobile(f.mobile2) ?? f.mobile2) : null,
@@ -151,6 +155,7 @@ export const toPersonalInput = (f: PersonalForm): HrPersonalInput => ({
 });
 
 const BLOOD = ["A+", "A−", "B+", "B−", "O+", "O−", "AB+", "AB−"];
+const RELATIONS = ["Father", "Mother", "Husband", "Wife", "Brother", "Sister", "Son", "Daughter", "Other"];
 
 /** The personal-details fields, used by "Add staff" and "Edit personal details". */
 export function PersonalFields({ f, set, err, cnicHelp }: { f: PersonalForm; set: (patch: Partial<PersonalForm>) => void; err: (k: string) => string | undefined; cnicHelp?: ReactNode }) {
@@ -187,15 +192,18 @@ export function PersonalFields({ f, set, err, cnicHelp }: { f: PersonalForm; set
       </div>
       <div className="grid gap-4 sm:grid-cols-3">
         <CnicInput label="CNIC" required value={f.cnic} onValueChange={(cnic) => set({ cnic })} error={err("cnic")} help={cnicHelp ?? "Checked against every campus: one profile per person."} />
-        <DatePicker label="Date of birth" required value={f.dob} onValueChange={(dob) => set({ dob })} today={TODAY} maxDate={TODAY} error={err("dob")} />
-        <Select label="Blood group" value={f.bloodGroup} onChange={(e) => set({ bloodGroup: e.target.value })} options={BLOOD} />
+        <DatePicker label="Date of birth" required value={f.dob} onValueChange={(dob) => set({ dob })} today={today()} maxDate={today()} error={err("dob")} />
+        <Select label="Blood group" value={f.bloodGroup} onChange={(e) => set({ bloodGroup: e.target.value })} options={[{ value: "", label: "Not known" }, ...(f.bloodGroup && !BLOOD.includes(f.bloodGroup) ? [f.bloodGroup] : []), ...BLOOD]} />
       </div>
       <div className="grid gap-4 sm:grid-cols-3">
         <Select
           label="Marital status"
+          required
           value={f.maritalStatus}
-          onChange={(e) => set({ maritalStatus: e.target.value as HrMaritalStatus })}
+          onChange={(e) => set({ maritalStatus: e.target.value as HrMaritalStatus | "" })}
+          error={err("maritalStatus")}
           options={[
+            ...(f.maritalStatus ? [] : [{ value: "", label: "Choose…" }]),
             { value: "SINGLE", label: "Single" },
             { value: "MARRIED", label: "Married" },
             { value: "WIDOWED", label: "Widowed" },
@@ -212,7 +220,14 @@ export function PersonalFields({ f, set, err, cnicHelp }: { f: PersonalForm; set
       <Input label="Email" type="email" value={f.email} onChange={(e) => set({ email: e.target.value })} error={err("email")} help="Optional. Payslips can be emailed later." />
       <div className="grid gap-4 sm:grid-cols-3">
         <Input label="Emergency contact" required value={f.emergencyName} onChange={(e) => set({ emergencyName: e.target.value })} error={err("emergencyName")} />
-        <Select label="Relation to staff" value={f.emergencyRelation} onChange={(e) => set({ emergencyRelation: e.target.value })} options={["Father", "Mother", "Husband", "Wife", "Brother", "Sister", "Son", "Daughter", "Other"]} />
+        <Select
+          label="Relation to staff"
+          required
+          value={f.emergencyRelation}
+          onChange={(e) => set({ emergencyRelation: e.target.value })}
+          error={err("emergencyRelation") ?? err("emergency")}
+          options={[...(f.emergencyRelation ? [] : [{ value: "", label: "Choose…" }]), ...(f.emergencyRelation && !RELATIONS.includes(f.emergencyRelation) ? [f.emergencyRelation] : []), ...RELATIONS]}
+        />
         <Input label="Their mobile" required inputMode="tel" value={f.emergencyMobile} onChange={(e) => set({ emergencyMobile: e.target.value })} error={err("emergencyMobile")} />
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
@@ -280,10 +295,13 @@ export function AddPostingPanel({ s, settings, onClose }: { s: HrStaffProfile; s
   const taken = new Set(s.postings.filter((p) => !p.endDate).map((p) => p.campus));
   const free = (["KC", "SM", "UC", "MC", "HC"] as CampusCode[]).filter((c) => !taken.has(c));
   const [campus, setCampus] = useState<CampusCode>(free[0] ?? "SM");
-  const [designationId, setDesignation] = useState("d-visiting");
-  const [departmentId, setDepartment] = useState(s.departmentId);
+  const designations = settings.designations.filter((d) => d.active);
+  const departments = settings.departments.filter((d) => d.active);
+  // A second campus is usually a visiting posting: start from the first visiting designation, if Settings has one.
+  const [designationId, setDesignation] = useState(() => (designations.find((d) => d.category === "VISITING") ?? designations[0])?.id ?? "");
+  const [departmentId, setDepartment] = useState(() => (s.departmentId && departments.some((d) => d.id === s.departmentId) ? s.departmentId : ""));
   const [type, setType] = useState<HrEmploymentType>("VISITING");
-  const [start, setStart] = useState<IsoDate | null>(TODAY);
+  const [start, setStart] = useState<IsoDate | null>(today());
   const [days, setDays] = useState("2");
   const done = useSaved(onClose, `Posting added at ${campusLabel(campus)}`);
   const save = useMutation({ mutationFn: () => hrApi.addPosting(s.id, { campus, designationId, departmentId, employmentType: type, payScale: null, startDate: start ?? "", daysPerWeek: days ? Number(days) : null }), onSuccess: done });
@@ -296,7 +314,7 @@ export function AddPostingPanel({ s, settings, onClose }: { s: HrStaffProfile; s
       footer={
         <>
           <Button onClick={onClose}>Cancel</Button>
-          <Button variant="primary" icon="plus" loading={save.isPending} disabled={!free.length || !start} onClick={() => save.mutate()}>
+          <Button variant="primary" icon="plus" loading={save.isPending} disabled={!free.length || !start || !designationId || !departmentId} onClick={() => save.mutate()}>
             Add posting
           </Button>
         </>
@@ -305,14 +323,64 @@ export function AddPostingPanel({ s, settings, onClose }: { s: HrStaffProfile; s
       <div className="grid gap-4">
         {!free.length && <Banner tone="info">{s.name} already works at every campus.</Banner>}
         <Select label="Campus" value={campus} onChange={(e) => setCampus(e.target.value as CampusCode)} options={free.map((c) => ({ value: c, label: campusLabel(c) }))} />
-        <Select label="Designation" value={designationId} onChange={(e) => setDesignation(e.target.value)} options={settings.designations.filter((d) => d.active).map((d) => ({ value: d.id, label: d.title }))} />
-        <Select label="Department" value={departmentId} onChange={(e) => setDepartment(e.target.value)} options={settings.departments.filter((d) => d.active).map((d) => ({ value: d.id, label: d.title }))} />
+        <Select label="Designation" required value={designationId} onChange={(e) => setDesignation(e.target.value)} options={[...(designationId ? [] : [{ value: "", label: "Choose…" }]), ...designations.map((d) => ({ value: d.id, label: d.title }))]} />
+        <Select label="Department" required value={departmentId} onChange={(e) => setDepartment(e.target.value)} options={[...(departmentId ? [] : [{ value: "", label: "Choose…" }]), ...departments.map((d) => ({ value: d.id, label: d.title }))]} />
         <div className="grid gap-4 sm:grid-cols-2">
           <Select label="Type" value={type} onChange={(e) => setType(e.target.value as HrEmploymentType)} options={(Object.keys(HR_EMPLOYMENT_LABEL) as HrEmploymentType[]).map((k) => ({ value: k, label: HR_EMPLOYMENT_LABEL[k] }))} />
           <Input label="Days a week" inputMode="numeric" value={days} onChange={(e) => setDays(e.target.value.replace(/\D/g, "").slice(0, 1))} help="Empty for full time." error={save.error && errorField(save.error) === "daysPerWeek" ? errorText(save.error) : undefined} />
         </div>
-        <DatePicker label="Starts" required value={start} onValueChange={setStart} today={TODAY} />
+        <DatePicker label="Starts" required value={start} onValueChange={setStart} today={today()} />
         {save.error && errorField(save.error) !== "daysPerWeek" && <Banner tone="danger">{errorText(save.error)}</Banner>}
+      </div>
+    </SidePanel>
+  );
+}
+
+/** Brings back someone who has left on the same record (contract C7): a new main posting that pays the salary. */
+export function RejoinPanel({ s, settings, onClose }: { s: HrStaffProfile; settings: HrSettings; onClose: () => void }) {
+  const last = s.postings.find((p) => p.primary) ?? s.postings[0];
+  const designations = settings.designations.filter((d) => d.active);
+  const departments = settings.departments.filter((d) => d.active);
+  const [campus, setCampus] = useState<CampusCode>(last?.campus ?? s.campus);
+  const [designationId, setDesignation] = useState(() => (last && designations.some((d) => d.id === last.designationId) ? last.designationId : ""));
+  const [departmentId, setDepartment] = useState(() => (s.departmentId && departments.some((d) => d.id === s.departmentId) ? s.departmentId : ""));
+  const [type, setType] = useState<HrEmploymentType>(last && last.employmentType !== "VISITING" ? last.employmentType : "PERMANENT");
+  const [scale, setScale] = useState(() => (last?.payScale && settings.payScales.includes(last.payScale) ? last.payScale : ""));
+  const [start, setStart] = useState<IsoDate | null>(today());
+  const [days, setDays] = useState("");
+  const done = useSaved(onClose, `${s.name} rejoined at ${campusLabel(campus)}`);
+  const save = useMutation({
+    mutationFn: () => hrApi.rejoin(s.id, { campus, designationId, departmentId, employmentType: type, payScale: scale || null, startDate: start ?? "", daysPerWeek: days ? Number(days) : null }),
+    onSuccess: done,
+  });
+  const field = errorField(save.error);
+  return (
+    <SidePanel
+      open
+      onClose={onClose}
+      title={`Rejoin ${s.name}`}
+      description={`Same record and employee number (${s.employeeNo}). Salary history, documents and leave history are kept; check their pay after saving.`}
+      footer={
+        <>
+          <Button onClick={onClose}>Cancel</Button>
+          <Button variant="primary" icon="check" loading={save.isPending} loadingLabel="Saving…" disabled={!start || !designationId || !departmentId} onClick={() => save.mutate()}>
+            Rejoin
+          </Button>
+        </>
+      }
+    >
+      <div className="grid gap-4">
+        {s.leavingDate && <Banner tone="info">Left on {formatDate(s.leavingDate)}{s.leavingReason ? ` · ${s.leavingReason}` : ""}. The new start must be after that.</Banner>}
+        <Select label="Campus" value={campus} onChange={(e) => setCampus(e.target.value as CampusCode)} options={(["KC", "SM", "UC", "MC", "HC"] as CampusCode[]).map((c) => ({ value: c, label: campusLabel(c) }))} help="This campus pays the salary." />
+        <Select label="Designation" required value={designationId} onChange={(e) => setDesignation(e.target.value)} options={[...(designationId ? [] : [{ value: "", label: "Choose…" }]), ...designations.map((d) => ({ value: d.id, label: d.title }))]} />
+        <Select label="Department" required value={departmentId} onChange={(e) => setDepartment(e.target.value)} options={[...(departmentId ? [] : [{ value: "", label: "Choose…" }]), ...departments.map((d) => ({ value: d.id, label: d.title }))]} />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Select label="Type" value={type} onChange={(e) => setType(e.target.value as HrEmploymentType)} options={(Object.keys(HR_EMPLOYMENT_LABEL) as HrEmploymentType[]).map((k) => ({ value: k, label: HR_EMPLOYMENT_LABEL[k] }))} />
+          <Select label="Pay scale" value={scale} onChange={(e) => setScale(e.target.value)} options={[{ value: "", label: "No pay scale" }, ...settings.payScales.map((x) => ({ value: x, label: `Scale ${x}` }))]} />
+        </div>
+        <Input label="Days a week" inputMode="numeric" value={days} onChange={(e) => setDays(e.target.value.replace(/\D/g, "").slice(0, 1))} help="Empty for full time." error={field === "daysPerWeek" ? errorText(save.error) : undefined} />
+        <DatePicker label="Starts again on" required value={start} onValueChange={setStart} today={today()} error={field === "startDate" ? errorText(save.error) : undefined} />
+        {save.error && field !== "daysPerWeek" && field !== "startDate" && <Banner tone="danger">{errorText(save.error)}</Banner>}
       </div>
     </SidePanel>
   );
@@ -348,12 +416,20 @@ export function QualificationsPanel({ s, onClose }: { s: HrStaffProfile; onClose
             <div key={i} className="grid gap-3 rounded-md border border-border p-3 sm:grid-cols-[2fr_2fr_90px_1fr_auto]">
               <Input label="Degree" value={q.degree} onChange={(e) => setQ(i, { degree: e.target.value, subject: q.subject || e.target.value })} placeholder="M.Sc. Mathematics" />
               <Input label="Institution" value={q.institution} onChange={(e) => setQ(i, { institution: e.target.value })} />
-              <Input label="Year" inputMode="numeric" value={String(q.year || "")} onChange={(e) => setQ(i, { year: Number(e.target.value.replace(/\D/g, "").slice(0, 4)) })} />
+              <Input
+                label="Year"
+                inputMode="numeric"
+                value={q.year ? String(q.year) : ""}
+                onChange={(e) => {
+                  const y = e.target.value.replace(/\D/g, "").slice(0, 4);
+                  setQ(i, { year: y ? Number(y) : null });
+                }}
+              />
               <Input label="Result" value={q.result} onChange={(e) => setQ(i, { result: e.target.value })} placeholder="First division" />
               <IconButton icon="trash" label="Remove this qualification" className="self-end" onClick={() => setQuals((xs) => xs.filter((_, j) => j !== i))} />
             </div>
           ))}
-          <Button size="sm" icon="plus" className="justify-self-start" onClick={() => setQuals((xs) => [...xs, { id: "", degree: "", subject: "", institution: "", year: 2020, result: "" }])}>
+          <Button size="sm" icon="plus" className="justify-self-start" onClick={() => setQuals((xs) => [...xs, { id: "", degree: "", subject: "", institution: "", year: null, result: "" }])}>
             Add qualification
           </Button>
         </div>
@@ -363,8 +439,8 @@ export function QualificationsPanel({ s, onClose }: { s: HrStaffProfile; onClose
             <div key={i} className="grid gap-3 rounded-md border border-border p-3 sm:grid-cols-[2fr_1fr_1fr_1fr_auto]">
               <Input label="School or organisation" value={x.organisation} onChange={(e) => setX(i, { organisation: e.target.value })} />
               <Input label="Role" value={x.role} onChange={(e) => setX(i, { role: e.target.value })} />
-              <DatePicker label="From" value={x.from || null} onValueChange={(d) => setX(i, { from: d ?? "" })} today={TODAY} />
-              <DatePicker label="To" value={x.to || null} onValueChange={(d) => setX(i, { to: d ?? "" })} today={TODAY} />
+              <DatePicker label="From" value={x.from || null} onValueChange={(d) => setX(i, { from: d ?? "" })} today={today()} />
+              <DatePicker label="To" value={x.to || null} onValueChange={(d) => setX(i, { to: d ?? "" })} today={today()} />
               <IconButton icon="trash" label="Remove this job" className="self-end" onClick={() => setExp((xs) => xs.filter((_, j) => j !== i))} />
             </div>
           ))}
@@ -427,7 +503,7 @@ export function PayPanel({ s, settings, onClose }: { s: HrStaffProfile; settings
   const [reason, setReason] = useState("");
   const [special, setSpecial] = useState<number | null>(pay.specialAllowance);
   const [method, setMethod] = useState<HrPaymentMethod>(pay.paymentMethod);
-  const [bankName, setBankName] = useState(pay.bank?.bankName ?? settings.banks[0]!);
+  const [bankName, setBankName] = useState(pay.bank?.bankName ?? settings.banks[0] ?? "");
   const [branch, setBranch] = useState(pay.bank?.branch ?? "");
   const [title, setTitle] = useState(pay.bank?.accountTitle ?? s.name.replace(/^(Mr|Ms|Mrs|Dr|Qari)\s+/, ""));
   const [accountNo, setAccountNo] = useState("");
@@ -438,7 +514,7 @@ export function PayPanel({ s, settings, onClose }: { s: HrStaffProfile; settings
   const basicChanged = basic !== null && basic !== pay.basic;
   const schema = z.object({
     basic: z.number({ error: "Enter the monthly basic pay." }).int().min(1000, "Enter the monthly basic pay in rupees."),
-    from: basicChanged ? z.string({ error: "Say from when the new pay applies." }).min(1, "Say from when the new pay applies.").refine((d) => d >= `${TODAY.slice(0, 7)}-01`, "Earlier salary sheets are prepared. Choose this month or later.") : z.any(),
+    from: basicChanged ? z.string({ error: "Say from when the new pay applies." }).min(1, "Say from when the new pay applies.").refine((d) => d >= `${today().slice(0, 7)}-01`, "Earlier salary sheets are prepared. Choose this month or later.") : z.any(),
     reason: basicChanged ? z.string().trim().min(5, "Say why the pay changes; it shows in the salary history.") : z.any(),
     accountNo: method === "BANK" && !pay.bank ? z.string().refine((v) => /^(PK\d{2}[A-Z]{4}\d{16}|\d{8,20})$/i.test(v.replace(/[\s-]/g, "")), "Enter the account number (8–20 digits) or the IBAN.") : z.any(),
     title: method === "BANK" ? z.string().trim().min(3, "Enter the account title as the bank shows it.") : z.any(),
@@ -464,7 +540,9 @@ export function PayPanel({ s, settings, onClose }: { s: HrStaffProfile; settings
   });
   const sf = errorField(save.error);
   const err = (k: string) => (tried ? (errors[k] ?? (sf === k ? errorText(save.error) : undefined)) : undefined);
-  const hra = Math.round(((basic ?? 0) * settings.payDefaults.houseRentPct) / 100);
+  // House rent follows the pay defaults in Settings: one share for staff on a pay scale, another for staff without one.
+  const hraPct = pay.payScale ? settings.payDefaults.houseRentPct : settings.payDefaults.houseRentPctNoScale;
+  const hra = Math.round(((basic ?? 0) * hraPct) / 100);
   return (
     <SidePanel
       open
@@ -497,16 +575,18 @@ export function PayPanel({ s, settings, onClose }: { s: HrStaffProfile; settings
         </div>
         {basicChanged && (
           <div className="grid gap-4 rounded-md border border-border bg-surface-sunken p-4 sm:grid-cols-2">
-            <DatePicker label="New basic applies from" required value={from} onValueChange={setFrom} today={TODAY} minDate={`${TODAY.slice(0, 7)}-01`} error={err("from") ?? err("effectiveFrom")} />
+            <DatePicker label="New basic applies from" required value={from} onValueChange={setFrom} today={today()} minDate={`${today().slice(0, 7)}-01`} error={err("from") ?? err("effectiveFrom")} />
             <Input label="Why it changes" required value={reason} onChange={(e) => setReason(e.target.value)} error={err("reason")} placeholder="Promotion to senior teacher" />
             <p className="m-0 text-small text-ink-muted sm:col-span-2">
-              {formatRs(pay.basic)} → {formatRs(basic ?? 0)}. The old figure stays in the salary history; salary sheets from that month use the new one.
+              {pay.basic
+                ? `${formatRs(pay.basic)} → ${formatRs(basic ?? 0)}. The old figure stays in the salary history; salary sheets from that month use the new one.`
+                : `No salary set yet: ${formatRs(basic ?? 0)} is recorded as the starting salary from that date.`}
             </p>
           </div>
         )}
         <KeyValue
           items={[
-            [`House rent (${settings.payDefaults.houseRentPct}% of basic)`, formatRs(pay.payScale ? hra : Math.round(((basic ?? 0) * 30) / 100))],
+            [`House rent (${hraPct}% of basic)`, formatRs(hra)],
             ["Conveyance and medical", formatRs(settings.payDefaults.conveyance + settings.payDefaults.medical)],
           ]}
         />
@@ -518,7 +598,14 @@ export function PayPanel({ s, settings, onClose }: { s: HrStaffProfile; settings
           <Select label="Salary paid by" value={method} onChange={(e) => setMethod(e.target.value as HrPaymentMethod)} options={(Object.keys(HR_PAYMENT_LABEL) as HrPaymentMethod[]).map((k) => ({ value: k, label: HR_PAYMENT_LABEL[k] }))} />
           {method === "BANK" && (
             <div className="grid gap-4 sm:grid-cols-2">
-              <Select label="Bank" value={bankName} onChange={(e) => setBankName(e.target.value)} options={settings.banks} />
+              <Select
+                label="Bank"
+                required
+                value={bankName}
+                onChange={(e) => setBankName(e.target.value)}
+                error={err("bankName")}
+                options={[...(bankName ? [] : [{ value: "", label: "Choose…" }]), ...(bankName && !settings.banks.includes(bankName) ? [bankName] : []), ...settings.banks]}
+              />
               <Input label="Branch" value={branch} onChange={(e) => setBranch(e.target.value)} />
               <Input label="Account title" required value={title} onChange={(e) => setTitle(e.target.value)} error={err("title") ?? err("accountTitle")} />
               <Input label={pay.bank ? `Account number (on file: ${pay.bank.accountNoMasked})` : "Account number or IBAN"} required={!pay.bank} mono value={accountNo} onChange={(e) => setAccountNo(e.target.value)} error={err("accountNo")} help={pay.bank ? "Leave empty to keep the number on file." : "Only the last four digits are shown after saving."} />
@@ -546,7 +633,7 @@ export function PayPanel({ s, settings, onClose }: { s: HrStaffProfile; settings
 
 export function EndPostingPanel({ s, postingId, onClose }: { s: HrStaffProfile; postingId: string; onClose: () => void }) {
   const p = s.postings.find((x) => x.id === postingId)!;
-  const [date, setDate] = useState<IsoDate | null>(TODAY);
+  const [date, setDate] = useState<IsoDate | null>(today());
   const [reason, setReason] = useState("");
   const done = useSaved(onClose, `Posting at ${p.campusName} ended`);
   const save = useMutation({ mutationFn: () => hrApi.endPosting(s.id, p.id, { endDate: date ?? "", reason }), onSuccess: done });
@@ -566,7 +653,7 @@ export function EndPostingPanel({ s, postingId, onClose }: { s: HrStaffProfile; 
       }
     >
       <div className="grid gap-4">
-        <DatePicker label="Last day at this campus" required value={date} onValueChange={setDate} today={TODAY} />
+        <DatePicker label="Last day at this campus" required value={date} onValueChange={setDate} today={today()} />
         <Textarea label="Reason" required rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Timetable changed; no computer classes at this campus" />
         {save.error && <Banner tone="danger">{errorText(save.error)}</Banner>}
         <p className="m-0 text-small text-ink-muted">Started {formatDate(p.startDate)}.</p>

@@ -9,7 +9,7 @@ import { RequirePermission, RequireSingleCampus } from "../../app/shell/page";
 import { useCtx } from "../../app/session";
 import { ReportDoc, SalarySheetDoc } from "./print";
 import { issues, useHrSettings } from "./StaffPanels";
-import { campusHeading, DesignationSelect, downloadCsv, errorField, errorText, filterNote, HrShell, LoadError, staffOptions, THIS_MONTH, TODAY, useDesignationTitle, usePayAccess, usePrint, years } from "./shared";
+import { basicRs, campusHeading, DesignationSelect, downloadCsv, errorField, errorText, filterNote, HrShell, LoadError, lastMonth, staffOptions, thisMonth, today, useDesignationTitle, usePayAccess, usePrint, years } from "./shared";
 
 export type HrReport = "strength" | "salary" | "salary-history" | "attendance" | "experience";
 
@@ -213,8 +213,9 @@ function SalaryRegister() {
 
 function AttendanceSummary() {
   const ctx = useCtx();
-  const months = hrSessionMonths(ctx.session).filter((m) => m <= THIS_MONTH);
-  const [month, setMonth] = useState(months.includes("2026-10") ? "2026-10" : (months.at(-1) ?? THIS_MONTH));
+  const months = hrSessionMonths(ctx.session).filter((m) => m <= thisMonth());
+  // Last month by default (the one that is complete), else the latest month of the session so far.
+  const [month, setMonth] = useState(() => (months.includes(lastMonth()) ? lastMonth() : (months.at(-1) ?? thisMonth())));
   const q = useQuery(hrQueries.attendanceMonth(ctx, month));
   const { print, area } = usePrint();
   const d = q.data;
@@ -294,7 +295,7 @@ function ExperienceReport() {
   const payAccess = usePayAccess();
   const settings = useHrSettings();
   // Legacy parameters: Level, Gender and "Till Date".
-  const [asOf, setAsOf] = useState<string | null>(TODAY);
+  const [asOf, setAsOf] = useState<string | null>(today());
   const [level, setLevel] = useState("");
   const [gender, setGender] = useState<"" | HrGender>("");
   const parsed = experienceSchema.safeParse({ asOf: asOf ?? "" });
@@ -309,7 +310,7 @@ function ExperienceReport() {
     <>
       <div className="flex flex-wrap items-end gap-3">
         <div className="w-48">
-          <DatePicker label="Service counted to" required value={asOf} onValueChange={setAsOf} today={TODAY} error={errors.asOf ?? (errorField(q.error) === "asOf" ? errorText(q.error) : undefined)} />
+          <DatePicker label="Service counted to" required value={asOf} onValueChange={setAsOf} today={today()} error={errors.asOf ?? (errorField(q.error) === "asOf" ? errorText(q.error) : undefined)} />
         </div>
         <div className="w-52">
           <Select label="Level taught" value={level} onChange={(e) => setLevel(e.target.value)} options={[{ value: "", label: "Every level" }, ...(settings.data?.teachingLevels ?? []).map((l) => ({ value: l, label: l }))]} />
@@ -332,7 +333,7 @@ function ExperienceReport() {
               downloadCsv(
                 `staff-experience-${ctx.campus.toLowerCase()}-${d.asOf}.csv`,
                 ["Employee no", "Name", "Designation", "Scale", "Joined", "MTB years", "Earlier MTB years", "Total years", ...(pay ? ["Basic now", "Increment due", "New basic"] : [])],
-                d.rows.map((r) => [r.employeeNo, r.name, r.designation, r.payScale ?? "", formatDate(r.joiningDate), r.mtbYears, r.priorYears, r.totalYears, ...(pay ? [r.basic ?? "", r.incrementDue ?? "", r.newBasic ?? ""] : [])]),
+                d.rows.map((r) => [r.employeeNo, r.name, r.designation, r.payScale ?? "", formatDate(r.joiningDate), r.mtbYears, r.priorYears, r.totalYears, ...(pay ? [r.basic || "", r.incrementDue || "", (r.basic && r.newBasic) || ""] : [])]),
               )
             }
             onPrint={() =>
@@ -345,7 +346,7 @@ function ExperienceReport() {
                   small={pay}
                   head={["#", "Emp. no", "Name", "Designation", "Scale", "Joined", "At MTB", "Earlier", "Total", ...(pay ? ["Basic now", "Increment", "New basic"] : [])]}
                   numeric={[6, 7, 8, 9, 10, 11]}
-                  rows={d.rows.map((r, i) => [i + 1, r.employeeNo, r.name, r.designation, r.payScale ?? "", formatDate(r.joiningDate), r.mtbYears.toFixed(1), r.priorYears.toFixed(1), r.totalYears.toFixed(1), ...(pay ? [r.basic ? formatRs(r.basic) : "", r.incrementDue ? formatRs(r.incrementDue) : "", r.newBasic ? formatRs(r.newBasic) : ""] : [])])}
+                  rows={d.rows.map((r, i) => [i + 1, r.employeeNo, r.name, r.designation, r.payScale ?? "", formatDate(r.joiningDate), r.mtbYears.toFixed(1), r.priorYears.toFixed(1), r.totalYears.toFixed(1), ...(pay ? [basicRs(r.basic), r.incrementDue ? formatRs(r.incrementDue) : "—", r.basic && r.newBasic ? formatRs(r.newBasic) : "—"] : [])])}
                   signatures={["Office", "Principal"]}
                 />,
                 pay ? "A4L" : "A4",
@@ -376,9 +377,9 @@ function ExperienceReport() {
           { key: "total", header: "Total", align: "right", render: (r) => <span className="mtb-num font-medium">{years(r.totalYears)}</span> },
           ...(pay
             ? [
-                { key: "basic", header: "Basic now", align: "right" as const, render: (r: ExperienceRow) => <span className="mtb-num">{r.basic ? formatRs(r.basic) : "—"}</span> },
+                { key: "basic", header: "Basic now", align: "right" as const, render: (r: ExperienceRow) => <span className="mtb-num">{basicRs(r.basic)}</span> },
                 { key: "due", header: "Increment due", align: "right" as const, render: (r: ExperienceRow) => <span className="mtb-num">{r.incrementDue ? formatRs(r.incrementDue) : "—"}</span> },
-                { key: "new", header: "New basic", align: "right" as const, render: (r: ExperienceRow) => <span className="mtb-num font-medium">{r.newBasic ? formatRs(r.newBasic) : "—"}</span> },
+                { key: "new", header: "New basic", align: "right" as const, render: (r: ExperienceRow) => <span className="mtb-num font-medium">{r.basic && r.newBasic ? formatRs(r.newBasic) : "—"}</span> },
               ]
             : []),
         ]}
@@ -401,7 +402,7 @@ type HistoryRow = HrSalaryHistory["rows"][number];
 function SalaryHistoryReport() {
   const ctx = useCtx();
   const sessionMonths = hrSessionMonths(ctx.session);
-  const done = sessionMonths.filter((m) => m < THIS_MONTH);
+  const done = sessionMonths.filter((m) => m < thisMonth());
   const months = done.length ? done : sessionMonths;
   const [from, setFrom] = useState(months[0]!);
   const [to, setTo] = useState(months.at(-1)!);

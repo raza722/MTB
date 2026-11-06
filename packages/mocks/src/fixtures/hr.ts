@@ -1,9 +1,7 @@
 import type {
   CampusCode,
   HrAuditEntry,
-  HrCampusSettings,
   HrCategory,
-  HrDepartment,
   HrDesignation,
   HrDocumentKind,
   HrEmergencyContact,
@@ -11,10 +9,7 @@ import type {
   HrExperience,
   HrGender,
   HrIncrementCriteria,
-  HrLeaveType,
-  HrLoanType,
   HrMaritalStatus,
-  HrPayDefaults,
   HrPaymentMethod,
   HrQualification,
   HrRelation,
@@ -22,11 +17,13 @@ import type {
   HrStaffStatus,
 } from "@mtb/api";
 import type { IsoDate, IsoDateTime } from "@mtb/domain";
-import { campusName, tuitionFor } from "./campuses";
+import { tuitionFor } from "./campuses";
 import { initialTeachers } from "./setup";
 
-// Staff and payroll fixtures — owned by the hr feature. Every person here is fictional. Staff numbers, names and
-// sign-in user names were chosen to match the old demo accounts and the class teachers in the timetable.
+// Fictional staff for the mocks of modules that are not real yet. Staff and payroll itself is real (module 02, the
+// /api/hr routes fall through to the backend); these records are kept only because the timetable mocks (teacher
+// genders and mobiles) and the dashboard mock (staff on roll today, handlers/hr-model.ts) still read them, until
+// those modules read the real hr views. Every person here is fictional.
 
 /* ================================================================== Deterministic randomness */
 
@@ -47,10 +44,6 @@ const pickBy = <T,>(xs: readonly T[], key: string): T => xs[Math.floor(hash01(ke
 const pad = (n: number, w = 4) => String(n).padStart(w, "0");
 
 /* ================================================================== Lookups */
-
-export const PAY_SCALES = ["12", "13", "14", "15", "16", "17", "18", "19"];
-export const TEACHING_LEVELS = ["Pre-primary", "Primary", "Middle", "Secondary (Matric)", "Intermediate (College)"];
-export const BANKS = ["Meezan Bank", "HBL", "Allied Bank", "Bank Alfalah", "UBL", "MCB Bank", "National Bank"];
 
 export const DESIGNATIONS: Array<Omit<HrDesignation, "staff">> = [
   { id: "d-principal", title: "Principal", category: "MANAGEMENT", active: true },
@@ -76,46 +69,6 @@ export const DESIGNATIONS: Array<Omit<HrDesignation, "staff">> = [
   { id: "d-sanitary", title: "Sanitary worker", category: "NON_TEACHING", active: true },
   { id: "d-computer", title: "Computer operator", category: "NON_TEACHING", active: false },
 ];
-
-export const DEPARTMENTS: Array<Omit<HrDepartment, "staff">> = [
-  { id: "dp-head", title: "Head office", active: true },
-  { id: "dp-admin", title: "Administration", active: true },
-  { id: "dp-accounts", title: "Accounts and fee office", active: true },
-  { id: "dp-pre", title: "Pre-primary", active: true },
-  { id: "dp-pri", title: "Primary", active: true },
-  { id: "dp-mid", title: "Middle", active: true },
-  { id: "dp-sec", title: "Secondary (Matric)", active: true },
-  { id: "dp-col", title: "College", active: true },
-  { id: "dp-hifz", title: "Shoba-e-Hifz", active: true },
-  { id: "dp-lib", title: "Library", active: true },
-  { id: "dp-lab", title: "Science and computer labs", active: true },
-  { id: "dp-transport", title: "Transport", active: true },
-  { id: "dp-support", title: "Support services", active: true },
-  { id: "dp-security", title: "Security", active: true },
-];
-
-/** Legacy leave types (CASUAL 10, ANNUAL 14, SICK 10, EMERGENCY 5) plus maternity and unpaid leave. */
-export const LEAVE_TYPES: HrLeaveType[] = [
-  { id: "lt-casual", code: "CASUAL", name: "Casual leave", daysPerYear: 10, paid: true, proofAfterDays: null, active: true },
-  { id: "lt-annual", code: "ANNUAL", name: "Annual leave", daysPerYear: 14, paid: true, proofAfterDays: null, active: true },
-  { id: "lt-sick", code: "SICK", name: "Sick leave", daysPerYear: 10, paid: true, proofAfterDays: 2, active: true },
-  { id: "lt-emergency", code: "EMERGENCY", name: "Emergency leave", daysPerYear: 5, paid: true, proofAfterDays: null, active: true },
-  { id: "lt-maternity", code: "MATERNITY", name: "Maternity leave", daysPerYear: 90, paid: true, proofAfterDays: 1, active: true },
-  { id: "lt-unpaid", code: "UNPAID", name: "Unpaid leave", daysPerYear: null, paid: false, proofAfterDays: null, active: true },
-];
-
-/** Legacy loan types: "Advance Salary Loan" and personal loans; medical added. */
-export const LOAN_TYPES: HrLoanType[] = [
-  { id: "ln-advance", name: "Salary advance", kind: "ADVANCE", maxTimesBasic: 0.5, maxInstallments: 1, active: true },
-  { id: "ln-personal", name: "Personal loan", kind: "LOAN", maxTimesBasic: 2, maxInstallments: 12, active: true },
-  { id: "ln-medical", name: "Medical loan", kind: "LOAN", maxTimesBasic: 3, maxInstallments: 12, active: true },
-  { id: "ln-marriage", name: "Marriage loan", kind: "LOAN", maxTimesBasic: 3, maxInstallments: 18, active: true },
-];
-
-export const PAY_DEFAULTS: HrPayDefaults = { houseRentPct: 45, conveyance: 2500, medical: 2000, eobi: 400, providentFundPct: 5 };
-/** Staff without a pay scale (support staff) get a smaller house rent share. */
-export const NO_SCALE_HOUSE_RENT_PCT = 30;
-
 /** Basic pay on appointment per scale (fictional). */
 export const SCALE_BASE: Record<string, number> = { "12": 20000, "13": 22000, "14": 24500, "15": 27500, "16": 32000, "17": 39000, "18": 50000, "19": 62000 };
 
@@ -148,22 +101,6 @@ export function criteriaAmount(criteria: HrIncrementCriteria[], scale: string | 
   if (!scale || scale === "0") return 0;
   const row = criteria.find((c) => c.active && c.payScale === scale && years >= c.fromYears && years < c.toYears);
   return row?.amount ?? 0;
-}
-
-export interface CampusSettingsRec extends Omit<HrCampusSettings, "schoolAccount" | "campusName"> {
-  schoolAccount: { bankName: string; branch: string; accountTitle: string; accountNo: string } | null;
-}
-
-/** Which campuses prepare salaries and take fingerprint attendance in the system (a setting per campus). */
-export function initialCampusSettings(): CampusSettingsRec[] {
-  const base = { dayStarts: "07:45", graceMinutes: 10, daysDivisor: 26, lateRule: { lates: 3, days: 0.5 }, salaryDay: 5 };
-  return [
-    { campus: "KC", runsPayroll: true, attendanceDevice: true, deviceName: "ZKTeco K40 · staff room", ...base, schoolAccount: { bankName: "Meezan Bank", branch: "Sadiqabad branch", accountTitle: "MTB Khalid Campus — Salaries", accountNo: "0102-01044417" } },
-    { campus: "SM", runsPayroll: false, attendanceDevice: false, deviceName: null, ...base, lateRule: null, schoolAccount: null },
-    { campus: "UC", runsPayroll: false, attendanceDevice: false, deviceName: null, ...base, lateRule: null, schoolAccount: null },
-    { campus: "MC", runsPayroll: false, attendanceDevice: false, deviceName: null, ...base, dayStarts: "08:00", lateRule: null, schoolAccount: null },
-    { campus: "HC", runsPayroll: true, attendanceDevice: true, deviceName: "ZKTeco MB360 · main gate", ...base, schoolAccount: { bankName: "Allied Bank", branch: "Johar Town branch, Lahore", accountTitle: "MTB Humaira Campus — Salaries", accountNo: "0010-00387781" } },
-  ];
 }
 
 /* ================================================================== Staff records (as the mock server stores them) */
@@ -758,122 +695,3 @@ export function initialStaff(): StaffRec[] {
   }
   return structuredClone(cachedStaff);
 }
-
-/* ================================================================== Leave, loans */
-
-export interface LeaveRec {
-  id: string;
-  staffId: string;
-  campus: CampusCode;
-  session: number;
-  typeId: string;
-  from: IsoDate;
-  to: IsoDate;
-  halfDay: boolean;
-  reason: string;
-  status: "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
-  source: "TEACHER_APP" | "OFFICE";
-  requestedBy: string;
-  requestedAt: IsoDateTime;
-  decidedBy: string | null;
-  decidedAt: IsoDateTime | null;
-  decisionNote: string | null;
-  history: HrAuditEntry[];
-}
-
-const byName = (staff: StaffRec[], name: string) => staff.find((s) => s.name === name);
-
-export function initialLeave(staff: StaffRec[]): LeaveRec[] {
-  const out: LeaveRec[] = [];
-  let n = 0;
-  const L = (who: StaffRec | undefined, typeId: string, from: IsoDate, to: IsoDate, status: LeaveRec["status"], reason: string, opts: { app?: boolean; at?: IsoDateTime; decidedAt?: IsoDateTime; note?: string; half?: boolean; by?: string } = {}) => {
-    if (!who) return;
-    const requestedBy = opts.app ? `${who.name} (teacher app)` : "Farah Naz";
-    const requestedAt = opts.at ?? `${from}T07:10:00+05:00`;
-    const decidedBy = status === "APPROVED" || status === "REJECTED" ? (opts.by ?? "Mrs Sadia Rehman") : null;
-    const decidedAt = decidedBy ? (opts.decidedAt ?? requestedAt) : null;
-    const history: HrAuditEntry[] = [{ id: "h1", at: requestedAt, by: requestedBy, text: "Asked for leave" }];
-    if (decidedBy && decidedAt) history.push({ id: "h2", at: decidedAt, by: decidedBy, text: status === "APPROVED" ? "Approved" : "Rejected", ...(opts.note ? { detail: opts.note } : {}) });
-    out.push({ id: `lv-${++n}`, staffId: who.id, campus: who.postings[0]!.campus, session: 2026, typeId, from, to, halfDay: Boolean(opts.half), reason, status, source: opts.app ? "TEACHER_APP" : "OFFICE", requestedBy, requestedAt, decidedBy, decidedAt, decisionNote: opts.note ?? null, history });
-  };
-  const s = (name: string) => byName(staff, name);
-  // Today and coming days (consistent with the timetable's cover list: Mr Imran Shafiq is on casual leave today).
-  L(s("Mr Imran Shafiq"), "lt-casual", "2026-11-04", "2026-11-04", "APPROVED", "Family wedding in Rahim Yar Khan.", { app: true, at: "2026-11-02T19:40:00+05:00", decidedAt: "2026-11-03T08:05:00+05:00" });
-  L(s("Ms Hina Javed"), "lt-casual", "2026-11-12", "2026-11-13", "PENDING", "Attending my sister's nikah in Bahawalpur.", { app: true, at: "2026-11-03T20:15:00+05:00" });
-  L(s("Ms Sana Tariq"), "lt-annual", "2026-11-23", "2026-11-27", "PENDING", "Visiting family in Karachi.", { app: true, at: "2026-11-04T07:05:00+05:00" });
-  L(s("Mr Adeel Anwar"), "lt-sick", "2026-11-02", "2026-11-03", "APPROVED", "Fever; doctor's note attached.", { app: true, at: "2026-11-02T06:50:00+05:00", decidedAt: "2026-11-02T08:10:00+05:00" });
-  L(s("Usman Ali"), "lt-casual", "2026-11-16", "2026-11-16", "PENDING", "Personal work at NADRA office.", { at: "2026-11-04T09:20:00+05:00" });
-  L(s("Mr Shahid Hussain"), "lt-unpaid", "2026-10-26", "2026-10-28", "APPROVED", "Village visit after a death in the family; casual leave already used.", { at: "2026-10-24T11:00:00+05:00", decidedAt: "2026-10-24T12:30:00+05:00" });
-  // Earlier this session.
-  L(s("Ms Madiha Riaz"), "lt-maternity", "2026-09-28", "2026-12-26", "APPROVED", "Maternity leave; medical certificate on file.", { at: "2026-09-15T10:00:00+05:00", decidedAt: "2026-09-16T09:30:00+05:00" });
-  L(s("Mr Kashif Nadeem"), "lt-emergency", "2026-10-20", "2026-10-20", "APPROVED", "Father admitted to hospital.", { app: true, at: "2026-10-20T06:30:00+05:00", decidedAt: "2026-10-20T07:50:00+05:00" });
-  L(s("Mr Ehsan Ullah"), "lt-annual", "2026-10-12", "2026-10-14", "REJECTED", "Family trip.", { app: true, at: "2026-10-05T18:00:00+05:00", decidedAt: "2026-10-06T08:20:00+05:00", note: "First term exams that week; please choose dates after 17-Oct." });
-  L(s("Farah Naz"), "lt-casual", "2026-10-15", "2026-10-15", "APPROVED", "Child's school function.", { at: "2026-10-13T12:00:00+05:00", decidedAt: "2026-10-13T13:10:00+05:00" });
-  L(s("Ms Saima Akram"), "lt-sick", "2026-09-21", "2026-09-23", "APPROVED", "Dengue fever; medical certificate attached.", { app: true, at: "2026-09-21T06:40:00+05:00", decidedAt: "2026-09-21T08:00:00+05:00" });
-  L(s("Ms Nida Hussain"), "lt-casual", "2026-10-30", "2026-10-30", "CANCELLED", "Bank work.", { app: true, at: "2026-10-28T19:00:00+05:00" });
-  // A few approved casual and sick days for others, spread over the session.
-  const kc = staff.filter((x) => x.postings[0]!.campus === "KC" && x.status === "ACTIVE" && !out.some((o) => o.staffId === x.id));
-  kc.forEach((x, i) => {
-    if (hash01(`${x.id}|lv`) > 0.28) return;
-    const month = pickBy(["2026-05", "2026-08", "2026-09", "2026-10", "2026-10"], `${x.id}|lvm`);
-    const day = pad(4 + Math.floor(hash01(`${x.id}|lvd`) * 22), 2);
-    const date = `${month}-${day}`;
-    const dow = new Date(`${date}T00:00:00Z`).getUTCDay();
-    if (dow === 0 || (month === "2026-08" && day === "14")) return;
-    L(x, i % 3 === 0 ? "lt-sick" : "lt-casual", date, date, "APPROVED", i % 3 === 0 ? "Unwell." : "Personal work.", { at: `${date}T06:45:00+05:00`, decidedAt: `${date}T08:00:00+05:00`, by: x.postings[0]!.designationId === "d-principal" ? "Kamran Yousaf" : "Mrs Sadia Rehman" });
-  });
-  // Humaira Campus.
-  const hc = staff.filter((x) => x.postings[0]!.campus === "HC" && x.status === "ACTIVE" && x.postings[0]!.designationId === "d-teacher");
-  L(hc[0], "lt-casual", "2026-11-04", "2026-11-04", "APPROVED", "Personal work.", { app: true, at: "2026-11-03T18:00:00+05:00", decidedAt: "2026-11-03T19:00:00+05:00", by: "Dr Ambreen Fatima" });
-  L(hc[1], "lt-sick", "2026-11-05", "2026-11-06", "PENDING", "Unwell; will bring a medical certificate.", { app: true, at: "2026-11-04T06:55:00+05:00" });
-  return out;
-}
-
-export interface LoanRec {
-  id: string;
-  loanNo: string;
-  staffId: string;
-  campus: CampusCode;
-  typeId: string;
-  principal: number;
-  installment: number;
-  installments: number;
-  firstMonth: string;
-  status: "PENDING" | "ACTIVE" | "CLOSED" | "REJECTED";
-  reason: string;
-  requestedBy: string;
-  requestedAt: IsoDateTime;
-  decidedBy: string | null;
-  decidedAt: IsoDateTime | null;
-  decisionNote: string | null;
-  recoveries: Array<{ id: string; month: string; date: IsoDate; amount: number; source: "PAYROLL" | "CASH"; reference: string }>;
-  history: HrAuditEntry[];
-}
-
-export function initialLoans(staff: StaffRec[]): LoanRec[] {
-  const s = (name: string) => byName(staff, name);
-  const out: LoanRec[] = [];
-  const add = (who: StaffRec | undefined, loanNo: string, typeId: string, principal: number, installments: number, firstMonth: string, status: LoanRec["status"], reason: string, requestedAt: IsoDateTime, recoveredMonths: string[], decidedBy: string | null = "Mrs Sadia Rehman") => {
-    if (!who) return;
-    const installment = Math.round(principal / installments);
-    const recoveries = recoveredMonths.map((m, i) => {
-      const [y, mo] = m.split("-").map(Number) as [number, number];
-      const next = mo === 12 ? `${y + 1}-01` : `${y}-${pad(mo + 1, 2)}`;
-      const left = principal - installment * i;
-      return { id: `r${i + 1}`, month: m, date: `${next}-05`, amount: Math.min(installment, left), source: "PAYROLL" as const, reference: `Salary sheet ${m}` };
-    });
-    const history: HrAuditEntry[] = [{ id: "h1", at: requestedAt, by: "Nadia Shah", text: "Loan requested", detail: reason }];
-    if (decidedBy && status !== "PENDING") history.push({ id: "h2", at: requestedAt.replace("T10", "T15"), by: decidedBy, text: status === "REJECTED" ? "Rejected" : "Approved" });
-    if (status === "CLOSED") history.push({ id: "h3", at: `${recoveries.at(-1)?.date ?? requestedAt.slice(0, 10)}T12:00:00+05:00`, by: "System", text: "Fully paid back; loan closed" });
-    out.push({ id: loanNo.toLowerCase(), loanNo, staffId: who.id, campus: who.postings[0]!.campus, typeId, principal, installment, installments, firstMonth, status, reason, requestedBy: "Nadia Shah", requestedAt, decidedBy: status === "PENDING" ? null : decidedBy, decidedAt: status === "PENDING" ? null : requestedAt.replace("T10", "T15"), decisionNote: null, recoveries, history });
-  };
-  add(s("Mr Naveed Akhtar"), "LN-KC-0009", "ln-personal", 40000, 8, "2026-01", "CLOSED", "Roof repair after the monsoon rains.", "2025-12-20T10:00:00+05:00", ["2026-01", "2026-02", "2026-03", "2026-04", "2026-05", "2026-06", "2026-07", "2026-08"]);
-  add(s("Ms Nighat Perveen"), "LN-KC-0010", "ln-advance", 10000, 1, "2026-09", "CLOSED", "School admission of her son.", "2026-08-28T10:00:00+05:00", ["2026-09"]);
-  add(s("Mr Shahid Hussain"), "LN-KC-0011", "ln-personal", 60000, 12, "2026-06", "ACTIVE", "Daughter's wedding expenses.", "2026-05-25T10:00:00+05:00", ["2026-06", "2026-07", "2026-08", "2026-09"]);
-  add(s("Usman Ali"), "LN-KC-0012", "ln-advance", 15000, 1, "2026-10", "ACTIVE", "Advance against October salary for a family emergency.", "2026-10-12T10:00:00+05:00", []);
-  add(s("Ms Saima Akram"), "LN-KC-0013", "ln-medical", 90000, 10, "2026-11", "PENDING", "Mother's eye surgery at a hospital in Multan.", "2026-11-03T10:00:00+05:00", [], null);
-  add(s("Mr Tahir Mahmood"), "LN-HC-0004", "ln-personal", 80000, 10, "2026-07", "ACTIVE", "Motorcycle purchase.", "2026-06-20T10:00:00+05:00", ["2026-07", "2026-08", "2026-09"], "Dr Ambreen Fatima");
-  return out;
-}
-
-export { campusName };
