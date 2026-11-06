@@ -85,7 +85,7 @@ export function AdmissionSlipsPanel({ open, onClose, grNos }: { open: boolean; o
     { key: "grNo", header: "G.R. no.", width: 120, render: (s) => <span className="mtb-mono">{s.grNo}</span> },
     { key: "name", header: "Student", render: (s) => <span className="grid"><span className="mtb-cell-primary">{s.name}</span><span className="mtb-cell-secondary">{s.relation} {s.father}</span></span> },
     { key: "classSection", header: "Class", width: 90 },
-    { key: "rollNo", header: "Roll", width: 70, align: "right", render: (s) => <span className="tabular-nums">{s.rollNo}</span> },
+    { key: "rollNo", header: "Roll", width: 70, align: "right", render: (s) => <span className="tabular-nums">{s.rollNo || "—"}</span> },
     { key: "admissionDate", header: "Admitted", width: 120, render: (s) => <span className="tabular-nums">{formatDate(s.admissionDate)}</span> },
   ];
   return (
@@ -303,7 +303,7 @@ export function LettersPanel({ open, onClose }: { open: boolean; onClose: () => 
         />
       ),
     },
-    { key: "rollNo", header: "Roll", width: 60, align: "right", render: (s) => <span className="tabular-nums">{s.rollNo}</span> },
+    { key: "rollNo", header: "Roll", width: 60, align: "right", render: (s) => <span className="tabular-nums">{s.rollNo || "—"}</span> },
     { key: "name", header: "Student", render: (s) => <span className="grid"><span className="mtb-cell-primary">{s.name}</span><span className="mtb-cell-secondary">{s.relation} {s.father} · <span className="mtb-mono">{s.grNo}</span></span></span> },
     {
       key: "days",

@@ -1124,7 +1124,7 @@ export function StudentProfilePage({ grNo, tab, setTab }: { grNo: string; tab: P
                   </span>
                 )}
                 <span>Session {formatSession(p.session)}</span>
-                <span>Roll no. {p.rollNo}</span>
+                <span>Roll no. {p.rollNo || "—"}</span>
                 {p.house && <span>{p.house}</span>}
                 <EnrolmentBadge status={p.status} />
               </div>

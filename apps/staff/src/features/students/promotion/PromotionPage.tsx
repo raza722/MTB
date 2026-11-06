@@ -146,7 +146,7 @@ function ClassDetail({ cs, detail, onDone }: { cs: string; detail: StudentPromot
 
   const outcomeOptions: StudentPromotionOutcome[] = next ? ["PROMOTE", "DETAIN", "LEFT"] : ["PASS_OUT", "DETAIN", "LEFT"];
   const columns: Array<Column<StudentPromotionCandidate>> = [
-    { key: "rollNo", header: "Roll", align: "right", width: 56, render: (c) => <span className="tabular-nums">{c.rollNo}</span> },
+    { key: "rollNo", header: "Roll", align: "right", width: 56, render: (c) => <span className="tabular-nums">{c.rollNo || "—"}</span> },
     {
       key: "name",
       header: "Student",

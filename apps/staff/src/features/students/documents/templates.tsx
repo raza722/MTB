@@ -126,7 +126,7 @@ export function IdCard({ d }: { d: DocInput }) {
             <dd className="mtb-mono">{s.grNo}</dd>
             <dt>Class</dt>
             <dd>
-              {s.classSection} · Roll {s.rollNo}
+              {s.classSection} · Roll {s.rollNo || "—"}
               {s.stream ? ` · ${s.stream}` : ""}
             </dd>
             <dt>{s.relation}</dt>
@@ -252,7 +252,7 @@ export function AdmissionSlip({ d }: { d: DocInput }) {
               ["Father's name", s.father],
               ["Class", s.className],
               ["Section allotted", <b>{s.classSection}</b>],
-              ["Roll no.", <span className="tabular-nums">{s.rollNo}</span>],
+              ["Roll no.", <span className="tabular-nums">{s.rollNo || "—"}</span>],
               ["Date of admission", <span className="tabular-nums">{formatDate(s.admissionDate)}</span>],
               ["Guardian mobile", <span className="tabular-nums">{formatMobile(s.guardianMobile)}</span>],
             ] as Array<[string, ReactNode]>
@@ -979,7 +979,7 @@ export function StudentRecordForm({ s, printedOn }: { s: StudentDocSnapshot; pri
             ["Previous school", r?.previousSchool ?? ""],
             ["Admitted in", s.admittedInClass],
             ["Present class and section", s.classSection],
-            ["Roll no.", <span className="tabular-nums">{s.rollNo}</span>],
+            ["Roll no.", <span className="tabular-nums">{s.rollNo || "—"}</span>],
             ["Group", s.stream ?? "—"],
             ["House", r?.house ?? ""],
           ]}

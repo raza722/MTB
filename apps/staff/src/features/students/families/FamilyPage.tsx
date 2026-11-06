@@ -371,7 +371,7 @@ export function FamilyPage({ familyId }: { familyId: string }) {
                         </Link>
                         {c.nameUr && <Urdu size="small">{c.nameUr}</Urdu>}
                         <span className="text-small text-ink-muted">
-                          <span className="mtb-mono">{c.grNo}</span> · {c.classSection} · roll {c.rollNo}
+                          <span className="mtb-mono">{c.grNo}</span> · {c.classSection} · roll {c.rollNo || "—"}
                         </span>
                         <span className="text-small text-ink-muted">{c.campusName}</span>
                       </div>
