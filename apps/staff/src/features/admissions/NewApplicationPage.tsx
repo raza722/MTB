@@ -12,7 +12,7 @@ import { PrintSheet, printNow } from "../students/documents/print";
 import { BlankAdmissionForm } from "../students/documents/templates";
 import { apiMessage, fieldError } from "../students/shared";
 import { ChildExtrasFields, childExtrasSchema, EMPTY_EXTRAS, extrasBody, FamilyExtrasFields, familyExtrasSchema, type ExtrasForm } from "./extras";
-import { AdmissionsSubNav, TODAY } from "./shared";
+import { AdmissionsSubNav, feeOrDash, sittingWhen, sittingWhenWhere, today } from "./shared";
 import { ApplicationForm, TestSlip } from "./slips";
 
 const CHILD_FIELDS = ["name", "dob", "classApplied", "bForm", "birthCertificateNo", "religion", "disability", "identificationMark"];
@@ -37,13 +37,13 @@ const familySchema = z.object({
   address: z.string().trim().min(8, { error: "Enter the full address: house, street and area." }),
 });
 
-/** Age on 1 April of the session, the way admission rules count it. */
-function ageOn(dob: string): string {
+/** Age on 1 April of the session applied for, the way admission rules count it. */
+function ageOn(dob: string, session: number): string {
   if (!dob) return "";
   const [y, m, d] = dob.split("-").map(Number) as [number, number, number];
-  let years = 2026 - y;
+  let years = session - y;
   if (m > 4 || (m === 4 && d > 1)) years -= 1;
-  return `${years} ${years === 1 ? "year" : "years"} on 01-Apr-2026`;
+  return `${years} ${years === 1 ? "year" : "years"} on 01-Apr-${session}`;
 }
 
 /** The blank two-page admission form, for families who fill it in by hand. */
@@ -67,7 +67,7 @@ export function BlankFormModal({ open, onClose }: { open: boolean; onClose: () =
     >
       {open && (
         <PrintSheet paper="A4" label="Blank admission form" zoom={0.55}>
-          <BlankAdmissionForm campusName={campusLabel(ctx.campus === "ALL" ? "KC" : ctx.campus)} session={ctx.session} />
+          <BlankAdmissionForm campusName={ctx.campus === "ALL" ? "" : campusLabel(ctx.campus)} session={ctx.session} />
         </PrintSheet>
       )}
     </Modal>
@@ -100,7 +100,7 @@ export function NewApplicationPage({ enquiryId }: { enquiryId: string }) {
 
   const check = useQuery({ ...admissionsQueries.check(ctx, { name: form.name, father: form.father, fatherCnic: form.fatherCnic, dob: form.dob }), enabled: step >= 1 && (form.fatherCnic.length === 13 || (form.name.trim().length >= 3 && form.father.trim().length >= 3)) });
   const rule = setup.data?.classes.find((c) => c.classApplied === form.classApplied);
-  const sittings = (setup.data?.tests ?? []).filter((t) => t.classApplied === form.classApplied && t.date >= TODAY).sort((a, b) => a.date.localeCompare(b.date));
+  const sittings = (setup.data?.tests ?? []).filter((t) => t.classApplied === form.classApplied && t.date >= today()).sort((a, b) => a.date.localeCompare(b.date));
   const chosenTest = sittings.find((t) => t.id === form.testId);
   const streams = rule?.streams ?? [];
   const groupPapers = Boolean(chosenTest?.subjects.some((s) => s.stream));
@@ -110,7 +110,7 @@ export function NewApplicationPage({ enquiryId }: { enquiryId: string }) {
     onSuccess: (a) => {
       setDone(a);
       void queryClient.invalidateQueries({ queryKey: admissionsQueries.all() });
-      toast({ title: `Application ${a.applicationNo} saved`, message: a.testDate ? `Entrance test on ${formatDate(a.testDate)} · seat ${a.testRollNo}` : a.directAdmission ? "No test for this class: the principal can offer a seat after the interview." : "Book the entrance test when the fee is paid." });
+      toast({ title: `Application ${a.applicationNo} saved`, message: a.testDate ? `Entrance test on ${formatDate(a.testDate)}${a.testRollNo ? ` · seat ${a.testRollNo}` : ""}` : a.directAdmission ? "No test for this class: the principal can offer a seat after the interview." : "Book the entrance test when the fee is paid." });
     },
     onError: (e) => {
       if (e instanceof ApiError && e.field) setStep(CHILD_FIELDS.includes(e.field) ? 0 : FAMILY_FIELDS.includes(e.field) ? 1 : 2);
@@ -168,7 +168,7 @@ export function NewApplicationPage({ enquiryId }: { enquiryId: string }) {
       <AdmissionsSubNav />
       <RequireSingleCampus action="new applications">
         {!canManage || readOnly ? (
-          <Banner tone="info">{readOnly ? "Past sessions are read-only. Switch to the current session to take applications." : "Only the admissions office, the principal or an admin can take applications."}</Banner>
+          <Banner tone="info">{readOnly ? "Past sessions are read-only. Switch to the current session, or next year's planned session, to take applications." : "Only the admissions office, the principal or an admin can take applications."}</Banner>
         ) : done ? (
           <Panel id="app-done" rise={0} title="Application saved" description="Hand the family their copy and the test slip.">
             <div className="grid gap-5">
@@ -180,8 +180,8 @@ export function NewApplicationPage({ enquiryId }: { enquiryId: string }) {
                   <span className="text-title-2 text-success-ink">{done.applicationNo}</span>
                   <span className="text-small text-success-ink">
                     {done.name} · {done.classApplied}
-                    {done.testDate ? ` · entrance test ${formatDate(done.testDate)}, seat ${done.testRollNo}` : done.directAdmission ? " · admitted on interview, no test" : " · test not booked yet"}
-                    {done.fee ? ` · candidate fee ${done.fee.status === "PAID" ? `paid (${done.fee.receiptNo})` : "due"}` : ""}
+                    {done.testDate ? ` · entrance test ${formatDate(done.testDate)}${done.testRollNo ? `, seat ${done.testRollNo}` : ""}` : done.directAdmission ? " · admitted on interview, no test" : " · test not booked yet"}
+                    {done.fee ? ` · candidate fee ${done.fee.status === "PAID" ? `paid${done.fee.receiptNo ? ` (${done.fee.receiptNo})` : ""}` : "due"}` : ""}
                   </span>
                 </div>
               </div>
@@ -217,7 +217,7 @@ export function NewApplicationPage({ enquiryId }: { enquiryId: string }) {
                       <Radio name="app-gender" label="Girl" checked={form.gender === "F"} onChange={() => set({ gender: "F" })} />
                       <Radio name="app-gender" label="Boy" checked={form.gender === "M"} onChange={() => set({ gender: "M" })} />
                     </fieldset>
-                    <DatePicker label="Date of birth" required value={form.dob || null} maxDate={TODAY} onValueChange={(v) => set({ dob: v ?? "" })} error={err("dob")} help={ageOn(form.dob) || "As on the B-form or birth certificate."} />
+                    <DatePicker label="Date of birth" required value={form.dob || null} maxDate={today()} onValueChange={(v) => set({ dob: v ?? "" })} error={err("dob")} help={ageOn(form.dob, ctx.session) || "As on the B-form or birth certificate."} />
                     <CnicInput label="B-form number" value={form.bForm ?? ""} onValueChange={(v) => set({ bForm: v })} error={err("bForm")} help="Optional. 13 digits, from NADRA." />
                     <Input label="Previous school" value={form.previousSchool ?? ""} onChange={(e) => set({ previousSchool: e.target.value })} placeholder="None for a first school" />
                     <Select label="Class applied for" required value={form.classApplied} error={err("classApplied")} onChange={(e) => set({ classApplied: e.target.value, testId: undefined, stream: undefined })} options={[{ value: "", label: "Choose…" }, ...classes.map((c) => ({ value: c.classApplied, label: `${c.classApplied}${c.testRequired ? " · entrance test" : " · interview"}` }))]} />
@@ -258,25 +258,26 @@ export function NewApplicationPage({ enquiryId }: { enquiryId: string }) {
                     ) : rule.testRequired ? (
                       <>
                         <Banner tone="info" title={`${form.classApplied} admits through an entrance test`}>
-                          {`Candidate fee ${formatRs(rule.candidateFee)}. The merit list offers ${rule.seatsOnMeritList} seats per sitting; ties go to the older child.`}
+                          {`${rule.candidateFee > 0 ? `Candidate fee ${formatRs(rule.candidateFee)}.` : "No candidate fee."} ${rule.seatsOnMeritList > 0 ? `The merit list offers ${rule.seatsOnMeritList} seats` : "Seats on the merit list are set per list"}; ties go to the older child.`}
                         </Banner>
                         <Select
                           label="Test sitting"
                           value={form.testId ?? ""}
                           onChange={(e) => set({ testId: e.target.value || undefined })}
-                          options={[{ value: "", label: sittings.length ? "Book later" : "No upcoming sitting — book later" }, ...sittings.map((t) => ({ value: t.id, label: `${formatDate(t.date)}, ${t.time} · ${t.venue} · ${t.candidates} booked` }))]}
+                          options={[{ value: "", label: sittings.length ? "Book later" : "No upcoming sitting — book later" }, ...sittings.map((t) => ({ value: t.id, label: `${sittingWhenWhere(t)} · ${t.candidates} booked` }))]}
                         />
                         {chosenTest && (
                           <p className="m-0 text-small text-ink-muted">
                             Papers: {chosenTest.subjects.filter((s) => !s.stream || !form.stream || s.stream === form.stream).map((s) => `${s.subject} (${s.max}${s.stream ? `, ${s.stream} only` : ""})`).join(", ")} · {chosenTest.max} marks in all.
                           </p>
                         )}
-                        <Switch label={`Candidate fee of ${formatRs(rule.candidateFee)} paid now at the desk`} checked={form.feePaidNow} onChange={(e) => set({ feePaidNow: e.target.checked })} />
-                        {!form.feePaidNow && form.testId && <Banner tone="warning">The test is booked, but the slip is printed only after the fee is paid.</Banner>}
+                        {rule.candidateFee > 0 && <Switch label={`Candidate fee of ${formatRs(rule.candidateFee)} paid now at the desk`} checked={form.feePaidNow} onChange={(e) => set({ feePaidNow: e.target.checked })} />}
+                        {rule.candidateFee > 0 && !form.feePaidNow && form.testId && <Banner tone="warning">The test is booked, but the slip is printed only after the fee is paid.</Banner>}
                       </>
                     ) : (
                       <Banner tone="info" title={`${form.classApplied} has no entrance test`}>
-                        The principal meets the family and offers a seat if one is free. The admission fee of {formatRs(rule.admissionFee)} is charged on admission.
+                        The principal meets the family and offers a seat if one is free.{" "}
+                        {rule.admissionFee ? `The admission fee of ${feeOrDash(rule.admissionFee)} is charged on admission.` : "The admission fee is charged on admission."}
                       </Banner>
                     )}
                   </div>
@@ -285,7 +286,7 @@ export function NewApplicationPage({ enquiryId }: { enquiryId: string }) {
                   <KeyValue
                     items={[
                       ["Child", `${form.name}${form.nameUr ? ` · ${form.nameUr}` : ""} (${form.gender === "F" ? "girl" : "boy"})`],
-                      ["Date of birth", form.dob ? `${formatDate(form.dob)} · ${ageOn(form.dob)}` : "—"],
+                      ["Date of birth", form.dob ? `${formatDate(form.dob)} · ${ageOn(form.dob, ctx.session)}` : "—"],
                       ["Class", `${form.classApplied}${form.stream ? ` · ${form.stream}` : streams.length ? " · group to be chosen" : ""}`],
                       ...(extras.religion || extras.disability || extras.identificationMark || extras.birthCertificateNo
                         ? ([["More about the child", [extras.religion, extras.birthCertificateNo && `birth certificate ${extras.birthCertificateNo}`, extras.disability && `disability: ${extras.disability}`, extras.identificationMark && `mark: ${extras.identificationMark}`].filter(Boolean).join(" · ")]] as Array<[string, string]>)
@@ -296,8 +297,8 @@ export function NewApplicationPage({ enquiryId }: { enquiryId: string }) {
                       ["Address", `${form.address}${extras.city ? `, ${extras.city}` : ""}${extras.tempAddress ? ` · for now: ${extras.tempAddress}` : ""}`],
                       ...(extras.emergencyName ? ([["Emergency contact", `${extras.emergencyName} · ${extras.emergencyMobile1}${extras.emergencyMobile2 ? ` / ${extras.emergencyMobile2}` : ""}`]] as Array<[string, string]>) : []),
                       ...(extras.admissionReference ? ([["Admission reference", extras.admissionReference]] as Array<[string, string]>) : []),
-                      ["Entrance test", rule?.testRequired ? (chosenTest ? `${formatDate(chosenTest.date)}, ${chosenTest.time}` : "Book later") : "None (interview)"],
-                      ...(rule?.testRequired ? ([["Candidate fee", form.feePaidNow ? `${formatRs(rule.candidateFee)} paid now` : `${formatRs(rule.candidateFee)} due`]] as Array<[string, string]>) : []),
+                      ["Entrance test", rule?.testRequired ? (chosenTest ? sittingWhen(chosenTest) : "Book later") : "None (interview)"],
+                      ...(rule?.testRequired && rule.candidateFee > 0 ? ([["Candidate fee", form.feePaidNow ? `${formatRs(rule.candidateFee)} paid now` : `${formatRs(rule.candidateFee)} due`]] as Array<[string, string]>) : []),
                       ...(family ? ([["Family", `Joins ${family.fatherName}'s family (${family.children.length} at MTB)`]] as Array<[string, string]>) : []),
                     ]}
                   />

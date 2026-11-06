@@ -45,7 +45,6 @@ export interface StudentsSearch {
 /** Headline figures: enrolled, new admissions, leavers and families. */
 function StrengthCards({ s }: { s: StudentStrength | undefined }) {
   const navigate = useNavigate();
-  const canAdmissions = useCan("admissions.view");
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <div className="mtb-rise" style={stagger(1)}>
@@ -59,8 +58,7 @@ function StrengthCards({ s }: { s: StudentStrength | undefined }) {
           loading={!s}
           value={s ? <AnimatedNumber value={s.newThisSession} format={formatCount} /> : undefined}
           {...(s && s.newThisWeek ? { delta: s.newThisWeek, deltaLabel: `+${s.newThisWeek} this week` } : {})}
-          foot="admitted since 01-Apr"
-          {...(canAdmissions ? { onClick: () => void navigate({ to: "/admissions/offers" }) } : {})}
+          foot="joined in this session's intake, every route"
         />
       </div>
       <div className="mtb-rise" style={stagger(3)}>

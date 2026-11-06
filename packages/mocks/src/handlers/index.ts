@@ -1,6 +1,5 @@
 import type { HttpHandler } from "msw";
 import { accountsHandlers } from "./accounts";
-import { admissionsHandlers } from "./admissions";
 import { attendanceHandlers } from "./attendance";
 import { authTapHandlers } from "./auth-state";
 import { dashboardHandlers } from "./dashboard";
@@ -19,9 +18,10 @@ import { timetableHandlers } from "./timetable";
  * Modules that are real now have no handlers here: their requests fall through (onUnhandledRequest "bypass") to the
  * backend through the Vite proxy. Real so far: sign-in for the staff and teacher apps (/api/auth/*, tapped on the way
  * through so the mocks below know the signed-in user), /api/meta/*, /api/setup/*, Students (/api/students*,
- * /api/search, /api/families*, /api/promotion*, /api/sections*, /api/movements, /api/documents*), and Staff and
- * payroll (/api/hr/*). The fictional student records the unfinished modules still share live in student-records-model.ts, and the fictional
- * staff in fixtures/hr.ts with handlers/hr-model.ts (no routes).
+ * /api/search, /api/families*, /api/promotion*, /api/sections*, /api/movements, /api/documents*), Staff and payroll
+ * (/api/hr/*), and Admissions (/api/admissions/*). The fictional student records the unfinished modules still share
+ * live in student-records-model.ts, the fictional staff in fixtures/hr.ts with handlers/hr-model.ts, and the
+ * fictional applicants in fixtures/admissions.ts with handlers/admissions-model.ts (no routes).
  */
 export const handlers: HttpHandler[] = [
   ...authTapHandlers,
@@ -29,7 +29,6 @@ export const handlers: HttpHandler[] = [
   ...dashboardHandlers,
   ...smsHandlers,
   ...examsHandlers,
-  ...admissionsHandlers,
   ...accountsHandlers,
   ...attendanceHandlers,
   ...timetableHandlers,

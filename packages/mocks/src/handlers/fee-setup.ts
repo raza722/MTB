@@ -102,7 +102,7 @@ import {
 import { initialCampusSettings, SETTING_DEFS } from "../fixtures/setup";
 import { findStudent, STUDENTS, type StudentRecord } from "../fixtures/students";
 import { ctxFrom, fail, HttpResponse, latency, requireUser } from "../util";
-import { admissionsStore } from "./admissions";
+import { admissionsStore } from "./admissions-model";
 import { chargesOf, feesStore, receiptsOf } from "./fees-state";
 import { liveTemplate, queueBatch, smsStatusStore } from "./sms";
 

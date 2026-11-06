@@ -8,7 +8,7 @@ import {
   type AdmissionsEnquiryInput,
   type AdmissionsEnquirySource,
 } from "@mtb/api";
-import { formatCount, formatDate, formatMobile, normalizeMobile } from "@mtb/domain";
+import { formatCount, formatDate, normalizeMobile } from "@mtb/domain";
 import { AnimatedNumber, Banner, Button, buttonClassName, DataTable, DatePicker, EmptyState, Input, KeyValue, Modal, Radio, Segmented, Select, SidePanel, StatCard, StatusBadge, Textarea, useToast, type Column } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -17,10 +17,16 @@ import { z } from "zod";
 import { Page, PageHeader } from "../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { apiMessage, fieldError, LoadError, stagger } from "../students/shared";
-import { AdmissionsSubNav, TODAY } from "./shared";
+import { AdmissionsSubNav, mobileOrDash, today } from "./shared";
 import { BlankFormModal } from "./NewApplicationPage";
 
-const CLASSES = ["Prep", ...Array.from({ length: 10 }, (_, i) => `Class ${i + 1}`)];
+/** A date n days after `d` (calendar dates, no time zone). */
+function addDays(d: string, n: number): string {
+  const t = new Date(`${d}T00:00:00Z`);
+  t.setUTCDate(t.getUTCDate() + n);
+  return t.toISOString().slice(0, 10);
+}
+
 const SOURCES = Object.keys(ADMISSIONS_ENQUIRY_SOURCE_LABEL) as AdmissionsEnquirySource[];
 
 const schema = z.object({
@@ -32,8 +38,9 @@ const schema = z.object({
 
 function followUp(e: AdmissionsEnquiry): { text: string; tone: "danger" | "warning" | "neutral" } | null {
   if (e.status !== "OPEN" || !e.followUpOn) return null;
-  if (e.followUpOn < TODAY) return { text: `Overdue · ${formatDate(e.followUpOn)}`, tone: "danger" };
-  if (e.followUpOn === TODAY) return { text: "Call today", tone: "warning" };
+  const t = today();
+  if (e.followUpOn < t) return { text: `Overdue · ${formatDate(e.followUpOn)}`, tone: "danger" };
+  if (e.followUpOn === t) return { text: "Call today", tone: "warning" };
   return { text: formatDate(e.followUpOn), tone: "neutral" };
 }
 
@@ -41,7 +48,10 @@ function NewEnquiryPanel({ open, onClose }: { open: boolean; onClose: () => void
   const ctx = useCtx();
   const toast = useToast();
   const queryClient = useQueryClient();
-  const empty: AdmissionsEnquiryInput = { childName: "", gender: "F", parentName: "", mobile: "", classInterest: "", source: "WALK_IN", followUpOn: "2026-11-06" };
+  // The classes offered at the campus in this session (Setup), as the backend checks them.
+  const setup = useQuery({ ...admissionsQueries.setup(ctx), enabled: open && ctx.campus !== "ALL" });
+  const classes = (setup.data?.classes ?? []).map((c) => c.classApplied);
+  const empty: AdmissionsEnquiryInput = { childName: "", gender: "F", parentName: "", mobile: "", classInterest: "", source: "WALK_IN", followUpOn: addDays(today(), 2) };
   const [form, setForm] = useState<AdmissionsEnquiryInput>(empty);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [key, setKey] = useState(newIdempotencyKey);
@@ -98,10 +108,10 @@ function NewEnquiryPanel({ open, onClose }: { open: boolean; onClose: () => void
         </fieldset>
         <Input label="Parent's name" required value={form.parentName} error={err("parentName")} onChange={(e) => set({ parentName: e.target.value })} />
         <Input label="Mobile" required inputMode="tel" value={form.mobile} error={err("mobile")} onChange={(e) => set({ mobile: e.target.value })} />
-        <Select label="Class" required value={form.classInterest} error={err("classInterest")} onChange={(e) => set({ classInterest: e.target.value })} options={[{ value: "", label: "Choose…" }, ...CLASSES]} />
+        <Select label="Class" required value={form.classInterest} error={err("classInterest")} onChange={(e) => set({ classInterest: e.target.value })} options={[{ value: "", label: setup.isLoading ? "Loading classes…" : "Choose…" }, ...classes]} />
         <Select label="How they heard of us" value={form.source} onChange={(e) => set({ source: e.target.value as AdmissionsEnquirySource })} options={SOURCES.map((s) => ({ value: s, label: ADMISSIONS_ENQUIRY_SOURCE_LABEL[s] }))} />
-        <DatePicker label="Follow-up call" value={form.followUpOn ?? null} minDate={TODAY} onValueChange={(v) => set({ followUpOn: v ?? undefined })} />
-        <Textarea label="Notes" rows={3} value={form.notes ?? ""} onChange={(e) => set({ notes: e.target.value })} />
+        <DatePicker label="Follow-up call" value={form.followUpOn ?? null} minDate={today()} onValueChange={(v) => set({ followUpOn: v ?? undefined })} error={err("followUpOn")} />
+        <Textarea label="Notes" rows={3} value={form.notes ?? ""} error={err("notes")} onChange={(e) => set({ notes: e.target.value })} />
         {save.error && !(save.error instanceof ApiError && save.error.field) && <Banner tone="danger">{apiMessage(save.error)}</Banner>}
       </div>
     </SidePanel>
@@ -110,6 +120,8 @@ function NewEnquiryPanel({ open, onClose }: { open: boolean; onClose: () => void
 
 function EnquiryPanel({ e, onClose }: { e: AdmissionsEnquiry | null; onClose: () => void }) {
   const toast = useToast();
+  // A converted enquiry carries its application's id (no pipeline lookup needed).
+  const applicationId = e?.applicationId;
   const queryClient = useQueryClient();
   const canManage = useCan("admissions.manage");
   const readOnly = useReadOnly();
@@ -153,8 +165,8 @@ function EnquiryPanel({ e, onClose }: { e: AdmissionsEnquiry | null; onClose: ()
               Start application
             </Link>
           </>
-        ) : e.applicationNo ? (
-          <Link to="/admissions" search={(prev: Record<string, unknown>) => ({ ...prev, applicant: `adm-${e.campus}-${Number(e.applicationNo!.split("-").pop())}` }) as never} className={buttonClassName({ variant: "primary" })}>
+        ) : e.applicationNo && applicationId ? (
+          <Link to="/admissions" search={(prev: Record<string, unknown>) => ({ ...prev, applicant: applicationId }) as never} className={buttonClassName({ variant: "primary" })}>
             Open application {e.applicationNo}
           </Link>
         ) : undefined
@@ -164,7 +176,7 @@ function EnquiryPanel({ e, onClose }: { e: AdmissionsEnquiry | null; onClose: ()
         <KeyValue
           items={[
             ["Parent", e.parentName],
-            ["Mobile", <span className="tabular-nums">{formatMobile(e.mobile)}</span>],
+            ["Mobile", <span className="tabular-nums">{mobileOrDash(e.mobile)}</span>],
             ["Child", `${e.childName} (${e.gender === "F" ? "girl" : "boy"})`],
             ["Class", e.classInterest],
             ["Taken by", e.takenBy],
@@ -174,7 +186,7 @@ function EnquiryPanel({ e, onClose }: { e: AdmissionsEnquiry | null; onClose: ()
         />
         {editable ? (
           <div className="grid gap-4">
-            <DatePicker label="Next follow-up call" value={follow} minDate={TODAY} onValueChange={setFollow} />
+            <DatePicker label="Next follow-up call" value={follow} minDate={today()} onValueChange={setFollow} />
             <Textarea label="Notes" rows={4} value={notes} onChange={(ev) => setNotes(ev.target.value)} />
           </div>
         ) : (
@@ -212,7 +224,7 @@ export function EnquiriesPage({ openNew, setOpenNew }: { openNew: boolean; setOp
   const [open, setOpen] = useState<AdmissionsEnquiry | null>(null);
   const items = list.data ?? [];
   const rows = useMemo(() => items.filter((e) => !filter || e.status === filter), [items, filter]);
-  const due = items.filter((e) => e.status === "OPEN" && e.followUpOn && e.followUpOn <= TODAY).length;
+  const due = items.filter((e) => e.status === "OPEN" && e.followUpOn && e.followUpOn <= today()).length;
   const converted = items.filter((e) => e.status === "CONVERTED").length;
 
   const columns: Array<Column<AdmissionsEnquiry>> = [
@@ -233,7 +245,7 @@ export function EnquiriesPage({ openNew, setOpenNew }: { openNew: boolean; setOp
       render: (e) => (
         <span className="grid">
           <span>{e.parentName}</span>
-          <span className="mtb-cell-secondary tabular-nums">{formatMobile(e.mobile)}</span>
+          <span className="mtb-cell-secondary tabular-nums">{mobileOrDash(e.mobile)}</span>
         </span>
       ),
     },
@@ -245,7 +257,7 @@ export function EnquiriesPage({ openNew, setOpenNew }: { openNew: boolean; setOp
       width: 170,
       render: (e) => {
         const f = followUp(e);
-        if (e.status === "CONVERTED") return <StatusBadge status="success">Applied · {e.applicationNo?.split("-").pop()}</StatusBadge>;
+        if (e.status === "CONVERTED") return <StatusBadge status="success">{e.applicationNo ? `Applied · ${e.applicationNo}` : "Applied"}</StatusBadge>;
         if (e.status === "CLOSED") return <StatusBadge status="neutral">Closed</StatusBadge>;
         return f ? <StatusBadge status={f.tone}>{f.text}</StatusBadge> : <span className="text-ink-subtle">—</span>;
       },

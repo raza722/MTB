@@ -8,7 +8,7 @@ import { Page, PageHeader, RequireSingleCampus } from "../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { PrintSheet, printNow } from "../students/documents/print";
 import { apiMessage, fieldError, LoadError, stagger } from "../students/shared";
-import { AdmissionsSubNav, DiamondMindsBadge, TODAY } from "./shared";
+import { AdmissionsSubNav, DiamondMindsBadge, relationName, sittingWhen, sittingWhenWhere, today } from "./shared";
 import { AttendanceSheet, MarksSheetPrint, TestSlip } from "./slips";
 
 type Row = { absent: boolean; marks: Record<string, string> };
@@ -44,10 +44,11 @@ function NewSittingModal({ open, onClose, tests, onCreated }: { open: boolean; o
       setKey(newIdempotencyKey());
     }
   }, [open]);
+  // Start from the class's last sitting (papers, marks and venue); a class's first sitting starts with one empty paper.
   useEffect(() => {
     const last = tests.filter((t) => t.classApplied === cls).sort((a, b) => b.date.localeCompare(a.date))[0];
-    setSubjects((last?.subjects ?? [{ subject: "English", max: 30 }, { subject: "Mathematics", max: 40 }, { subject: "Urdu", max: 30 }]).map((s: AdmissionsTestSubject) => ({ subject: s.subject, max: String(s.max), stream: s.stream ?? "", mins: s.durationMins ? String(s.durationMins) : "" })));
-    if (last) setVenue(last.venue);
+    setSubjects(last?.subjects.length ? last.subjects.map((s: AdmissionsTestSubject) => ({ subject: s.subject, max: String(s.max), stream: s.stream ?? "", mins: s.durationMins ? String(s.durationMins) : "" })) : [{ subject: "", max: "", stream: "", mins: "" }]);
+    setVenue(last?.venue ?? "");
   }, [cls, tests]);
   const parsed: AdmissionsTestSubject[] = subjects.map((s) => ({ subject: s.subject.trim(), max: Number(s.max), ...(s.stream && streams.includes(s.stream) ? { stream: s.stream } : {}), ...(s.mins ? { durationMins: Number(s.mins) } : {}) }));
   const badPaper = parsed.some((s) => !s.subject || !Number.isInteger(s.max) || s.max <= 0 || s.max > 200);
@@ -62,7 +63,7 @@ function NewSittingModal({ open, onClose, tests, onCreated }: { open: boolean; o
       void queryClient.invalidateQueries({ queryKey: admissionsQueries.all() });
       onCreated(t.id);
       onClose();
-      toast({ title: `${t.name} added`, message: `${formatDate(t.date)}, ${t.time} · ${t.max} marks. Applicants can now be booked into it.` });
+      toast({ title: `${t.name} added`, message: `${sittingWhen(t)} · ${t.max} marks. Applicants can now be booked into it.` });
     },
   });
   return (
@@ -91,9 +92,9 @@ function NewSittingModal({ open, onClose, tests, onCreated }: { open: boolean; o
       <div className="grid gap-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <Select label="Class" required value={cls} error={tried && !cls ? "Choose the class." : fieldError(create.error, "classApplied")} onChange={(e) => setCls(e.target.value)} options={[{ value: "", label: "Choose…" }, ...testClasses]} />
-          <DatePicker label="Date" required value={date} minDate={TODAY} onValueChange={setDate} error={tried && !date ? "Choose the date." : fieldError(create.error, "date")} />
-          <Input label="Time" value={time} onChange={(e) => setTime(e.target.value)} />
-          <Input label="Venue" value={venue} onChange={(e) => setVenue(e.target.value)} />
+          <DatePicker label="Date" required value={date} minDate={today()} onValueChange={setDate} error={tried && !date ? "Choose the date." : fieldError(create.error, "date")} />
+          <Input label="Time" value={time} placeholder="9:00 am" onChange={(e) => setTime(e.target.value)} {...(fieldError(create.error, "time") ? { error: fieldError(create.error, "time") } : {})} />
+          <Input label="Venue" value={venue} placeholder="Examination hall" onChange={(e) => setVenue(e.target.value)} {...(fieldError(create.error, "venue") ? { error: fieldError(create.error, "venue") } : { help: "Left empty: the campus examination hall." })} />
         </div>
         <fieldset className="m-0 grid gap-2 border-0 p-0">
           <legend className="mtb-label mb-1">Papers and total marks</legend>
@@ -107,7 +108,7 @@ function NewSittingModal({ open, onClose, tests, onCreated }: { open: boolean; o
           {subjects.map((s, i) => (
             <div key={i} className="flex items-end gap-2">
               <div className="flex-1">
-                <Input aria-label={`Paper ${i + 1}`} value={s.subject} onChange={(e) => setSubjects((x) => x.map((y, j) => (j === i ? { ...y, subject: e.target.value } : y)))} />
+                <Input aria-label={`Paper ${i + 1}`} placeholder="Subject, e.g. Mathematics" value={s.subject} onChange={(e) => setSubjects((x) => x.map((y, j) => (j === i ? { ...y, subject: e.target.value } : y)))} />
               </div>
               {streams.length > 0 && (
                 <div className="w-48">
@@ -130,6 +131,8 @@ function NewSittingModal({ open, onClose, tests, onCreated }: { open: boolean; o
             <span className="text-small text-ink-muted">{perGroup.some((p) => p.total !== common) ? perGroup.map((p) => `${p.g}: ${p.total} marks`).join(" · ") : `Total ${common} marks`}</span>
           </div>
           {tried && badPaper && <span className="text-small text-danger-ink">Each paper needs a name and total marks between 1 and 200.</span>}
+          {fieldError(create.error, "subjects") && <span className="text-small text-danger-ink">{fieldError(create.error, "subjects")}</span>}
+          <span className="text-small text-ink-muted">Each paper is a subject from Setup › Subjects (its name or code).</span>
           {tried && badTime && <span className="text-small text-danger-ink">A paper lasts 5 to 240 minutes.</span>}
           {tried && noCommon && <span className="text-small text-danger-ink">Add at least one paper for all candidates.</span>}
           {streams.length > 0 && <span className="text-small text-ink-muted">A group paper is sat only by that group's candidates; their totals follow their own papers.</span>}
@@ -211,7 +214,7 @@ function MarksSheet({ testId }: { testId: string }) {
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="m-0 text-small text-ink-muted">
-          {formatDate(t.date)}, {t.time} · {t.venue} · {t.subjects.map((s) => `${s.subject} ${s.max}${s.durationMins ? ` (${s.durationMins} min)` : ""}${s.stream ? `, ${s.stream} only` : ""}`).join(" · ")} · total {t.max}
+          {sittingWhenWhere(t)} · {t.subjects.map((s) => `${s.subject} ${s.max}${s.durationMins ? ` (${s.durationMins} min)` : ""}${s.stream ? `, ${s.stream} only` : ""}`).join(" · ")} · total {t.max}
         </p>
         <div className="flex flex-wrap gap-2">
           <Button size="sm" icon="printer" disabled={!list.length || upcoming} onClick={() => setPrinting("marks")}>
@@ -264,7 +267,8 @@ function MarksSheet({ testId }: { testId: string }) {
                             {a.name} {a.diamondMinds && <DiamondMindsBadge />} {due && <StatusBadge status="unpaid">Fee due</StatusBadge>}
                           </span>
                           <span className="mtb-cell-secondary">
-                            {a.relation} {a.father} · {a.applicationNo}
+                            {a.father ? `${relationName(a)} · ` : ""}
+                            {a.applicationNo}
                             {grouped ? ` · ${a.stream ?? "no group: common papers only"}` : ""}
                           </span>
                         </span>
@@ -356,11 +360,11 @@ function MarksSheet({ testId }: { testId: string }) {
           </PrintSheet>
         ) : printing === "sheet" ? (
           <PrintSheet paper="A4" label="Attendance sheet" zoom={0.55}>
-            <AttendanceSheet test={t} rows={list} campusName={list[0]?.campusName ?? ""} />
+            <AttendanceSheet test={t} rows={list} campusName={list[0]?.campusName ?? t.campus} />
           </PrintSheet>
         ) : printing === "marks" ? (
           <PrintSheet paper="A4" label="Marks sheet" zoom={0.55}>
-            <MarksSheetPrint test={t} rows={list} campusName={list[0]?.campusName ?? ""} />
+            <MarksSheetPrint test={t} rows={list} campusName={list[0]?.campusName ?? t.campus} />
           </PrintSheet>
         ) : null}
       </Modal>
@@ -415,7 +419,7 @@ export function TestsPage({ testId, setTestId }: { testId: string; setTestId: (i
                         <StatusBadge status={STATUS[t.status].tone}>{STATUS[t.status].label}</StatusBadge>
                       </span>
                       <span className="text-small text-ink-muted">
-                        {t.name.split("·")[1]?.trim() ?? t.name} · {formatDate(t.date)}, {t.time}
+                        {t.name.split("·")[1]?.trim() ?? t.name} · {sittingWhen(t)}
                       </span>
                       <span className="text-small text-ink-muted">
                         {t.candidates} booked · {t.feePaid} paid · {t.marked} marked

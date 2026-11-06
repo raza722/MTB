@@ -51,7 +51,7 @@ import { feeCandidateRows, feeClassArrears, feeCollectionRows, feeConcessionSumm
 import { librarySnapshot, transportSnapshot, warehouseSnapshot } from "./operations";
 import { examReportGenerators, liveExamDefinition } from "./reports-exams";
 import { genderOfName, outboxSnapshot, queueBatch, rosterPeople } from "./sms";
-import { admissionsSeats, admissionsStore } from "./admissions";
+import { admissionsSeats, admissionsStore } from "./admissions-model";
 import { allMovements, sessionOfDate, streamFor } from "./student-records-model";
 import { portalFamilies } from "./portal";
 import { timetableReportBoard } from "./timetable";
@@ -806,8 +806,8 @@ const GENERATORS: Record<string, (g: Gen) => GenOut> = {
     const rows: Row[] = [];
     for (const campus of campuses) {
       const list = st.applicants
-        .filter((a) => a.campus === campus && a.session === session && a.classApplied === cls && a.testScore !== null && a.stage !== "WITHDRAWN" && (!f.gender || a.gender === f.gender))
-        .sort((a, b) => b.testScore! / b.testMax - a.testScore! / a.testMax || a.dob.localeCompare(b.dob));
+        .filter((a) => a.campus === campus && a.session === session && a.classApplied === cls && a.testScore !== null && Boolean(a.testMax) && a.stage !== "WITHDRAWN" && (!f.gender || a.gender === f.gender))
+        .sort((a, b) => b.testScore! / b.testMax! - a.testScore! / a.testMax! || (a.dob ?? "9999").localeCompare(b.dob ?? "9999"));
       const seats = admissionsSeats(cls);
       list.forEach((a, i) =>
         rows.push({
@@ -819,7 +819,7 @@ const GENERATORS: Record<string, (g: Gen) => GenOut> = {
           father: a.father,
           ...Object.fromEntries(papers.map((p) => [`p:${p.subject}`, a.marks?.[p.subject] ?? null])),
           marks: a.testScore,
-          percent: pct1(a.testScore!, a.testMax),
+          percent: pct1(a.testScore!, a.testMax!),
           decision: a.stage === "ADMITTED" ? "Admitted" : a.stage === "OFFERED" ? "Offered" : i < seats ? "Selected" : i < seats * 2 ? "Waiting list" : "Not selected",
         }),
       );

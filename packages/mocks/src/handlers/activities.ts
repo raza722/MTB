@@ -91,7 +91,7 @@ import { campusName, tuitionFor } from "../fixtures/campuses";
 import { staffOf } from "../fixtures/reports";
 import { findStudent, STUDENTS } from "../fixtures/students";
 import { ctxFrom, fail, HttpResponse, latency, requirePermission } from "../util";
-import { admissionApplicants } from "./admissions";
+import { admissionApplicants } from "./admissions-model";
 import { closedOn } from "./attendance";
 import { examRows, examsStore } from "./exams";
 

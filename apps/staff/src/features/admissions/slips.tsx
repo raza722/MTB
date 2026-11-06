@@ -1,12 +1,27 @@
-import { admissionsPapersFor, type AdmissionsApplicant, type AdmissionsMeritList, type AdmissionsTest } from "@mtb/api";
-import { formatCnic, formatDate, formatMobile, formatRs, formatSession } from "@mtb/domain";
+import { admissionsPapersFor, metaQueries, type AdmissionsApplicant, type AdmissionsFee, type AdmissionsMeritList, type AdmissionsTest } from "@mtb/api";
+import { formatCnic, formatDate, formatRs, formatSession } from "@mtb/domain";
+import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
+import { dateOrBlank, mobileOrDash, orDash, scoreOf, sittingWhen, sittingWhenWhere } from "./shared";
 
 /** Printable admissions papers: application form, entrance-test slip, merit list and the test's attendance sheet. */
 
-const ADDRESS: Record<string, string> = { KC: "Khalid Campus, Sadiqabad", HC: "Humaira Campus, Lahore" };
+/** The campus address from Setup › Campuses (as on module 1's letterheads), else the campus name only. */
+function useCampusAddress(campus: string, campusName: string): string {
+  const campuses = useQuery(metaQueries.campuses());
+  return campuses.data?.find((c) => c.code === campus)?.address.trim() || campusName;
+}
+
+/** "Rs 1,500 paid · KC-CF-2627-000401", "Rs 1,500 paid · challan 12345" (old-system payments have no receipt), "Rs 1,500 due". */
+function feeLine(f: AdmissionsFee): string {
+  if (f.status === "WAIVED") return `${formatRs(f.amount)} waived`;
+  if (f.status !== "PAID") return `${formatRs(f.amount)} due`;
+  const ref = f.receiptNo ?? (f.bankChallanNo ? `challan ${f.bankChallanNo}` : "");
+  return `${formatRs(f.amount)} paid${ref ? ` · ${ref}` : ""}`;
+}
 
 function Header({ campus, campusName, title, sub, refNo, date }: { campus: string; campusName: string; title: string; sub?: ReactNode; refNo?: string; date?: string }) {
+  const address = useCampusAddress(campus, campusName);
   return (
     <>
       <header className="flex items-center gap-4 border-b-2 border-brand pb-3">
@@ -14,7 +29,7 @@ function Header({ campus, campusName, title, sub, refNo, date }: { campus: strin
         <div className="grid min-w-0 flex-1 leading-tight">
           <span className="text-[14pt] font-bold text-brand-ink">MTB Schools and Colleges</span>
           <span className="font-semibold">{campusName}</span>
-          <span className="text-[9pt] text-ink-muted">{ADDRESS[campus] ?? campusName}</span>
+          {address !== campusName && <span className="text-[9pt] text-ink-muted">{address}</span>}
         </div>
         {(refNo || date) && (
           <div className="grid justify-items-end gap-0.5 text-[9pt]">
@@ -63,23 +78,23 @@ export function ApplicationForm({ a }: { a: AdmissionsApplicant }) {
       <Table
         rows={[
           ["Child's name", <span className="flex flex-wrap items-baseline justify-between gap-2 font-semibold">{a.name}{a.nameUr && <span lang="ur" dir="rtl" className="urdu-small">{a.nameUr}</span>}</span>],
-          ["Date of birth", <span className="tabular-nums">{formatDate(a.dob)}</span>],
+          ["Date of birth", <span className="tabular-nums">{dateOrBlank(a.dob)}</span>],
           ["Gender", a.gender === "F" ? "Female" : "Male"],
           ["B-form no.", a.bForm ? <span className="mtb-mono">{formatCnic(a.bForm)}</span> : "Not given"],
-          ["Father's name", a.father],
+          ["Father's name", orDash(a.father)],
           ["Father's CNIC", a.fatherCnic ? <span className="mtb-mono">{formatCnic(a.fatherCnic)}</span> : "Not given"],
           ...(a.mother ? ([["Mother's name", a.mother]] as Array<[string, string]>) : []),
-          ["Mobile", <span className="tabular-nums">{formatMobile(a.mobile)}</span>],
+          ["Mobile", <span className="tabular-nums">{mobileOrDash(a.mobile)}</span>],
           ...(a.email ? ([["Email", a.email]] as Array<[string, string]>) : []),
-          ["Address", `${a.address}${a.city ? `, ${a.city}` : ""}`],
+          ["Address", [a.address, a.city].filter((x) => x?.trim()).join(", ") || "—"],
           ["Previous school", a.previousSchool ?? "—"],
           ["Class applied for", <b>{`${a.classApplied}${a.stream ? ` · ${a.stream}` : ""}`}</b>],
           ["Entrance test", a.directAdmission ? "No test for this class (interview)" : a.testDate ? `${formatDate(a.testDate)}${a.testRollNo ? ` · seat ${a.testRollNo}` : ""}` : "To be booked"],
-          ...(a.fee ? ([["Candidate fee", a.fee.status === "PAID" ? `${formatRs(a.fee.amount)} paid · ${a.fee.receiptNo}` : `${formatRs(a.fee.amount)} due`]] as Array<[string, string]>) : []),
+          ...(a.fee ? ([["Candidate fee", feeLine(a.fee)]] as Array<[string, string]>) : []),
         ]}
       />
       {a.siblings && a.siblings.length > 0 && <p className="mt-3 text-[9pt]">Siblings at MTB: {a.siblings.map((s) => `${s.name} (${s.grNo}, ${s.classSection})`).join(", ")}.</p>}
-      <p className="mt-3 text-[9pt] text-ink-muted">I confirm the details above are correct. Admission is offered on merit and available seats; the offer is valid for seven days.</p>
+      <p className="mt-3 text-[9pt] text-ink-muted">I confirm the details above are correct. Admission is offered on merit and available seats; an offer must be accepted by the date written on it.</p>
       <div className="mt-3 grid gap-1 text-[9pt]">
         <span className="text-ink-muted">Principal's remarks</span>
         <span className="block h-[12mm] border border-border" />
@@ -118,10 +133,10 @@ export function TestSlip({ a, test }: { a: AdmissionsApplicant; test?: Admission
           rows={[
             ["Seat no.", <b className="mtb-mono text-[12pt]">{a.testRollNo ?? "—"}</b>],
             ["Name", <b>{a.name}</b>],
-            ["Father's name", a.father],
+            ["Father's name", orDash(a.father)],
             ["Class", a.classApplied],
-            ["Date and time", test ? `${formatDate(test.date)}, ${test.time}` : a.testDate ? formatDate(a.testDate) : "—"],
-            ["Venue", test?.venue ?? a.campusName],
+            ["Date and time", test ? sittingWhen(test) : a.testDate ? formatDate(a.testDate) : "—"],
+            ["Venue", test?.venue || a.campusName],
           ]}
         />
       </div>
@@ -160,7 +175,7 @@ export function TestSlip({ a, test }: { a: AdmissionsApplicant; test?: Admission
         <li>The merit list is displayed within a week and an SMS is sent to the registered mobile.</li>
       </ul>
       <footer className="mt-auto flex items-end justify-between gap-6 pt-8">
-        <div className="mtb-doc-sign">Candidate fee: {a.fee?.receiptNo ?? "—"}</div>
+        <div className="mtb-doc-sign">Candidate fee: {a.fee?.receiptNo ?? (a.fee?.bankChallanNo ? `challan ${a.fee.bankChallanNo}` : "—")}</div>
         <div className="mtb-doc-sign">Admissions office</div>
       </footer>
     </article>
@@ -177,7 +192,7 @@ export function MeritListPrint({ m, campus, campusName, title }: { m: Admissions
   const papers = m.subjects;
   return (
     <article className="mtb-doc mtb-doc-a4 flex flex-col" aria-label={`Merit list ${m.classApplied}`}>
-      <Header campus={campus} campusName={campusName} title={`${title ?? "Merit list"} · ${m.classApplied}`} sub={`${m.testName} · ${formatDate(m.testDate)} · ${m.seats} seats · appeared ${m.counts.appeared}, absent ${m.counts.absent}`} />
+      <Header campus={campus} campusName={campusName} title={`${title ?? "Merit list"} · ${m.classApplied}`} sub={`${m.testName}${m.testDate ? ` · ${formatDate(m.testDate)}` : ""} · ${m.seats} seats · appeared ${m.counts.appeared}, absent ${m.counts.absent}`} />
       <table className="mt-5 w-full border-collapse text-[9pt]">
         <thead>
           <tr>
@@ -197,7 +212,7 @@ export function MeritListPrint({ m, campus, campusName, title }: { m: Admissions
                 {r.applicant.name}
                 {r.applicant.stream && <span className="block text-[7.5pt] font-normal text-ink-muted">{r.applicant.stream}</span>}
               </td>
-              <td className="border border-border px-1.5 py-1">{r.applicant.father}</td>
+              <td className="border border-border px-1.5 py-1">{orDash(r.applicant.father)}</td>
               {papers.map((p) => {
                 const v = r.applicant.marks?.[p.subject];
                 return (
@@ -206,16 +221,14 @@ export function MeritListPrint({ m, campus, campusName, title }: { m: Admissions
                   </td>
                 );
               })}
-              <td className="border border-border px-1.5 py-1 tabular-nums">
-                {r.applicant.testScore} / {r.applicant.testMax}
-              </td>
+              <td className="border border-border px-1.5 py-1 tabular-nums">{scoreOf(r.applicant)}</td>
               <td className="border border-border px-1.5 py-1 tabular-nums">{meritPercent(r.applicant)?.toFixed(1) ?? "—"}</td>
               <td className="border border-border px-1.5 py-1">{r.applicant.stage === "OFFERED" || r.applicant.stage === "ADMITTED" ? (r.applicant.stage === "ADMITTED" ? "Admitted" : "Offered") : meritRemark(r.rank, m.seats)}</td>
             </tr>
           ))}
         </tbody>
       </table>
-      <p className="mt-3 text-[9pt] text-ink-muted">Ranked by percentage of total marks; ties go to the older applicant, then the earlier application. Selected candidates must complete admission within seven days of the offer.</p>
+      <p className="mt-3 text-[9pt] text-ink-muted">Ranked by percentage of total marks; ties go to the older applicant, then the earlier application. Selected candidates must complete admission by the date given in their offer.</p>
       <footer className="mt-auto flex items-end justify-between gap-6 pt-12">
         <div className="mtb-doc-sign">Admissions office</div>
         <div className="mtb-doc-sign">Principal</div>
@@ -230,7 +243,7 @@ export function MarksSheetPrint({ test, rows, campusName }: { test: AdmissionsTe
   const absent = rows.filter((a) => a.absentFromTest).length;
   return (
     <article className="mtb-doc mtb-doc-a4 flex flex-col" aria-label={`Marks sheet ${test.name}`}>
-      <Header campus={test.campus} campusName={campusName} title="Entrance test result" sub={`${test.name} · ${formatDate(test.date)}, ${test.time} · ${test.venue}`} />
+      <Header campus={test.campus} campusName={campusName} title="Entrance test result" sub={`${test.name} · ${sittingWhenWhere(test)}`} />
       <table className="mt-5 w-full border-collapse text-[9pt]">
         <thead>
           <tr>
@@ -248,13 +261,13 @@ export function MarksSheetPrint({ test, rows, campusName }: { test: AdmissionsTe
               <tr key={a.id}>
                 <td className="border border-border px-1.5 py-1 mtb-mono">{a.testRollNo ?? "—"}</td>
                 <td className="border border-border px-1.5 py-1 font-medium">{a.name}</td>
-                <td className="border border-border px-1.5 py-1">{a.father}</td>
+                <td className="border border-border px-1.5 py-1">{orDash(a.father)}</td>
                 {test.subjects.map((s) => (
                   <td key={s.subject} className="border border-border px-1.5 py-1 tabular-nums">
                     {a.absentFromTest ? "Absent" : !mine.includes(s) ? "·" : (a.marks?.[s.subject] ?? "—")}
                   </td>
                 ))}
-                <td className="border border-border px-1.5 py-1 tabular-nums">{a.absentFromTest ? "—" : a.testScore !== null ? `${a.testScore} / ${a.testMax}` : "—"}</td>
+                <td className="border border-border px-1.5 py-1 tabular-nums">{a.absentFromTest ? "—" : scoreOf(a)}</td>
                 <td className="border border-border px-1.5 py-1 tabular-nums">{meritPercent(a)?.toFixed(1) ?? "—"}</td>
               </tr>
             );
@@ -294,14 +307,14 @@ export function AdmittedListPrint({ rows, campus, campusName, scope }: { rows: A
               <td className="border border-border px-1.5 py-1 tabular-nums">{i + 1}</td>
               <td className="border border-border px-1.5 py-1 mtb-mono">{a.grNo ?? "—"}</td>
               <td className="border border-border px-1.5 py-1 font-medium">{a.name}</td>
-              <td className="border border-border px-1.5 py-1">{a.father}</td>
+              <td className="border border-border px-1.5 py-1">{orDash(a.father)}</td>
               <td className="border border-border px-1.5 py-1">{a.gender === "F" ? "Girl" : "Boy"}</td>
               <td className="border border-border px-1.5 py-1">{a.admittedClassSection ?? a.classApplied}</td>
               <td className="border border-border px-1.5 py-1">{a.stream ?? "—"}</td>
               <td className="border border-border px-1.5 py-1 tabular-nums">{a.admittedOn ? formatDate(a.admittedOn) : "—"}</td>
               <td className="border border-border px-1.5 py-1">{a.previousSchool ?? "—"}</td>
-              <td className="border border-border px-1.5 py-1 tabular-nums">{formatMobile(a.mobile)}</td>
-              <td className="border border-border px-1.5 py-1 tabular-nums">{a.testScore !== null ? `${a.testScore}/${a.testMax}` : "Interview"}</td>
+              <td className="border border-border px-1.5 py-1 tabular-nums">{mobileOrDash(a.mobile)}</td>
+              <td className="border border-border px-1.5 py-1 tabular-nums">{a.testScore !== null && a.testMax ? scoreOf(a, "/") : "Interview"}</td>
             </tr>
           ))}
         </tbody>
@@ -318,7 +331,7 @@ export function AdmittedListPrint({ rows, campus, campusName, scope }: { rows: A
 export function AttendanceSheet({ test, rows, campusName }: { test: AdmissionsTest; rows: AdmissionsApplicant[]; campusName: string }) {
   return (
     <article className="mtb-doc mtb-doc-a4 flex flex-col" aria-label={`Attendance sheet ${test.name}`}>
-      <Header campus={test.campus} campusName={campusName} title="Entrance test attendance sheet" sub={`${test.name} · ${formatDate(test.date)}, ${test.time} · ${test.venue}`} />
+      <Header campus={test.campus} campusName={campusName} title="Entrance test attendance sheet" sub={`${test.name} · ${sittingWhenWhere(test)}`} />
       <table className="mt-5 w-full border-collapse text-[10pt]">
         <thead>
           <tr>
@@ -334,8 +347,8 @@ export function AttendanceSheet({ test, rows, campusName }: { test: AdmissionsTe
             <tr key={a.id}>
               <td className="border border-border px-2 py-2 mtb-mono">{a.testRollNo ?? "—"}</td>
               <td className="border border-border px-2 py-2 font-medium">{a.name}</td>
-              <td className="border border-border px-2 py-2">{a.father}</td>
-              <td className="border border-border px-2 py-2">{a.fee?.status === "PAID" ? "Paid" : "Due"}</td>
+              <td className="border border-border px-2 py-2">{orDash(a.father)}</td>
+              <td className="border border-border px-2 py-2">{!a.fee ? "—" : a.fee.status === "DUE" ? "Due" : a.fee.status === "WAIVED" ? "Waived" : "Paid"}</td>
               <td className="w-[38mm] border border-border px-2 py-2" />
             </tr>
           ))}

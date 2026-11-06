@@ -7,9 +7,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { useCan, useReadOnly } from "../../app/session";
-import { DiamondMindsBadge, relationName } from "./shared";
+import { DiamondMindsBadge, relationName, scoreOf, scoreShare } from "./shared";
 
-const pct = (r: AdmissionsMeritRow) => (r.applicant.testScore === null ? 0 : (r.applicant.testScore / r.applicant.testMax) * 100);
+/** Percentage of the candidate's papers; null (shown "—") without a score or a total, never over a 0 base. */
+const pct = (r: AdmissionsMeritRow): number | null => {
+  const share = scoreShare(r.applicant);
+  return share === null ? null : share * 100;
+};
 
 /** "1st merit list", "2nd merit list"… */
 export const roundTitle = (n: number) => `${n}${n % 10 === 1 && n % 100 !== 11 ? "st" : n % 10 === 2 && n % 100 !== 12 ? "nd" : n % 10 === 3 && n % 100 !== 13 ? "rd" : "th"} merit list`;
@@ -55,7 +59,8 @@ export function MeritListView({ ctx, cls, onClassChange }: { ctx: Ctx; cls: stri
       setOfferKey(newIdempotencyKey());
       void queryClient.invalidateQueries({ queryKey: admissionsQueries.all() });
       const names = res.offered.map((a) => a.name).join(", ");
-      toast({ title: `Admission offered to ${res.offered.length} ${res.offered.length === 1 ? "applicant" : "applicants"}`, message: `${names} · now under Offers & admission, valid for seven days` });
+      const until = res.offered.find((a) => a.offerValidUntil)?.offerValidUntil;
+      toast({ title: `Admission offered to ${res.offered.length} ${res.offered.length === 1 ? "applicant" : "applicants"}`, message: `${names} · now under Offers & admission${until ? `, valid until ${formatDate(until)}` : ""}` });
     },
   });
   const offerError = offer.error instanceof ApiError ? (offer.error.isNetwork ? "Offer not sent — the connection dropped. It's safe to try again." : offer.error.message) : undefined;
@@ -199,7 +204,15 @@ export function MeritListView({ ctx, cls, onClassChange }: { ctx: Ctx; cls: stri
         <StatusBadge status="warning">Waiting list {data.counts.waiting}</StatusBadge>
         <StatusBadge status="neutral">Not selected {data.counts.notSelected}</StatusBadge>
         <span className="text-small text-ink-muted">
-          {data.testName} · <span className="mtb-num">{formatDate(data.testDate)}</span> · {data.seats} seats
+          {data.testName}
+          {data.testDate ? (
+            <>
+              {" "}· <span className="mtb-num">{formatDate(data.testDate)}</span>
+            </>
+          ) : (
+            " · no sitting held yet"
+          )}{" "}
+          · {data.seats} seats
           {data.cutoffScore !== null && (
             <>
               {" "}· cut-off <b className="mtb-num text-ink">{data.cutoffScore}</b>
@@ -210,7 +223,7 @@ export function MeritListView({ ctx, cls, onClassChange }: { ctx: Ctx; cls: stri
       </div>
 
       {readOnly && <Banner tone="info">Merit lists from past sessions can be viewed but not changed.</Banner>}
-      {!canManage && !readOnly && <Banner tone="neutral">Only the principal or an admin can offer admission. You can view the list.</Banner>}
+      {!canManage && !readOnly && <Banner tone="neutral">Your role can view the merit list but not offer admission.</Banner>}
 
       <div className="mtb-table-wrap" style={{ opacity: merit.isFetching ? 0.7 : 1, transition: "opacity 160ms ease" }}>
         {canAct && (
@@ -306,10 +319,11 @@ export function MeritListView({ ctx, cls, onClassChange }: { ctx: Ctx; cls: stri
                             </td>
                           );
                         })}
-                        <td className="mtb-td-num font-medium">
-                          {r.applicant.testScore} / {r.applicant.testMax}
-                        </td>
-                        <td className="mtb-td-num">{formatPercent(pct(r))}</td>
+                        <td className="mtb-td-num font-medium">{scoreOf(r.applicant)}</td>
+                        <td className="mtb-td-num">{(() => {
+                          const v = pct(r);
+                          return v === null ? <span className="text-ink-subtle">—</span> : formatPercent(v);
+                        })()}</td>
                         <td>
                           {offered ? (
                             r.applicant.stage === "ADMITTED" ? (
@@ -363,7 +377,7 @@ export function MeritListView({ ctx, cls, onClassChange }: { ctx: Ctx; cls: stri
         }
       >
         <PrintSheet paper="A4" label="Merit list" zoom={0.55}>
-          <MeritListPrint m={data} campus={ctx.campus} campusName={data.rows[0]?.applicant.campusName ?? ""} title={title.trim() || undefined} />
+          <MeritListPrint m={data} campus={ctx.campus} campusName={data.rows[0]?.applicant.campusName ?? ctx.campus} title={title.trim() || undefined} />
         </PrintSheet>
       </Modal>
       <ConfirmDialog
@@ -389,8 +403,8 @@ export function MeritListView({ ctx, cls, onClassChange }: { ctx: Ctx; cls: stri
         }}
         onConfirm={() => offer.mutate()}
         title={`Offer admission to ${chosen.length} ${chosen.length === 1 ? "applicant" : "applicants"}?`}
-        message={`They move to Offers & admission for ${data.classApplied}. Each family has seven days to complete the admission and pay the admission fee; an SMS tells them.`}
-        details={chosen.map((r) => [`${r.rank}. ${r.applicant.name}`, `${r.applicant.testScore} / ${r.applicant.testMax}`])}
+        message={`They move to Offers & admission for ${data.classApplied}. Each offer has an expiry date (seven days unless the office changes it); tell the families to complete the admission before then.`}
+        details={chosen.map((r) => [`${r.rank}. ${r.applicant.name}`, scoreOf(r.applicant)])}
         confirmLabel={`Offer admission · ${chosen.length}`}
         loading={offer.isPending}
         loadingLabel="Sending offers…"

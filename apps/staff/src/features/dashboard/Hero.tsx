@@ -1,6 +1,7 @@
-import type { DashboardSummary } from "@mtb/api";
+import { admissionsQueries, type DashboardSummary } from "@mtb/api";
 import { formatCount, formatLongDate, formatPercent, formatRs, formatSession } from "@mtb/domain";
 import { buttonClassName, Icon, Kbd, Skeleton, type IconName } from "@mtb/ui";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { campusLabel } from "../../app/shell/campus";
 import { openGlobalSearch } from "../../app/shell/GlobalSearch";
@@ -42,6 +43,8 @@ export function Hero({ s, approvals }: { s: DashboardSummary | undefined; approv
   const canApprove = useCan("approvals.decide");
   const canStaff = useCan("hr.view");
   const staff = s?.staff;
+  // Admissions is real (module 3): the same figures as the Admissions page (admitted this session, this week), not the dashboard mock's.
+  const admissions = useQuery({ ...admissionsQueries.pipeline(ctx, { pageSize: 1 }), enabled: canAdmissions });
   // Before anyone is marked today (the fingerprint file comes in later), show the roll rather than "0 present".
   const staffMarked = staff ? staff.total - staff.notMarked - staff.onLeave > 0 : false;
   const delta = s?.attendance.deltaPts ?? 0;
@@ -97,7 +100,9 @@ export function Hero({ s, approvals }: { s: DashboardSummary | undefined; approv
       <ul className="mtb-dash-glances" aria-label="At a glance">
         {s ? (
           <>
-            <Glance i={0} icon="admissions" value={`${formatCount(s.admissions.session)} admissions`} label={`+${formatCount(s.admissions.week)} this week`} {...(canAdmissions ? { to: "/admissions" } : {})} />
+            {canAdmissions && admissions.data && (
+              <Glance i={0} icon="admissions" value={`${formatCount(admissions.data.counts.ADMITTED)} admitted through Admissions`} label={`+${formatCount(admissions.data.admittedThisWeek)} this week`} to="/admissions" />
+            )}
             {staff && staff.total > 0 && (
               <Glance
                 i={1}

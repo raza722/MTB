@@ -327,7 +327,7 @@ export interface StudentStrength {
   enrolled: number;
   girls: number;
   boys: number;
-  /** Admitted in this session. */
+  /** Joined MTB in this session's intake (admitted or readmitted into it), by any route: through Admissions or not, migrated included. Not "admitted through Admissions" (that is the admissions pipeline's ADMITTED count). */
   newThisSession: number;
   newThisWeek: number;
   /** Left, struck off or expelled in this session. */
