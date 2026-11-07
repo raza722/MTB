@@ -2,6 +2,8 @@
 // teacher's own papers, the week timetable, classes and student contacts, and notifications.
 // Writes carry an Idempotency-Key, because the phone keeps them in an offline outbox and replays them when the
 // connection comes back: a replay must never create a second register or a second set of marks.
+// The registers (registers, register, submitRegister, requestChange) are served by the real backend (Attendance,
+// backend/docs/modules/04_attendance.md); today, papers, timetable, classes and notifications are still mocked.
 import type { AttendanceCode, IsoDate, IsoDateTime } from "@mtb/domain";
 import { queryOptions } from "@tanstack/react-query";
 import type { RegisterCode } from "./attendance";
@@ -134,7 +136,10 @@ export interface TeacherRegister {
   source?: "Teacher app" | "Office";
   /** Taken while the phone was offline and sent later. */
   takenOffline?: boolean;
-  /** Parents sent an absence SMS when the register was submitted. */
+  /**
+   * Absence messages written for parents when the register was submitted. SMS sending starts with the Messages
+   * module, so they are held, not sent (the name is kept from the first contract).
+   */
   smsSent?: number;
   changes: TeacherChangeRequest[];
   /** The teacher can mark it now (open, not closed, current session). */
@@ -147,9 +152,10 @@ export interface TeacherRegister {
 export interface TeacherRegisterDay {
   date: IsoDate;
   status: TeacherRegisterStatus;
-  counts: TeacherCounts;
-  /** Present + late as a share of the class, one decimal. */
-  percent: number;
+  /** null (or zeros) when the register was not taken that day. */
+  counts: TeacherCounts | null;
+  /** Present + late as a share of the students marked, one decimal; null when the register was not taken. */
+  percent: number | null;
   submittedAt?: IsoDateTime;
   by?: string;
   pending: number;
@@ -166,6 +172,11 @@ export interface TeacherRegisterOverview {
 
 export interface TeacherRegisterSubmit {
   date: IsoDate;
+  /**
+   * G.R. number → code; a student left out is Present. A code other than P/A/L/LT, or a G.R. number not on
+   * the roster, is 422 VALIDATION with `field: "grNo"` (the input, as everywhere else) and the student's G.R.
+   * number in `details.grNo`; the message names the student, so the app shows it as the form's error.
+   */
   marks: Record<string, RegisterCode>;
   /** When the teacher pressed Submit on the phone (it may reach the server later). */
   takenAt: IsoDateTime;
@@ -342,8 +353,6 @@ export const teacherApi = {
 export const teacherDemoApi = {
   get: () => apiFetch<TeacherDemoState>(`${base}/demo`),
   set: (body: Partial<TeacherDemoState>) => apiFetch<TeacherDemoState>(`${base}/demo`, { method: "PUT", body }),
-  /** The principal approves (or rejects) every pending change request, as on the staff dashboard. */
-  decideChanges: (approve: boolean) => apiFetch<{ decided: number }>(`${base}/demo/decide-changes`, { method: "POST", body: { approve } }),
 };
 
 export const teacherQueries = {

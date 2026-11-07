@@ -43,7 +43,7 @@ import { initialStaff } from "../fixtures/hr";
 import { teacherId } from "../fixtures/setup";
 import { campusFixtures, campusRooms, daysOf, generateSlots, inUse, scheduleSeed, seedLegacyClashes, spanFinder, timetableSubjects, withSchedules } from "../fixtures/timetable";
 import { ctxFrom, fail, HttpResponse, latency, requirePermission } from "../util";
-import { closedOn } from "./attendance";
+import { closedOn } from "./attendance-model";
 import { smsStatusStore } from "./sms";
 
 /** The current session's last day: teacher texts and cover can't go past it. */

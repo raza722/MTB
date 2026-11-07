@@ -1,10 +1,10 @@
-import { CANCEL_REASON_LABEL, type Approval, type AttendanceCorrectionApproval, type CampusCode, type DashboardSummary, type ReceiptCancellationApproval } from "@mtb/api";
-import { http } from "msw";
+import { CANCEL_REASON_LABEL, type Approval, type CampusCode, type DashboardSummary, type ReceiptCancellationApproval } from "@mtb/api";
+import { bypass, http, passthrough } from "msw";
 import { DEMO_TODAY, demoNow } from "../clock";
 import { totalsOf } from "../fixtures/attendance";
 import { CAMPUSES } from "../fixtures/campuses";
 import { ctxFrom, fail, HttpResponse, latency, requirePermission } from "../util";
-import { attendanceCorrectionApprovals, attendanceDayFor, decideAttendanceCorrection } from "./attendance";
+import { attendanceDayFor } from "./attendance-model";
 import { activityFor, ALL_CODES, attendanceTrendFor, classGroupsFor, collectionsFor, feeStatusFor, upcomingFor } from "./dashboard-data";
 import { chargeCancellationApprovals, decideCancellation, decideChargeCancellation } from "./fees";
 import { feesStore } from "./fees-state";
@@ -127,21 +127,32 @@ export const dashboardHandlers = [
     return HttpResponse.json(summary);
   }),
 
+  /**
+   * Attendance corrections (kind ATTENDANCE_CORRECTION, ids "att-{n}") are real: the backend answers this request
+   * (it checks approvals.decide and the campus) and the fictional fee approvals (receipt and charge cancellations,
+   * ids "cn:" / "cc:") are added to its list until Fees (module 6) serves them too. A backend error comes back as is.
+   */
   http.get("/api/approvals", async ({ request }) => {
-    await latency();
+    let real: Response;
+    try {
+      real = await fetch(bypass(request));
+    } catch {
+      return Response.error();
+    }
+    if (!real.ok) return real;
+    const attendance = (await real.json()) as Approval[];
     const ctx = ctxFrom(new URL(request.url));
-    const user = requirePermission("approvals.decide", ctx.campus);
-    if (user instanceof Response) return user;
     const inScope = (a: Approval) => ctx.campus === "ALL" || a.campus === ctx.campus;
-    // Attendance corrections live in the Attendance module (teacher requests and office requests alike).
-    const list: Approval[] = [...cancellationApprovals(), ...chargeCancellationApprovals(), ...attendanceCorrectionApprovals()].filter(inScope);
+    const list: Approval[] = [...attendance, ...[...cancellationApprovals(), ...chargeCancellationApprovals()].filter(inScope)];
     list.sort((a, b) => b.requestedAt.localeCompare(a.requestedAt));
     return HttpResponse.json(list);
   }),
 
   http.post("/api/approvals/:id/decide", async ({ params, request }) => {
-    await latency();
     const id = String(params.id);
+    // Everything but the fictional fee approvals (an "att-" attendance correction, or an id nobody knows) is the backend's.
+    if (!id.startsWith("cn:") && !id.startsWith("cc:")) return passthrough();
+    await latency();
     const { decision } = (await request.json()) as { decision: "APPROVE" | "REJECT" };
     if (id.startsWith("cn:")) {
       const receiptNo = id.slice(3);
@@ -160,13 +171,6 @@ export const dashboardHandlers = [
       if (!decideChargeCancellation(item.chargeId, decision === "APPROVE", user.name)) return fail(409, "ALREADY_DECIDED", "This request was already decided.");
       return HttpResponse.json({ ...item, status: decision === "APPROVE" ? "APPROVED" : "REJECTED", decidedBy: user.name, decidedAt: demoNow() });
     }
-    const item = attendanceCorrectionApprovals().find((a) => a.id === id);
-    if (!item) return fail(409, "ALREADY_DECIDED", "This request was already decided.");
-    const user = requirePermission("approvals.decide", item.campus);
-    if (user instanceof Response) return user;
-    const decidedAt = demoNow();
-    if (!decideAttendanceCorrection(id, decision === "APPROVE", user.name, decidedAt)) return fail(409, "ALREADY_DECIDED", "This request was already decided.");
-    const updated: AttendanceCorrectionApproval = { ...item, status: decision === "APPROVE" ? "APPROVED" : "REJECTED", decidedBy: user.name, decidedAt };
-    return HttpResponse.json(updated);
+    return fail(404, "NOT_FOUND", "This request is not on record.");
   }),
 ];

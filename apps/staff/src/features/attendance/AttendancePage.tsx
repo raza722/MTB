@@ -1,4 +1,4 @@
-import { attendanceQueries, dashboardQueries, type AttendanceCampusRow, type AttendanceClassRow, type AttendanceRegisterStatus } from "@mtb/api";
+import { attendanceQueries, type AttendanceCampusRow, type AttendanceClassRow, type AttendanceRegisterStatus } from "@mtb/api";
 import { formatCount, formatLongDate, formatPercent, formatTime, type IsoDate } from "@mtb/domain";
 import { AnimatedNumber, Banner, Button, buttonClassName, DataTable, DatePicker, DeviationChart, EmptyState, Panel, Segmented, StatCard, StatusBadge, type Column } from "@mtb/ui";
 import { useQuery } from "@tanstack/react-query";
@@ -7,7 +7,7 @@ import { useState } from "react";
 import { campusLabel } from "../../app/shell/campus";
 import { RequireSingleCampus } from "../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
-import { AttendanceShell, PastSessionNote, QueryError, SESSION_START, stagger, TODAY, useCanMark } from "./shared";
+import { AttendanceShell, PastSessionNote, pctMeter, pctText, PctValue, QueryError, stagger, teacherText, useCanMark, useSessionSpan } from "./shared";
 
 const pct = (attended: number, of: number) => (of === 0 ? null : Math.round((attended / of) * 1000) / 10);
 
@@ -23,15 +23,16 @@ function RegisterBadge({ status, row }: { status: AttendanceRegisterStatus; row:
       {status === "CHANGE_PENDING" ? <StatusBadge status="pending">Change pending</StatusBadge> : <StatusBadge status="approved">Submitted</StatusBadge>}
       {row.submittedAt && (
         <span className="mtb-cell-secondary">
-          <span className="mtb-num">{formatTime(row.submittedAt)}</span> · {row.source}
+          <span className="mtb-num">{formatTime(row.submittedAt)}</span>
+          {row.source ? ` · ${row.source}` : " · old software"}
         </span>
       )}
     </span>
   );
 }
 
-function Meter({ value }: { value: number | null }) {
-  if (value === null) return <span className="text-ink-muted">—</span>;
+function Meter({ value }: { value: number | null | undefined }) {
+  if (value === null || value === undefined) return <span className="text-ink-muted">—</span>;
   return (
     <span className="inline-flex items-center justify-end gap-2">
       <span className="mtb-num">{formatPercent(value)}</span>
@@ -56,11 +57,12 @@ export function AttendancePage({ date, onDate }: AttendanceTodayProps) {
   const canApprove = useCan("approvals.decide");
   const canMark = useCanMark();
   const navigate = useNavigate();
+  const span = useSessionSpan();
   const [view, setView] = useState("table");
-  const day = date ?? TODAY;
-  const isToday = day === TODAY;
+  const today = span.today;
+  const day = date ?? today;
+  const isToday = day === today;
   const q = useQuery({ ...attendanceQueries.day(ctx, isToday ? undefined : day), enabled: !readOnly });
-  const approvals = useQuery({ ...dashboardQueries.approvals(ctx), enabled: canApprove && !readOnly });
   const corrections = useQuery({ ...attendanceQueries.corrections(ctx), enabled: !readOnly });
 
   const header = {
@@ -79,7 +81,7 @@ export function AttendancePage({ date, onDate }: AttendanceTodayProps) {
           </Button>
         )}
         <div className="w-44">
-          <DatePicker aria-label="Day" value={day} today={TODAY} minDate={SESSION_START} maxDate={TODAY} onValueChange={(d) => onDate(d && d !== TODAY ? d : undefined)} />
+          <DatePicker aria-label="Day" value={day} today={today} minDate={span.starts} maxDate={today} onValueChange={(d) => onDate(d && d !== today ? d : undefined)} />
         </div>
       </div>
     ),
@@ -94,13 +96,8 @@ export function AttendancePage({ date, onDate }: AttendanceTodayProps) {
   }
 
   const data = q.data;
-  const pendingApprovals = (approvals.data ?? []).filter((a) => a.kind === "ATTENDANCE_CORRECTION");
-  // A register shows "Change pending" until its correction is decided on the dashboard.
-  const pendingClasses = new Set(pendingApprovals.filter((a) => a.kind === "ATTENDANCE_CORRECTION" && a.date === day).map((a) => a.student.classSection));
-  const officePending = new Set((corrections.data ?? []).filter((c) => c.status === "PENDING" && c.date === day && c.id.startsWith("att-o-")).map((c) => c.classSection));
-  const statusOf = (r: AttendanceClassRow): AttendanceRegisterStatus =>
-    r.status === "CHANGE_PENDING" && approvals.data && !pendingClasses.has(r.classSection) && !officePending.has(r.classSection) ? "SUBMITTED" : r.status;
-  const waiting = (corrections.data ?? []).filter((c) => c.status === "PENDING" && (!approvals.data || c.id.startsWith("att-o-") || pendingApprovals.some((a) => a.id === c.id)));
+  // A register shows "Change pending" (its status from the server) until the change is decided on the dashboard.
+  const waiting = (corrections.data ?? []).filter((c) => c.status === "PENDING");
 
   const t = data?.totals;
   const notMarked = (data?.rows ?? []).filter((r) => r.status === "NOT_MARKED");
@@ -114,17 +111,17 @@ export function AttendancePage({ date, onDate }: AttendanceTodayProps) {
       render: (r) => (
         <span className="grid">
           <span className="mtb-cell-primary">{r.classSection}</span>
-          <span className="mtb-cell-secondary">{r.classTeacher}</span>
+          <span className="mtb-cell-secondary">{teacherText(r.classTeacher)}</span>
         </span>
       ),
     },
-    { key: "status", header: "Register", width: 190, render: (r) => <RegisterBadge status={statusOf(r)} row={r} /> },
+    { key: "status", header: "Register", width: 190, render: (r) => <RegisterBadge status={r.status} row={r} /> },
     { key: "enrolled", header: "Students", align: "right", width: 96, render: (r) => <span className="mtb-num">{r.enrolled}</span> },
     { key: "present", header: "Present", align: "right", width: 90, render: (r) => count(r.present, r.status !== "NOT_MARKED") },
     { key: "absent", header: "Absent", align: "right", width: 90, render: (r) => count(r.absent, r.status !== "NOT_MARKED") },
     { key: "leave", header: "Leave", align: "right", width: 80, render: (r) => count(r.leave, r.status !== "NOT_MARKED") },
     { key: "late", header: "Late", align: "right", width: 80, render: (r) => count(r.late, r.status !== "NOT_MARKED") },
-    { key: "attended", header: "Attended", align: "right", width: 150, render: (r) => <Meter value={r.status === "NOT_MARKED" ? null : pct(r.present + r.late, r.enrolled)} /> },
+    { key: "attended", header: "Attended", align: "right", width: 150, render: (r) => <Meter value={r.status === "NOT_MARKED" ? null : pct(r.present + r.late, r.present + r.absent + r.leave + r.late)} /> },
   ];
 
   const campusColumns: Array<Column<AttendanceCampusRow>> = [
@@ -152,12 +149,17 @@ export function AttendancePage({ date, onDate }: AttendanceTodayProps) {
     <AttendanceShell title={header.title} meta={header.meta} actions={header.actions}>
       {q.isError && <QueryError what="Attendance" error={q.error} onRetry={() => void q.refetch()} />}
 
-      {data?.closed ? (
+      {data?.closed && data.totals.registers > 0 && (
+        <Banner tone="info" icon="calendar" title={`${data.closed.name}: registers are closed on ${formatLongDate(day)}`}>
+          Only the classes that took a register this day are shown, and they count in every figure.
+        </Banner>
+      )}
+      {data?.closed && data.totals.registers === 0 ? (
         <div className="mtb-card">
           <EmptyState
             icon="calendar"
             title={`No attendance on ${formatLongDate(day)} — ${data.closed.name}`}
-            description={data.closed.kind === "WEEKLY_OFF" ? "Sunday is the weekly holiday. Registers are closed." : "The school calendar closes registers on this day. Teachers see the same message in the teacher app."}
+            description={data.closed.kind === "WEEKLY_OFF" ? `${data.closed.name} is the weekly day off. Registers are closed.` : "The school calendar closes registers on this day. Teachers see the same message in the teacher app."}
             action={
               <Link to="/attendance/calendar" className={buttonClassName({ size: "sm" })}>
                 Open the school calendar
@@ -173,7 +175,7 @@ export function AttendancePage({ date, onDate }: AttendanceTodayProps) {
             ) : (
               <>
                 <div style={stagger(0)}>
-                  <StatCard label={isToday ? "Attended today" : "Attended"} icon="attendance" value={<AnimatedNumber value={t.percent} decimals={1} format={(v) => formatPercent(v)} />} meter={t.percent} meterLabel="Attended" foot={`${formatCount(t.attended)} of ${formatCount(t.marked)} marked`} />
+                  <StatCard label={isToday ? "Attended today" : "Attended"} icon="attendance" value={<PctValue value={t.percent} />} {...pctMeter(t.percent, "Attended")} foot={t.marked ? `${formatCount(t.attended)} of ${formatCount(t.marked)} marked` : "No register submitted yet"} />
                 </div>
                 <div style={stagger(1)}>
                   <StatCard
@@ -187,7 +189,7 @@ export function AttendancePage({ date, onDate }: AttendanceTodayProps) {
                           See absentees and parent SMS
                         </Link>
                       ) : (
-                        "Parents get an SMS"
+                        "Choose a campus to see who"
                       )
                     }
                   />
@@ -225,7 +227,7 @@ export function AttendancePage({ date, onDate }: AttendanceTodayProps) {
                 ) : undefined
               }
             >
-              {notMarked.map((r) => `${r.classSection} (${r.classTeacher})`).join(", ")}. These students aren't counted in the percentage until the register is submitted.
+              {notMarked.map((r) => (r.classTeacher ? `${r.classSection} (${r.classTeacher})` : r.classSection)).join(", ")}. These students aren't counted in the percentage until the register is submitted.
               {canMark && isToday ? " The office can mark a register for a teacher who is away." : ""}
             </Banner>
           )}
@@ -252,12 +254,12 @@ export function AttendancePage({ date, onDate }: AttendanceTodayProps) {
               rise={1}
               flush={view === "table"}
               title="By campus"
-              description={`${formatLongDate(day)}: attended out of students in submitted registers, against all campuses at ${formatPercent(data.totals.percent)}.`}
+              description={`${formatLongDate(day)}: attended out of students in submitted registers, against all campuses at ${pctText(data.totals.percent)}.`}
               actions={<Segmented aria-label="Show campuses as" value={view} onChange={setView} options={[{ value: "table", label: "Table" }, { value: "chart", label: "Chart" }]} />}
             >
-              {view === "chart" ? (
+              {view === "chart" && data.totals.percent !== null ? (
                 <DeviationChart
-                  data={data.campuses}
+                  data={data.campuses.filter((c): c is AttendanceCampusRow & { percent: number } => c.percent !== null)}
                   value={(c) => c.percent}
                   axisLabel={(c) => c.name.replace(" Campus", "")}
                   reference={data.totals.percent}
@@ -267,7 +269,7 @@ export function AttendancePage({ date, onDate }: AttendanceTodayProps) {
                   tooltip={(c) => (
                     <>
                       <div className="mtb-chart-tip-title">{c.name}</div>
-                      <div className="mtb-chart-tip-value">{formatPercent(c.percent)}</div>
+                      <div className="mtb-chart-tip-value">{pctText(c.percent)}</div>
                       <div className="mtb-chart-tip-row">
                         <span>Attended</span>
                         <span>
@@ -276,8 +278,8 @@ export function AttendancePage({ date, onDate }: AttendanceTodayProps) {
                       </div>
                     </>
                   )}
-                  describe={(c) => `${c.name}: ${formatPercent(c.percent)}`}
-                  label={`Attendance by campus compared with ${formatPercent(data.totals.percent)}`}
+                  describe={(c) => `${c.name}: ${pctText(c.percent)}`}
+                  label={`Attendance by campus compared with ${pctText(data.totals.percent)}`}
                 />
               ) : (
                 <DataTable
@@ -285,7 +287,7 @@ export function AttendancePage({ date, onDate }: AttendanceTodayProps) {
                   columns={campusColumns}
                   rows={data.campuses}
                   rowKey="campus"
-                  footer={{ name: "All campuses", marked: formatCount(data.totals.marked), attended: formatCount(data.totals.attended), absent: formatCount(data.totals.absent), percent: formatPercent(data.totals.percent) }}
+                  footer={{ name: "All campuses", marked: formatCount(data.totals.marked), attended: formatCount(data.totals.attended), absent: formatCount(data.totals.absent), percent: pctText(data.totals.percent) }}
                 />
               )}
             </Panel>
@@ -313,7 +315,7 @@ export function AttendancePage({ date, onDate }: AttendanceTodayProps) {
                         absent: formatCount(t.absent),
                         leave: formatCount(t.leave),
                         late: formatCount(t.late),
-                        attended: `${formatPercent(t.percent)} of marked`,
+                        attended: t.percent === null ? "—" : `${formatPercent(t.percent)} of marked`,
                       }
                     : undefined
                 }

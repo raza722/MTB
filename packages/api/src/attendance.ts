@@ -1,6 +1,8 @@
 // Attendance API (staff app). Teachers mark registers in the teacher app; the office can mark a register that a
 // teacher could not, and every change after a register is submitted goes through a correction request that the
 // principal approves on the dashboard. The school calendar (holidays, vacations, events) closes registers.
+// Served by the real backend (backend/docs/modules/04_attendance.md). Every percentage here is attended ÷ marked
+// (attended = present + late), one decimal, and null when nothing was marked: the UI shows "—" for null.
 import type { AttendanceCode, IsoDate, IsoDateTime } from "@mtb/domain";
 import { queryOptions } from "@tanstack/react-query";
 import { apiFetch } from "./client";
@@ -11,10 +13,13 @@ export type AttendanceRegisterStatus = "SUBMITTED" | "NOT_MARKED" | "CHANGE_PEND
 /** Codes a register can hold (holidays come from the calendar, never from a register). */
 export type RegisterCode = Exclude<AttendanceCode, "H">;
 
+/** A class teacher's name; "" (or omitted) while Setup › Teachers has no class teacher for the section. */
+export type ClassTeacherName = string | undefined;
+
 export interface AttendanceClassRow {
   /** "7-B" */
   classSection: string;
-  classTeacher: string;
+  classTeacher?: ClassTeacherName;
   status: AttendanceRegisterStatus;
   submittedAt?: IsoDateTime;
   /** Where the register was taken. */
@@ -36,8 +41,8 @@ export interface AttendanceTotals {
   late: number;
   /** Present + late. */
   attended: number;
-  /** attended ÷ marked, one decimal. */
-  percent: number;
+  /** attended ÷ marked, one decimal; null when nobody was marked. */
+  percent: number | null;
   registers: number;
   notMarked: number;
 }
@@ -55,11 +60,11 @@ export interface AttendanceClosedDay {
 
 export interface AttendanceDay {
   date: IsoDate;
-  /** Empty with "All campuses": choose a campus to see classes. Empty on a closed day. */
+  /** Empty with "All campuses": choose a campus to see classes. On a closed day only the classes that took a register that day (old-system Sunday registers). */
   rows: AttendanceClassRow[];
   totals: AttendanceTotals;
   campuses?: AttendanceCampusRow[];
-  /** Set when the calendar closes registers on this date (Sunday, Iqbal Day, winter vacation…). */
+  /** Set when the calendar closes registers on this date (the weekly day off, Iqbal Day, winter vacation…). Registers already taken that day still count and are listed. */
   closed?: AttendanceClosedDay;
 }
 
@@ -68,9 +73,8 @@ export interface AttendanceDay {
 export interface AttendanceRegisterStudent {
   grNo: string;
   name: string;
+  /** 0 when the student has no roll number. */
   rollNo: number;
-  /** False for classmates who exist only in this demo's registers (no profile page to open). */
-  hasProfile: boolean;
   /** null while the register is not marked. */
   code: RegisterCode | null;
   /** A change waiting for the principal. */
@@ -91,9 +95,10 @@ export interface AttendanceRegister {
   classSection: string;
   date: IsoDate;
   status: AttendanceRegisterStatus;
-  classTeacher: string;
+  classTeacher?: ClassTeacherName;
   submittedAt?: IsoDateTime;
   submittedBy?: string;
+  /** Omitted for registers carried over from the old desktop software. */
   source?: "Teacher app" | "Office";
   /** Set when the calendar closes registers on this date. */
   closed?: AttendanceClosedDay;
@@ -110,9 +115,12 @@ export interface AttendanceSaveBody {
 
 export interface AttendanceSaveResult {
   register: AttendanceRegister;
-  /** Absent-student SMS queued for parents. */
+  /**
+   * "Absent today" messages written for the parents of absent students. SMS sending starts with the Messages module,
+   * so they are held, not sent.
+   */
   smsQueued: number;
-  /** True when SMS are paused: messages wait until an admin resumes them. */
+  /** True when any absence message was held (smsQueued > 0). */
   smsHeld: boolean;
 }
 
@@ -140,13 +148,16 @@ export interface AttendanceCorrection {
   requestedBy: string;
   requestedAt: IsoDateTime;
   status: "PENDING" | "APPROVED" | "REJECTED";
+  /** Who approved or rejected it, and when (decided requests only). */
+  decidedBy?: string;
+  decidedAt?: IsoDateTime;
 }
 
 /* ------------------------------------------------------------------ Sections, monthly sheet, reports */
 
 export interface AttendanceSection {
   classSection: string;
-  classTeacher: string;
+  classTeacher?: ClassTeacherName;
   enrolled: number;
 }
 
@@ -157,7 +168,7 @@ export interface AttendanceSheetDay {
   /** "Mon" */
   weekday: string;
   kind: AttendanceSheetDayKind;
-  /** Holiday or event name on a CLOSED day; "Sunday" on an OFF day. */
+  /** Holiday or event name on a CLOSED day; the weekday's name ("Sunday") on the campus's weekly day off. */
   label?: string;
 }
 
@@ -174,9 +185,9 @@ export interface AttendanceCodeTotals {
 export interface AttendanceSheetStudent {
   grNo: string;
   name: string;
+  /** "" when not on record. */
   father: string;
   rollNo: number;
-  hasProfile: boolean;
   codes: Partial<Record<IsoDate, RegisterCode>>;
   totals: AttendanceCodeTotals;
   /** Days attended (present or late) in the month before, within the session. */
@@ -190,7 +201,7 @@ export interface AttendanceMonthlySheet {
   campus: CampusCode;
   campusName: string;
   classSection: string;
-  classTeacher: string;
+  classTeacher?: ClassTeacherName;
   /** "2026-10" */
   month: string;
   days: AttendanceSheetDay[];
@@ -211,7 +222,6 @@ export interface AttendanceStudentReport {
   classSection: string;
   campus: CampusCode;
   campusName: string;
-  hasProfile: boolean;
   from: IsoDate;
   to: IsoDate;
   totals: AttendanceCodeTotals;
@@ -229,7 +239,7 @@ export interface AttendanceClassReportRow {
   name: string;
   father: string;
   rollNo: number;
-  hasProfile: boolean;
+  /** The guardian's mobile; "" when none is on record. */
   mobile: string;
   totals: AttendanceCodeTotals;
 }
@@ -237,7 +247,7 @@ export interface AttendanceClassReportRow {
 export interface AttendanceClassReport {
   campus: CampusCode;
   classSection: string;
-  classTeacher: string;
+  classTeacher?: ClassTeacherName;
   from: IsoDate;
   to: IsoDate;
   schoolDays: number;
@@ -246,16 +256,21 @@ export interface AttendanceClassReport {
 
 /* ------------------------------------------------------------------ Absentees and SMS */
 
+/**
+ * HELD: written and waiting, because SMS sending starts with the Messages module (or a change to the mark is
+ * pending). SENT, QUEUED and FAILED appear only once the Messages module sends (and for the old system's log).
+ */
 export type AttendanceSmsStatus = "SENT" | "QUEUED" | "NOT_SENT" | "FAILED" | "HELD";
 
 export interface AttendanceAbsentee {
   grNo: string;
   name: string;
   classSection: string;
-  classTeacher: string;
+  classTeacher?: ClassTeacherName;
   code: RegisterCode;
-  hasProfile: boolean;
+  /** The family's primary contact; "" when none is on record. */
   guardian: string;
+  /** That contact's mobile; "" when none is on record (no message can be written). */
   mobile: string;
   /** School days absent in a row, including today (absent only). */
   daysInRow: number;
@@ -266,6 +281,7 @@ export interface AttendanceAbsentee {
 
 export interface AttendanceAbsenteesDay {
   date: IsoDate;
+  /** Set when the calendar closes registers on this date; rows still list absences from registers taken that day. */
   closed?: AttendanceClosedDay;
   rows: AttendanceAbsentee[];
   /** The "Absent today" template, so the preview matches what parents receive. */
@@ -281,8 +297,9 @@ export interface AttendanceSmsBody {
 }
 
 export interface AttendanceSmsResult {
+  /** Messages written (held until SMS sending starts with the Messages module). */
   queued: number;
-  /** Skipped because a message already went today or a change is pending. */
+  /** Skipped: not absent (only Absent gets the message), already held today, a change pending, or no mobile. */
   skipped: number;
 }
 
@@ -312,6 +329,9 @@ export interface SchoolEvent {
   note?: string;
   updatedBy: string;
   updatedAt: IsoDateTime;
+  /** The entry can no longer be changed or removed (it has started and closed registers, or came from the old system). */
+  locked?: boolean;
+  lockedReason?: string;
 }
 
 export interface SchoolEventBody {
@@ -332,9 +352,18 @@ export interface AttendanceCalendarData {
   starts: IsoDate;
   ends: IsoDate;
   events: SchoolEvent[];
-  /** School days so far and still to come in the session (Mon–Sat, minus closed days). */
+  /** School days so far and still to come in the session (minus the weekly day off and closed days). */
   schoolDaysSoFar: number;
   schoolDaysLeft: number;
+  /**
+   * The days the session's registers can be read for: from the earlier of the session's first day and its first
+   * register, to the later of its last day and its last register (old classes sometimes ran outside April–March).
+   * Optional until every server sends it (spec 04 §5.2 C5): without it the UI uses `starts` / `ends`.
+   */
+  registersFrom?: IsoDate;
+  registersTo?: IsoDate;
+  /** The campus's weekly days off, 0 = Sunday … 6 = Saturday (C5; without it the UI assumes Sunday). */
+  weeklyOff?: number[];
 }
 
 /* ------------------------------------------------------------------ Summary */
@@ -344,24 +373,31 @@ export interface AttendanceGroupRow {
   label: string;
   attended: number;
   marked: number;
-  percent: number;
+  /** null when nobody was marked. */
+  percent: number | null;
 }
 
 export interface AttendanceOverview {
   date: IsoDate;
   today: AttendanceTotals;
-  /** Last 14 school days (the dashboard's attendance trend). */
-  trend: Array<{ date: IsoDate; percent: number }>;
-  /** Average of the last 5 and the last 14 school days. */
-  weekPercent: number;
-  fortnightPercent: number;
-  /** By campus (All campuses) or by class (one campus), last 30 days. */
+  /**
+   * Last 14 school days (the dashboard's attendance trend); percent null on a day with nothing marked.
+   * Every window below is the campus's own (a day with a register counts as a school day). All campuses:
+   * each campus counts over its own last 5 / 14 / 26 school days, so the trend lists every date in some
+   * campus's last 14 (14 dates when the calendars agree, more when they differ) and a campus's figures
+   * equal its one-campus figures (spec 04 §11 F2).
+   */
+  trend: Array<{ date: IsoDate; percent: number | null }>;
+  /** Attended ÷ marked over the last 5 and the last 14 school days (weighted, not an average of daily figures). */
+  weekPercent: number | null;
+  fortnightPercent: number | null;
+  /** By campus (All campuses; a campus's row = the sum of its class rows) or by class (one campus), over the last 26 school days. */
   groups: AttendanceGroupRow[];
-  groupsPercent: number;
-  /** Session to date, month by month. */
+  groupsPercent: number | null;
+  /** Session to date, month by month. schoolDays: the campus calendar (All campuses: the all-campuses calendar), plus any closed day on which a register was taken. */
   months: Array<{ month: string; schoolDays: number; percent: number | null; note?: string }>;
-  /** Students below 75% over the last 30 days (one campus only). */
-  lowStudents: Array<{ grNo: string; name: string; classSection: string; hasProfile: boolean; percent: number; absent: number }>;
+  /** Students below the low-attendance line (75%) over the last 26 school days (one campus only), lowest first. */
+  lowStudents: Array<{ grNo: string; name: string; classSection: string; percent: number; absent: number }>;
   /** Registers submitted by 09:00 AM today. */
   onTime: { submitted: number; byNine: number };
 }
@@ -403,7 +439,7 @@ export const attendanceQueries = {
   classReport: (ctx: Ctx, classSection: string, from: IsoDate, to: IsoDate) =>
     queryOptions({ queryKey: ["attendance", ...ctxKey(ctx), "class-report", classSection, from, to], queryFn: () => attendanceApi.classReport(ctx, classSection, from, to) }),
   absentees: (ctx: Ctx, date?: IsoDate) => queryOptions({ queryKey: ["attendance", ...ctxKey(ctx), "absentees", date ?? "today"], queryFn: () => attendanceApi.absentees(ctx, date) }),
-  calendar: (ctx: Ctx) => queryOptions({ queryKey: ["attendance", ...ctxKey(ctx), "calendar"], queryFn: () => attendanceApi.calendar(ctx) }),
+  calendar: (ctx: Ctx) => queryOptions({ queryKey: ["attendance", ...ctxKey(ctx), "calendar"], queryFn: () => attendanceApi.calendar(ctx), staleTime: 60_000 }),
   summary: (ctx: Ctx) => queryOptions({ queryKey: ["attendance", ...ctxKey(ctx), "summary"], queryFn: () => attendanceApi.summary(ctx) }),
 };
 

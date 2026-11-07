@@ -1,6 +1,6 @@
 import { clockTime } from "@mtb/api";
 
-/** Minutes since midnight, Pakistan time. The demo's date is fixed (04-Nov-2026); the time of day is real. */
+/** Minutes since midnight, Pakistan time. Dates come from the server (a register's `date`), never from the phone's clock. */
 export function pkMinutesNow(): number {
   const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Karachi", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(new Date());
   const h = Number(parts.find((p) => p.type === "hour")?.value ?? "9") % 24;

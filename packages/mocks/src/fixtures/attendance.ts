@@ -102,13 +102,16 @@ const at = (minutes: number) => {
   return `2026-11-04T${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:00+05:00`;
 };
 
+/** A fictional register row: every fixture section has a class teacher (the real contract allows none). */
+export type FixtureClassRow = AttendanceClassRow & { classTeacher: string };
+
 /** Today's registers for a campus, with counts that add up to the dashboard figures. */
-export function registersFor(campus: CampusCode): AttendanceClassRow[] {
+export function registersFor(campus: CampusCode): FixtureClassRow[] {
   const sizes = sectionSizes(campus);
   const sections = sectionsFor(campus);
   const notMarked = NOT_MARKED[campus] ?? {};
   const pending = CHANGE_PENDING[campus] ?? [];
-  const rows: AttendanceClassRow[] = sections.map((cs, i) => {
+  const rows: FixtureClassRow[] = sections.map((cs, i) => {
     const enrolled = sizes[cs] ?? 0;
     const teacher = classTeacher(campus, cs, i);
     if (cs in notMarked) return { classSection: cs, classTeacher: teacher, status: "NOT_MARKED", enrolled, present: 0, absent: 0, leave: 0, late: 0 };
@@ -154,7 +157,8 @@ export function registersFor(campus: CampusCode): AttendanceClassRow[] {
   return rows;
 }
 
-export function totalsOf(rows: AttendanceClassRow[]): AttendanceTotals {
+/** The fictional day's totals for the dashboard mock (0% rather than null with nothing marked: its tile needs a number). */
+export function totalsOf(rows: AttendanceClassRow[]): AttendanceTotals & { percent: number } {
   const marked = rows.filter((r) => r.status !== "NOT_MARKED");
   const sum = (pick: (r: AttendanceClassRow) => number, list = marked) => list.reduce((a, r) => a + pick(r), 0);
   const markedCount = sum((r) => r.enrolled);

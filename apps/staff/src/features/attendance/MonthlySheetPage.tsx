@@ -6,16 +6,16 @@ import { Link } from "@tanstack/react-router";
 import { useState, type CSSProperties } from "react";
 import { RequireSingleCampus } from "../../app/shell/page";
 import { useCtx, useReadOnly } from "../../app/session";
-import { AttendanceShell, monthLabel, pctText, PrintSheet, QueryError, sessionMonths, TODAY, useSections } from "./shared";
+import { AttendanceShell, monthLabel, pctMeter, pctText, PrintSheet, QueryError, sessionMonths, teacherText, useSections, useSessionSpan } from "./shared";
 
 export interface MonthlySearch {
   cls?: string;
   month?: string;
 }
 
-function dayClass(sheet: AttendanceMonthlySheet, i: number, code?: string) {
+function dayClass(sheet: AttendanceMonthlySheet, i: number, todayDate: string, code?: string) {
   const d = sheet.days[i]!;
-  const today = d.date === TODAY ? " is-today" : "";
+  const today = d.date === todayDate ? " is-today" : "";
   if (d.kind === "OFF") return `att-day is-off${today}`;
   if (d.kind === "CLOSED") return `att-day is-closed${today}`;
   if (d.kind === "FUTURE") return `att-day is-future${today}`;
@@ -27,10 +27,16 @@ export function MonthlySheetPage({ search, setSearch }: { search: MonthlySearch;
   const ctx = useCtx();
   const readOnly = useReadOnly();
   const sections = useSections();
-  const months = sessionMonths(ctx.session);
-  const cls = search.cls ?? (sections.data?.some((s) => s.classSection === "7-B") ? "7-B" : sections.data?.[0]?.classSection);
+  const span = useSessionSpan();
+  const months = sessionMonths(span);
+  // The class in the address, else the campus's first class.
+  const cls = search.cls ?? sections.data?.[0]?.classSection;
   const month = search.month && months.includes(search.month) ? search.month : months[0]!;
-  const q = useQuery({ ...attendanceQueries.monthly(ctx, cls ?? "", month), enabled: ctx.campus !== "ALL" && !!cls, placeholderData: (prev) => (prev && months.includes(prev.month) ? prev : undefined) });
+  const q = useQuery({
+    ...attendanceQueries.monthly(ctx, cls ?? "", month),
+    enabled: ctx.campus !== "ALL" && !!cls && span.ready,
+    placeholderData: (prev) => (prev && months.includes(prev.month) ? prev : undefined),
+  });
   const sheet = q.data;
 
   const school = sheet?.days.filter((d) => d.kind === "SCHOOL").length ?? 0;
@@ -65,7 +71,7 @@ export function MonthlySheetPage({ search, setSearch }: { search: MonthlySearch;
               label="Class"
               value={cls ?? ""}
               onChange={(e) => setSearch({ ...search, cls: e.target.value })}
-              options={(sections.data ?? []).map((s) => ({ value: s.classSection, label: `${s.classSection} · ${s.classTeacher}` }))}
+              options={(sections.data ?? []).map((s) => ({ value: s.classSection, label: s.classTeacher ? `${s.classSection} · ${s.classTeacher}` : s.classSection }))}
             />
           </div>
           <div className="att-f">
@@ -84,7 +90,7 @@ export function MonthlySheetPage({ search, setSearch }: { search: MonthlySearch;
           ) : (
             <>
               <StatCard label="School days" icon="calendar" value={formatCount(school)} foot={closed.length ? `${closed.length} closed: ${[...new Set(closed.map((d) => d.label))].join(", ")}` : "No holidays this month"} />
-              <StatCard label="Class attended" icon="attendance" value={pctText(sheet.totals.percent)} {...(sheet.totals.percent !== null ? { meter: sheet.totals.percent, meterLabel: "Attended" } : {})} foot={`${formatCount(sheet.totals.present + sheet.totals.late)} of ${formatCount(sheet.totals.schoolDays)} student-days`} />
+              <StatCard label="Class attended" icon="attendance" value={pctText(sheet.totals.percent)} {...pctMeter(sheet.totals.percent, "Attended")} foot={`${formatCount(sheet.totals.present + sheet.totals.late)} of ${formatCount(sheet.totals.schoolDays)} student-days`} />
               <StatCard label="Absences" icon="alertCircle" tone="danger" value={formatCount(sheet.totals.absent)} foot={`${formatCount(sheet.totals.leave)} on leave · ${formatCount(sheet.totals.late)} late`} />
               <StatCard label="Lowest attendance" icon="trendDown" tone="warning" value={lowest ? pctText(lowest.totals.percent) : "—"} foot={lowest ? lowest.name : "No marks yet"} />
             </>
@@ -96,7 +102,7 @@ export function MonthlySheetPage({ search, setSearch }: { search: MonthlySearch;
           rise={1}
           flush
           title={sheet ? `${sheet.classSection} · ${monthLabel(sheet.month)}` : "Monthly sheet"}
-          description={sheet ? `Class teacher ${sheet.classTeacher} · ${sheet.students.length} students. ${delivered}. Sundays are shaded; holidays are hatched. Pick a student to see their report.` : undefined}
+          description={sheet ? `Class teacher ${teacherText(sheet.classTeacher)} · ${sheet.students.length} students. ${delivered}. Weekly days off are shaded; holidays are hatched. Pick a student to see their report.` : undefined}
         >
           {!sheet ? (
             <div className="p-4">
@@ -161,17 +167,17 @@ export function MonthlySheetPage({ search, setSearch }: { search: MonthlySearch;
                   {sheet.students.map((s, si) => (
                     <tr key={s.grNo} style={{ "--i": si } as CSSProperties}>
                       <th scope="row" className="att-sticky font-normal">
-                        <span className="mtb-num text-ink-muted">{String(s.rollNo).padStart(2, "0")}</span>{" "}
+                        <span className="mtb-num text-ink-muted">{s.rollNo ? String(s.rollNo).padStart(2, "0") : "—"}</span>{" "}
                         <Link to="/attendance/students" search={(p: Record<string, unknown>) => ({ ...p, grNo: s.grNo })} className="text-ink no-underline hover:underline">
                           {s.name}
                         </Link>
                       </th>
                       <td className="att-info mtb-num">{s.grNo}</td>
-                      <td className="att-info">{s.father}</td>
+                      <td className="att-info">{s.father || "—"}</td>
                       {sheet.days.map((d, i) => {
                         const code = s.codes[d.date];
                         return (
-                          <td key={d.date} className={dayClass(sheet, i, code)} title={d.label ?? undefined}>
+                          <td key={d.date} className={dayClass(sheet, i, span.today, code)} title={d.label ?? undefined}>
                             {d.kind === "SCHOOL" ? (code === "P" ? "·" : (code ?? "")) : ""}
                             {code === "P" && <span className="mtb-sr-only">Present</span>}
                           </td>
@@ -223,7 +229,7 @@ export function MonthlySheetPage({ search, setSearch }: { search: MonthlySearch;
         </Panel>
         <p className="m-0 text-small text-ink-muted">
           A dot means present. Pick a date to open that day's register.{" "}
-          {readOnly ? "Registers of an ended session were carried over from the old software and stay read-only." : "In the old software this register printed with empty boxes to fill by hand; here it fills itself from the day's registers, holidays included."}
+          {readOnly ? "Registers of an ended session stay read-only." : "In the old software this register printed with empty boxes to fill by hand; here it fills itself from the day's registers, holidays included."}
         </p>
 
         {sheet && (
@@ -232,8 +238,8 @@ export function MonthlySheetPage({ search, setSearch }: { search: MonthlySearch;
             title={`Attendance register · ${sheet.classSection} · ${monthLabel(sheet.month)}`}
             scope={
               blank
-                ? `Class teacher ${sheet.classTeacher} · Total students ${sheet.students.length} · Lessons delivered this month ______ · previous month ______ · total ______`
-                : `Class teacher ${sheet.classTeacher} · Total students ${sheet.students.length} · ${delivered} · Class attendance ${pctText(sheet.totals.percent)}`
+                ? `Class teacher ${teacherText(sheet.classTeacher)} · Total students ${sheet.students.length} · Lessons delivered this month ______ · previous month ______ · total ______`
+                : `Class teacher ${teacherText(sheet.classTeacher)} · Total students ${sheet.students.length} · ${delivered} · Class attendance ${pctText(sheet.totals.percent)}`
             }
             signatures={["Class teacher", "Vice principal", "Principal"]}
           >
@@ -274,7 +280,7 @@ export function MonthlySheetPage({ search, setSearch }: { search: MonthlySearch;
               <tbody>
                 {sheet.students.map((s) => (
                   <tr key={s.grNo}>
-                    <td>{s.rollNo}</td>
+                    <td>{s.rollNo || ""}</td>
                     <td>{s.grNo}</td>
                     <td className="l">{s.name}</td>
                     <td className="l">{s.father}</td>

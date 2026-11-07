@@ -1,6 +1,5 @@
 import type { HttpHandler } from "msw";
 import { accountsHandlers } from "./accounts";
-import { attendanceHandlers } from "./attendance";
 import { authTapHandlers } from "./auth-state";
 import { dashboardHandlers } from "./dashboard";
 import { examsHandlers } from "./exams";
@@ -19,9 +18,11 @@ import { timetableHandlers } from "./timetable";
  * backend through the Vite proxy. Real so far: sign-in for the staff and teacher apps (/api/auth/*, tapped on the way
  * through so the mocks below know the signed-in user), /api/meta/*, /api/setup/*, Students (/api/students*,
  * /api/search, /api/families*, /api/promotion*, /api/sections*, /api/movements, /api/documents*), Staff and payroll
- * (/api/hr/*), and Admissions (/api/admissions/*). The fictional student records the unfinished modules still share
- * live in student-records-model.ts, the fictional staff in fixtures/hr.ts with handlers/hr-model.ts, and the
- * fictional applicants in fixtures/admissions.ts with handlers/admissions-model.ts (no routes).
+ * (/api/hr/*), Admissions (/api/admissions/*), and Attendance (/api/attendance/*, the teacher app's
+ * /api/teacher/registers*, and the attendance corrections in /api/approvals*: see dashboard.ts). The fictional student
+ * records the unfinished modules still share live in student-records-model.ts, the fictional staff in fixtures/hr.ts
+ * with handlers/hr-model.ts, the fictional applicants in fixtures/admissions.ts with handlers/admissions-model.ts, and
+ * the fictional registers and calendar in fixtures/attendance.ts with handlers/attendance-model.ts (no routes).
  */
 export const handlers: HttpHandler[] = [
   ...authTapHandlers,
@@ -30,7 +31,6 @@ export const handlers: HttpHandler[] = [
   ...smsHandlers,
   ...examsHandlers,
   ...accountsHandlers,
-  ...attendanceHandlers,
   ...timetableHandlers,
   ...activitiesHandlers,
   ...feeSetupHandlers,

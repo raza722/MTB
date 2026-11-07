@@ -6,12 +6,27 @@ import { useState, type CSSProperties } from "react";
 import { z } from "zod";
 import { campusLabel } from "../../app/shell/campus";
 import { useCan, useCtx, useReadOnly, useSessionUser } from "../../app/session";
-import { AttendanceShell, errorText, monthLabel, QueryError, TODAY } from "./shared";
+import { AttendanceShell, errorText, monthLabel, monthsBetween, QueryError, useToday } from "./shared";
 
 const KINDS: SchoolEventKind[] = ["HOLIDAY", "VACATION", "EXAM", "EVENT"];
 const pad = (n: number) => String(n).padStart(2, "0");
 const daysIn = (e: Pick<SchoolEvent, "from" | "to">) => daysBetween(e.from, e.to) + 1;
-const locked = (e: SchoolEvent) => e.closesRegisters && e.from <= TODAY;
+/** The server says whether an entry is locked (started and closing registers, or from the old system). */
+const locked = (e: SchoolEvent, today: string) => e.locked ?? (e.closesRegisters && e.from <= today);
+const WEEKDAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+/** The fields the calendar endpoints take (not the entry's id, author or lock). */
+const bodyOf = (e: SchoolEvent): SchoolEventBody => ({
+  campus: e.campus,
+  session: e.session,
+  from: e.from,
+  to: e.to,
+  kind: e.kind,
+  name: e.name,
+  nameUr: e.nameUr ?? "",
+  closesRegisters: e.closesRegisters,
+  note: e.note ?? "",
+});
 
 function sessionMonthList(session: number): string[] {
   const out: string[] = [];
@@ -32,7 +47,7 @@ function KindLabel({ kind }: { kind: SchoolEventKind }) {
   );
 }
 
-function MonthGrid({ month, events, onPick }: { month: string; events: SchoolEvent[]; onPick: (e: SchoolEvent) => void }) {
+function MonthGrid({ month, events, weeklyOff, today, onPick }: { month: string; events: SchoolEvent[]; weeklyOff: number[]; today: string; onPick: (e: SchoolEvent) => void }) {
   const [y, m] = month.split("-").map(Number) as [number, number];
   const days = new Date(Date.UTC(y, m, 0)).getUTCDate();
   const lead = (new Date(Date.UTC(y, m - 1, 1)).getUTCDay() + 6) % 7;
@@ -51,11 +66,17 @@ function MonthGrid({ month, events, onPick }: { month: string; events: SchoolEve
         ))}
         {Array.from({ length: days }, (_, i) => {
           const date = `${month}-${pad(i + 1)}`;
-          const sunday = (lead + i) % 7 === 6;
+          const weekday = (((lead + i) % 7) + 1) % 7;
+          const off = weeklyOff.includes(weekday);
           const here = events.filter((e) => e.from <= date && date <= e.to);
           const closed = here.some((e) => e.closesRegisters);
           return (
-            <div key={date} role="gridcell" aria-label={`${formatLongDate(date)}${here.length ? `: ${here.map((e) => e.name).join(", ")}` : sunday ? ": Sunday" : ""}`} className={`att-cal-day ${sunday ? "is-sun" : ""} ${closed ? "is-closed" : ""} ${date === TODAY ? "is-today" : ""}`}>
+            <div
+              key={date}
+              role="gridcell"
+              aria-label={`${formatLongDate(date)}${here.length ? `: ${here.map((e) => e.name).join(", ")}` : off ? `: ${WEEKDAY_NAMES[weekday]}, weekly day off` : ""}`}
+              className={`att-cal-day ${off ? "is-sun" : ""} ${closed ? "is-closed" : ""} ${date === today ? "is-today" : ""}`}
+            >
               <span className="d">{i + 1}</span>
               {here.map((e) => (
                 <button key={e.id} type="button" className={`att-chip k-${e.kind}`} title={e.name} onClick={() => onPick(e)}>
@@ -86,12 +107,14 @@ function EventForm({ event, draftCampus, canAll, onClose }: { event: SchoolEvent
   const qc = useQueryClient();
   const readOnly = useReadOnly();
   const canManage = useCan("attendance.calendar");
+  const today = useToday();
   const existing = event && event !== "new" ? event : null;
   const blank: Draft = { campus: draftCampus, session: ctx.session, from: "", to: "", kind: "HOLIDAY", name: "", nameUr: "", closesRegisters: true, note: "" };
-  const [draft, setDraft] = useState<Draft>(existing ? { ...existing, nameUr: existing.nameUr ?? "", note: existing.note ?? "" } : blank);
+  const [draft, setDraft] = useState<Draft>(existing ? bodyOf(existing) : blank);
   const [errors, setErrors] = useState<Partial<Record<string, string>>>({});
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const editable = canManage && !readOnly && !(existing && locked(existing));
+  const isLocked = !!existing && locked(existing, today);
+  const editable = canManage && !readOnly && !isLocked;
   const set = (patch: Partial<Draft>) => setDraft((d) => ({ ...d, ...patch }));
 
   const done = (title: string, message: string) => {
@@ -151,9 +174,9 @@ function EventForm({ event, draftCampus, canAll, onClose }: { event: SchoolEvent
       }
     >
       <div className="grid gap-4">
-        {existing && locked(existing) && (
-          <Banner tone="info" icon="lock" title="Already started.">
-            Registers were closed for these days, so this entry can no longer be changed.
+        {existing && isLocked && (
+          <Banner tone="info" icon="lock" title="This entry can't be changed.">
+            {existing.lockedReason ?? "Registers were closed for these days, so this entry can no longer be changed."}
           </Banner>
         )}
         {!canManage && <p className="m-0 text-small text-ink-muted">The principal or an admin keeps the calendar.</p>}
@@ -170,8 +193,8 @@ function EventForm({ event, draftCampus, canAll, onClose }: { event: SchoolEvent
           options={KINDS.map((k) => ({ value: k, label: SCHOOL_EVENT_KIND_LABEL[k] }))}
         />
         <div className="grid grid-cols-2 gap-3">
-          <DatePicker label="First day" required disabled={!editable} value={draft.from || null} today={TODAY} onValueChange={(d) => set({ from: d ?? "", ...(d && (!draft.to || draft.to < d) ? { to: d } : {}) })} error={errors.from} />
-          <DatePicker label="Last day" required disabled={!editable} value={draft.to || null} today={TODAY} minDate={draft.from || undefined} onValueChange={(d) => set({ to: d ?? "" })} error={errors.to} />
+          <DatePicker label="First day" required disabled={!editable} value={draft.from || null} today={today} onValueChange={(d) => set({ from: d ?? "", ...(d && (!draft.to || draft.to < d) ? { to: d } : {}) })} error={errors.from} />
+          <DatePicker label="Last day" required disabled={!editable} value={draft.to || null} today={today} minDate={draft.from || undefined} onValueChange={(d) => set({ to: d ?? "" })} error={errors.to} />
         </div>
         {draft.from && draft.to && draft.to >= draft.from && <span className="text-small text-ink-muted">{daysIn(draft)} {daysIn(draft) === 1 ? "day" : "days"}</span>}
         <Switch label="No school: close registers on these days" disabled={!editable} checked={draft.closesRegisters} onChange={(e) => set({ closesRegisters: e.target.checked })} />
@@ -217,15 +240,20 @@ export function CalendarPage() {
   const readOnly = useReadOnly();
   const canManage = useCan("attendance.calendar");
   const canAll = can(user, "attendance.calendar", "ALL");
+  const today = useToday();
   const q = useQuery(attendanceQueries.calendar(ctx));
-  const months = sessionMonthList(ctx.session);
-  const [view, setView] = useState("month");
-  const [month, setMonth] = useState(readOnly ? months[0]! : TODAY.slice(0, 7));
-  const [open, setOpen] = useState<SchoolEvent | "new" | null>(null);
   const data = q.data;
+  // The session's months from its real dates (April–March until the calendar answers).
+  const months = data ? monthsBetween(data.starts, data.ends) : sessionMonthList(ctx.session);
+  const [view, setView] = useState("month");
+  const [picked, setMonth] = useState<string | null>(null);
+  const month = picked && months.includes(picked) ? picked : !readOnly && months.includes(today.slice(0, 7)) ? today.slice(0, 7) : months[0]!;
+  const [open, setOpen] = useState<SchoolEvent | "new" | null>(null);
   const events = data?.events ?? [];
+  // The campus's weekly days off (Sunday until the server sends them).
+  const weeklyOff = data?.weeklyOff ?? [0];
   const at = months.indexOf(month);
-  const upcoming = events.filter((e) => e.to >= TODAY).slice(0, 4);
+  const upcoming = events.filter((e) => e.to >= today).slice(0, 4);
   const closedDays = events.filter((e) => e.closesRegisters && e.kind !== "EXAM").reduce((a, e) => a + daysIn(e), 0);
 
   const columns: Array<Column<SchoolEvent>> = [
@@ -281,13 +309,18 @@ export function CalendarPage() {
               <StatCard label={readOnly ? "School days in the session" : "School days so far"} icon="calendar" value={formatCount(data.schoolDaysSoFar)} foot={`Session ${formatDate(data.starts)} to ${formatDate(data.ends)}`} />
             </div>
             <div style={{ "--i": 1 } as CSSProperties}>
-              <StatCard label="School days left" icon="clock" value={formatCount(data.schoolDaysLeft)} foot="Monday to Saturday, minus closed days" />
+              <StatCard
+                label="School days left"
+                icon="clock"
+                value={formatCount(data.schoolDaysLeft)}
+                foot={`Minus ${weeklyOff.length ? weeklyOff.map((d) => `${WEEKDAY_NAMES[d]}s`).join(" and ") : "weekly days off"} and closed days`}
+              />
             </div>
             <div style={{ "--i": 2 } as CSSProperties}>
               <StatCard label="Days without school" icon="flag" tone="info" value={formatCount(closedDays)} foot="Holidays, vacations and closed events" />
             </div>
             <div style={{ "--i": 3 } as CSSProperties}>
-              <StatCard label="Next" icon="bolt" tone="warning" value={upcoming[0] ? formatDate(upcoming[0].from) : "—"} foot={upcoming[0] ? `${upcoming[0].name}${upcoming[0].from > TODAY ? ` · in ${daysBetween(TODAY, upcoming[0].from)} days` : " · today"}` : "Nothing else this session"} />
+              <StatCard label="Next" icon="bolt" tone="warning" value={upcoming[0] ? formatDate(upcoming[0].from) : "—"} foot={upcoming[0] ? `${upcoming[0].name}${upcoming[0].from > today ? ` · in ${daysBetween(today, upcoming[0].from)} days` : " · today"}` : "Nothing else this session"} />
             </div>
           </>
         )}
@@ -315,7 +348,7 @@ export function CalendarPage() {
           {!data ? (
             <Skeleton height={420} />
           ) : view === "month" ? (
-            <MonthGrid month={month} events={events} onPick={setOpen} />
+            <MonthGrid month={month} events={events} weeklyOff={weeklyOff} today={today} onPick={setOpen} />
           ) : (
             <DataTable caption="School calendar" columns={columns} rows={events} rowKey="id" onRowClick={setOpen} maxHeight={560} empty={<EmptyState icon="calendar" title="Nothing on the calendar" description="Add public holidays, vacations and school events." />} />
           )}
