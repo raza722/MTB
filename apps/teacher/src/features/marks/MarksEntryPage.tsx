@@ -1,6 +1,6 @@
 import { teacherQueries, type ExamsMark, type TeacherPaperRef, type TeacherPaperSheet } from "@mtb/api";
 import { formatDateTime, formatTime } from "@mtb/domain";
-import { Banner, BottomSheet, Button, IconButton, Menu, MenuItem, Skeleton, cx, useToast } from "@mtb/ui";
+import { Banner, BottomSheet, Button, Skeleton, cx, useToast } from "@mtb/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { idbDel, idbGet, idbSet } from "../../app/idb";
@@ -217,17 +217,6 @@ function Entry({ sheet, paperRef }: { sheet: TeacherPaperSheet; paperRef: Teache
     }
   };
 
-  const demoFill = () => {
-    const next: Record<string, ExamsMark> = { ...edits };
-    let n = 0;
-    for (const s of students) {
-      if (marks[s.id] !== null) continue;
-      next[s.id] = n === 2 ? "A" : Math.max(0, Math.min(sheet.maxMarks, Math.round(sheet.maxMarks * (0.48 + ((n * 37) % 47) / 100))));
-      n++;
-    }
-    setEdits(next);
-  };
-
   const saveLabel = queuedSubmit
     ? "Submitted on this phone · waiting to send"
     : queuedSave
@@ -292,15 +281,6 @@ function Entry({ sheet, paperRef }: { sheet: TeacherPaperSheet; paperRef: Teache
       documentTitle={`Marks ${sheet.subjectName} ${sheet.classSection}`}
       backTo="/marks"
       bottom={bottom}
-      actions={
-        !locked && import.meta.env.VITE_USE_MOCKS !== "false" ? (
-          <Menu trigger={<IconButton icon="more" label="More actions" size="touch" />} align="end" label="Marks actions">
-            <MenuItem icon="bolt" onSelect={demoFill} disabled={missing === 0}>
-              Fill the missing marks (demo)
-            </MenuItem>
-          </Menu>
-        ) : undefined
-      }
     >
       <div className="grid gap-3">
         <section className="mtb-card mtb-rise grid gap-2 p-4" aria-labelledby="paper-title">

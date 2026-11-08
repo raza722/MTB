@@ -8,7 +8,6 @@ import {
   examsValidatePassRules,
   EXAMS_DEFAULT_PASS_RULES,
   EXAMS_DEFAULT_SCALE,
-  EXAMS_LEGACY_SCALE,
   EXAMS_UNI_GPA_SCALE,
   EXAMS_UNI_MIN_ATTENDANCE,
   EXAMS_UNI_PROBATION_CGPA,
@@ -23,8 +22,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { z } from "zod";
 import { Page, PageHeader } from "../../app/shell/page";
-import { useCan, useCtx, useReadOnly } from "../../app/session";
-import { errorText, ExamsNav, LoadError } from "./shared";
+import { useCtx, useReadOnly } from "../../app/session";
+import { errorText, ExamsNav, LoadError, useCanEditShared } from "./shared";
 
 /** /exams/grading — grade scales (Standard, and scales for some exam kinds or classes), pass rules and university grade points. */
 export function GradingPage() {
@@ -88,7 +87,7 @@ export function GradingRules() {
 
 function GradingEditor({ saved, scales, onPick, onSaved }: { saved: ExamsGradeScale; scales: ExamsGradeScale[]; onPick: (id: string) => void; onSaved: (id: string) => void }) {
   const ctx = useCtx();
-  const canEdit = useCan("exams.manage");
+  const canEdit = useCanEditShared();
   const readOnly = useReadOnly();
   const editable = canEdit && !readOnly;
   const toast = useToast();
@@ -126,7 +125,7 @@ function GradingEditor({ saved, scales, onPick, onSaved }: { saved: ExamsGradeSc
       onSaved(data.id);
     },
   });
-  const conflict = save.error instanceof ApiError && save.error.status === 409 && save.error.code === "CONFLICT";
+  const conflict = save.error instanceof ApiError && save.error.status === 409 && save.error.code === "CONCURRENCY";
 
   const setBand = (i: number, patch: Partial<ExamsGradeBand>) => setBands((list) => list.map((b, j) => (j === i ? { ...b, ...patch } : b)));
   const num = (v: string) => {
@@ -200,11 +199,19 @@ function GradingEditor({ saved, scales, onPick, onSaved }: { saved: ExamsGradeSc
               {!isNew && (
                 <>
                   {" "}
-                  Last changed by {saved.updatedBy} on <span className="mtb-num">{formatDateTime(saved.updatedAt)}</span>.
+                  {saved.version !== undefined && <>Version {saved.version}. </>}
+                  Last changed by {saved.updatedBy || "—"}
+                  {saved.updatedAt && (
+                    <>
+                      {" "}
+                      on <span className="mtb-num">{formatDateTime(saved.updatedAt)}</span>
+                    </>
+                  )}
+                  .
                 </>
               )}
             </p>
-            {!editable && <Banner tone="neutral">{readOnly ? "Past sessions are read-only." : "Only the principal or an admin can change grading rules."}</Banner>}
+            {!editable && <Banner tone="neutral">{readOnly ? "Past sessions are read-only." : "Grade scales are shared by every campus. Only head office can change them."}</Banner>}
             {conflict && (
               <Banner
                 tone="warning"
@@ -349,12 +356,6 @@ function GradingEditor({ saved, scales, onPick, onSaved }: { saved: ExamsGradeSc
                 {probeGrade ? (
                   <>
                     gets grade <b className="text-ink">{probeGrade}</b>
-                    {probeGrade !== examsGradeFor(probeValue, EXAMS_LEGACY_SCALE) && (
-                      <>
-                        {" "}
-                        (old system: <b className="text-ink">{examsGradeFor(probeValue, EXAMS_LEGACY_SCALE)}</b>)
-                      </>
-                    )}
                   </>
                 ) : probe.trim() === "" ? (
                   "Type a % to see its grade."
@@ -369,7 +370,7 @@ function GradingEditor({ saved, scales, onPick, onSaved }: { saved: ExamsGradeSc
 
       <div className="grid content-start gap-6">
         <ScaleList scales={scales} current={saved.id} onPick={onPick} />
-        <LegacyScale bands={bands} />
+        <LegacyNote />
         <UniversityScale />
       </div>
     </div>
@@ -448,60 +449,13 @@ function UniversityScale() {
   );
 }
 
-/** The old desktop system's scale, side by side — a labelled variant, not a decision. */
-function LegacyScale({ bands }: { bands: ExamsGradeBand[] }) {
-  const ft7 = useQuery({ ...examsQueries.detail("ex-ft-2627"), retry: false });
-  const complete = (ft7.data?.rows ?? []).filter((r) => r.percent !== null);
-  const changed = complete.filter((r) => examsGradeFor(r.percent!, bands) !== examsGradeFor(r.percent!, EXAMS_LEGACY_SCALE)).length;
-
+/** Results migrated from the old system keep the grades they were declared with (the retired "Old system" scale). */
+function LegacyNote() {
   return (
-    <Card
-      title={
-        <div className="grid gap-1">
-          <h2 className="m-0 text-title-3">Old system scale</h2>
-          <span className="text-small font-normal text-ink-muted">For comparison — not yet decided</span>
-        </div>
-      }
-    >
-      <div className="grid gap-4">
-        <table className="mtb-table mtb-table-dense">
-          <caption className="mtb-sr-only">Old system grading scale</caption>
-          <thead>
-            <tr>
-              <th scope="col" style={{ position: "static" }}>
-                Grade
-              </th>
-              <th scope="col" className="mtb-th-num" style={{ position: "static" }}>
-                From
-              </th>
-              <th scope="col" className="mtb-th-num" style={{ position: "static" }}>
-                To
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {EXAMS_LEGACY_SCALE.map((b) => (
-              <tr key={b.grade}>
-                <td className="font-medium">{b.grade}</td>
-                <td className="mtb-td-num">{b.min}%</td>
-                <td className="mtb-td-num">{b.max === 100 ? "100%" : `${b.max}.9%`}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <ul className="m-0 grid gap-1 ps-5 text-small text-ink-muted">
-          <li>
-            C starts at <b className="text-ink">45%</b>, not 50%, and there is <b className="text-ink">no D</b>: 33–44% is E.
-          </li>
-          <li>The old system worked grades out with ≥ but printed result cards with &gt;, so a student on exactly 80% was A+ in the database and A on the card.</li>
-          {complete.length > 0 && (
-            <li>
-              In First Term 2026–27 (Class 7), <b className="text-ink">{changed}</b> of {complete.length} students would get a different grade under the old scale than under the scale on the left.
-            </li>
-          )}
-        </ul>
-        <Banner tone="info">MTB has to choose one standard scale before the new system goes live. Until then, results use the rules on the left.</Banner>
-      </div>
+    <Card title="Results from the old system">
+      <p className="m-0 text-small text-ink-muted">
+        Results declared in the old system keep the grades they were declared with: their result sheets name the scale <b className="text-ink">Old system</b>. That scale is retired, so it is not listed here and new exams can't use it. New exams use the scales on the left.
+      </p>
     </Card>
   );
 }

@@ -1,12 +1,12 @@
-import { EXAMS_CATEGORY_HELP, EXAMS_CATEGORY_LABEL, examsApi, examsQueries, type ExamsCategory, type ExamsType, type ExamsTypeInput } from "@mtb/api";
+import { EXAMS_CATEGORY_HELP, EXAMS_CATEGORY_LABEL, examsApi, examsQueries, setupQueries, type ExamsCategory, type ExamsType, type ExamsTypeInput } from "@mtb/api";
 import { formatRs } from "@mtb/domain";
 import { Banner, Button, Checkbox, DataTable, EmptyState, Input, Panel, Segmented, Select, SidePanel, StatusBadge, Switch, Urdu, useToast, type Column } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { z } from "zod";
 import { Page, PageHeader } from "../../app/shell/page";
-import { useCan, useCtx, useReadOnly } from "../../app/session";
-import { errorText, ExamsNav, LoadError } from "./shared";
+import { useCtx, useReadOnly } from "../../app/session";
+import { errorText, ExamsNav, LoadError, useCanEditShared } from "./shared";
 
 const CATEGORIES: ExamsCategory[] = ["TERM", "TEST", "BOARD", "ENTRANCE", "UNIVERSITY"];
 
@@ -16,9 +16,9 @@ const typeSchema = z.object({
   absenceFine: z.coerce.number({ error: "Type the fine in rupees, or 0 for none." }).int("Whole rupees only.").min(0, "Can't be below 0.").max(5000, "No more than Rs 5,000."),
 });
 
-/** One paper of a type's own paper list (Hifz). */
+/** One paper of a type's own paper list (Hifz): a subject from Setup › Subjects and its maximum. */
 const paperSchema = z.object({
-  name: z.string().trim().min(1, "Name the paper."),
+  id: z.string().min(1, "Choose the subject."),
   max: z.coerce.number({ error: "Type the maximum marks." }).int("Whole marks only.").min(1, "At least 1 mark.").max(1000, "No more than 1,000."),
 });
 
@@ -31,7 +31,8 @@ interface PaperRow {
 /** Exam types (the old Exam Type screens, school and university): what kind of exam, how positions work, absence fine. */
 export function ExamTypesPage() {
   const ctx = useCtx();
-  const canManage = useCan("exams.manage");
+  // Exam types are shared by every campus: only head office (an all-campus grant) changes them.
+  const canManage = useCanEditShared();
   const readOnly = useReadOnly();
   const types = useQuery(examsQueries.types(ctx));
   const templates = useQuery(examsQueries.templates(ctx));
@@ -76,6 +77,7 @@ export function ExamTypesPage() {
         }
       />
       <ExamsNav />
+      {!canManage && !readOnly && <Banner tone="neutral">Exam types are shared by every campus. Only head office can change them.</Banner>}
       {types.isError && <LoadError what="Exam types" error={types.error} onRetry={() => void types.refetch()} />}
       <Panel
         id="types"
@@ -138,6 +140,10 @@ function TypePanel({ type, onClose }: { type: ExamsType | null; onClose: () => v
     fine: String(type?.absenceFine ?? 0),
   });
   const [tried, setTried] = useState(false);
+  // A type's own papers are subjects from Setup › Subjects (Hifz: Manzil 1–7, Tajweed … are added there first).
+  const subjects = useQuery(setupQueries.subjects(ctx));
+  const subjectOptions = (subjects.data ?? []).filter((s) => s.active).sort((a, b) => a.order - b.order || a.name.localeCompare(b.name));
+  const subjectName = (id: string) => subjects.data?.find((s) => s.id === id)?.name;
   // The type's own papers (Hifz). Off: new exams copy the class's subjects.
   const [ownPapers, setOwnPapers] = useState(Boolean(type?.papers?.length));
   const [papers, setPapers] = useState<PaperRow[]>((type?.papers ?? []).map((p) => ({ id: p.id, name: p.name, max: String(p.maxMarks) })));
@@ -150,7 +156,7 @@ function TypePanel({ type, onClose }: { type: ExamsType | null; onClose: () => v
   const save = useMutation({
     mutationFn: () => {
       const { fine, papers: _old, ...rest } = form;
-      const own = ownPapers && ownAllowed ? papers.map((p) => ({ id: p.id, name: p.name.trim(), maxMarks: Number(p.max) })) : [];
+      const own = ownPapers && ownAllowed ? papers.map((p) => ({ id: p.id, name: subjectName(p.id) ?? p.name, maxMarks: Number(p.max) })) : [];
       return examsApi.saveType(ctx, { ...rest, name: rest.name.trim(), nameUrdu: rest.nameUrdu.trim(), absenceFine: Number(fine), ...(own.length ? { papers: own } : {}) }, type?.id);
     },
     onSuccess: (t) => {
@@ -213,11 +219,23 @@ function TypePanel({ type, onClose }: { type: ExamsType | null; onClose: () => v
             />
             {ownPapers ? (
               <>
-                <p className="m-0 text-small text-ink-muted">New exams of this type use these papers instead of the class's subjects. Exams already set up keep their papers. Names ending in a number (Manzil 1, Manzil 2) print as one group with a total.</p>
+                <p className="m-0 text-small text-ink-muted">New exams of this type use these papers instead of the class's subjects. Exams already set up keep their papers. Each paper is a subject from Setup › Subjects; names ending in a number (Manzil 1, Manzil 2) print as one group with a total.</p>
+                {subjects.isError && <Banner tone="warning">The subject list couldn't be loaded: {errorText(subjects.error)}</Banner>}
                 <ul className="m-0 grid list-none gap-2 p-0">
                   {papers.map((p, i) => (
                     <li key={i} className="grid grid-cols-[minmax(0,1fr)_96px_auto] items-start gap-2">
-                      <Input aria-label={`Paper ${i + 1} name`} value={p.name} onChange={(e) => setPapers((l) => l.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} error={tried ? paperErrs[i]?.name : undefined} />
+                      <Select
+                        aria-label={`Paper ${i + 1} subject`}
+                        value={p.id}
+                        onChange={(e) => setPapers((l) => l.map((x, j) => (j === i ? { ...x, id: e.target.value, name: subjectName(e.target.value) ?? "" } : x)))}
+                        error={tried ? paperErrs[i]?.id : undefined}
+                        options={[
+                          { value: "", label: subjects.isLoading ? "Loading subjects…" : "Choose a subject…" },
+                          // A paper whose subject is no longer listed stays shown as it was saved.
+                          ...(p.id && !subjectOptions.some((s) => s.id === p.id) ? [{ value: p.id, label: p.name || p.id }] : []),
+                          ...subjectOptions.map((s) => ({ value: s.id, label: s.name })),
+                        ]}
+                      />
                       <Input aria-label={`Paper ${i + 1} maximum marks`} value={p.max} inputMode="numeric" amount onChange={(e) => setPapers((l) => l.map((x, j) => (j === i ? { ...x, max: e.target.value.replace(/\D/g, "") } : x)))} error={tried ? paperErrs[i]?.max : undefined} />
                       <Button size="sm" variant="ghost" icon="trash" aria-label={`Remove ${p.name || `paper ${i + 1}`}`} onClick={() => setPapers((l) => l.filter((_, j) => j !== i))} />
                     </li>

@@ -43,7 +43,7 @@ import { APP_ADOPTION, FAMILIES, seedBatches, seedGatewaySettings, seedOptOuts, 
 import { findStudent, STUDENTS, type StudentRecord } from "../fixtures/students";
 import { ctxFrom, fail, HttpResponse, latency, requirePermission, requireUser } from "../util";
 import { admissionApplicants } from "./admissions-model";
-import { declaredResultsFor, examRows, examsStore } from "./exams";
+import { declaredResultsFor, examRows, examsStore } from "./exams-model";
 import { chargesOf } from "./fees-state";
 import { allMovements, sessionOfDate } from "./student-records-model";
 

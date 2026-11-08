@@ -7,9 +7,12 @@ import { useDeferredValue, useState, type CSSProperties } from "react";
 import { campusLabel } from "../../app/shell/campus";
 import { Page, PageHeader } from "../../app/shell/page";
 import { useCtx } from "../../app/session";
-import { DocHead, PRINTED_ON } from "./print/docs";
+import { DocHead, printedOn } from "./print/docs";
 import { PrintSheet, printNow } from "./print/PrintSheet";
-import { ExamsNav, LoadError, markText, ordinal, ResultBadge } from "./shared";
+import { ExamsNav, examsToday, LoadError, markText, ordinal, ResultBadge } from "./shared";
+
+/** Why an entry has no %: withheld, or declared in the old system with marks missing ("—"). Null when it has one. */
+const noPercent = (e: Pick<ExamsHistoryEntry, "percent" | "result">) => (e.percent !== null ? null : e.result === "WITHHELD" ? "Withheld" : "—");
 
 type PrintKind = "history" | "papers" | "monthly";
 
@@ -89,7 +92,7 @@ export function HistoryPage({ id, onPick }: { id: string | undefined; onPick: (i
       <Panel id="history-search" title="Find a student" description="Search by name or G.R. number. Results from every session are shown, declared results only." rise={0}>
         <div className="grid gap-3">
           <div className="max-w-md">
-            <Input aria-label="Search students" icon="search" placeholder="For example Ayesha or KC-14823" value={q} onChange={(e) => setQ(e.target.value)} />
+            <Input aria-label="Search students" icon="search" placeholder="A name or G.R. number" value={q} onChange={(e) => setQ(e.target.value)} />
           </div>
           {deferred.trim().length >= 2 &&
             (hits.isLoading ? (
@@ -197,10 +200,10 @@ export function HistoryPage({ id, onPick }: { id: string | undefined; onPick: (i
                       <Select label="Month" value={monthPicked || ""} onChange={(e) => pickMonth(e.target.value)} options={[{ value: "", label: from || to ? "Dates below" : "Any month" }, ...months.map((m) => ({ value: m, label: monthLabel(m) }))]} />
                     </div>
                     <div className="w-44">
-                      <DatePicker label="From" value={from} onValueChange={setFrom} today="2026-11-04" />
+                      <DatePicker label="From" value={from} onValueChange={setFrom} today={examsToday()} />
                     </div>
                     <div className="w-44">
-                      <DatePicker label="To" value={to} onValueChange={setTo} today="2026-11-04" error={badRange ? "Choose a date on or after the first one." : undefined} />
+                      <DatePicker label="To" value={to} onValueChange={setTo} today={examsToday()} error={badRange ? "Choose a date on or after the first one." : undefined} />
                     </div>
                     {filtered && (
                       <Button
@@ -245,7 +248,7 @@ export function HistoryPage({ id, onPick }: { id: string | undefined; onPick: (i
                   <EmptyState icon="filter" title="Nothing in these filters" description="Tick more exam types or widen the dates." />
                 ) : view === "chart" ? (
                   <AreaChart<ExamsHistoryEntry>
-                    data={[...entries].reverse()}
+                    data={[...entries].reverse().filter((e) => e.percent !== null)}
                     value={(e) => e.percent ?? 0}
                     axisLabel={(e) => formatDate(e.startDate).slice(3)}
                     formatAxis={(v) => `${v}%`}
@@ -253,7 +256,7 @@ export function HistoryPage({ id, onPick }: { id: string | undefined; onPick: (i
                     tooltip={(e) => (
                       <>
                         <div className="mtb-chart-tip-title">{e.exam}</div>
-                        <div className="mtb-chart-tip-value">{e.percent === null ? "Withheld" : formatPercent(e.percent)}</div>
+                        <div className="mtb-chart-tip-value">{noPercent(e) ?? formatPercent(e.percent ?? 0)}</div>
                         <div className="mtb-chart-tip-row">
                           <span>Grade</span>
                           <span>{e.grade ?? "—"}</span>
@@ -264,7 +267,7 @@ export function HistoryPage({ id, onPick }: { id: string | undefined; onPick: (i
                         </div>
                       </>
                     )}
-                    describe={(e) => `${e.exam}: ${e.percent === null ? "withheld" : formatPercent(e.percent)}, grade ${e.grade ?? "none"}`}
+                    describe={(e) => `${e.exam}: ${noPercent(e)?.toLowerCase() ?? formatPercent(e.percent ?? 0)}, grade ${e.grade ?? "none"}`}
                     label={`${history.data.person.name}'s percentage in each declared exam, oldest first`}
                   />
                 ) : view === "papers" ? (
@@ -401,7 +404,7 @@ function AcademicHistoryDoc({ data, entries }: { data: ExamsStudentHistory; entr
       {entries.map((e) => (
         <section key={e.examId} style={{ marginBottom: "4mm", breakInside: "avoid" }}>
           <p style={{ margin: "0 0 1mm" }}>
-            <b>{e.exam}</b> · {e.classSection} · Session {formatSession(e.session)} · {e.obtained}/{e.max} · {e.percent === null ? "Withheld" : formatPercent(e.percent)} · Grade {e.grade ?? "—"} · {e.position ? `${ordinal(e.position)} in section` : ""} · {EXAMS_RESULT_LABEL[e.result]}
+            <b>{e.exam}</b> · {e.classSection} · Session {formatSession(e.session)} · {e.obtained}/{e.max} · {noPercent(e) ?? formatPercent(e.percent ?? 0)} · Grade {e.grade ?? "—"} · {e.position ? `${ordinal(e.position)} in section` : ""} · {EXAMS_RESULT_LABEL[e.result]}
           </p>
           <table>
             <tbody>
@@ -421,7 +424,7 @@ function AcademicHistoryDoc({ data, entries }: { data: ExamsStudentHistory; entr
           </table>
         </section>
       ))}
-      <p className="exams-doc-key">Declared results only. Printed {PRINTED_ON}.</p>
+      <p className="exams-doc-key">Declared results only. Printed {printedOn()}.</p>
       <div className="exams-doc-signs">
         <div />
         <div>Controller of examinations</div>
@@ -435,7 +438,7 @@ function AcademicHistoryDoc({ data, entries }: { data: ExamsStudentHistory; entr
 function PaperHistoryDoc({ data, papers, counts, session, from, to }: { data: ExamsStudentHistory; papers: PaperLine[]; counts: { tests: number; absent: number; leave: number }; session: string; from: IsoDate | null; to: IsoDate | null }) {
   return (
     <article className="exams-doc exams-doc-a4" aria-label="Student history report">
-      <DocHead campus={data.person.campus} title="Student history report" sub={from || to ? `${from ? formatDate(from) : "Start"} to ${to ? formatDate(to) : PRINTED_ON}` : "Every declared exam"} />
+      <DocHead campus={data.person.campus} title="Student history report" sub={from || to ? `${from ? formatDate(from) : "Start"} to ${to ? formatDate(to) : printedOn()}` : "Every declared exam"} />
       <PersonBlock person={data.person} session={session} />
       <div className="exams-doc-summary" style={{ gridTemplateColumns: "repeat(3, 1fr)", marginTop: 0, marginBottom: "3mm" }}>
         <div>
@@ -477,7 +480,7 @@ function PaperHistoryDoc({ data, papers, counts, session, from, to }: { data: Ex
           ))}
         </tbody>
       </table>
-      <p className="exams-doc-key">A = absent, L = leave (both count as 0%). Declared results only. Printed {PRINTED_ON}.</p>
+      <p className="exams-doc-key">A = absent, L = leave (both count as 0%). Declared results only. Printed {printedOn()}.</p>
     </article>
   );
 }
@@ -580,7 +583,7 @@ function TestSummaryDoc({ data, entries, session, wide }: { data: ExamsStudentHi
           </tr>
         </tbody>
       </table>
-      <p className="exams-doc-key">A = absent, L = leave. Declared results only. Printed {PRINTED_ON}.</p>
+      <p className="exams-doc-key">A = absent, L = leave. Declared results only. Printed {printedOn()}.</p>
       <div className="exams-doc-signs" style={{ gridTemplateColumns: "1fr 1fr" }}>
         <div>Class in-charge</div>
         <div>Principal</div>

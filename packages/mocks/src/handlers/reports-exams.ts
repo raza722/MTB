@@ -5,7 +5,7 @@ import { formatDate, formatSession } from "@mtb/domain";
 import { registerSections } from "../fixtures/attendance";
 import { campusName } from "../fixtures/campuses";
 import type { ExamRecord } from "../fixtures/exams";
-import { examDetail, examRows, examsStore } from "./exams";
+import { examDetail, examRows, examsStore } from "./exams-model";
 
 type Row = Record<string, ReportCell>;
 interface ExamGen {

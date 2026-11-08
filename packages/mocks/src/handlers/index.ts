@@ -2,7 +2,6 @@ import type { HttpHandler } from "msw";
 import { accountsHandlers } from "./accounts";
 import { authTapHandlers } from "./auth-state";
 import { dashboardHandlers } from "./dashboard";
-import { examsHandlers } from "./exams";
 import { feesHandlers } from "./fees";
 import { smsHandlers } from "./sms";
 import { portalHandlers } from "./portal";
@@ -18,18 +17,19 @@ import { timetableHandlers } from "./timetable";
  * backend through the Vite proxy. Real so far: sign-in for the staff and teacher apps (/api/auth/*, tapped on the way
  * through so the mocks below know the signed-in user), /api/meta/*, /api/setup/*, Students (/api/students*,
  * /api/search, /api/families*, /api/promotion*, /api/sections*, /api/movements, /api/documents*), Staff and payroll
- * (/api/hr/*), Admissions (/api/admissions/*), and Attendance (/api/attendance/*, the teacher app's
- * /api/teacher/registers*, and the attendance corrections in /api/approvals*: see dashboard.ts). The fictional student
- * records the unfinished modules still share live in student-records-model.ts, the fictional staff in fixtures/hr.ts
- * with handlers/hr-model.ts, the fictional applicants in fixtures/admissions.ts with handlers/admissions-model.ts, and
- * the fictional registers and calendar in fixtures/attendance.ts with handlers/attendance-model.ts (no routes).
+ * (/api/hr/*), Admissions (/api/admissions/*), Attendance (/api/attendance/*, the teacher app's
+ * /api/teacher/registers*, and the attendance corrections in /api/approvals*: see dashboard.ts), and Exams
+ * (/api/exams*, /api/exams-*, and the teacher app's /api/teacher/papers*). The fictional student records the
+ * unfinished modules still share live in student-records-model.ts, the fictional staff in fixtures/hr.ts with
+ * handlers/hr-model.ts, the fictional applicants in fixtures/admissions.ts with handlers/admissions-model.ts, the
+ * fictional registers and calendar in fixtures/attendance.ts with handlers/attendance-model.ts, and the fictional
+ * exams in fixtures/exams.ts with handlers/exams-model.ts (no routes).
  */
 export const handlers: HttpHandler[] = [
   ...authTapHandlers,
   ...feesHandlers,
   ...dashboardHandlers,
   ...smsHandlers,
-  ...examsHandlers,
   ...accountsHandlers,
   ...timetableHandlers,
   ...activitiesHandlers,

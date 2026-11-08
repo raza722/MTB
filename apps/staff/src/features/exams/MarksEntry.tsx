@@ -3,9 +3,9 @@ import { formatPercent, formatTime } from "@mtb/domain";
 import { Banner, Button, Checkbox, cx, Panel, Segmented, Select, ShortcutHints, Spinner, StatusBadge, useToast } from "@mtb/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo, useState } from "react";
-import { useCan, useReadOnly } from "../../app/session";
+import { useReadOnly } from "../../app/session";
 import { cellText, MarksGrid, parseCell, type GridCol, type GridRow, type GridValues } from "./MarksGrid";
-import { errorText, PaperBadge, useExam } from "./shared";
+import { errorText, PaperBadge, useCanOnExam, useExam } from "./shared";
 import { useAutosave, type AutosaveState } from "./useAutosave";
 
 export interface MarksSearch {
@@ -19,7 +19,7 @@ export interface MarksSearch {
  */
 export function MarksEntry({ search, onSearch }: { search: MarksSearch; onSearch: (next: MarksSearch) => void }) {
   const exam = useExam();
-  const canManage = useCan("exams.manage");
+  const canManage = useCanOnExam("exams.manage", exam.campus);
   const readOnly = useReadOnly();
   const programme = Boolean(exam.programmeId);
   const section = search.section && exam.classes.includes(search.section) ? search.section : exam.classes[0]!;

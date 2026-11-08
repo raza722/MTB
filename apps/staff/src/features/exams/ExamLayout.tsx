@@ -7,9 +7,9 @@ import { useState } from "react";
 import { campusLabel } from "../../app/shell/campus";
 import { Page, PageHeader } from "../../app/shell/page";
 import { SubNav } from "../../app/shell/SubNav";
-import { useCan, useReadOnly } from "../../app/session";
+import { useReadOnly } from "../../app/session";
 import { ResultMessagesModal } from "./ResultMessages";
-import { errorText, ExamProvider, ExamStatus, examTitle, LoadError } from "./shared";
+import { errorText, ExamProvider, ExamStatus, examTitle, LoadError, useCanOnExam } from "./shared";
 
 /** /exams/$examId — the exam's header, declare and reopen actions, and its sub-pages. */
 export function ExamLayout({ examId }: { examId: string }) {
@@ -55,10 +55,9 @@ function ExamFrame({ exam }: { exam: ExamDetail }) {
   const toast = useToast();
   const queryClient = useQueryClient();
   const readOnly = useReadOnly();
-  const canDeclare = useCan("exams.declare");
-  const canSms = useCan("sms.send");
+  const canDeclare = useCanOnExam("exams.declare", exam.campus);
   const [messaging, setMessaging] = useState(false);
-  const canDecideReopen = useCan("settings.manage");
+  const canDecideReopen = useCanOnExam("settings.manage", exam.campus);
   const [confirming, setConfirming] = useState(false);
   const [notify, setNotify] = useState(true);
   const [reopening, setReopening] = useState(false);
@@ -76,7 +75,7 @@ function ExamFrame({ exam }: { exam: ExamDetail }) {
     onSuccess: (data) => {
       onSaved(data);
       setConfirming(false);
-      toast({ title: "Results declared", message: `${data.name} · ${data.classes.join(", ")} · now visible in the parent portal${notify && data.category !== "ENTRANCE" ? ". Result messages are queued." : "."}` });
+      toast({ title: "Results declared", message: `${data.name} · ${data.classes.join(", ")} · now visible in the parent portal${notify && data.category !== "ENTRANCE" && !data.programmeId ? ". Result messages are held until SMS starts." : "."}` });
     },
   });
   const requestReopen = useMutation({
@@ -120,9 +119,9 @@ function ExamFrame({ exam }: { exam: ExamDetail }) {
           meta={<ExamStatus exam={exam} />}
           actions={
             <>
-              {declared && canSms && !readOnly && exam.category !== "ENTRANCE" && !exam.programmeId && (
+              {declared && exam.category !== "ENTRANCE" && !exam.programmeId && (
                 <Button icon="send" onClick={() => setMessaging(true)}>
-                  Send result messages
+                  Result messages
                 </Button>
               )}
               {declared && canDeclare && !reopenPending && !readOnly && (
@@ -188,7 +187,7 @@ function ExamFrame({ exam }: { exam: ExamDetail }) {
           }}
           onConfirm={() => declare.mutate()}
           title={`Declare ${exam.name} results?`}
-          message="Results become read-only and appear in the parent portal. Grades and positions are frozen. Reopening needs admin approval and is logged."
+          message="Results become read-only and appear in the parent portal. The marks and grading rules are locked, so grades and positions stay as declared. Reopening needs admin approval and is logged."
           details={[
             ["Exam", `${exam.name} · ${exam.typeName ?? EXAMS_CATEGORY_LABEL[exam.category]}`],
             ["Classes", exam.classes.join(", ")],
@@ -203,7 +202,7 @@ function ExamFrame({ exam }: { exam: ExamDetail }) {
           loadingLabel="Declaring…"
           error={declare.isError ? errorText(declare.error) : undefined}
         >
-          {exam.category !== "ENTRANCE" && <Checkbox label="Also send each family a result message (SMS and app notification)" checked={notify} onChange={(e) => setNotify(e.target.checked)} />}
+          {exam.category !== "ENTRANCE" && !exam.programmeId && <Checkbox label="Hold result messages (sent when SMS starts)" checked={notify} onChange={(e) => setNotify(e.target.checked)} />}
         </ConfirmDialog>
 
         <Modal

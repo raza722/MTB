@@ -58,7 +58,7 @@ import {
 import { findStudent, type StudentRecord } from "../fixtures/students";
 import { fail, HttpResponse, latency } from "../util";
 import { attendanceMarkOf, closedOn } from "./attendance-model";
-import { declaredResultsFor, examsStore } from "./exams";
+import { declaredResultsFor, examsStore } from "./exams-model";
 import { chargesOf, feesStore, receiptsOf } from "./fees-state";
 
 /* ================================================================== State */

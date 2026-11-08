@@ -1,17 +1,14 @@
-// Teacher app: today's classes, offline sync, marks entry, timetable, classes and notifications.
-// The registers (/api/teacher/registers*) are real now: they fall through to the backend (Attendance,
-// backend/docs/modules/04_attendance.md). Today's register cards, the periods' register badges and the classes'
-// attendance figures below stay fictional (fixture rosters, the demo's fixed date) until their modules read the real
-// attendance views, so the Today card and the Registers tab can disagree meanwhile.
-// The phone's outbox replays writes with the same Idempotency-Key, so every write here answers a replay with the
-// response it gave the first time. Marks go into the shared exams store (handlers/exams.ts); timetables, rosters and
-// the school calendar come from the timetable mock and handlers/attendance-model.ts.
+// Teacher app: today's classes, timetable, classes and notifications.
+// The registers (/api/teacher/registers*) and the papers and marks (/api/teacher/papers*) are real now: they fall
+// through to the backend (Attendance, backend/docs/modules/04_attendance.md; Exams, backend/docs/modules/05_exams.md).
+// Today's register cards and papers, the periods' register badges and the classes' attendance figures below stay
+// fictional (fixture rosters, the fictional exams of handlers/exams-model.ts, the demo's fixed date) until module 8
+// reads the real attendance and exam views, so the Today card and the Registers / Marks tabs can disagree meanwhile.
+// Timetables, rosters and the school calendar come from the timetable mock and handlers/attendance-model.ts.
 import {
   bellDay,
-  examsSits,
   teacherCountMarks,
   type CampusCode,
-  type ExamsMark,
   type RegisterCode,
   type SessionUser,
   type TeacherChangeRequest,
@@ -23,7 +20,6 @@ import {
   type TeacherDemoState,
   type TeacherNotification,
   type TeacherPaper,
-  type TeacherPaperSheet,
   type TeacherPeriod,
   type TeacherRegisterCard,
   type TeacherRegisterStatus,
@@ -43,7 +39,7 @@ import { seedTeacherChanges, seedTeacherNotifications, TEACHER_DEMO_HOLIDAY } fr
 import { scheduleSeed } from "../fixtures/timetable";
 import { ctxFrom, fail, HttpResponse, latency, requirePermission, requireUser } from "../util";
 import { attendanceDayFor, closedOn } from "./attendance-model";
-import { examPapersForTeacher, examsStore, saveExamMarks, setExamPaperStatus } from "./exams";
+import { examPapersForTeacher, examsStore } from "./exams-model";
 import { teacherDay } from "./timetable";
 
 /* ------------------------------------------------------------------ State */
@@ -54,7 +50,6 @@ interface TeacherState {
   /** Notifications per teacher name (seeded on first read). */
   notifications: Record<string, TeacherNotification[]>;
   demo: TeacherDemoState;
-  idem: Record<string, { status: number; body: unknown }>;
   seq: number;
 }
 
@@ -62,8 +57,7 @@ interface TeacherState {
 const store = createStore<TeacherState>("teacher", () => ({
   changes: seedTeacherChanges(),
   notifications: {},
-  demo: { holiday: false, failNextSync: false },
-  idem: {},
+  demo: { holiday: false },
   seq: 100,
 }));
 
@@ -78,29 +72,6 @@ function context(request: Request): Ok | Response {
   const user = requirePermission("teacher.app", ctx.campus);
   if (user instanceof Response) return user;
   return { user, campus: ctx.campus, session: ctx.session };
-}
-
-function readOnly(session: number): Response | null {
-  return session !== CURRENT_SESSION ? fail(409, "SESSION_READ_ONLY", "That session is closed. Marks and registers can only change in the current session.") : null;
-}
-
-/** A replayed write gets the first answer back. */
-function replay(key: string | null): Response | null {
-  if (!key) return null;
-  const hit = store.get().idem[key];
-  return hit ? HttpResponse.json(hit.body as object, { status: hit.status }) : null;
-}
-
-function answer(key: string | null, status: number, body: unknown): Response {
-  if (key) store.set((s) => ({ ...s, idem: { ...s.idem, [key]: { status, body } } }));
-  return HttpResponse.json(body as object, { status });
-}
-
-/** Demo switch: the next write fails before anything is saved (shows "Sync failed — Retry"). */
-function demoFailure(): Response | null {
-  if (!store.get().demo.failNextSync) return null;
-  store.set((s) => ({ ...s, demo: { ...s.demo, failNextSync: false } }));
-  return fail(503, "UNAVAILABLE", "The school server didn't answer. Nothing was lost: your work is still on this phone. Try again in a moment.");
 }
 
 function notificationsOf(teacher: string): TeacherNotification[] {
@@ -268,7 +239,11 @@ function classPercent(campus: CampusCode, cs: string): number | null {
   return summariseAttendance(all).percent;
 }
 
-/* ------------------------------------------------------------------ Papers */
+/* ------------------------------------------------------------------ Papers (Today only) */
+
+// The Papers tab and marks entry are real (/api/teacher/papers*). Today's "papers" list stays fictional until module 8
+// assembles Today from exam.vw_TeacherPaper: its exam ids are the fictional store's, so tapping one opens a paper the
+// backend does not know ("This exam no longer exists").
 
 function examOf(id: string): ExamRecord | undefined {
   return examsStore.get().find((e) => e.id === id);
@@ -309,20 +284,6 @@ function teacherPapers(campus: CampusCode, teacher: string): TeacherPaper[] {
     .sort((a, b) => rank(a) - rank(b) || (b.paperDate ?? "").localeCompare(a.paperDate ?? ""));
 }
 
-function sheetOf(campus: CampusCode, teacher: string, examId: string, cs: string, subjectId: string): TeacherPaperSheet | Response {
-  const paper = teacherPapers(campus, teacher).find((p) => p.examId === examId && p.classSection === cs && p.subjectId === subjectId);
-  const exam = examOf(examId);
-  if (!exam) return fail(404, "NOT_FOUND", "This exam no longer exists. Go back and pick it again.");
-  if (!paper) return fail(403, "NOT_YOUR_PAPER", "This paper is marked by another teacher. You can enter marks only for your own classes and subjects.");
-  // Only the students whose group sits this paper (Biology or Computer Science in classes 9–10).
-  const subject = exam.subjects.find((s) => s.id === subjectId);
-  const students = exam.roster
-    .filter((p) => p.classSection === cs && (!subject || examsSits(subject, p.group)))
-    .sort((a, b) => a.rollNo - b.rollNo)
-    .map((p) => ({ id: p.id, rollNo: p.rollNo, name: p.name, mark: (exam.marks[p.id]?.[subjectId] ?? null) as ExamsMark }));
-  return { ...paper, students };
-}
-
 /* ------------------------------------------------------------------ Handlers */
 
 const params = (p: Record<string, string | readonly string[] | undefined>, k: string) => decodeURIComponent(String(p[k] ?? ""));
@@ -356,56 +317,6 @@ export const teacherHandlers: HttpHandler[] = [
     };
     return HttpResponse.json(body);
   }),
-
-  /* ---------------- Marks */
-  http.get("/api/teacher/papers", async ({ request }) => {
-    await latency();
-    const c = context(request);
-    if (c instanceof Response) return c;
-    return HttpResponse.json(c.session === CURRENT_SESSION ? teacherPapers(c.campus, c.user.name) : []);
-  }),
-
-  http.get("/api/teacher/papers/:examId/:cs/:subjectId", async ({ request, params: p }) => {
-    await latency();
-    const c = context(request);
-    if (c instanceof Response) return c;
-    const sheet = sheetOf(c.campus, c.user.name, params(p, "examId"), params(p, "cs"), params(p, "subjectId"));
-    return sheet instanceof Response ? sheet : HttpResponse.json(sheet);
-  }),
-
-  ...(["save", "submit"] as const).map((mode) =>
-    (mode === "save" ? http.put : http.post)(mode === "save" ? "/api/teacher/papers/:examId/:cs/:subjectId" : "/api/teacher/papers/:examId/:cs/:subjectId/submit", async ({ request, params: p }) => {
-      await latency();
-      const key = request.headers.get("Idempotency-Key");
-      const again = replay(key);
-      if (again) return again;
-      const c = context(request);
-      if (c instanceof Response) return c;
-      const ro = readOnly(c.session);
-      if (ro) return ro;
-      const down = demoFailure();
-      if (down) return down;
-      const examId = params(p, "examId");
-      const cs = params(p, "cs");
-      const subjectId = params(p, "subjectId");
-      const before = sheetOf(c.campus, c.user.name, examId, cs, subjectId);
-      if (before instanceof Response) return before;
-      if (before.locked) return fail(409, "LOCKED", before.lockedReason ?? "These marks are locked.");
-      const { marks } = (await request.json()) as { marks: Record<string, ExamsMark> };
-      const changed = Object.fromEntries(Object.entries(marks ?? {}).filter(([id, v]) => before.students.find((s) => s.id === id)?.mark !== v));
-      if (Object.keys(changed).length) {
-        const saved = saveExamMarks(examId, cs, subjectId, changed, c.user.name);
-        if (!saved.ok) return fail(saved.status, saved.code, saved.message, saved.details !== undefined ? { details: saved.details } : {});
-      }
-      if (mode === "submit") {
-        const done = setExamPaperStatus(examId, cs, subjectId, "SUBMIT", c.user.name);
-        if (!done.ok) return fail(done.status, done.code, done.message, done.details !== undefined ? { details: done.details } : {});
-      }
-      const after = sheetOf(c.campus, c.user.name, examId, cs, subjectId);
-      if (after instanceof Response) return after;
-      return answer(key, 200, after);
-    }),
-  ),
 
   /* ---------------- Timetable, classes, contacts */
   http.get("/api/teacher/timetable", async ({ request }) => {
@@ -484,7 +395,6 @@ export const teacherHandlers: HttpHandler[] = [
       ...s,
       demo: {
         holiday: typeof body.holiday === "boolean" ? body.holiday : s.demo.holiday,
-        failNextSync: typeof body.failNextSync === "boolean" ? body.failNextSync : s.demo.failNextSync,
       },
     }));
     return HttpResponse.json(store.get().demo);

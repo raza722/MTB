@@ -315,6 +315,8 @@ export const SCHOOL_EVENT_KIND_LABEL: Record<SchoolEventKind, string> = {
 };
 
 export interface SchoolEvent {
+  /** Exam days from the exam date sheets (TERM / BOARD papers) come as kind EXAM with id "exam-{examId}-{yyyymmdd}", locked:
+   * they change only through the exam's date sheet (exams module). */
   id: string;
   /** "ALL" applies at every campus. */
   campus: CampusScope;

@@ -8,9 +8,7 @@ import { z } from "zod";
 import { campusLabel } from "../../app/shell/campus";
 import { Page, PageHeader, RequireSingleCampus } from "../../app/shell/page";
 import { useCtx, useReadOnly } from "../../app/session";
-import { errorText, LoadError } from "./shared";
-
-export const EXAMS_TODAY: IsoDate = "2026-11-04";
+import { errorText, examsToday, LoadError } from "./shared";
 
 interface PaperDraft {
   id: string;
@@ -43,12 +41,23 @@ const paperSchema = z.object({
 const addDays = (d: IsoDate, n: number) => new Date(new Date(`${d}T00:00:00Z`).getTime() + n * 86400000).toISOString().slice(0, 10);
 const isSunday = (d: IsoDate) => new Date(`${d}T00:00:00Z`).getUTCDay() === 0;
 
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
 function suggestName(type: ExamsType | undefined, session: number): string {
   if (!type) return "";
-  if (type.category === "TEST" && type.rankScope === "MONTH") return `${type.name} – November 2026`;
-  if (type.category === "BOARD") return `${type.name} result 2027`;
-  if (type.category === "ENTRANCE") return `${type.name} – Admissions ${formatSession(session + 1)}`;
+  const today = examsToday();
+  // Monthly tests are named for this month; board results for the year the students sat the board (last session's end).
+  if (type.category === "TEST" && type.rankScope === "MONTH") return `${type.name} – ${MONTHS[Number(today.slice(5, 7)) - 1]} ${today.slice(0, 4)}`;
+  if (type.category === "BOARD") return `${type.name} result ${session}`;
   return `${type.name} ${formatSession(session)}`;
+}
+
+/**
+ * Groups a paper is for, as the API takes them: none (everyone) or exactly one. A paper ticked for every group is for
+ * everyone; a paper for some but not all of several groups can't be set up yet (05_exams D38 / Q20).
+ */
+function paperGroups(p: Pick<PaperDraft, "groups">, all: string[]): string[] {
+  return p.groups.length === 0 || p.groups.length >= all.length ? [] : p.groups;
 }
 
 /** New exam: type, class and sections; then papers with maximum marks and the date sheet; then a check before creating. */
@@ -83,15 +92,16 @@ function NewExamForm() {
   const [classShort, setClassShort] = useState("");
   const [sections, setSections] = useState<string[]>([]);
   const [papers, setPapers] = useState<PaperDraft[]>([]);
-  const [firstDate, setFirstDate] = useState<IsoDate | null>("2026-11-23");
+  const [firstDate, setFirstDate] = useState<IsoDate | null>(null);
 
-  // Programme tests (Diamond Minds) are set up under Exams → Programmes.
-  const usable = (types.data ?? []).filter((t) => t.active && t.category !== "UNIVERSITY" && !t.programme);
+  // Programme tests (Diamond Minds) are set up under Exams → Programmes, entrance tests in Admissions, semesters under University.
+  const usable = (types.data ?? []).filter((t) => t.active && t.category !== "UNIVERSITY" && t.category !== "ENTRANCE" && !t.programme);
   const type = usable.find((t) => t.id === typeId);
   const board = type?.category === "BOARD";
   const fromPast = board && sourceSession === lastSession;
   const templates = fromPast ? past : current;
   const template: ExamsClassTemplate | undefined = templates.data?.find((t) => t.classShort === classShort);
+  const groups = template?.groups ?? [];
 
   const chooseType = (id: string) => {
     setTypeId(id);
@@ -173,7 +183,7 @@ function NewExamForm() {
           startTime: p.startTime,
           durationMins: Number(p.duration),
           ...(p.supervisor.trim() ? { supervisor: p.supervisor.trim() } : {}),
-          ...(p.groups.length ? { groups: p.groups } : {}),
+          ...(paperGroups(p, groups).length ? { groups: paperGroups(p, groups) } : {}),
         })),
         ...(fromPast ? { sourceSession: lastSession } : {}),
       }),
@@ -193,14 +203,14 @@ function NewExamForm() {
   }
   if (types.isError || templates.isError) return <LoadError what="Exam types and classes" error={types.error ?? templates.error} onRetry={() => void Promise.all([types.refetch(), templates.refetch()])} />;
   if (types.isLoading || templates.isLoading) return <Skeleton height={320} />;
-  const groups = template?.groups ?? [];
-  // Every group must sit at least one paper.
+  // Every group must sit at least one paper, and a paper is for one group or for everyone.
   const groupless = groups.filter((g) => !included.some((p) => p.groups.length === 0 || p.groups.includes(g)));
+  const multiGroup = included.filter((p) => paperGroups(p, groups).length > 1);
 
   const next = () => {
     setTried(step);
     if (step === 0 && !step1.success) return;
-    if (step === 1 && (!step2Valid || groupless.length > 0)) return;
+    if (step === 1 && (!step2Valid || groupless.length > 0 || multiGroup.length > 0)) return;
     setTried(null);
     setStep((s) => s + 1);
   };
@@ -296,7 +306,7 @@ function NewExamForm() {
           actions={
             <div className="flex flex-wrap items-end gap-2">
               <div className="w-44">
-                <DatePicker aria-label="First paper on" value={firstDate} onValueChange={setFirstDate} today={EXAMS_TODAY} minDate={EXAMS_TODAY} />
+                <DatePicker aria-label="First paper on" value={firstDate} onValueChange={setFirstDate} today={examsToday()} minDate={examsToday()} />
               </div>
               <Button icon="calendar" onClick={spreadDates} disabled={!firstDate}>
                 One paper a day
@@ -352,7 +362,7 @@ function NewExamForm() {
                           <Input aria-label={`${p.name} maximum marks`} value={p.maxMarks} disabled={!p.include} inputMode="numeric" amount onChange={(e) => setPaper(i, { maxMarks: e.target.value.replace(/\D/g, "") })} error={show(1) ? err.maxMarks : undefined} />
                         </td>
                         <td>
-                          <DatePicker aria-label={`${p.name} date`} value={p.date} disabled={!p.include} onValueChange={(d) => setPaper(i, { date: d })} today={EXAMS_TODAY} />
+                          <DatePicker aria-label={`${p.name} date`} value={p.date} disabled={!p.include} onValueChange={(d) => setPaper(i, { date: d })} today={examsToday()} />
                         </td>
                         <td>
                           <Input aria-label={`${p.name} start time`} value={p.startTime} disabled={!p.include} onChange={(e) => setPaper(i, { startTime: e.target.value })} error={show(1) ? err.startTime : undefined} />
@@ -375,7 +385,7 @@ function NewExamForm() {
                                   onChange={(e) => setPaper(i, { groups: e.target.checked ? [...p.groups, g] : p.groups.filter((x) => x !== g) })}
                                 />
                               ))}
-                              <span className="text-[12px] text-ink-muted">{p.groups.length === 0 || p.groups.length === groups.length ? "Everyone" : `${p.groups.join(", ")} only`}</span>
+                              <span className={`text-[12px] ${paperGroups(p, groups).length > 1 ? "font-medium text-danger-ink" : "text-ink-muted"}`}>{paperGroups(p, groups).length === 0 ? "Everyone" : paperGroups(p, groups).length > 1 ? "One group, or none for everyone" : `${p.groups.join(", ")} only`}</span>
                             </div>
                           </td>
                         )}
@@ -386,6 +396,11 @@ function NewExamForm() {
               </table>
             </div>
             {show(1) && included.length === 0 && <Banner tone="danger">Tick at least one subject.</Banner>}
+            {show(1) && multiGroup.length > 0 && (
+              <Banner tone="danger">
+                {multiGroup.map((p) => p.name).join(", ")}: choose one group, or none for everyone. A paper for some but not all groups can't be set up yet.
+              </Banner>
+            )}
             {show(1) && groupless.length > 0 && <Banner tone="danger">{groupless.join(" and ")} {groupless.length === 1 ? "sits" : "sit"} none of these papers. Tick it under “Sat by” for at least one paper.</Banner>}
             {clashes.length > 0 && (
               <Banner tone="warning" title="Check the date sheet">
@@ -412,7 +427,7 @@ function NewExamForm() {
                 ["Type", type ? `${type.name} · ${EXAMS_CATEGORY_LABEL[type.category]}` : "—"],
                 ["Campus", `${campusLabel(ctx.campus)} · Session ${formatSession(ctx.session)}`],
                 ["Sections", `${sections.join(", ")} · ${students} students${fromPast ? ` · as in ${formatSession(lastSession)} (now promoted)` : ""}`],
-                ["Papers", `${included.length} · ${totalMax} marks${groups.length ? ` in all · ${groups.map((g) => `${g}: ${included.filter((p) => p.groups.length === 0 || p.groups.includes(g)).reduce((a, p) => a + (Number(p.maxMarks) || 0), 0)}`).join(" · ")}` : ""}`],
+                ["Papers", `${included.length} · ${totalMax} marks${groups.length ? ` in all · ${groups.map((g) => `${g}: ${included.filter((p) => paperGroups(p, groups).length === 0 || p.groups.includes(g)).reduce((a, p) => a + (Number(p.maxMarks) || 0), 0)}`).join(" · ")}` : ""}`],
                 ["Date sheet", included.every((p) => p.date) ? `${formatDate(included.map((p) => p.date!).sort()[0]!)} to ${formatDate(included.map((p) => p.date!).sort().at(-1)!)}` : "Some papers have no date yet"],
                 ["Absence fine", type && type.absenceFine > 0 ? `Rs ${type.absenceFine} for each paper missed without leave` : "None for this exam type"],
               ]}

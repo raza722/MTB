@@ -1,11 +1,35 @@
-import { ApiError, EXAMS_PAPER_STATUS_LABEL, EXAMS_RESULT_LABEL, type ExamDetail, type ExamsMark, type ExamsPaperStatus, type ExamsResultCode, type ExamSummary } from "@mtb/api";
+import { ApiError, can, EXAMS_PAPER_STATUS_LABEL, type CampusCode, type Permission, EXAMS_RESULT_LABEL, type ExamDetail, type ExamsMark, type ExamsPaperStatus, type ExamsResultCode, type ExamSummary } from "@mtb/api";
+import { formatPercent, pakistanToday, type IsoDate } from "@mtb/domain";
 import { Banner, Button, StatusBadge } from "@mtb/ui";
 import { createContext, useContext, type ReactNode } from "react";
+import { useSessionUser } from "../../app/session";
 import { SubNav } from "../../app/shell/SubNav";
 import "./exams.css";
 
+/** Today in Pakistan time: the default and limit of the module's date pickers. */
+export const examsToday = (): IsoDate => pakistanToday();
+
+/** A % that may have no base (nobody has a mark yet): "—", never 0. */
+export const percentText = (v: number | null | undefined) => (v === null || v === undefined ? "—" : formatPercent(v));
+
 /** Plain-English text for a failed request. */
 export const errorText = (e: unknown) => (e instanceof ApiError ? (e.isNetwork ? "No response from the server — nothing was changed. Try again." : e.message) : "Something went wrong. Try again.");
+
+/**
+ * Exam types and grade scales are shared by every campus: only an all-campus grant of exams.manage (head office) may
+ * change them; a campus principal sees them read-only (the API refuses the save too).
+ */
+export function useCanEditShared(): boolean {
+  return can(useSessionUser(), "exams.manage", "ALL");
+}
+
+/**
+ * A permission on one exam: checked at the exam's own campus (the API checks the record's campus), so an exam opened
+ * from a link or from "All campuses" offers what the user may do there.
+ */
+export function useCanOnExam(permission: Permission, campus: CampusCode): boolean {
+  return can(useSessionUser(), permission, campus);
+}
 
 /** The module's own pages. */
 export function ExamsNav() {
@@ -49,6 +73,11 @@ export function ExamStatus({ exam }: { exam: ExamSummary }) {
       {exam.status === "DRAFT" && exam.missingMarks === 0 && (
         <StatusBadge status="success" dot={false}>
           Ready to declare
+        </StatusBadge>
+      )}
+      {exam.status === "DECLARED" && exam.missingMarks > 0 && (
+        <StatusBadge status="neutral" dot={false}>
+          {exam.missingMarks} {exam.missingMarks === 1 ? "mark" : "marks"} missing (old system)
         </StatusBadge>
       )}
       {exam.reopen?.status === "PENDING" && <StatusBadge status="pending">Reopen requested</StatusBadge>}

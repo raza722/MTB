@@ -9,9 +9,9 @@ import { clearOutbox } from "../../app/sync/outbox";
 
 /**
  * Presenter's switches, mock mode only (not part of the product): turn today into a holiday, take the phone offline,
- * make the next sync fail, reset the demo. The holiday and sync-failure switches act on the screens that are still
- * mocked (Today, Marks); registers are real (Attendance), so their change requests are decided by the principal on
- * the staff dashboard.
+ * reset the demo. The holiday switch acts on the screens that are still mocked (Today); registers (Attendance) and
+ * marks (Exams) are real, so a failed sync now comes only from the real server (or from going offline here), and
+ * register changes are decided by the principal on the staff dashboard.
  */
 export default function DemoPanel() {
   const queryClient = useQueryClient();
@@ -50,12 +50,6 @@ export default function DemoPanel() {
           onChange={(e) => set.mutate({ holiday: e.target.checked })}
         />
         <Switch label="Go offline (the phone loses its signal)" checked={offline} onChange={(e) => setSimulatedOffline(e.target.checked)} />
-        <Switch
-          label="The next sync fails (server error)"
-          checked={demo.data?.failNextSync ?? false}
-          disabled={!demo.data || set.isPending}
-          onChange={(e) => set.mutate({ failNextSync: e.target.checked })}
-        />
         <Button size="touch" variant="danger-quiet" icon="refresh" onClick={() => void reset()}>
           Reset demo data
         </Button>

@@ -1,9 +1,9 @@
-import { EXAMS_CATEGORY_LABEL, examsQueries, type ExamsCategory, type ExamSummary } from "@mtb/api";
+import { EXAMS_CATEGORY_LABEL, examsQueries, type ExamsCategory, type ExamsListStatus, type ExamSummary } from "@mtb/api";
 import { formatCount, formatDate, formatSession } from "@mtb/domain";
-import { AnimatedNumber, Button, buttonClassName, DataTable, EmptyState, Icon, Input, Panel, Segmented, Select, StatCard, type Column } from "@mtb/ui";
-import { useQuery } from "@tanstack/react-query";
+import { AnimatedNumber, Button, buttonClassName, DataTable, EmptyState, Icon, Input, Pagination, Panel, Segmented, Select, StatCard, type Column } from "@mtb/ui";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useState, type CSSProperties } from "react";
+import { useDeferredValue, useState, type CSSProperties } from "react";
 import { campusLabel } from "../../app/shell/campus";
 import { Page, PageHeader } from "../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
@@ -17,7 +17,13 @@ const CATEGORY_OPTIONS: Array<{ value: "ALL" | ExamsCategory; label: string }> =
   { value: "ENTRANCE", label: "Entrance" },
 ];
 
-type StatusFilter = "ALL" | "MISSING" | "READY" | "DECLARED";
+type StatusFilter = ExamsListStatus;
+
+/**
+ * Rows per page. A campus session can hold thousands of exams (Khalid Campus: about 6,900 class tests a session), so the
+ * server filters and pages the list (contract change C9) and sends the counts and the to-do list with every page.
+ */
+const PAGE = 50;
 
 /** Exams of the session: what needs doing first, then every exam with its progress. */
 export function ExamsPage() {
@@ -25,32 +31,27 @@ export function ExamsPage() {
   const navigate = useNavigate();
   const canManage = useCan("exams.manage");
   const readOnly = useReadOnly();
-  const exams = useQuery(examsQueries.list(ctx));
   const [category, setCategory] = useState<"ALL" | ExamsCategory>("ALL");
   const [status, setStatus] = useState<StatusFilter>("ALL");
   const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const q = useDeferredValue(query.trim());
+  const exams = useQuery({ ...examsQueries.list(ctx, { q, category, status, page, pageSize: PAGE }), placeholderData: keepPreviousData });
 
   const open = (id: string) => void navigate({ to: "/exams/$examId", params: { examId: id } });
 
-  const list = exams.data ?? [];
-  const q = query.trim().toLowerCase();
-  const rows = list.filter(
-    (e) =>
-      (category === "ALL" || e.category === category) &&
-      (status === "ALL" || (status === "MISSING" && e.status === "DRAFT" && e.missingMarks > 0) || (status === "READY" && e.status === "DRAFT" && e.missingMarks === 0) || (status === "DECLARED" && e.status === "DECLARED")) &&
-      (!q || `${e.name} ${e.classes.join(" ")} ${e.typeName ?? ""}`.toLowerCase().includes(q)),
+  const data = exams.data;
+  const counts = data?.counts;
+  const pageRows = data?.items ?? [];
+  const total = data?.total ?? 0;
+  const shownPage = data?.page ?? page;
+  const todo = (data?.todo ?? []).map((e) =>
+    e.reopen?.status === "PENDING"
+      ? { e, icon: "unlock" as const, tone: "warning", text: `Reopen requested by ${e.reopen.requestedBy}`, cta: "Review" }
+      : e.missingMarks === 0
+        ? { e, icon: "lock" as const, tone: "success", text: "Every mark is in — ready to declare", cta: "Open" }
+        : { e, icon: "alertCircle" as const, tone: "warning", text: `${formatCount(e.missingMarks)} ${e.missingMarks === 1 ? "mark" : "marks"} missing · ${e.papersDone} of ${e.papersTotal} papers submitted`, cta: "Progress" },
   );
-  const drafts = list.filter((e) => e.status === "DRAFT");
-  const ready = drafts.filter((e) => e.missingMarks === 0);
-  const missing = drafts.reduce((a, e) => a + e.missingMarks, 0);
-  const reopen = list.filter((e) => e.reopen?.status === "PENDING");
-  const todo = [
-    ...reopen.map((e) => ({ e, icon: "unlock" as const, tone: "warning", text: `Reopen requested by ${e.reopen!.requestedBy}`, cta: "Review" })),
-    ...ready.map((e) => ({ e, icon: "lock" as const, tone: "success", text: `All ${formatCount(e.students * e.subjects.length)} marks are in — ready to declare`, cta: "Open" })),
-    ...drafts
-      .filter((e) => e.missingMarks > 0)
-      .map((e) => ({ e, icon: "alertCircle" as const, tone: "warning", text: `${formatCount(e.missingMarks)} ${e.missingMarks === 1 ? "mark" : "marks"} missing · ${e.papersDone} of ${e.papersTotal} papers submitted`, cta: "Progress" })),
-  ];
 
   const columns: Array<Column<ExamSummary>> = [
     {
@@ -126,10 +127,16 @@ export function ExamsPage() {
       {exams.isError && <LoadError what="Exams" error={exams.error} onRetry={() => void exams.refetch()} />}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Exams this session" icon="exams" loading={exams.isLoading} value={<AnimatedNumber value={list.length} format={formatCount} />} foot={`${list.filter((e) => e.status === "DECLARED").length} declared · ${drafts.length} in draft`} />
-        <StatCard label="Ready to declare" icon="lock" loading={exams.isLoading} value={<AnimatedNumber value={ready.length} format={formatCount} />} foot={ready.length ? "Every mark is in" : "None waiting"} onClick={() => setStatus("READY")} />
-        <StatCard label="Marks missing" icon="alertCircle" tone={missing > 0 ? "warning" : "neutral"} loading={exams.isLoading} value={<AnimatedNumber value={missing} format={formatCount} />} foot="Across draft exams" onClick={() => setStatus("MISSING")} />
-        <StatCard label="Reopen requests" icon="unlock" tone={reopen.length ? "warning" : "neutral"} loading={exams.isLoading} value={<AnimatedNumber value={reopen.length} format={formatCount} />} foot="Need an admin's decision" />
+        <StatCard label="Exams this session" icon="exams" loading={exams.isLoading} value={<AnimatedNumber value={counts?.exams ?? 0} format={formatCount} />} foot={`${counts?.declared ?? 0} declared · ${counts?.draft ?? 0} in draft`} />
+        <StatCard label="Ready to declare" icon="lock" loading={exams.isLoading} value={<AnimatedNumber value={counts?.ready ?? 0} format={formatCount} />} foot={counts?.ready ? "Every mark is in" : "None waiting"} onClick={() => {
+            setStatus("READY");
+            setPage(1);
+          }} />
+        <StatCard label="Marks missing" icon="alertCircle" tone={(counts?.missingMarks ?? 0) > 0 ? "warning" : "neutral"} loading={exams.isLoading} value={<AnimatedNumber value={counts?.missingMarks ?? 0} format={formatCount} />} foot="Across draft exams" onClick={() => {
+            setStatus("MISSING");
+            setPage(1);
+          }} />
+        <StatCard label="Reopen requests" icon="unlock" tone={counts?.reopenPending ? "warning" : "neutral"} loading={exams.isLoading} value={<AnimatedNumber value={counts?.reopenPending ?? 0} format={formatCount} />} foot="Need an admin's decision" />
       </div>
 
       {todo.length > 0 && (
@@ -160,23 +167,38 @@ export function ExamsPage() {
       <DataTable
         caption={`Exams, ${campusLabel(ctx.campus)}, Session ${formatSession(ctx.session)}`}
         columns={columns}
-        rows={rows}
+        rows={pageRows}
         loading={exams.isLoading}
         skeletonRows={5}
+        pagination={total > PAGE ? <Pagination page={shownPage} pageSize={PAGE} total={total} onPageChange={setPage} /> : undefined}
         onRowClick={(e) => open(e.id)}
         toolbar={
           <>
             <div className="flex flex-wrap items-center gap-3">
               <div className="w-64">
-                <Input aria-label="Search exams" placeholder="Search exam, type or section" icon="search" value={query} onChange={(e) => setQuery(e.target.value)} />
+                <Input aria-label="Search exams" placeholder="Search exam, type or section" icon="search" value={query} onChange={(e) => {
+                  setQuery(e.target.value);
+                  setPage(1);
+                }} />
               </div>
-              <Segmented aria-label="Exam type" value={category} onChange={(v) => setCategory(v as typeof category)} options={CATEGORY_OPTIONS} />
+              <Segmented
+                aria-label="Exam type"
+                value={category}
+                onChange={(v) => {
+                  setCategory(v as typeof category);
+                  setPage(1);
+                }}
+                options={CATEGORY_OPTIONS}
+              />
             </div>
             <div className="w-52">
               <Select
                 aria-label="Status"
                 value={status}
-                onChange={(e) => setStatus(e.target.value as StatusFilter)}
+                onChange={(e) => {
+                  setStatus(e.target.value as StatusFilter);
+                  setPage(1);
+                }}
                 options={[
                   { value: "ALL", label: "Every status" },
                   { value: "MISSING", label: "Marks missing" },

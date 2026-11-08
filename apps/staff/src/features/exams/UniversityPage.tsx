@@ -18,7 +18,7 @@ import {
   type ExamsUniStudentRow,
 } from "@mtb/api";
 import { formatCount, formatDate, formatDateTime, formatSession, type IsoDate } from "@mtb/domain";
-import { AnimatedNumber, Banner, Button, Checkbox, ConfirmDialog, DataTable, DatePicker, EmptyState, Input, Panel, Segmented, Select, SidePanel, Skeleton, StatCard, StatusBadge, Textarea, Tooltip, useToast, type Column } from "@mtb/ui";
+import { AnimatedNumber, Banner, Button, Checkbox, ConfirmDialog, DataTable, DatePicker, EmptyState, Input, Panel, Segmented, Select, SidePanel, Skeleton, StatCard, StatusBadge, Tooltip, useToast, type Column } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useCallback, useState, type CSSProperties } from "react";
@@ -27,10 +27,9 @@ import { campusLabel } from "../../app/shell/campus";
 import { Page, PageHeader } from "../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { cellText, MarksGrid, parseCell, type GridCol, type GridValues } from "./MarksGrid";
-import { EXAMS_TODAY } from "./NewExamPage";
-import { DocHead, PRINTED_ON } from "./print/docs";
+import { DocHead, printedOn } from "./print/docs";
 import { PrintSheet, printNow } from "./print/PrintSheet";
-import { errorText, ExamsNav, LoadError, ordinal } from "./shared";
+import { errorText, ExamsNav, examsToday, LoadError, ordinal } from "./shared";
 import { useAutosave } from "./useAutosave";
 
 export interface UniversitySearch {
@@ -172,7 +171,8 @@ function ProgrammePanel({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient();
   const types = useUniTypes();
   const [form, setForm] = useState({ short: "", name: "", years: "2" });
-  const [parts, setParts] = useState<Record<string, string>>({ "et-uni-quiz": "5", "et-uni-test": "5", "et-uni-assign": "10" });
+  // Nothing is ticked to start with: the programme's own assessment is chosen here (new courses copy it).
+  const [parts, setParts] = useState<Record<string, string>>({});
   const [tried, setTried] = useState(false);
   const parsed = programmeSchema.safeParse(form);
   const errs: Record<string, string> = parsed.success ? {} : Object.fromEntries(parsed.error.issues.map((i) => [String(i.path[0]), i.message]));
@@ -245,28 +245,19 @@ function SemesterPanel({ programmes, programmeId, onClose, onCreated }: { progra
   const prog = programmes.find((p) => p.id === programmeId)!;
   const next = (prog.semesters[0]?.number ?? 0) + 1;
   const [number, setNumber] = useState(String(Math.min(next, prog.years * 2)));
-  const [label, setLabel] = useState(next % 2 === 0 ? "Spring 2027" : "Fall 2026");
+  // Odd semesters start in the autumn of the session's first year, even ones in the spring of its second.
+  const [label, setLabel] = useState(next % 2 === 0 ? `Spring ${ctx.session + 1}` : `Fall ${ctx.session}`);
   const [ids, setIds] = useState<string[]>(() => prog.students.map((s) => s.id));
-  const [fresh, setFresh] = useState("");
   const [tried, setTried] = useState(false);
-  const newStudents = fresh
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(Boolean)
-    .map((l) => {
-      const [name, father] = l.split(",").map((x) => x.trim());
-      return { name: name ?? "", father: father ?? "" };
-    });
-  const badLine = newStudents.findIndex((s) => s.name.length < 3 || s.father.length < 3);
   const schema = z.object({
     number: z.coerce.number().int("Use a whole number.").min(1, "From semester 1.").max(prog.years * 2, `${prog.short} has ${prog.years * 2} semesters.`),
     label: z.string().trim().min(4, "Say which term it is, for example Spring 2027."),
   });
   const parsed = schema.safeParse({ number, label });
   const errs: Record<string, string> = parsed.success ? {} : Object.fromEntries(parsed.error.issues.map((i) => [String(i.path[0]), i.message]));
-  const studentErr = badLine >= 0 ? `Line ${badLine + 1}: write the name, a comma, then the father's name.` : ids.length + newStudents.length === 0 ? "Add at least one student." : null;
+  const studentErr = ids.length === 0 ? "Add at least one student." : null;
   const save = useMutation({
-    mutationFn: () => examsApi.uniCreateSemester(ctx, { programmeId: prog.id, number: Number(number), label: label.trim(), session: ctx.session, studentIds: ids, newStudents }),
+    mutationFn: () => examsApi.uniCreateSemester(ctx, { programmeId: prog.id, number: Number(number), label: label.trim(), session: ctx.session, studentIds: ids }),
     onSuccess: (s) => {
       void queryClient.invalidateQueries({ queryKey: ["exams"] });
       toast({ title: "Semester opened", message: `${s.programmeShort} · ${s.label} · ${s.students} students. Add its courses now.` });
@@ -314,16 +305,10 @@ function SemesterPanel({ programmes, programmeId, onClose, onCreated }: { progra
             </div>
           </fieldset>
         )}
-        <Textarea
-          label="New students"
-          rows={4}
-          value={fresh}
-          onChange={(e) => setFresh(e.target.value)}
-          placeholder={"One per line: name, father's name\nFor example: Sana Ijaz, Ijaz Ahmed"}
-          help="Registration numbers are given on saving."
-          error={tried && badLine >= 0 ? (studentErr ?? undefined) : undefined}
-        />
-        {tried && studentErr && badLine < 0 && <p className="m-0 text-small text-danger-ink">{studentErr}</p>}
+        <p className="m-0 text-small text-ink-muted">
+          New students join through Admissions: admit them to {prog.short} first, then add them to the semester. Their G.R. number is also their registration number.
+        </p>
+        {tried && studentErr && <p className="m-0 text-small text-danger-ink">{studentErr}</p>}
         {save.isError && <Banner tone="danger">{errorText(save.error)}</Banner>}
       </div>
     </SidePanel>
@@ -460,7 +445,7 @@ function UniCourses({ sem, programme, locked }: { sem: ExamsUniSemester; program
     { key: "code", header: "Code", width: 100, render: (c) => <span className="mtb-mono">{c.code}</span> },
     { key: "title", header: "Course", width: 230, render: (c) => <span className="mtb-cell-primary">{c.title}</span> },
     { key: "ch", header: "CH", align: "right", width: 60, render: (c) => (c.creditHoursFromSetup ? <span title="From Setup › Subjects › Class subjects">{c.creditHours}</span> : c.creditHours) },
-    { key: "teacher", header: "Teacher", width: 170, render: (c) => c.teacher },
+    { key: "teacher", header: "Teacher", width: 170, render: (c) => c.teacher || <span className="text-ink-muted">—</span> },
     { key: "assess", header: "Internal assessment", width: 260, render: (c) => <span className="text-small">{c.components.map((x) => `${x.label} ${x.max}`).join(" · ")}</span> },
     { key: "papers", header: "Mid · final", width: 110, render: (c) => `${c.midMax} · ${c.finalMax}` },
     { key: "dates", header: "Paper dates", width: 190, render: (c) => <span className="text-small">{c.midDate ? formatDate(c.midDate) : "—"} · {c.finalDate ? formatDate(c.finalDate) : "—"}</span> },
@@ -552,7 +537,7 @@ function CoursePanel({ sem, programme, course, onClose }: { sem: ExamsUniSemeste
         code: c.code,
         title: c.title,
         creditHours: c.creditHours,
-        teacher: c.teacher,
+        teacher: c.teacher ?? "",
         components: c.components.map((x) => ({ typeId: x.typeId, max: x.max, ...(x.date ? { date: x.date } : {}) })),
         midMax: c.midMax,
         finalMax: c.finalMax,
@@ -647,7 +632,7 @@ function CoursePanel({ sem, programme, course, onClose }: { sem: ExamsUniSemeste
                       <Input aria-label={`${typeName(t.id)} maximum`} suffix="marks" amount inputMode="numeric" value={p.max} onChange={(e) => setParts((x) => ({ ...x, [t.id]: { ...p, max: e.target.value.replace(/\D/g, "") } }))} />
                     </div>
                     <div className="w-44">
-                      <DatePicker aria-label={`${typeName(t.id)} date`} value={p.date} onValueChange={(d) => setParts((x) => ({ ...x, [t.id]: { ...p, date: d } }))} today={EXAMS_TODAY} />
+                      <DatePicker aria-label={`${typeName(t.id)} date`} value={p.date} onValueChange={(d) => setParts((x) => ({ ...x, [t.id]: { ...p, date: d } }))} today={examsToday()} />
                     </div>
                   </>
                 )}
@@ -659,8 +644,8 @@ function CoursePanel({ sem, programme, course, onClose }: { sem: ExamsUniSemeste
           <Input label="Mid maximum" required amount inputMode="numeric" value={form.midMax} onChange={(e) => set({ midMax: e.target.value.replace(/\D/g, "") })} error={tried ? errs.midMax : undefined} />
           <Input label="Final maximum" required amount inputMode="numeric" value={form.finalMax} onChange={(e) => set({ finalMax: e.target.value.replace(/\D/g, "") })} error={tried ? errs.finalMax : undefined} />
           <Input label="Paper length" suffix="minutes" amount inputMode="numeric" value={form.durationMins} onChange={(e) => set({ durationMins: e.target.value.replace(/\D/g, "") })} error={tried ? errs.durationMins : undefined} />
-          <DatePicker label="Mid paper on" value={form.midDate} onValueChange={(d) => set({ midDate: d })} today={EXAMS_TODAY} />
-          <DatePicker label="Final paper on" value={form.finalDate} onValueChange={(d) => set({ finalDate: d })} today={EXAMS_TODAY} />
+          <DatePicker label="Mid paper on" value={form.midDate} onValueChange={(d) => set({ midDate: d })} today={examsToday()} />
+          <DatePicker label="Final paper on" value={form.finalDate} onValueChange={(d) => set({ finalDate: d })} today={examsToday()} />
         </div>
         <p className={total === 100 ? "m-0 text-small text-ink-muted" : "m-0 text-small font-medium text-warning-ink"}>
           Total: {sessional} + {form.midMax || 0} + {form.finalMax || 0} = {total} of 100.
@@ -746,7 +731,7 @@ function UniMarks({ sem, courseId, locked, onCourse }: { sem: ExamsUniSemester; 
     <div className="grid gap-3">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="w-96">
-          <Select label="Course" value={course.id} onChange={(e) => onCourse(e.target.value)} options={sem.courses.map((c) => ({ value: c.id, label: `${c.code} ${c.title} · ${c.creditHours} CH · ${c.teacher}` }))} />
+          <Select label="Course" value={course.id} onChange={(e) => onCourse(e.target.value)} options={sem.courses.map((c) => ({ value: c.id, label: `${c.code} ${c.title} · ${c.creditHours} CH${c.teacher ? ` · ${c.teacher}` : ""}` }))} />
         </div>
         {!locked && (
           <span className="text-small text-ink-muted" role="status">
@@ -922,7 +907,7 @@ function UniAwardList({ sem, courseId, onChange }: { sem: ExamsUniSemester; cour
             </div>
             <div>
               <dt>Teacher</dt>
-              <dd>{course.teacher}</dd>
+              <dd>{course.teacher || "—"}</dd>
             </div>
             <div>
               <dt>Credit hours</dt>
@@ -981,7 +966,7 @@ function UniAwardList({ sem, courseId, onChange }: { sem: ExamsUniSemester; cour
               </div>
             ))}
           </div>
-          <p className="exams-doc-key">Write A for absent and L for leave. Printed {PRINTED_ON}.</p>
+          <p className="exams-doc-key">Write A for absent and L for leave. Printed {printedOn()}.</p>
           <div className="exams-doc-signs" style={{ gridTemplateColumns: "repeat(4, 1fr)", gap: "6mm" }}>
             <div>
               {course.supervisor && <b style={{ display: "block", color: "var(--ink)" }}>{course.supervisor}</b>}
@@ -1025,7 +1010,7 @@ function UniCourseSheet({ sem, courseId, onChange }: { sem: ExamsUniSemester; co
             </div>
             <div>
               <dt>Instructor</dt>
-              <dd>{course.teacher}</dd>
+              <dd>{course.teacher || "—"}</dd>
             </div>
             <div>
               <dt>Semester</dt>
@@ -1108,7 +1093,7 @@ function UniCourseSheet({ sem, courseId, onChange }: { sem: ExamsUniSemester; co
             </tbody>
           </table>
           <p className="exams-doc-key">
-            A = absent, L = leave (both count as 0). Attendance below {EXAMS_UNI_MIN_ATTENDANCE}% (in red) makes the course an F. Printed {PRINTED_ON}.
+            A = absent, L = leave (both count as 0). Attendance below {EXAMS_UNI_MIN_ATTENDANCE}% (in red) makes the course an F. Printed {printedOn()}.
           </p>
           <div className="exams-doc-signs" style={{ marginTop: "10mm" }}>
             <div>Course teacher</div>
@@ -1191,10 +1176,10 @@ function UniSheet({ sem, variant, onVariant }: { sem: ExamsUniSemester; variant:
               <Select label="Assessment" value={assess} onChange={(e) => setAssess(e.target.value)} options={[{ value: "ALL", label: "Every assessment" }, ...types.map(([id, label]) => ({ value: id, label })), { value: MID, label: "Mid semester" }]} />
             </div>
             <div className="w-44">
-              <DatePicker label="From" value={from} onValueChange={setFrom} today={EXAMS_TODAY} />
+              <DatePicker label="From" value={from} onValueChange={setFrom} today={examsToday()} />
             </div>
             <div className="w-44">
-              <DatePicker label="To" value={to} onValueChange={setTo} today={EXAMS_TODAY} {...(from ? { minDate: from } : {})} />
+              <DatePicker label="To" value={to} onValueChange={setTo} today={examsToday()} {...(from ? { minDate: from } : {})} />
             </div>
           </>
         )}
@@ -1410,7 +1395,7 @@ function UniSheet({ sem, variant, onVariant }: { sem: ExamsUniSemester; variant:
             {variant === "mid"
               ? `S = internal assessment (${[...new Set(sem.courses.flatMap((c) => c.components.map((x) => x.label)))].join(", ")}), M = mid-semester paper, Tot. = S + M; A = absent, L = leave. Grade on the school scale; equal percentages share a position. Remarks list courses below the pass mark (${EXAMS_DEFAULT_PASS_RULES.subjectPassPercent}%).`
               : `Grade points on a 4.0 scale; attendance below ${EXAMS_UNI_MIN_ATTENDANCE}% is an F.`}{" "}
-            Printed {PRINTED_ON}.
+            Printed {printedOn()}.
           </p>
           <div className="exams-doc-signs" style={{ marginTop: "10mm" }}>
             <div>{variant === "mid" ? "Class in-charge" : "Prepared by"}</div>
@@ -1455,10 +1440,10 @@ function UniTranscript({ sem, studentId, view, onChange }: { sem: ExamsUniSemest
               <Select label="Semester" value={semesterId} onChange={(e) => setSemesterId(e.target.value)} options={[{ value: "ALL", label: "Every semester" }, ...t.data.semesters.map((s) => ({ value: s.id, label: s.label }))]} />
             </div>
             <div className="w-44">
-              <DatePicker label="From" value={from} onValueChange={setFrom} today={EXAMS_TODAY} />
+              <DatePicker label="From" value={from} onValueChange={setFrom} today={examsToday()} />
             </div>
             <div className="w-44">
-              <DatePicker label="To" value={to} onValueChange={setTo} today={EXAMS_TODAY} {...(from ? { minDate: from } : {})} />
+              <DatePicker label="To" value={to} onValueChange={setTo} today={examsToday()} {...(from ? { minDate: from } : {})} />
             </div>
           </div>
           <fieldset className="m-0 flex flex-wrap gap-x-5 gap-y-2 border-0 p-0">
@@ -1550,7 +1535,7 @@ function UniTranscript({ sem, studentId, view, onChange }: { sem: ExamsUniSemest
                 </tbody>
               </table>
             )}
-            <p className="exams-doc-key">A = absent, L = leave (counted as 0). Grade on the school scale for each assessment. Printed {PRINTED_ON}.</p>
+            <p className="exams-doc-key">A = absent, L = leave (counted as 0). Grade on the school scale for each assessment. Printed {printedOn()}.</p>
           </article>
         </PrintSheet>
       ) : (
@@ -1615,7 +1600,7 @@ function UniTranscript({ sem, studentId, view, onChange }: { sem: ExamsUniSemest
                 <b>{t.data.semesters.filter((s) => s.status === "DECLARED").length}</b>
               </div>
             </div>
-            <p className="exams-doc-key">Declared semesters only count towards the CGPA. Printed {PRINTED_ON}.</p>
+            <p className="exams-doc-key">Declared semesters only count towards the CGPA. Printed {printedOn()}.</p>
             <div className="exams-doc-signs">
               <div />
               <div>Controller of examinations</div>

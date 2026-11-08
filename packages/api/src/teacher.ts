@@ -3,7 +3,8 @@
 // Writes carry an Idempotency-Key, because the phone keeps them in an offline outbox and replays them when the
 // connection comes back: a replay must never create a second register or a second set of marks.
 // The registers (registers, register, submitRegister, requestChange) are served by the real backend (Attendance,
-// backend/docs/modules/04_attendance.md); today, papers, timetable, classes and notifications are still mocked.
+// backend/docs/modules/04_attendance.md), and so are the papers and marks (papers, paper, saveMarks, submitMarks:
+// Exams, backend/docs/modules/05_exams.md); today, timetable, classes and notifications are still mocked.
 import type { AttendanceCode, IsoDate, IsoDateTime } from "@mtb/domain";
 import { queryOptions } from "@tanstack/react-query";
 import type { RegisterCode } from "./attendance";
@@ -215,6 +216,7 @@ export interface TeacherPaper {
   note?: string;
   /** The teacher can't change the marks (submitted, checked, declared or a closed session). */
   locked: boolean;
+  /** Why, in a sentence the app shows as is (declared, submitted, checked, or "That session is closed. Marks can't change."). */
   lockedReason?: string;
 }
 
@@ -312,12 +314,13 @@ export interface TeacherNotification {
 
 /* ------------------------------------------------------------------ Demo (mock server only) */
 
-/** Presenter switches, answered by the mock server only. The real backend has no such endpoint. */
+/**
+ * Presenter switches, answered by the mock server only. The real backend has no such endpoint. (The "next sync fails"
+ * switch went with module 5: every write the phone queues — registers and marks — now goes to the real backend.)
+ */
 export interface TeacherDemoState {
   /** Today becomes a holiday (Quaid-e-Azam Day) to show the closed state. */
   holiday: boolean;
-  /** The next write fails with a server error, to show "Sync failed — Retry". */
-  failNextSync: boolean;
 }
 
 /* ------------------------------------------------------------------ Client */

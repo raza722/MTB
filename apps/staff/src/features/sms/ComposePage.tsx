@@ -208,7 +208,8 @@ function ComposeForm({ search }: { search: ComposeSearch }) {
   const sessions = useQuery(metaQueries.sessions());
   const status = useQuery(smsStatusQueries.status());
   const settings = useQuery(smsQueries.settings(ctx));
-  const exams = useQuery({ ...examsQueries.list(ctx), enabled: canSeeExams });
+  // the newest 200 declared exams (the server pages the exam list, contract change C9)
+  const exams = useQuery({ ...examsQueries.list(ctx, { status: "DECLARED", pageSize: 200 }), enabled: canSeeExams });
   const sender = settings.data?.[0]?.senderName ?? "MTB";
 
   const [source, setSource] = useState<"template" | "custom">(search.template === "custom" ? "custom" : "template");
@@ -269,7 +270,7 @@ function ComposeForm({ search }: { search: ComposeSearch }) {
   const effectiveTitle = title || (source === "template" ? (template?.name ?? "") : "");
 
   // Declared exams of this campus and session (entrance and programme tests are messaged from Admissions).
-  const declared = useMemo(() => (exams.data ?? []).filter((e) => e.status === "DECLARED" && e.category !== "ENTRANCE" && !e.programmeId && e.session === ctx.session), [exams.data, ctx.session]);
+  const declared = useMemo(() => (exams.data?.items ?? []).filter((e) => e.status === "DECLARED" && e.category !== "ENTRANCE" && !e.programmeId && e.session === ctx.session), [exams.data, ctx.session]);
   const exam = declared.find((e) => e.id === examId);
   const months = useMemo(() => sessionMonths(ctx.session), [ctx.session]);
   // Default month: the latest month with a declared class test.
