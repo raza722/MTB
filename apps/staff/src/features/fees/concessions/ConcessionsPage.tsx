@@ -22,6 +22,7 @@ import {
   EmptyState,
   Input,
   KeyValue,
+  Pagination,
   Panel,
   Segmented,
   SegmentedBar,
@@ -41,7 +42,7 @@ import { z } from "zod";
 import { campusLabel } from "../../../app/shell/campus";
 import { Page, PageHeader, RequirePermission } from "../../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../../app/session";
-import { addDaysIso, CLASS_SHORTS, className, DecisionBadge, errorField, errorText, FeesNav, lakhTick, LoadError, monthEndIso, PaperSize, sectionsOf, slide, TODAY, useCanAny } from "../shared";
+import { addDaysIso, DecisionBadge, errorField, errorText, feeToday, FeesNav, lakhTick, LoadError, monthEndIso, PaperSize, pctText, slide, useCanAny, useFeeClasses } from "../shared";
 
 const TYPE_COLOR: Record<FeeConcessionType, string> = {
   SIBLING: "var(--chart-1)",
@@ -56,6 +57,10 @@ const TYPE_COLOR: Record<FeeConcessionType, string> = {
   KINSHIP: "var(--chart-4)",
   HARDSHIP: "var(--chart-5)",
   SPECIAL: "var(--ink-subtle)",
+  MARTYR_CHILD: "var(--chart-2)",
+  CENTRE_HOLDER: "var(--chart-3)",
+  DM_CENTRE_HOLDER: "var(--chart-4)",
+  COVID: "var(--chart-5)",
 };
 
 const off = (gross: number, pct: number) => Math.round((gross * pct) / 100);
@@ -68,14 +73,15 @@ function NewConcessionPanel({ campus, types, heads, prefill, onClose }: { campus
   const queryClient = useQueryClient();
   const students = useQuery(feeSetupQueries.students(ctx));
   const structure = useQuery(feeSetupQueries.structure(campus, ctx.session));
-  const nextMonth = addDaysIso(monthEndIso(TODAY.slice(0, 7)), 1);
+  const nextMonth = addDaysIso(monthEndIso(feeToday().slice(0, 7)), 1);
   const [grNo, setGrNo] = useState<string | null>(prefill?.grNo ?? null);
   const [type, setType] = useState<FeeConcessionType>(prefill?.type ?? "SIBLING");
   const info = types.find((t) => t.code === type)!;
   const [pct, setPct] = useState(String(prefill?.pct ?? info.defaultPct));
   const [chosenHeads, setChosenHeads] = useState<string[]>(["TUITION"]);
   const [from, setFrom] = useState<string | null>(nextMonth);
-  const [to, setTo] = useState<string | null>(`${ctx.session + 1}-03-31`);
+  // Ends with the session (Setup's dates when the structure has them; April–March otherwise).
+  const [to, setTo] = useState<string | null>(structure.data?.sessionEnd ?? `${ctx.session + 1}-03-31`);
   const [reference, setReference] = useState("");
   const [reason, setReason] = useState(prefill?.reason ?? "");
   const [tried, setTried] = useState(false);
@@ -85,7 +91,7 @@ function NewConcessionPanel({ campus, types, heads, prefill, onClose }: { campus
       grNo: z.string({ error: "Choose the student." }).min(1, "Choose the student."),
       pct: z.number({ error: "Enter the percentage." }).int("Use a whole percentage.").min(1, "Enter at least 1%.").max(info.maxPct, `${info.title} concessions go up to ${info.maxPct}%.`),
       heads: z.array(z.string()).min(1, "Choose at least one fee head."),
-      from: z.string({ error: "Enter the start date." }).min(1, "Enter the start date.").refine((d) => d >= `${TODAY.slice(0, 7)}-01`, "Start this month or later; posted receipts never change."),
+      from: z.string({ error: "Enter the start date." }).min(1, "Enter the start date.").refine((d) => d >= `${feeToday().slice(0, 7)}-01`, "Start this month or later; posted receipts never change."),
       to: z.string({ error: "Enter the end date." }).min(1, "Enter the end date."),
       reference: info.needsReference ? z.string().trim().min(1, `Enter the ${info.referenceLabel?.toLowerCase() ?? "reference"}.`) : z.string(),
       reason: z.string().trim().min(10, "Say why in a sentence; the principal reads this when deciding."),
@@ -99,6 +105,11 @@ function NewConcessionPanel({ campus, types, heads, prefill, onClose }: { campus
   const student = students.data?.find((s) => s.grNo === grNo);
   const cls = student?.classSection.split("-")[0] ?? "";
   const classLine = (code: string) => structure.data?.classes.find((c) => c.classShort === cls)?.lines.find((l) => l.head === code)?.amount ?? 0;
+  // The structure's amount is per installment of the head's plan (tuition is billed quarterly at some campuses).
+  const perText = (code: string) => {
+    const billing = structure.data?.heads.find((h) => h.code === code)?.billing;
+    return billing === "MONTHLY" ? " (a month)" : billing === "QUARTERLY" ? " (a quarter)" : billing === "TERMLY" ? " (a term)" : "";
+  };
   const pctNum = Number(pct) || 0;
   const key = useMemo(() => newIdempotencyKey(), [JSON.stringify(values), type]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -172,8 +183,8 @@ function NewConcessionPanel({ campus, types, heads, prefill, onClose }: { campus
           <span className={`text-small ${err("heads") ? "text-danger-ink" : "text-ink-muted"}`}>{err("heads") ?? "Only heads that concessions can reduce are listed (Structure → Fee heads)."}</span>
         </fieldset>
         <div className="grid gap-4 sm:grid-cols-2">
-          <DatePicker label="From" required value={from} onValueChange={setFrom} today={TODAY} minDate={`${TODAY.slice(0, 7)}-01`} error={err("from")} />
-          <DatePicker label="Until" required value={to} onValueChange={setTo} today={TODAY} error={err("to")} help="Concessions end with the session." />
+          <DatePicker label="From" required value={from} onValueChange={setFrom} today={feeToday()} minDate={`${feeToday().slice(0, 7)}-01`} error={err("from")} />
+          <DatePicker label="Until" required value={to} onValueChange={setTo} today={feeToday()} error={err("to")} help="Concessions end with the session." />
         </div>
         {info.needsReference && <Input label={info.referenceLabel} required value={reference} onChange={(e) => setReference(e.target.value)} error={err("reference")} />}
         <Textarea label="Reason" required rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="For example: father's shop closed after the market fire; help asked until March." error={err("reason")} />
@@ -187,7 +198,7 @@ function NewConcessionPanel({ campus, types, heads, prefill, onClose }: { campus
                   const gross = classLine(h);
                   const title = heads.find((x) => x.code === h)?.title ?? h;
                   return [
-                    [`${title}${h === "TUITION" ? " (a month)" : ""}`, formatRs(gross)],
+                    [`${title}${perText(h)}`, formatRs(gross)],
                     [`Concession ${pctNum}%`, `− ${formatRs(off(gross, pctNum))}`],
                     ["Family pays", formatRs(gross - off(gross, pctNum))],
                   ];
@@ -212,7 +223,7 @@ function ConcessionPanel({ c, types, onClose }: { c: FeeConcession; types: FeeCo
   const canStop = useCanAny(["fees.setup", "approvals.decide"]);
   const [mode, setMode] = useState<"view" | "reject" | "stop">("view");
   const [note, setNote] = useState("");
-  const [stopFrom, setStopFrom] = useState<string | null>(addDaysIso(monthEndIso(TODAY.slice(0, 7)), 1));
+  const [stopFrom, setStopFrom] = useState<string | null>(addDaysIso(monthEndIso(feeToday().slice(0, 7)), 1));
   const [tried, setTried] = useState(false);
   const key = useMemo(() => newIdempotencyKey(), [c.id, mode]);
   const t = types.find((x) => x.code === c.type);
@@ -327,7 +338,7 @@ function ConcessionPanel({ c, types, onClose }: { c: FeeConcession; types: FeeCo
         {mode === "reject" && <Textarea label="Why is it rejected?" required rows={3} value={note} onChange={(e) => setNote(e.target.value)} error={tried && !note.trim() ? "Say why; the office tells the family." : undefined} />}
         {mode === "stop" && (
           <div className="grid gap-4">
-            <DatePicker label="Full fee again from" required value={stopFrom} onValueChange={setStopFrom} today={TODAY} minDate={TODAY} error={tried && !stopFrom ? "Enter the date." : undefined} />
+            <DatePicker label="Full fee again from" required value={stopFrom} onValueChange={setStopFrom} today={feeToday()} minDate={feeToday()} error={tried && !stopFrom ? "Enter the date." : undefined} />
             <Textarea label="Why does it stop?" required rows={3} value={note} onChange={(e) => setNote(e.target.value)} error={tried && !note.trim() ? "Say why the concession stops." : undefined} />
           </div>
         )}
@@ -345,14 +356,23 @@ function ConcessionPanel({ c, types, onClose }: { c: FeeConcession; types: FeeCo
 
 export function ConcessionsPage() {
   const ctx = useCtx();
+  const classList = useFeeClasses(ctx.campus);
   const readOnly = useReadOnly();
   const canRequest = useCanAny(["fees.collect", "fees.setup", "approvals.decide"]);
-  const q = useQuery(feeSetupQueries.concessions(ctx));
   const [query, setQuery] = useState("");
+  const [search, setSearch] = useState("");
   const [type, setType] = useState<FeeConcessionType | "">("");
   const [status, setStatus] = useState<FeeConcession["status"] | "">("");
   const [cls, setCls] = useState("");
   const [section, setSection] = useState("");
+  const [page, setPage] = useState(1);
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(query.trim()), 250);
+    return () => clearTimeout(t);
+  }, [query]);
+  useEffect(() => setPage(1), [search, type, status, cls, section, ctx.campus, ctx.session]);
+  // Filtered and paged on the server (contract C12); the summary cards cover every concession of the scope.
+  const q = useQuery({ ...feeSetupQueries.concessions(ctx, { q: search, type, status, classShort: cls, section, page, pageSize: 50 }), placeholderData: keepPreviousData });
   const [openId, setOpenId] = useState<string | null>(null);
   const [creating, setCreating] = useState<FeeConcessionSuggestion | true | null>(null);
   // By class: a period inside the session and the heads to count.
@@ -374,17 +394,10 @@ export function ConcessionsPage() {
   const sum = summaryQ.data;
   const d = q.data;
   const typeTitle = (t: FeeConcessionType) => d?.types.find((x) => x.code === t)?.title ?? t;
-  const rows = (d?.concessions ?? []).filter(
-    (c) =>
-      (!type || c.type === type) &&
-      (!status || c.status === status) &&
-      (!cls || c.classSection.split("-")[0] === cls) &&
-      (!section || c.classSection.split("-")[1] === section) &&
-      (!query.trim() || `${c.studentName} ${c.grNo} ${c.father}`.toLowerCase().includes(query.trim().toLowerCase())),
-  );
+  const rows = d?.concessions ?? [];
   const open = d?.concessions.find((c) => c.id === openId);
   const canCreate = canRequest && !readOnly && ctx.campus !== "ALL";
-  const sections = cls ? sectionsOf(cls) : [];
+  const sections = classList.sectionsOf(cls);
   const filtered = Boolean(query || type || status || cls || section);
 
   const columns: Array<Column<FeeConcession>> = [
@@ -429,10 +442,10 @@ export function ConcessionsPage() {
     { key: "billed", header: "Total amount", align: "right", render: (r) => <span className="mtb-num">{formatRs(r.billed)}</span> },
     { key: "discount", header: "Discount", align: "right", render: (r) => <span className="mtb-num">{formatRs(r.discount)}</span> },
     { key: "remaining", header: "Remaining", align: "right", render: (r) => <span className="mtb-num">{formatRs(r.remaining)}</span> },
-    { key: "pct", header: "Discount %", align: "right", render: (r) => <span className="mtb-num">{r.pct.toFixed(1)}%</span> },
+    { key: "pct", header: "Discount %", align: "right", render: (r) => <span className="mtb-num">{pctText(r.pct)}</span> },
   ];
 
-  const active = (d?.concessions ?? []).filter((c) => c.status === "APPROVED");
+  const active = rows.filter((c) => c.status === "APPROVED");
   const periodText = from && to ? `${formatDate(from)} to ${formatDate(to)}` : "";
   const headsText = sum ? (sumHeads.length ? sum.heads.map((h) => h.title).join(", ") : "every head a concession can reduce") : "";
 
@@ -519,10 +532,10 @@ export function ConcessionsPage() {
           <div className="grid gap-4">
             <div className="flex flex-wrap items-end gap-3">
               <div className="w-44">
-                <DatePicker label="From" value={from} onValueChange={setFrom} today={TODAY} minDate={`${ctx.session}-04-01`} maxDate={`${ctx.session + 1}-03-31`} />
+                <DatePicker label="From" value={from} onValueChange={setFrom} today={feeToday()} minDate={`${ctx.session}-04-01`} maxDate={`${ctx.session + 1}-03-31`} />
               </div>
               <div className="w-44">
-                <DatePicker label="To" value={to} onValueChange={setTo} today={TODAY} minDate={`${ctx.session}-04-01`} maxDate={`${ctx.session + 1}-03-31`} error={rangeError} />
+                <DatePicker label="To" value={to} onValueChange={setTo} today={feeToday()} minDate={`${ctx.session}-04-01`} maxDate={`${ctx.session + 1}-03-31`} error={rangeError} />
               </div>
               <fieldset className="m-0 flex flex-wrap items-center gap-x-4 gap-y-2 border-0 p-0">
                 <legend className="mtb-label mb-1">Fee heads</legend>
@@ -546,7 +559,7 @@ export function ConcessionsPage() {
                 columns={classCols}
                 density="dense"
                 onRowClick={(r) => setCls(r.classShort)}
-                footer={{ className: "Total", strength: formatCount(sum.totals.strength), students: formatCount(sum.totals.students), billed: formatRs(sum.totals.billed), discount: formatRs(sum.totals.discount), remaining: formatRs(sum.totals.remaining), pct: `${sum.totals.pct.toFixed(1)}%` }}
+                footer={{ className: "Total", strength: formatCount(sum.totals.strength), students: formatCount(sum.totals.students), billed: formatRs(sum.totals.billed), discount: formatRs(sum.totals.discount), remaining: formatRs(sum.totals.remaining), pct: `${pctText(sum.totals.pct)}` }}
                 empty={<EmptyState icon="award" title="No students match" description="Choose another class or period." />}
               />
             )}
@@ -563,7 +576,7 @@ export function ConcessionsPage() {
                       <div className="mtb-chart-tip-value">{formatRs(r.discount)}</div>
                       <div className="mtb-chart-tip-row">
                         <span>Of billed</span>
-                        <span>{r.pct.toFixed(1)}%</span>
+                        <span>{pctText(r.pct)}</span>
                       </div>
                       <div className="mtb-chart-tip-row">
                         <span>Students</span>
@@ -571,7 +584,7 @@ export function ConcessionsPage() {
                       </div>
                     </>
                   )}
-                  describe={(r) => `${r.className}: ${formatRs(r.discount)} discount, ${r.pct.toFixed(1)}% of ${formatRs(r.billed)}`}
+                  describe={(r) => `${r.className}: ${formatRs(r.discount)} discount, ${pctText(r.pct)} of ${formatRs(r.billed)}`}
                   label="Discount by class"
                   height={240}
                 />
@@ -614,7 +627,7 @@ export function ConcessionsPage() {
                             </td>
                           ))}
                           <td className="mtb-td-num font-medium">{formatCount(r.total)}</td>
-                          <td className="mtb-td-num">{r.pct.toFixed(1)}%</td>
+                          <td className="mtb-td-num">{pctText(r.pct)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -628,7 +641,7 @@ export function ConcessionsPage() {
                           </td>
                         ))}
                         <td className="mtb-td-num font-semibold">{formatCount(sum.byClassKind.totals.total)}</td>
-                        <td className="mtb-td-num font-semibold">{sum.byClassKind.totals.pct.toFixed(1)}%</td>
+                        <td className="mtb-td-num font-semibold">{pctText(sum.byClassKind.totals.pct)}</td>
                       </tr>
                     </tfoot>
                   </table>
@@ -645,6 +658,7 @@ export function ConcessionsPage() {
           rows={rows}
           loading={q.isLoading}
           onRowClick={(c) => setOpenId(c.id)}
+          pagination={d && d.total > d.pageSize ? <Pagination page={d.page} pageSize={d.pageSize} total={d.total} onPageChange={setPage} /> : undefined}
           toolbar={
             <div className="flex w-full flex-wrap items-end gap-3">
               <div className="w-60">
@@ -658,7 +672,7 @@ export function ConcessionsPage() {
                     setCls(e.target.value);
                     setSection("");
                   }}
-                  options={[{ value: "", label: "Every class" }, ...CLASS_SHORTS.map((c) => ({ value: c, label: className(c) }))]}
+                  options={[{ value: "", label: "Every class" }, ...classList.options]}
                 />
               </div>
               <div className="w-32">
@@ -718,10 +732,10 @@ export function ConcessionsPage() {
                   <h1>Concessions and scholarships</h1>
                   <p>
                     {campusLabel(ctx.campus)} · Session {formatSession(ctx.session)}
-                    {cls ? ` · ${className(cls)}${section ? `-${section}` : ""}` : ""}
+                    {cls ? ` · ${classList.nameOf(cls)}${section ? `-${section}` : ""}` : ""}
                   </p>
                 </div>
-                <p>Printed {formatDate(TODAY)}</p>
+                <p>Printed {formatDate(feeToday())}</p>
               </div>
               {sum && (
                 <>
@@ -747,7 +761,7 @@ export function ConcessionsPage() {
                           <td className="n">{formatRs(r.billed)}</td>
                           <td className="n">{formatRs(r.discount)}</td>
                           <td className="n">{formatRs(r.remaining)}</td>
-                          <td className="n">{r.pct.toFixed(1)}%</td>
+                          <td className="n">{pctText(r.pct)}</td>
                         </tr>
                       ))}
                       <tr>
@@ -767,7 +781,7 @@ export function ConcessionsPage() {
                           <strong>{formatRs(sum.totals.remaining)}</strong>
                         </td>
                         <td className="n">
-                          <strong>{sum.totals.pct.toFixed(1)}%</strong>
+                          <strong>{pctText(sum.totals.pct)}</strong>
                         </td>
                       </tr>
                     </tbody>
@@ -819,7 +833,7 @@ export function ConcessionsPage() {
                   </table>
                 </>
               )}
-              <h2>Approved concessions</h2>
+              <h2>Approved concessions{d && d.total > rows.length ? ` (page ${d.page} of the list)` : ""}</h2>
               <table>
                 <thead>
                   <tr>

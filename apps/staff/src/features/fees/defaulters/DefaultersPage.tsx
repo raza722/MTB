@@ -16,6 +16,7 @@ import {
   MenuItem,
   MenuLabel,
   Modal,
+  Pagination,
   Segmented,
   Select,
   SidePanel,
@@ -29,32 +30,27 @@ import {
 } from "@mtb/ui";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { campusLabel } from "../../../app/shell/campus";
 import { Page, PageHeader, RequirePermission } from "../../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../../app/session";
-import { CLASS_SHORTS, className, errorText, FeesNav, HeadPicker, LoadError, PaperSize, sectionsOf, TODAY } from "../shared";
+import { addDaysIso, errorText, feeToday, FeesNav, HeadPicker, LoadError, PaperSize, sessionMonthList, useFeeClasses, type FeeClasses } from "../shared";
 
 /** Variables a fee reminder can carry (each family's own figures). */
 const ALLOWED_VARS = ["student_name", "class", "amount_due", "due_date", "campus"];
 
 /** The months of the session so far ("2026-04" … "2026-11"), for the Month filter. */
-function monthsSoFar(session: number): string[] {
-  const out: string[] = [];
-  for (let i = 0; i < 12; i++) {
-    const m = new Date(Date.UTC(session, 3 + i, 1)).toISOString().slice(0, 7);
-    if (m > TODAY.slice(0, 7)) break;
-    out.push(m);
-  }
-  return out;
+function monthsSoFar(session: number, today: string): string[] {
+  return sessionMonthList(session).filter((m) => m <= today.slice(0, 7));
 }
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const monthText = (m: string) => `${MONTH_NAMES[Number(m.slice(5, 7)) - 1]} ${m.slice(0, 4)}`;
 const monthEnd = (m: string) => new Date(Date.UTC(Number(m.slice(0, 4)), Number(m.slice(5, 7)), 0)).toISOString().slice(0, 10);
 
 /** Several sections at once, from one class or from several (the old Arrears SMS class and section lists). */
-function SectionsPicker({ cls, value, onChange }: { cls: string; value: string[]; onChange: (next: string[]) => void }) {
-  const classes = cls ? [cls] : CLASS_SHORTS;
+function SectionsPicker({ cls, value, onChange, classList }: { cls: string; value: string[]; onChange: (next: string[]) => void; classList: FeeClasses }) {
+  const classes = cls ? [cls] : classList.classes.map((c) => c.short);
+  const { nameOf, sectionsOf } = classList;
   const text = value.length === 0 ? (cls ? "Every section" : "Sections: all") : value.length <= 2 ? value.join(", ") : `Sections: ${value.length}`;
   const toggle = (cs: string) => onChange(value.includes(cs) ? value.filter((x) => x !== cs) : [...value, cs]);
   return (
@@ -67,11 +63,11 @@ function SectionsPicker({ cls, value, onChange }: { cls: string; value: string[]
       }
     >
       <MenuItem checked={value.length === 0} onSelect={() => onChange([])}>
-        {cls ? `Every section of ${className(cls)}` : "Every class and section"}
+        {cls ? `Every section of ${nameOf(cls)}` : "Every class and section"}
       </MenuItem>
       {classes.map((c) => (
         <div key={c}>
-          {!cls && <MenuLabel>{className(c)}</MenuLabel>}
+          {!cls && <MenuLabel>{nameOf(c)}</MenuLabel>}
           {sectionsOf(c).map((x) => {
             const cs = `${c}-${x}`;
             return (
@@ -181,7 +177,7 @@ function ReminderModal({ rows, template, paused, onClose, onSent }: { rows: FeeD
           items={[
             ["Families", formatCount(rows.length)],
             ["Overdue in all", formatRs(rows.reduce((a, r) => a + r.total, 0))],
-            ["Reminded in the last 7 days", formatCount(rows.filter((r) => r.lastReminderAt && r.lastReminderAt.slice(0, 10) >= "2026-10-28").length)],
+            ["Reminded in the last 7 days", formatCount(rows.filter((r) => r.lastReminderAt && r.lastReminderAt.slice(0, 10) >= addDaysIso(feeToday(), -7)).length)],
           ]}
         />
         {send.error && <Banner tone="danger">{errorText(send.error)}</Banner>}
@@ -245,6 +241,7 @@ export function DefaultersPage() {
   const ctx = useCtx();
   const readOnly = useReadOnly();
   const canSms = useCan("sms.send");
+  const classList = useFeeClasses(ctx.campus);
   const [cls, setCls] = useState("");
   const [sections, setSections] = useState<string[]>([]);
   const [heads, setHeads] = useState<string[]>([]);
@@ -254,24 +251,37 @@ export function DefaultersPage() {
   const [minAmount, setMinAmount] = useState<number | null>(null);
   const [includeLeft, setIncludeLeft] = useState(false);
   const [query, setQuery] = useState("");
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(100);
   const [selected, setSelected] = useState<Set<unknown>>(new Set());
   const [reminding, setReminding] = useState(false);
   const [open, setOpen] = useState<FeeDefaulter | null>(null);
   const dueError = dueFrom && dueTo && dueFrom > dueTo ? "The first date must be on or before the second." : undefined;
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(query.trim()), 250);
+    return () => clearTimeout(t);
+  }, [query]);
+  // The list is paged on the server (contract C8); the stat cards and `total` cover every matching student.
   const q = useQuery({
-    ...feeSetupQueries.defaulters(ctx, { classShort: cls, sections: sections.join(","), minMonths: Number(months), minAmount: minAmount ?? 0, includeLeft, heads: heads.join(","), dueFrom: dueFrom ?? "", dueTo: dueTo ?? "" }),
+    ...feeSetupQueries.defaulters(ctx, { classShort: cls, sections: sections.join(","), minMonths: Number(months), minAmount: minAmount ?? 0, includeLeft, heads: heads.join(","), dueFrom: dueFrom ?? "", dueTo: dueTo ?? "", q: search, page, pageSize }),
     enabled: !dueError,
     placeholderData: keepPreviousData,
   });
-  useEffect(() => setSelected(new Set()), [cls, sections, heads, dueFrom, dueTo, months, minAmount, includeLeft, ctx.campus, ctx.session]);
-  const filtered = Boolean(cls || sections.length || heads.length || dueFrom || dueTo || months !== "0" || minAmount);
+  useEffect(() => setSelected(new Set()), [cls, sections, heads, dueFrom, dueTo, months, minAmount, includeLeft, search, ctx.campus, ctx.session]);
+  useEffect(() => setPage(1), [cls, sections, heads, dueFrom, dueTo, months, minAmount, includeLeft, search, pageSize, ctx.campus, ctx.session]);
+  const filtered = Boolean(cls || sections.length || heads.length || dueFrom || dueTo || months !== "0" || minAmount || search);
   // Month: charges falling due in that month (sets the due dates).
-  const monthOptions = monthsSoFar(ctx.session);
-  const month = monthOptions.find((m) => dueFrom === `${m}-01` && dueTo === (monthEnd(m) > TODAY ? TODAY : monthEnd(m))) ?? "";
+  const today = feeToday();
+  const monthOptions = monthsSoFar(ctx.session, today);
+  const month = monthOptions.find((m) => dueFrom === `${m}-01` && dueTo === (monthEnd(m) > today ? today : monthEnd(m))) ?? "";
   const headText = heads.map((h) => d?.heads.find((x) => x.code === h)?.title ?? h).join(", ");
   const d = q.data;
-  const rows = (d?.rows ?? []).filter((r) => !query.trim() || `${r.studentName} ${r.grNo} ${r.father}`.toLowerCase().includes(query.trim().toLowerCase()));
-  const chosen = rows.filter((r) => selected.has(r.grNo));
+  const rows = d?.rows ?? [];
+  // Families ticked on any page are remembered (the reminder needs their figures).
+  const seen = useRef(new Map<string, FeeDefaulter>());
+  for (const r of rows) seen.current.set(r.grNo, r);
+  const chosen = [...selected].map((k) => seen.current.get(String(k))).filter((r): r is FeeDefaulter => Boolean(r));
   const canSend = canSms && !readOnly;
 
   const columns: Array<Column<FeeDefaulter>> = [
@@ -322,11 +332,11 @@ export function DefaultersPage() {
       <Page>
         <PageHeader
           title="Defaulters"
-          context={`${campusLabel(ctx.campus)} · Session ${formatSession(ctx.session)} · as of ${formatDate(TODAY)}`}
+          context={`${campusLabel(ctx.campus)} · Session ${formatSession(ctx.session)} · as of ${formatDate(d?.today ?? today)}`}
           actions={
             <>
               <Button icon="printer" onClick={() => window.print()} disabled={rows.length === 0}>
-                Print list
+                {d && d.total > rows.length ? "Print this page" : "Print list"}
               </Button>
               {canSend && (
                 <Button variant="primary" icon="send" disabled={chosen.length === 0} onClick={() => setReminding(true)}>
@@ -375,10 +385,10 @@ export function DefaultersPage() {
                     setCls(e.target.value);
                     setSections([]);
                   }}
-                  options={[{ value: "", label: "Every class" }, ...CLASS_SHORTS.map((c) => ({ value: c, label: className(c) }))]}
+                  options={[{ value: "", label: "Every class" }, ...classList.options]}
                 />
               </div>
-              <SectionsPicker cls={cls} value={sections} onChange={setSections} />
+              <SectionsPicker cls={cls} value={sections} onChange={setSections} classList={classList} />
               <HeadPicker heads={d?.heads ?? []} value={heads} onChange={setHeads} />
               <div className="w-40">
                 <Select
@@ -392,16 +402,16 @@ export function DefaultersPage() {
                       return;
                     }
                     setDueFrom(`${m}-01`);
-                    setDueTo(monthEnd(m) > TODAY ? TODAY : monthEnd(m));
+                    setDueTo(monthEnd(m) > today ? today : monthEnd(m));
                   }}
                   options={[{ value: "", label: "Any month" }, ...monthOptions.map((m) => ({ value: m, label: monthText(m) }))]}
                 />
               </div>
               <div className="w-40">
-                <DatePicker aria-label="Due from" placeholder="Due from" value={dueFrom} onValueChange={setDueFrom} today={TODAY} maxDate={TODAY} />
+                <DatePicker aria-label="Due from" placeholder="Due from" value={dueFrom} onValueChange={setDueFrom} today={feeToday()} maxDate={feeToday()} />
               </div>
               <div className="w-40">
-                <DatePicker aria-label="Due to" placeholder="Due to" value={dueTo} onValueChange={setDueTo} today={TODAY} maxDate={TODAY} error={dueError} />
+                <DatePicker aria-label="Due to" placeholder="Due to" value={dueTo} onValueChange={setDueTo} today={feeToday()} maxDate={feeToday()} error={dueError} />
               </div>
               <Segmented aria-label="Months overdue" value={months} onChange={setMonths} options={[{ value: "0", label: "Any" }, { value: "1", label: "1+ month" }, { value: "2", label: "2+" }, { value: "3", label: "3+" }]} />
               <div className="w-44">
@@ -410,7 +420,8 @@ export function DefaultersPage() {
               <Switch label="Include students who have left" checked={includeLeft} onChange={(e) => setIncludeLeft(e.target.checked)} />
             </div>
           }
-          footer={rows.length ? { student: `${formatCount(rows.length)} students`, session: formatRs(rows.reduce((a, r) => a + r.sessionTotal, 0)), fees: formatRs(rows.reduce((a, r) => a + r.outstanding, 0)), fine: formatRs(rows.reduce((a, r) => a + r.fine, 0)), total: formatRs(rows.reduce((a, r) => a + r.total, 0)) } : undefined}
+          pagination={d && d.total > 100 ? <Pagination page={d.page} pageSize={d.pageSize} total={d.total} onPageChange={setPage} pageSizes={[100, 250, 500]} onPageSizeChange={setPageSize} /> : undefined}
+          footer={rows.length ? { student: d && d.total > rows.length ? `${formatCount(rows.length)} on this page` : `${formatCount(rows.length)} students`, session: formatRs(rows.reduce((a, r) => a + r.sessionTotal, 0)), fees: formatRs(rows.reduce((a, r) => a + r.outstanding, 0)), fine: formatRs(rows.reduce((a, r) => a + r.fine, 0)), total: formatRs(rows.reduce((a, r) => a + r.total, 0)) } : undefined}
           empty={<EmptyState icon="checkCircle" title={filtered ? "Nobody matches these filters" : "No overdue fees"} description={filtered ? "Loosen the filters to see more students." : "Every student is up to date. Nice."} />}
         />
 
@@ -422,14 +433,15 @@ export function DefaultersPage() {
                 <h1>Defaulters</h1>
                 <p>
                   {campusLabel(ctx.campus)} · Session {formatSession(ctx.session)}
-                  {cls && !sections.length ? ` · ${className(cls)}` : ""}
+                  {cls && !sections.length ? ` · ${classList.nameOf(cls)}` : ""}
                   {sections.length ? ` · ${sections.join(", ")}` : ""}
                   {headText ? ` · ${headText}` : ""}
                   {dueFrom || dueTo ? ` · due ${dueFrom ? formatDate(dueFrom) : "…"} to ${dueTo ? formatDate(dueTo) : "today"}` : ""}
                   {months !== "0" ? ` · ${months}+ months overdue` : ""}
+                  {d && d.total > rows.length ? ` · ${formatCount(rows.length)} of ${formatCount(d.total)} students (page ${d.page})` : ""}
                 </p>
               </div>
-              <p>As of {formatDate(TODAY)}</p>
+              <p>As of {formatDate(d?.today ?? today)}</p>
             </div>
             <table>
               <thead>

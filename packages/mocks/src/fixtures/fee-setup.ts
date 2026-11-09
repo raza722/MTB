@@ -1,7 +1,7 @@
 // Fictional fee-office data: the head catalogue, each campus's structure and due dates, concession types,
 // late-fine rules, and the generator behind the collection reports. The day totals use the same seeded
 // generator as the dashboard (handlers/dashboard-data.ts), so the reports and the dashboard always agree.
-import type { CampusCode, FeeConcessionTypeInfo, FeeHead, FeeInstallment, FeeInstallmentPlan, FeeStudentFineKind } from "@mtb/api";
+import type { CampusCode, FeeConcessionTypeInfo, FeeHead, FeeInstallment, FeeInstallmentPlan } from "@mtb/api";
 import type { IsoDate } from "@mtb/domain";
 import { DEMO_TODAY } from "../clock";
 import { tuitionFor } from "./campuses";
@@ -49,7 +49,7 @@ export function sessionMonths(session: number): string[] {
 }
 
 const MONTH_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-export const monthShort = (month: string) => `${MONTH_SHORT[Number(month.slice(5, 7)) - 1] ?? ""} ${month.slice(0, 4)}`;
+const monthShort = (month: string) => `${MONTH_SHORT[Number(month.slice(5, 7)) - 1] ?? ""} ${month.slice(0, 4)}`;
 
 /* ================================================================== Seeded numbers */
 
@@ -94,9 +94,6 @@ export const FEE_HEADS: FeeHead[] = [
 
 /** Heads with an amount per class in the structure grid when the demo starts (more can be added per class). */
 export const STRUCTURE_HEADS = ["TUITION", "ANNUAL", "EXAM", "BOARD", "ADMISSION", "CANDIDATE", "PRE_NINTH"] as const;
-
-/** Candidate (admission test) heads and their usual amounts; the test fee itself is by class. */
-export const CANDIDATE_HEAD_AMOUNTS: Record<string, number> = { PROSPECTUS: 500, FORM: 300 };
 
 /** Income account a new head posts to until the accountant changes it (Accounts → Fee posting). */
 export function defaultIncomeAccount(head: Pick<FeeHead, "category" | "billing" | "title">): string {
@@ -175,15 +172,6 @@ export function plansFor(session: number): FeeInstallmentPlan[] {
 /** Board registration is a one-off in January for Class 9 and 10. */
 export const boardDueDate = (session: number): IsoDate => `${session + 1}-01-10`;
 
-/** Transport is charged per route (Transport module). */
-export const TRANSPORT_RANGE: Record<CampusCode, { routes: number; from: number; to: number }> = {
-  KC: { routes: 9, from: 2500, to: 4000 },
-  SM: { routes: 4, from: 2200, to: 3200 },
-  UC: { routes: 5, from: 2400, to: 3600 },
-  MC: { routes: 3, from: 2000, to: 3000 },
-  HC: { routes: 7, from: 3500, to: 5500 },
-};
-
 /* ================================================================== Concessions */
 
 export const CONCESSION_TYPES: FeeConcessionTypeInfo[] = [
@@ -200,10 +188,6 @@ export const CONCESSION_TYPES: FeeConcessionTypeInfo[] = [
   { code: "HARDSHIP", title: "Hardship", description: "A family facing hardship for a period; reviewed at the end of it.", defaultPct: 50, maxPct: 100, needsReference: false },
   { code: "SPECIAL", title: "Special approval", description: "Any other case the principal approves, with the reason on record.", defaultPct: 20, maxPct: 100, needsReference: false },
 ];
-
-/* ================================================================== Late fines and student fines */
-
-export const FINE_DEFAULTS: Record<FeeStudentFineKind, number> = { EXAM_ABSENCE: 300, BREAKAGE: 1000, MOBILE: 500, ID_CARD: 200, OTHER: 500 };
 
 /* ================================================================== Collections (agrees with the dashboard) */
 
@@ -229,7 +213,7 @@ export const CASHIERS: Record<CampusCode, string[]> = {
 };
 
 /** Monthly target: the month's billing, higher in April (admissions) and September (annual charges). */
-export function monthTarget(code: CampusCode, month: string): number {
+function monthTarget(code: CampusCode, month: string): number {
   const t = COLLECTION_BASE[code].month.target;
   const factor: Record<string, number> = { "04": 1.18, "09": 1.24 };
   const session2025 = month < "2026-04";
@@ -323,19 +307,6 @@ export function dayFigure(code: CampusCode, date: IsoDate, f: CollectionFigures)
   const amount = date >= "2026-10-01" ? (octNovDays(code, f).get(date) ?? 0) : (closedMonthDays(code, date.slice(0, 7)).get(date) ?? 0);
   const receipts = date === DEMO_TODAY ? f.today.receipts : Math.round(amount / ticketOf(f));
   return { amount, receipts };
-}
-
-/** Collected in a month (the month in progress runs to today). */
-export function monthFigure(code: CampusCode, month: string, f: CollectionFigures): { amount: number; receipts: number } {
-  if (month === DEMO_TODAY.slice(0, 7)) return { amount: f.month.collected, receipts: Math.round(f.month.collected / ticketOf(f)) };
-  if (month > DEMO_TODAY.slice(0, 7)) return { amount: 0, receipts: 0 };
-  let amount = 0;
-  if (month === "2026-10") {
-    for (const [d, v] of octNovDays(code, f)) if (d.startsWith("2026-10")) amount += v;
-  } else {
-    for (const v of closedMonthDays(code, month).values()) amount += v;
-  }
-  return { amount, receipts: Math.round(amount / ticketOf(f)) };
 }
 
 /* ================================================================== Synthetic counter rows */

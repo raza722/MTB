@@ -14,6 +14,8 @@ export interface Charge {
   amount: Rupees;
   dueDate: IsoDate;
   status: "OPEN" | "SETTLED" | "CANCELLED";
+  /** Campus the charge is owed at; a transferred student's old dues stay with the campus that raised them (06 D11). */
+  campus?: CampusCode;
   /** Paid so far (partial-payment variant). */
   settledAmount: Rupees;
   /** One-off charge added by the office: head code ("READMISSION") and the reason given. */
@@ -65,20 +67,34 @@ export interface CounterData {
   today: IsoDate;
   /** Set when the student is no longer enrolled (left, struck off, expelled, passed out): collect outstanding dues only. */
   left?: { on: IsoDate; reason: string; status?: "LEFT" | "STRUCK_OFF" | "EXPELLED" | "PASSED_OUT" };
+  /** Open dues the student still owes at another campus (collected there; the ledger lists them). Omitted when none. */
+  otherCampusDues?: Rupees;
 }
 
-export type PaymentMethod =
+/** How a parent pays at the counter. */
+export type CounterPaymentMethod =
   | { method: "CASH"; received: Rupees }
   | { method: "BANK"; bank: string; slipNo: string; depositDate: IsoDate }
   | { method: "CHEQUE"; chequeNo: string; bank: string; chequeDate: IsoDate }
   | { method: "ONLINE"; transactionId: string };
+
+/**
+ * How a receipt was paid. Besides the counter methods: SALARY, a child's fee deducted from a staff salary by payroll
+ * (month "2026-11"), and LEGACY, a receipt migrated from the old system, which did not record how the parent paid.
+ */
+export type PaymentMethod = CounterPaymentMethod | { method: "SALARY"; month: string } | { method: "LEGACY" };
 
 export const PAYMENT_METHOD_LABEL: Record<PaymentMethod["method"], string> = {
   CASH: "Cash",
   BANK: "Bank deposit",
   CHEQUE: "Cheque",
   ONLINE: "Online transfer / Raast",
+  SALARY: "Salary deduction",
+  LEGACY: "Old system",
 };
+
+/** The methods a cashier takes at the counter, in the order the counter offers them. */
+export const COUNTER_PAYMENT_METHODS: Array<CounterPaymentMethod["method"]> = ["CASH", "BANK", "CHEQUE", "ONLINE"];
 
 export interface PostReceiptRequest {
   grNo: string;
@@ -87,7 +103,7 @@ export interface PostReceiptRequest {
   chargeIds: string[];
   /** Partial-payment variant only ("not yet decided"). Omit to pay the selected charges in full. */
   amount?: Rupees;
-  payment: PaymentMethod;
+  payment: CounterPaymentMethod;
   /** Who paid at the counter (defaults to the guardian). */
   paidBy?: string;
   /** Remarks printed on the receipt. */
@@ -117,7 +133,8 @@ export const CANCEL_REASON_LABEL: Record<CancelReason, string> = {
 };
 
 export interface Cancellation {
-  cnNo: string;
+  /** "KC-CN-2627-000012". Missing (or empty) for a cancellation migrated from the old system, which numbered none. */
+  cnNo?: string;
   receiptNo: string;
   reason: CancelReason;
   note: string;
@@ -158,7 +175,8 @@ export interface Receipt {
   policyNotes?: string[];
 }
 
-export type LedgerDocType = "CHARGE" | "LATE_FINE" | "RECEIPT" | "CANCELLATION";
+/** UNAPPLIED: the part of a salary deduction (payroll child fee) that was more than what was due; it stays on the account. */
+export type LedgerDocType = "CHARGE" | "LATE_FINE" | "RECEIPT" | "CANCELLATION" | "UNAPPLIED";
 
 export interface LedgerEntry {
   id: string;
@@ -189,6 +207,8 @@ export interface LedgerEntry {
   oneOff?: boolean;
   /** Charges: a cancellation waiting for the principal. */
   cancelPending?: boolean;
+  /** Charges: campus the charge is owed at (a transferred student's old dues). */
+  campus?: CampusCode;
 }
 
 export interface Ledger {

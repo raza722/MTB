@@ -1,16 +1,15 @@
-import { demoControls, resetDemoData } from "@mtb/mocks";
-import { Button, Icon, Switch } from "@mtb/ui";
+import { resetDemoData } from "@mtb/mocks";
+import { Button, Icon } from "@mtb/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { Popover } from "radix-ui";
-import { useState } from "react";
 
 /**
- * Presenter's panel, mock mode only: make the next receipt post fail, or reset the demo data of the modules that are
- * still mocked. Sign-in is real now, so there is no "sign in as" here. Not part of the product.
+ * Presenter's panel, mock mode only: reset the demo data of the modules that are still mocked. Sign-in is real, and so
+ * are the fee counter and receipts (module 6), so there is no "sign in as" or "fail the next receipt post" here.
+ * Not part of the product.
  */
 export default function DemoControls() {
   const queryClient = useQueryClient();
-  const [failNext, setFailNext] = useState(() => demoControls.get().failNextReceiptPost);
 
   return (
     <Popover.Root>
@@ -25,14 +24,6 @@ export default function DemoControls() {
             <span className="text-title-3">Demo controls</span>
             <span className="text-small text-ink-muted">For the presenter. Modules not built yet use fictional data, which resets when this tab closes.</span>
           </div>
-          <Switch
-            label="Next receipt post fails (network error)"
-            checked={failNext}
-            onChange={(e) => {
-              demoControls.set((c) => ({ ...c, failNextReceiptPost: e.target.checked }));
-              setFailNext(e.target.checked);
-            }}
-          />
           <Button
             variant="danger-quiet"
             size="sm"

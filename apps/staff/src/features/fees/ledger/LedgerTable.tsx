@@ -1,14 +1,22 @@
-import { feesQueries, type CampusCode, type LedgerDocType, type LedgerEntry } from "@mtb/api";
+import { feesQueries, metaQueries, type CampusCode, type LedgerDocType, type LedgerEntry } from "@mtb/api";
 import { formatDate, formatRs, formatSession } from "@mtb/domain";
 import { Button, cx, EmptyState, Icon, IconButton, Money, Select, Skeleton, StatusBadge, Tooltip } from "@mtb/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Fragment, useEffect, useState } from "react";
 import { useCtx, useReadOnly } from "../../../app/session";
-import { PaperSize, TODAY, useCanAny } from "../shared";
+import { feeToday, PaperSize, useCanAny } from "../shared";
 import { AddChargePanel, CancelChargeModal } from "./ChargePanels";
 
-const DOC_LABEL: Record<LedgerDocType, string> = { CHARGE: "Charge", LATE_FINE: "Late fine", RECEIPT: "Receipt", CANCELLATION: "Cancellation" };
+const DOC_LABEL: Record<LedgerDocType, string> = { CHARGE: "Charge", LATE_FINE: "Late fine", RECEIPT: "Receipt", CANCELLATION: "Cancellation", UNAPPLIED: "Unapplied salary deduction" };
+
+/** "· owed at Ubaid Campus" when a charge belongs to another campus than the student's (a transferred student's old dues). */
+function OtherCampus({ e, home }: { e: LedgerEntry; home: CampusCode | undefined }) {
+  const campuses = useQuery(metaQueries.campuses());
+  if (!e.campus || !home || e.campus === home) return null;
+  const name = campuses.data?.find((c) => c.code === e.campus)?.name ?? e.campus;
+  return <span className="ml-2 text-small text-ink-muted">· owed at {name}</span>;
+}
 
 /** The student the ledger belongs to, for the printed statement and for adding charges. */
 export interface LedgerStudent {
@@ -60,7 +68,7 @@ function ChargeStatus({ e }: { e: LedgerEntry }) {
   if (e.cancelled) return <StatusBadge status="cancelled" />;
   if (e.settled === "PAID") return <StatusBadge status="paid" />;
   if (e.settled === "PART_PAID") return <StatusBadge status="warning">Part paid</StatusBadge>;
-  return (e.dueDate ?? e.date) < TODAY ? <StatusBadge status="overdue">Payable · overdue</StatusBadge> : <StatusBadge status="unpaid">Payable</StatusBadge>;
+  return (e.dueDate ?? e.date) < feeToday() ? <StatusBadge status="overdue">Payable · overdue</StatusBadge> : <StatusBadge status="unpaid">Payable</StatusBadge>;
 }
 
 const cancellable = (e: LedgerEntry) => e.docType === "CHARGE" && !e.cancelled && !e.cancelPending && e.settled === "PAYABLE" && (e.coveredBy?.length ?? 0) === 0;
@@ -76,6 +84,9 @@ export function LedgerTable({ grNo, defaultSession, student }: { grNo: string; d
   const canCharge = useCanAny(["fees.setup", "fees.collect"]);
   const canCancel = useCanAny(["fees.setup", "fees.collect", "fees.cancel.request"]);
   const [session, setSession] = useState<string>(String(defaultSession));
+  // Every session Setup knows up to this one (the old system's fees go back to 2017–18), newest first.
+  const sessions = useQuery(metaQueries.sessions());
+  const sessionOptions = [...new Set([defaultSession, ...(sessions.data ?? []).map((s) => s.startYear).filter((y) => y <= defaultSession)])].sort((a, b) => b - a);
   const [docType, setDocType] = useState<LedgerDocType | "">("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [focus, setFocus] = useState<{ chargeId?: string; receiptNo?: string } | null>(null);
@@ -131,7 +142,7 @@ export function LedgerTable({ grNo, defaultSession, student }: { grNo: string; d
               <h1 style={{ margin: 0, fontSize: "13pt" }}>MTB {student.campusName}</h1>
               <p style={{ margin: 0 }}>{cardView ? "Student fee card" : "Student fee statement"} · {sessionText}</p>
             </div>
-            <p style={{ margin: 0 }}>Printed {formatDate(TODAY)}</p>
+            <p style={{ margin: 0 }}>Printed {formatDate(feeToday())}</p>
           </div>
           <dl className="m-0 mb-3 grid grid-cols-[auto_1fr_auto_1fr] gap-x-4 gap-y-1">
             <dt className="text-ink-muted">Name</dt>
@@ -159,11 +170,7 @@ export function LedgerTable({ grNo, defaultSession, student }: { grNo: string; d
             label="Session"
             value={session}
             onChange={(e) => setSession(e.target.value)}
-            options={[
-              { value: String(defaultSession), label: formatSession(defaultSession) },
-              { value: String(defaultSession - 1), label: formatSession(defaultSession - 1) },
-              { value: "ALL", label: "All sessions" },
-            ]}
+            options={[...sessionOptions.map((s) => ({ value: String(s), label: formatSession(s) })), { value: "ALL", label: "All sessions" }]}
           />
           <Select
             label="Document"
@@ -175,6 +182,7 @@ export function LedgerTable({ grNo, defaultSession, student }: { grNo: string; d
               { value: "LATE_FINE", label: "Late fines" },
               { value: "RECEIPT", label: "Receipts" },
               { value: "CANCELLATION", label: "Cancellations" },
+              { value: "UNAPPLIED", label: "Unapplied salary deductions" },
             ]}
           />
           <Button icon="printer" onClick={() => setPrinting(true)} disabled={!ledger.data}>
@@ -248,6 +256,7 @@ export function LedgerTable({ grNo, defaultSession, student }: { grNo: string; d
                     <td className="tabular-nums">{formatDate(e.dueDate ?? e.date)}</td>
                     <td>
                       <span className={cx(e.cancelled && "mtb-strike")}>{e.description.replace(/ · due$/, "")}</span>
+                      <OtherCampus e={e} home={student?.campus} />
                       {e.cancelPending && (
                         <StatusBadge status="pending" className="ml-2">
                           Cancellation waiting for approval
@@ -379,6 +388,7 @@ export function LedgerTable({ grNo, defaultSession, student }: { grNo: string; d
                         </td>
                         <td>
                           <span className={cx(e.cancelled && "mtb-strike")}>{e.description}</span>
+                          <OtherCampus e={e} home={student?.campus} />
                           {e.cancelled && (
                             <StatusBadge status="cancelled" className="ml-2">
                               Cancelled

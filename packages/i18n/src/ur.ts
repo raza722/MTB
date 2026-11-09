@@ -192,6 +192,8 @@ export const ur: Record<MessageKey, string> = {
   "fees.method.BANK": "بینک میں جمع",
   "fees.method.CHEQUE": "چیک",
   "fees.method.ONLINE": "آن لائن ٹرانسفر",
+  "fees.method.SALARY": "تنخواہ سے کٹوتی",
+  "fees.method.LEGACY": "پرانا نظام",
   "fees.receiptReview": "زیرِ جائزہ",
   "fees.receiptCancelled": "منسوخ",
   "fees.receiptToday": "آج ادا ہوئی",

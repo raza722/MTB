@@ -45,7 +45,7 @@ import { z } from "zod";
 import { campusLabel } from "../../../app/shell/campus";
 import { Page, PageHeader, RequirePermission, RequireSingleCampus } from "../../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../../app/session";
-import { className, errorText, FeesNav, LoadError, slide, TODAY } from "../shared";
+import { className, errorText, feeToday, FeesNav, LoadError, slide } from "../shared";
 import { HeadsPanel } from "./HeadsPanel";
 
 /** Heads that can carry an amount per class (transport is priced by route). */
@@ -68,6 +68,18 @@ function timesBilled(h: FeeHead | undefined, plans: FeeInstallmentPlan[]): numbe
   const count = (code: FeeInstallmentPlan["code"]) => plans.find((p) => p.code === code)?.count ?? 1;
   if (h.billing === "MONTHLY" || h.billing === "QUARTERLY" || h.billing === "TERMLY") return count(h.billing);
   return h.billing === "ANNUAL" ? 1 : 0;
+}
+
+/** "month", "quarter", "term" for a periodic head; "" otherwise (the structure's amount is per installment). */
+const unitOf = (h: FeeHead | undefined) => (h?.billing === "MONTHLY" ? "month" : h?.billing === "QUARTERLY" ? "quarter" : h?.billing === "TERMLY" ? "term" : "");
+
+/** "Monthly heads × 12 months + quarterly heads × 4 quarters + …": how the session total is worked out, from the plans. */
+function sessionTotalText(s: FeeStructure): string {
+  const unit: Partial<Record<FeeInstallmentPlan["code"], string>> = { MONTHLY: "months", QUARTERLY: "quarters", TERMLY: "terms" };
+  const periodic = (["MONTHLY", "QUARTERLY", "TERMLY"] as const)
+    .filter((code) => s.heads.some((h) => h.billing === code && h.active && priceable(h) && h.category === "FEE"))
+    .map((code) => `${code === "TERMLY" ? "termly" : code.toLowerCase()} heads × ${s.plans.find((p) => p.code === code)?.count ?? 1} ${unit[code]}`);
+  return `${[...periodic, "yearly heads"].join(" + ").replace(/^./, (c) => c.toUpperCase())}. One-off heads (admission, test fee) are not in it.`;
 }
 
 const PARTS = [
@@ -105,6 +117,9 @@ function EditClassPanel({ structure, cls, onClose }: { structure: FeeStructure; 
   const shown = structure.heads.filter((h) => codes.includes(h.code));
 
   // Dynamic keys: one rule per head shown, tuition required; section amounts checked row by row.
+  // Tuition is entered per installment of its plan ("Enter the tuition fee per quarter." where tuition is quarterly).
+  const tuitionUnit = unitOf(structure.heads.find((h) => h.code === "TUITION"));
+  const tuitionMsg = tuitionUnit ? `Enter the tuition fee per ${tuitionUnit}.` : "Enter the tuition fee.";
   const schema = z
     .object({
       lines: z.object(
@@ -112,7 +127,7 @@ function EditClassPanel({ structure, cls, onClose }: { structure: FeeStructure; 
           codes.map((c) => [
             c,
             c === "TUITION"
-              ? z.number({ error: "Enter the monthly tuition fee." }).int().min(1, "Enter the monthly tuition fee.").max(500000, "That is more than Rs 500,000. Check the figure.")
+              ? z.number({ error: tuitionMsg }).int().min(1, tuitionMsg).max(500000, "That is more than Rs 500,000. Check the figure.")
               : z.number({ error: "Enter the amount, or 0 if this class doesn't pay it." }).int().min(0).max(500000, "That is more than Rs 500,000. Check the figure."),
           ]),
         ),
@@ -156,8 +171,6 @@ function EditClassPanel({ structure, cls, onClose }: { structure: FeeStructure; 
   });
   const conflict = save.error instanceof ApiError && save.error.status === 409;
   const setLine = (code: string, patch: Partial<LineDraft>) => setValues((prev) => ({ ...prev, [code]: { ...(prev[code] ?? { amount: 0, active: true, installments: 1 }), ...patch } }));
-  const terms = structure.plans.find((p) => p.code === "TERMLY")?.count ?? 2;
-  const monthly = structure.plans.find((p) => p.code === "MONTHLY")?.count ?? 12;
 
   return (
     <SidePanel
@@ -245,7 +258,7 @@ function EditClassPanel({ structure, cls, onClose }: { structure: FeeStructure; 
                 label="Add a head to this class"
                 value={adding}
                 onChange={(e) => setAdding(e.target.value)}
-                options={[{ value: "", label: "Choose a head" }, ...addable.map((h) => ({ value: h.code, label: `${h.title} · ${h.billing === "MONTHLY" ? "monthly" : h.billing === "ANNUAL" ? "yearly" : h.billing === "TERMLY" ? "each term" : "one-off"}` }))]}
+                options={[{ value: "", label: "Choose a head" }, ...addable.map((h) => ({ value: h.code, label: `${h.title} · ${h.billing === "MONTHLY" ? "monthly" : h.billing === "QUARTERLY" ? "each quarter" : h.billing === "ANNUAL" ? "yearly" : h.billing === "TERMLY" ? "each term" : "one-off"}` }))]}
               />
             </div>
             <Button
@@ -308,7 +321,7 @@ function EditClassPanel({ structure, cls, onClose }: { structure: FeeStructure; 
         <KeyValue
           items={[
             ["A student pays in the session", <span className="font-semibold tabular-nums">{formatRs(year)}</span>],
-            ["Worked out as", `Monthly heads × ${monthly} months + yearly heads + exam fee × ${terms} terms. One-off heads (admission, test fee) are not in it.`],
+            ["Worked out as", sessionTotalText(structure)],
             ["Last changed", `${formatDateTime(cls.updatedAt)} by ${cls.updatedBy}`],
           ]}
         />
@@ -328,6 +341,8 @@ function CopyPanel({ campus, fromSession, toSession, replacing, onClose }: { cam
   const toast = useToast();
   const queryClient = useQueryClient();
   const [pct, setPct] = useState("6");
+  // The source session's tuition head says whether the amounts are per month or per quarter.
+  const tuitionHead = useQuery(feeSetupQueries.structure(campus, fromSession)).data?.heads.find((h) => h.code === "TUITION");
   const [roundTo, setRoundTo] = useState<"50" | "100" | "500">("500");
   const [preview, setPreview] = useState<FeeCopyPreview | null>(null);
   const [confirming, setConfirming] = useState(false);
@@ -406,7 +421,7 @@ function CopyPanel({ campus, fromSession, toSession, replacing, onClose }: { cam
             density="dense"
             columns={[
               { key: "className", header: "Class", render: (c) => c.className },
-              { key: "t", header: "Tuition / month", align: "right", render: (c) => `${formatRs(c.tuitionFrom)} → ${formatRs(c.tuitionTo)}` },
+              { key: "t", header: tuitionHead ? perLabel(tuitionHead) : "Tuition", align: "right", render: (c) => `${formatRs(c.tuitionFrom)} → ${formatRs(c.tuitionTo)}` },
               { key: "y", header: "Session total", align: "right", render: (c) => `${formatRs(c.from)} → ${formatRs(c.to)}` },
               { key: "d", header: "Change", align: "right", render: (c) => <span className="text-ink-muted">{formatRs(c.to - c.from, { sign: "always" })}</span> },
             ]}
@@ -449,7 +464,7 @@ function DueDateModal({ structure, plan, inst, onClose }: { structure: FeeStruct
       date: z
         .string({ error: "Enter the new due date." })
         .min(1, "Enter the new due date.")
-        .refine((d) => d >= TODAY, "The new due date can't be in the past.")
+        .refine((d) => d >= feeToday(), "The new due date can't be in the past.")
         .refine((d) => scope !== "CAMPUS" || head !== "" || d !== inst.dueDate, "Choose a different date."),
       cls: z.string(),
       section: z.string(),
@@ -461,7 +476,7 @@ function DueDateModal({ structure, plan, inst, onClose }: { structure: FeeStruct
   if (!parsed.success) for (const i of parsed.error.issues) errors[String(i.path[0])] ??= i.message;
   const input = { plan: plan.code, no: inst.no, dueDate: date ?? "", ...(scope !== "CAMPUS" && cls ? { classShort: cls } : {}), ...(scope === "SECTION" && section ? { section } : {}), ...(head ? { head } : {}) };
   const key = useMemo(() => newIdempotencyKey(), [JSON.stringify(input)]); // eslint-disable-line react-hooks/exhaustive-deps
-  const who = scope === "CAMPUS" ? structure.campusName : scope === "CLASS" ? className(cls || "?") : `${cls}-${section}`;
+  const who = scope === "CAMPUS" ? structure.campusName : scope === "CLASS" ? (structure.classes.find((c) => c.classShort === cls)?.className ?? className(cls || "?")) : `${cls}-${section}`;
   const save = useMutation({
     mutationFn: () => feeSetupApi.setDueDate(structure.campus, structure.session, input, key),
     onSuccess: (r) => {
@@ -545,7 +560,7 @@ function DueDateModal({ structure, plan, inst, onClose }: { structure: FeeStruct
             help="Choose one head to move only its charges."
           />
         )}
-        <DatePicker label="New due date" required value={date} onValueChange={setDate} today={TODAY} minDate={TODAY} error={tried ? errors.date : undefined} />
+        <DatePicker label="New due date" required value={date} onValueChange={setDate} today={feeToday()} minDate={feeToday()} error={tried ? errors.date : undefined} />
         {scope !== "CAMPUS" || head ? (
           <p className="m-0 text-small text-ink-muted">Only {who}{head ? `'s ${headTitle(head).toLowerCase()}` : ""} moves. The plan's date for everyone else stays {formatDate(inst.dueDate)}.</p>
         ) : null}
@@ -573,7 +588,7 @@ function PlansPanel({ structure, editable }: { structure: FeeStructure; editable
               </div>
               <div className="flex flex-wrap gap-2">
                 {p.installments.map((i, k) => {
-                  const past = i.dueDate < TODAY;
+                  const past = i.dueDate < feeToday();
                   const chip = (
                     <span className="grid gap-0.5 text-left">
                       <span className="text-small font-medium">{i.label}</span>
@@ -655,8 +670,19 @@ function CampusStructure({ campus }: { campus: CampusCode }) {
       </div>
     );
 
-  const monthly = s.classes.map((c) => c.monthly);
-  const years = s.classes.map((c) => c.yearTotal);
+  // Only classes with an amount: a class the office has not priced yet shows 0 and would pull the range down.
+  const monthly = s.classes.map((c) => c.monthly).filter((v) => v > 0);
+  const years = s.classes.map((c) => c.yearTotal).filter((v) => v > 0);
+  const range = (xs: number[]) => (xs.length ? `${formatRs(Math.min(...xs))} – ${formatRs(Math.max(...xs))}` : "—");
+  const priced = s.classes.filter((c) => c.monthly > 0);
+  const tuitionUnit = unitOf(s.heads.find((h) => h.code === "TUITION"));
+  const tuitionFoot = [
+    priced.length ? `${priced[0]!.className} to ${priced.at(-1)!.className}` : "No class priced yet",
+    tuitionUnit && tuitionUnit !== "month" ? `billed every ${tuitionUnit}` : "",
+    priced.length && priced.length < s.classes.length ? `${s.classes.length - priced.length} classes not priced` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
   const last = s.history[0];
   const editingClass = s.classes.find((c) => c.classShort === editing);
 
@@ -694,8 +720,8 @@ function CampusStructure({ campus }: { campus: CampusCode }) {
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Tuition a month" icon="fees" value={`${formatRs(Math.min(...monthly))} – ${formatRs(Math.max(...monthly))}`} foot="Prep to Class 10" />
-        <StatCard label="A student pays in the session" icon="layers" value={`${formatRs(Math.min(...years))} – ${formatRs(Math.max(...years))}`} foot="Before concessions; transport extra" />
+        <StatCard label="Tuition a month" icon="fees" value={range(monthly)} foot={tuitionFoot} />
+        <StatCard label="A student pays in the session" icon="layers" value={range(years)} foot={s.transport ? "Before concessions; transport extra" : "Before concessions"} />
         <StatCard label="Fee heads in use" icon="listChecks" value={<AnimatedNumber value={s.heads.filter((h) => h.active).length} format={formatCount} />} foot="Fees, fines and the test fee" />
         <StatCard label="Last changed" icon="clock" value={last ? formatDate(last.at) : "—"} foot={last ? `by ${last.by}` : "No changes yet"} />
       </div>

@@ -125,17 +125,17 @@ export function ReceiptPage({ receiptNo }: { receiptNo: string }) {
           </div>
         )}
         {r?.status === "CANCEL_PENDING" && r.cancellation && (
-          <Banner tone="warning" title={`Cancellation ${r.cancellation.cnNo} is waiting for the principal's approval.`}>
+          <Banner tone="warning" title={`${r.cancellation.cnNo ? `Cancellation ${r.cancellation.cnNo}` : "A cancellation"} is waiting for the principal's approval.`}>
             Requested by {r.cancellation.requestedBy} on {formatDateTime(r.cancellation.requestedAt)} · {CANCEL_REASON_LABEL[r.cancellation.reason]}: {r.cancellation.note} The receipt stays valid until it is approved.
           </Banner>
         )}
         {r?.status === "CANCELLED" && r.cancellation && (
-          <Banner tone="neutral" title={`Cancelled by ${r.cancellation.cnNo}.`}>
-            Approved by {r.cancellation.decidedBy} on {r.cancellation.decidedAt ? formatDate(r.cancellation.decidedAt) : ""}. Its charges are open again in the ledger; this receipt number is never reused.
+          <Banner tone="neutral" title={r.cancellation.cnNo ? `Cancelled by ${r.cancellation.cnNo}.` : "Cancelled in the old system."}>
+            Approved by {r.cancellation.decidedBy ?? "—"} on {r.cancellation.decidedAt ? formatDate(r.cancellation.decidedAt) : "—"}. Its charges are open again in the ledger; this receipt number is never reused.
           </Banner>
         )}
         {r?.cancellation?.status === "REJECTED" && (
-          <Banner tone="info" title={`Cancellation ${r.cancellation.cnNo} was rejected.`}>
+          <Banner tone="info" title={`${r.cancellation.cnNo ? `Cancellation ${r.cancellation.cnNo}` : "The cancellation"} was rejected.`}>
             Rejected by {r.cancellation.decidedBy}. The receipt stands.
           </Banner>
         )}

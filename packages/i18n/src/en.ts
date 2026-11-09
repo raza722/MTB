@@ -189,6 +189,8 @@ export const en = {
   "fees.method.BANK": "Bank deposit",
   "fees.method.CHEQUE": "Cheque",
   "fees.method.ONLINE": "Online transfer",
+  "fees.method.SALARY": "Salary deduction",
+  "fees.method.LEGACY": "Old system",
   "fees.receiptReview": "Under review",
   "fees.receiptCancelled": "Cancelled",
   "fees.receiptToday": "Paid today",

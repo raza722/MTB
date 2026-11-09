@@ -71,7 +71,7 @@ import {
 import { campusName } from "../fixtures/campuses";
 import { dayFigure, figuresFor } from "../fixtures/fee-setup";
 import { ctxFrom, fail, HttpResponse, latency, requirePermission, requireUser } from "../util";
-import { feeHeadsForPosting, headCodeOf as feeHeadCodeOf } from "./fee-setup";
+import { feeHeadsForPosting, headCodeOf as feeHeadCodeOf } from "./fee-setup-model";
 import { feesStore } from "./fees-state";
 
 // accounts mock handlers and stores — owned by the accounts feature. Every figure is worked out from vouchers:
@@ -292,7 +292,7 @@ function syncFeeCancellations() {
       postedBy: SYSTEM_USER,
       postedAt: at,
       system: true,
-      source: { kind: "RECEIPT_CANCELLATION", receiptNo: r.receiptNo, cnNo: cn.cnNo, studentName: r.studentName },
+      source: { kind: "RECEIPT_CANCELLATION", receiptNo: r.receiptNo, cnNo: cn.cnNo ?? "", studentName: r.studentName },
       history: [{ action: "POSTED", by: SYSTEM_USER, at, note: `Cancellation approved by ${cn.decidedBy ?? "the principal"}.` }],
     });
     posted[r.receiptNo] = `fc-${r.receiptNo}`;

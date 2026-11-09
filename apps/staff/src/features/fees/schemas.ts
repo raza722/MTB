@@ -1,10 +1,10 @@
-import type { PaymentMethod } from "@mtb/api";
+import type { CounterPaymentMethod } from "@mtb/api";
 import type { IsoDate } from "@mtb/domain";
 import { z } from "zod";
 
 /** What the cashier has typed so far, for every method (only the chosen method's fields are used). */
 export interface PaymentDraft {
-  method: PaymentMethod["method"];
+  method: CounterPaymentMethod["method"];
   received: number | null;
   bank: string;
   slipNo: string;
@@ -46,7 +46,7 @@ export function paymentSchema(total: number) {
 }
 
 /** Validates the draft for its method. Returns the API payload, or field errors in plain words. */
-export function validatePayment(draft: PaymentDraft, total: number): { ok: true; payment: PaymentMethod } | { ok: false; errors: Partial<Record<string, string>> } {
+export function validatePayment(draft: PaymentDraft, total: number): { ok: true; payment: CounterPaymentMethod } | { ok: false; errors: Partial<Record<string, string>> } {
   const candidate =
     draft.method === "CASH"
       ? { method: "CASH", received: draft.received ?? undefined }
@@ -56,7 +56,7 @@ export function validatePayment(draft: PaymentDraft, total: number): { ok: true;
           ? { method: "CHEQUE", chequeNo: draft.chequeNo, bank: draft.chequeBank, chequeDate: draft.chequeDate ?? undefined }
           : { method: "ONLINE", transactionId: draft.transactionId };
   const parsed = paymentSchema(total).safeParse(candidate);
-  if (parsed.success) return { ok: true, payment: parsed.data as PaymentMethod };
+  if (parsed.success) return { ok: true, payment: parsed.data as CounterPaymentMethod };
   const errors: Partial<Record<string, string>> = {};
   for (const issue of parsed.error.issues) {
     let key = String(issue.path[0] ?? "method");

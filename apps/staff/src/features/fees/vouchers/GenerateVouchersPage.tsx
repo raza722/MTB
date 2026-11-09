@@ -1,4 +1,4 @@
-import { feeMonthLabel, feeMonthLongLabel, feeSetupApi, newIdempotencyKey, type CampusCode, type FeeVoucherGenerateResult, type FeeVoucherPreview, type FeeVoucherRequest } from "@mtb/api";
+import { feeMonthLabel, feeMonthLongLabel, feeSetupApi, feeSetupQueries, newIdempotencyKey, type CampusCode, type FeeStructure, type FeeVoucherGenerateResult, type FeeVoucherPreview, type FeeVoucherRequest } from "@mtb/api";
 import { formatCount, formatDate, formatRs, formatSession } from "@mtb/domain";
 import {
   AnimatedNumber,
@@ -14,19 +14,20 @@ import {
   Panel,
   Segmented,
   Select,
+  Skeleton,
   StatCard,
   Stepper,
   Switch,
   useToast,
 } from "@mtb/ui";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { z } from "zod";
 import { campusLabel } from "../../../app/shell/campus";
 import { Page, PageHeader, RequirePermission, RequireSingleCampus } from "../../../app/shell/page";
 import { useCtx, useReadOnly } from "../../../app/session";
-import { addDaysIso, CLASS_SHORTS, className, errorField, errorText, FeesNav, monthEndIso, sessionMonthList, slide, TODAY, useCanAny } from "../shared";
+import { addDaysIso, errorField, errorText, feeToday, FeesNav, monthEndIso, sessionMonthList, slide, useCanAny, useFeeClasses } from "../shared";
 import { VoucherSheet } from "./VoucherSheet";
 
 const schema = z
@@ -34,27 +35,49 @@ const schema = z
     month: z.string().min(1, "Choose the month."),
     classes: z.array(z.string()),
     scope: z.enum(["ALL", "CLASSES"]),
-    dueDate: z.string({ error: "Enter the due date." }).min(1, "Enter the due date.").refine((d) => d >= TODAY, "The due date can't be in the past."),
+    dueDate: z.string({ error: "Enter the due date." }).min(1, "Enter the due date.").refine((d) => d >= feeToday(), "The due date can't be in the past."),
     validUntil: z.string({ error: "Enter the last date the bank accepts it." }).min(1, "Enter the last date the bank accepts it."),
   })
   .refine((v) => v.scope === "ALL" || v.classes.length > 0, { path: ["classes"], message: "Choose at least one class, or the whole campus." })
   .refine((v) => v.validUntil >= v.dueDate, { path: ["validUntil"], message: "The bank must accept it at least until the due date." });
 
-const defaultDue = (month: string) => {
-  const tenth = `${month}-10`;
-  return tenth >= TODAY ? tenth : addDaysIso(TODAY, 7);
+/**
+ * The due date to suggest for a month: the earliest installment of the campus's plans that falls in it (Fees ›
+ * Structure), else the 10th; a date already past becomes a week from today.
+ */
+const defaultDue = (month: string, structure: FeeStructure | undefined) => {
+  const today = feeToday();
+  const planned = (structure?.plans ?? [])
+    .flatMap((p) => p.installments.map((i) => i.dueDate))
+    .filter((d) => d.startsWith(month))
+    .sort()[0];
+  const due = planned ?? `${month}-10`;
+  return due >= today ? due : addDaysIso(today, 7);
 };
 
+/** Waits for the campus's structure (installment dates and session dates) so the defaults come from real data. */
 function Form({ campus }: { campus: CampusCode }) {
+  const ctx = useCtx();
+  const structure = useQuery(feeSetupQueries.structure(campus, ctx.session));
+  if (structure.isLoading) return <Skeleton height={320} />;
+  return <FormBody campus={campus} structure={structure.data} />;
+}
+
+function FormBody({ campus, structure }: { campus: CampusCode; structure: FeeStructure | undefined }) {
   const ctx = useCtx();
   const toast = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const months = sessionMonthList(ctx.session).filter((m) => m >= TODAY.slice(0, 7)).slice(0, 4);
+  const today = feeToday();
+  const cls = useFeeClasses(campus);
+  // This month and the next three of the session, from today's date.
+  const months = sessionMonthList(ctx.session, structure?.sessionStart, structure?.sessionEnd)
+    .filter((m) => m >= today.slice(0, 7))
+    .slice(0, 4);
   const [month, setMonth] = useState(months[1] ?? months[0] ?? "");
   const [scope, setScope] = useState<"ALL" | "CLASSES">("ALL");
   const [classes, setClasses] = useState<string[]>([]);
-  const [dueDate, setDueDate] = useState<string | null>(defaultDue(month));
+  const [dueDate, setDueDate] = useState<string | null>(defaultDue(month, structure));
   const [validUntil, setValidUntil] = useState<string | null>(monthEndIso(month));
   const [includeArrears, setIncludeArrears] = useState(true);
   const [tried, setTried] = useState(false);
@@ -136,7 +159,7 @@ function Form({ campus }: { campus: CampusCode }) {
               onChange={(e) =>
                 change(() => {
                   setMonth(e.target.value);
-                  setDueDate(defaultDue(e.target.value));
+                  setDueDate(defaultDue(e.target.value, structure));
                   setValidUntil(monthEndIso(e.target.value));
                 })
               }
@@ -148,10 +171,10 @@ function Form({ campus }: { campus: CampusCode }) {
                 <Segmented aria-label="Students" value={scope} onChange={(v) => change(() => setScope(v as "ALL" | "CLASSES"))} options={[{ value: "ALL", label: "Whole campus" }, { value: "CLASSES", label: "Choose classes" }]} />
                 {scope === "CLASSES" && (
                   <div className="flex flex-wrap gap-x-5 gap-y-2">
-                    {CLASS_SHORTS.map((c) => (
+                    {cls.classes.map(({ short: c, name }) => (
                       <Checkbox
                         key={c}
-                        label={className(c)}
+                        label={name}
                         checked={classes.includes(c)}
                         onChange={(e) => change(() => setClasses((prev) => (e.target.checked ? [...prev, c] : prev.filter((x) => x !== c))))}
                       />
@@ -168,9 +191,9 @@ function Form({ campus }: { campus: CampusCode }) {
               required
               value={dueDate}
               onValueChange={(v) => change(() => setDueDate(v))}
-              today={TODAY}
-              minDate={TODAY}
-              help="Fees are due on the 10th. The late fine starts the day after."
+              today={today}
+              minDate={today}
+              help="Suggested from the campus's installment dates. The late fine starts the day after."
               error={tried ? (errors.dueDate ?? (serverField === "dueDate" ? errorText(previewM.error) : undefined)) : undefined}
             />
             <DatePicker
@@ -178,8 +201,8 @@ function Form({ campus }: { campus: CampusCode }) {
               required
               value={validUntil}
               onValueChange={(v) => change(() => setValidUntil(v))}
-              today={TODAY}
-              minDate={dueDate ?? TODAY}
+              today={today}
+              minDate={dueDate ?? today}
               help="After this date parents pay at the school office."
               error={tried ? (errors.validUntil ?? (serverField === "validUntil" ? errorText(previewM.error) : undefined)) : undefined}
             />
@@ -294,7 +317,7 @@ function Form({ campus }: { campus: CampusCode }) {
           onClose={() => setConfirming(false)}
           onConfirm={() => generate.mutate()}
           title={`Generate ${formatCount(preview.students)} vouchers?`}
-          message={`${campusLabel(campus)} · ${feeMonthLongLabel(preview.month)} · ${scope === "ALL" ? "whole campus" : classes.map(className).join(", ")}`}
+          message={`${campusLabel(campus)} · ${feeMonthLongLabel(preview.month)} · ${scope === "ALL" ? "whole campus" : classes.map(cls.nameOf).join(", ")}`}
           details={[
             ["New charges on student ledgers", formatCount(preview.newCharges)],
             ["Payable by the due date", formatRs(preview.total)],

@@ -1,12 +1,11 @@
-import { CANCEL_REASON_LABEL, type Approval, type CampusCode, type DashboardSummary, type ReceiptCancellationApproval } from "@mtb/api";
-import { bypass, http, passthrough } from "msw";
-import { DEMO_TODAY, demoNow } from "../clock";
+import type { CampusCode, DashboardSummary } from "@mtb/api";
+import { http } from "msw";
+import { DEMO_TODAY } from "../clock";
 import { totalsOf } from "../fixtures/attendance";
 import { CAMPUSES } from "../fixtures/campuses";
-import { ctxFrom, fail, HttpResponse, latency, requirePermission } from "../util";
+import { ctxFrom, HttpResponse, latency, requirePermission } from "../util";
 import { attendanceDayFor } from "./attendance-model";
 import { activityFor, ALL_CODES, attendanceTrendFor, classGroupsFor, collectionsFor, feeStatusFor, upcomingFor } from "./dashboard-data";
-import { chargeCancellationApprovals, decideCancellation, decideChargeCancellation } from "./fees";
 import { feesStore } from "./fees-state";
 import { hrStaffToday } from "./hr-model";
 
@@ -48,26 +47,6 @@ function campusFigures(code: CampusCode): Base {
     feesToday: { amount: b.feesToday.amount + posted.amount, receipts: b.feesToday.receipts + posted.receipts },
     month: { ...b.month, collected: b.month.collected + posted.amount },
   };
-}
-
-function cancellationApprovals(): ReceiptCancellationApproval[] {
-  return Object.values(feesStore.get().receipts)
-    .filter((r) => r.status === "CANCEL_PENDING" && r.cancellation?.status === "PENDING")
-    .map((r) => ({
-      id: `cn:${r.receiptNo}`,
-      kind: "RECEIPT_CANCELLATION",
-      campus: r.campus,
-      campusName: r.campusName,
-      requestedBy: r.cancellation!.requestedBy,
-      requestedAt: r.cancellation!.requestedAt,
-      student: { name: r.studentName, grNo: r.grNo, classSection: r.classSection },
-      status: "PENDING",
-      cnNo: r.cancellation!.cnNo,
-      receiptNo: r.receiptNo,
-      amount: r.total,
-      reason: CANCEL_REASON_LABEL[r.cancellation!.reason],
-      note: r.cancellation!.note,
-    }));
 }
 
 export const dashboardHandlers = [
@@ -125,52 +104,5 @@ export const dashboardHandlers = [
       campuses: rows.map(({ c, f }) => ({ campus: c.code, name: c.name, attendancePercent: f.attendance.percent, collected: f.month.collected, target: f.month.target, arrears: f.arrears.amount })),
     };
     return HttpResponse.json(summary);
-  }),
-
-  /**
-   * Attendance corrections (kind ATTENDANCE_CORRECTION, ids "att-{n}") are real: the backend answers this request
-   * (it checks approvals.decide and the campus) and the fictional fee approvals (receipt and charge cancellations,
-   * ids "cn:" / "cc:") are added to its list until Fees (module 6) serves them too. A backend error comes back as is.
-   */
-  http.get("/api/approvals", async ({ request }) => {
-    let real: Response;
-    try {
-      real = await fetch(bypass(request));
-    } catch {
-      return Response.error();
-    }
-    if (!real.ok) return real;
-    const attendance = (await real.json()) as Approval[];
-    const ctx = ctxFrom(new URL(request.url));
-    const inScope = (a: Approval) => ctx.campus === "ALL" || a.campus === ctx.campus;
-    const list: Approval[] = [...attendance, ...[...cancellationApprovals(), ...chargeCancellationApprovals()].filter(inScope)];
-    list.sort((a, b) => b.requestedAt.localeCompare(a.requestedAt));
-    return HttpResponse.json(list);
-  }),
-
-  http.post("/api/approvals/:id/decide", async ({ params, request }) => {
-    const id = String(params.id);
-    // Everything but the fictional fee approvals (an "att-" attendance correction, or an id nobody knows) is the backend's.
-    if (!id.startsWith("cn:") && !id.startsWith("cc:")) return passthrough();
-    await latency();
-    const { decision } = (await request.json()) as { decision: "APPROVE" | "REJECT" };
-    if (id.startsWith("cn:")) {
-      const receiptNo = id.slice(3);
-      const item = cancellationApprovals().find((a) => a.id === id);
-      if (!item) return fail(409, "ALREADY_DECIDED", "This request was already decided.");
-      const user = requirePermission("approvals.decide", item.campus);
-      if (user instanceof Response) return user;
-      decideCancellation(receiptNo, decision === "APPROVE", user.name);
-      return HttpResponse.json({ ...item, status: decision === "APPROVE" ? "APPROVED" : "REJECTED", decidedBy: user.name, decidedAt: demoNow() });
-    }
-    if (id.startsWith("cc:")) {
-      const item = chargeCancellationApprovals().find((a) => a.id === id);
-      if (!item) return fail(409, "ALREADY_DECIDED", "This request was already decided.");
-      const user = requirePermission("approvals.decide", item.campus);
-      if (user instanceof Response) return user;
-      if (!decideChargeCancellation(item.chargeId, decision === "APPROVE", user.name)) return fail(409, "ALREADY_DECIDED", "This request was already decided.");
-      return HttpResponse.json({ ...item, status: decision === "APPROVE" ? "APPROVED" : "REJECTED", decidedBy: user.name, decidedAt: demoNow() });
-    }
-    return fail(404, "NOT_FOUND", "This request is not on record.");
   }),
 ];

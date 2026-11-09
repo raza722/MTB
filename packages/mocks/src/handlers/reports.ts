@@ -47,7 +47,7 @@ import { findStudent, STUDENTS } from "../fixtures/students";
 import { ctxFrom, fail, HttpResponse, latency, requirePermission, requireUser } from "../util";
 import { accountsReportBook, accountsReportIncomeExpenditure, accountsReportTrialBalance, accountsReportVouchers } from "./accounts";
 import { chargesOf, feesStore, receiptsOf } from "./fees-state";
-import { feeCandidateRows, feeClassArrears, feeCollectionRows, feeConcessionSummary, feeDefaulterRows, feeHeadByCode, headCodeOf } from "./fee-setup";
+import { feeCandidateRows, feeClassArrears, feeCollectionRows, feeConcessionSummary, feeDefaulterRows, feeHeadByCode, headCodeOf } from "./fee-setup-model";
 import { librarySnapshot, transportSnapshot, warehouseSnapshot } from "./operations";
 import { examReportGenerators, liveExamDefinition } from "./reports-exams";
 import { genderOfName, outboxSnapshot, queueBatch, rosterPeople } from "./sms";
@@ -393,7 +393,7 @@ const GENERATORS: Record<string, (g: Gen) => GenOut> = {
       if (!r.cancellation || !campuses.includes(r.campus)) continue;
       const day = r.cancellation.requestedAt.slice(0, 10);
       if (day < from || day > to) continue;
-      rows.push({ campus: r.campus, cnNo: r.cancellation.cnNo, receiptNo: r.receiptNo, student: r.studentName, amount: r.total, requestedBy: r.cancellation.requestedBy, decidedBy: r.cancellation.decidedBy ?? "—", reason: r.cancellation.note || r.cancellation.reason, status: r.cancellation.status === "APPROVED" ? "Approved" : r.cancellation.status === "REJECTED" ? "Not approved" : "Waiting" });
+      rows.push({ campus: r.campus, cnNo: r.cancellation.cnNo ?? "—", receiptNo: r.receiptNo, student: r.studentName, amount: r.total, requestedBy: r.cancellation.requestedBy, decidedBy: r.cancellation.decidedBy ?? "—", reason: r.cancellation.note || r.cancellation.reason, status: r.cancellation.status === "APPROVED" ? "Approved" : r.cancellation.status === "REJECTED" ? "Not approved" : "Waiting" });
     }
     // Live only: the same cancellations the principal decides on the dashboard and Accounts reverses in the ledger.
     rows.sort((x, y) => String(x.cnNo).localeCompare(String(y.cnNo)));

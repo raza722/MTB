@@ -1,7 +1,8 @@
-import { ApiError, type Permission } from "@mtb/api";
-import { formatLakh, formatRs } from "@mtb/domain";
+import { ApiError, feeSetupQueries, metaQueries, type CampusCode, type CampusScope, type ClassInfo, type Permission } from "@mtb/api";
+import { formatLakh, formatRs, pakistanToday, type IsoDate } from "@mtb/domain";
 import { Banner, Button, Menu, MenuItem, StatusBadge } from "@mtb/ui";
-import type { CSSProperties, ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useMemo, type CSSProperties, type ReactNode } from "react";
 import { SubNav, type SubNavItem } from "../../app/shell/SubNav";
 import { useCan } from "../../app/session";
 import "./fees.css";
@@ -58,6 +59,15 @@ export function LoadError({ what, error, onRetry }: { what: string; error: unkno
   );
 }
 
+/**
+ * First and last day of a session at a campus, from the fee structure (Setup's session dates); April to March while it
+ * loads, for ALL, or when the server does not send them.
+ */
+export function useFeeSessionDates(campus: CampusScope, session: number): { start: IsoDate; end: IsoDate } {
+  const q = useQuery({ ...feeSetupQueries.structure(campus as CampusCode, session), enabled: campus !== "ALL" });
+  return { start: q.data?.sessionStart ?? `${session}-04-01`, end: q.data?.sessionEnd ?? `${session + 1}-03-31` };
+}
+
 /** "Rs 48,25,000" style axis ticks in lakh: "48 lakh". */
 export const lakhTick = (v: number) => (v === 0 ? "0" : v >= 100_000 ? `${Math.round((v / 100_000) * 10) / 10} lakh` : `${Math.round(v / 1000)}k`);
 
@@ -95,13 +105,36 @@ export function Figure({ label, children, hint }: { label: ReactNode; children: 
   );
 }
 
-/** "Class 7" for "7", "Prep" stays. */
+/** "Class 7" for "7", "Prep" stays. Only a fallback while Setup's class list loads; prefer useFeeClasses().nameOf. */
 export const className = (short: string) => (short === "Prep" ? "Prep" : `Class ${short}`);
 
-export const CLASS_SHORTS = ["Prep", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
+export interface FeeClasses {
+  /** Classes offered at the campus (every campus for ALL), in Setup's order. */
+  classes: ClassInfo[];
+  /** Picker options: value = class short ("7"), label = the class's name ("Class 7", "First Year"). */
+  options: Array<{ value: string; label: string }>;
+  /** The class's name from Setup, or "Class 7" while it loads. */
+  nameOf: (short: string) => string;
+  /** Sections of a class at the campus ("A", "B" …); [] for none or while it loads. */
+  sectionsOf: (short: string) => string[];
+  loading: boolean;
+}
 
-/** Sections of a class (the same at every campus: Classes 6–8 have three, the rest two). */
-export const sectionsOf = (cls: string): string[] => (!cls ? [] : ["6", "7", "8"].includes(cls) ? ["A", "B", "C"] : ["A", "B"]);
+/** The campus's classes and sections from Setup (GET /meta/classes), for the fee office's class and section pickers. */
+export function useFeeClasses(campus: CampusScope): FeeClasses {
+  const q = useQuery(metaQueries.classes(campus));
+  return useMemo(() => {
+    const classes = q.data ?? [];
+    const byShort = new Map(classes.map((c) => [c.short, c]));
+    return {
+      classes,
+      options: classes.map((c) => ({ value: c.short, label: c.name })),
+      nameOf: (short: string) => byShort.get(short)?.name ?? className(short),
+      sectionsOf: (short: string) => (short ? (byShort.get(short)?.sections ?? []) : []),
+      loading: q.isLoading,
+    };
+  }, [q.data, q.isLoading]);
+}
 
 /** Several fee heads picked from a menu; none picked = every head. */
 export function HeadPicker({ heads, value, onChange, label = "Fee heads" }: { heads: Array<{ code: string; title: string }>; value: string[]; onChange: (next: string[]) => void; label?: string }) {
@@ -139,8 +172,11 @@ export function PaperSize({ size }: { size: "A4" | "A4L" }) {
   return <style>{size === "A4L" ? "@page { size: A4 landscape; margin: 6mm; }" : "@page { size: A4 portrait; margin: 10mm; }"}</style>;
 }
 
-/** The demo's today (Wednesday 04-Nov-2026). Only for defaults in forms; the server decides dates and fines. */
-export const TODAY = "2026-11-04";
+/**
+ * Today in Pakistan (Asia/Karachi). Only for form defaults, date-picker limits and "printed on" lines; the server
+ * decides dates and fines, and pages that receive the server's `today` (counter, fines, defaulters, arrears) use it.
+ */
+export const feeToday = (): IsoDate => pakistanToday();
 
 /** Adds days to an ISO date without time-zone drift. */
 export function addDaysIso(d: string, n: number): string {
@@ -155,13 +191,29 @@ export function monthEndIso(month: string): string {
   return new Date(Date.UTC(y ?? 2026, m ?? 1, 0)).toISOString().slice(0, 10);
 }
 
-/** Months of a session, April to March: ["2026-04", … "2027-03"]. */
-export function sessionMonthList(session: number): string[] {
-  return Array.from({ length: 12 }, (_, i) => {
-    const d = new Date(Date.UTC(session, 3 + i, 1));
-    return d.toISOString().slice(0, 7);
-  });
+/**
+ * Months of a session: from its first day's month to its last day's ("2026-04" … "2027-03"). The structure sends the
+ * session's dates (sessionStart / sessionEnd); without them the session runs April to March.
+ */
+export function sessionMonthList(session: number, start?: IsoDate, end?: IsoDate): string[] {
+  const from = (start ?? `${session}-04-01`).slice(0, 7);
+  const to = (end ?? `${session + 1}-03-31`).slice(0, 7);
+  const out: string[] = [];
+  let [y, m] = from.split("-").map(Number) as [number, number];
+  for (let guard = 0; guard < 36; guard++) {
+    const key = `${y}-${String(m).padStart(2, "0")}`;
+    if (key > to) break;
+    out.push(key);
+    if (m === 12) {
+      m = 1;
+      y++;
+    } else m++;
+  }
+  return out;
 }
+
+/** A percentage that may be missing: "12.5%", or "—" when there was nothing to divide by. */
+export const pctText = (v: number | null | undefined) => (v === null || v === undefined ? "—" : `${v.toFixed(1)}%`);
 
 /** Wraps Western numbers and dates inside Urdu text. */
 export function Ltr({ children }: { children: ReactNode }) {

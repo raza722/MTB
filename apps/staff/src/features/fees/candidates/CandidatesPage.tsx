@@ -7,7 +7,7 @@ import { z } from "zod";
 import { campusLabel } from "../../../app/shell/campus";
 import { Page, PageHeader, RequirePermission } from "../../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../../app/session";
-import { errorField, errorText, FeesNav, LoadError, PaperSize, TODAY } from "../shared";
+import { errorField, errorText, feeToday, FeesNav, LoadError, PaperSize } from "../shared";
 
 /** A5 slip handed to the candidate with the test roll slip: one line per head, total and paid. */
 export function CandidateSlip({ c }: { c: FeeCandidate }) {
@@ -20,7 +20,8 @@ export function CandidateSlip({ c }: { c: FeeCandidate }) {
         </div>
         <div className="grid justify-items-end text-right">
           <span className="text-title-3">Candidate fee slip</span>
-          <span className="tabular-nums">{c.receiptNo}</span>
+          {/* Candidate fees taken in the old system have no receipt number. */}
+          <span className="tabular-nums">{c.receiptNo ?? "—"}</span>
         </div>
       </div>
       <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-6 gap-y-1">
@@ -103,7 +104,7 @@ function PayCandidatePanel({ c, heads, onClose, onPaid }: { c: FeeCandidate; hea
   );
   const [method, setMethod] = useState<"CASH" | "BANK">("CASH");
   const [challanNo, setChallanNo] = useState("");
-  const [bankDate, setBankDate] = useState<string | null>(TODAY);
+  const [bankDate, setBankDate] = useState<string | null>(feeToday());
   const [paidBy, setPaidBy] = useState("");
   const [tried, setTried] = useState(false);
   const chosen = heads.filter((h) => lines[h.code]?.on);
@@ -128,7 +129,7 @@ function PayCandidatePanel({ c, heads, onClose, onPaid }: { c: FeeCandidate; hea
     })
     .refine((v) => v.lines.reduce((a, l) => a + l.paid, 0) > 0, { path: ["lines"], message: "Enter the amount paid." })
     .refine((v) => v.method !== "BANK" || v.challanNo.trim().length > 0, { path: ["challanNo"], message: "Enter the bank challan number." })
-    .refine((v) => v.method !== "BANK" || (v.date !== "" && v.date <= TODAY), { path: ["date"], message: "Enter the day it was paid at the bank (today or earlier)." });
+    .refine((v) => v.method !== "BANK" || (v.date !== "" && v.date <= feeToday()), { path: ["date"], message: "Enter the day it was paid at the bank (today or earlier)." });
   const body = {
     lines: chosen.map((h) => ({ head: h.code, amount: lines[h.code]?.amount ?? undefined, paid: lines[h.code]?.paid ?? undefined })),
     method,
@@ -217,7 +218,7 @@ function PayCandidatePanel({ c, heads, onClose, onPaid }: { c: FeeCandidate; hea
         {method === "BANK" && (
           <div className="grid gap-4 sm:grid-cols-2">
             <Input label="Bank challan no." required mono value={challanNo} onChange={(e) => setChallanNo(e.target.value)} error={tried ? (errors.challanNo ?? (serverField === "challanNo" ? errorText(pay.error) : undefined)) : undefined} />
-            <DatePicker label="Paid at the bank on" required value={bankDate} onValueChange={setBankDate} today={TODAY} maxDate={TODAY} error={tried ? (errors.date ?? (serverField === "date" ? errorText(pay.error) : undefined)) : undefined} />
+            <DatePicker label="Paid at the bank on" required value={bankDate} onValueChange={setBankDate} today={feeToday()} maxDate={feeToday()} error={tried ? (errors.date ?? (serverField === "date" ? errorText(pay.error) : undefined)) : undefined} />
           </div>
         )}
         <Input label="Paid by" value={paidBy} onChange={(e) => setPaidBy(e.target.value)} placeholder={c.father} help="Leave empty when the father pays." maxLength={60} error={tried ? errors.paidBy : undefined} />
@@ -315,7 +316,7 @@ export function CandidatesPage() {
           <span className="grid">
             <StatusBadge status="paid" />
             <span className="text-small text-ink-muted">
-              {r.receiptNo} · {r.paidOn ? formatDate(r.paidOn) : ""}
+              {[r.receiptNo, r.paidOn ? formatDate(r.paidOn) : ""].filter(Boolean).join(" · ") || "—"}
               {r.paymentMethod === "BANK" ? ` · challan ${r.bankChallanNo ?? ""}` : ""}
             </span>
           </span>
@@ -325,7 +326,7 @@ export function CandidatesPage() {
           <StatusBadge status="unpaid">Not paid</StatusBadge>
         ),
     },
-    { key: "by", header: "Received by", render: (r) => <span className="text-small">{r.receivedBy ?? ""}</span> },
+    { key: "by", header: "Received by", render: (r) => <span className="text-small">{r.receivedBy ?? (r.status === "PAID" ? "—" : "")}</span> },
     {
       key: "act",
       header: "",
@@ -370,7 +371,7 @@ export function CandidatesPage() {
         <FeesNav />
         {q.isError && <LoadError what="Candidate fees" error={q.error} onRetry={() => void q.refetch()} />}
         <div className="grid gap-4 sm:grid-cols-3">
-          <StatCard label="Received today" icon="fees" loading={q.isLoading} value={<AnimatedNumber value={d?.summary.paidToday.amount ?? 0} format={formatRs} />} foot={`${formatCount(d?.summary.paidToday.count ?? 0)} candidates · ${formatDate(TODAY)}`} onClick={() => { setFrom(TODAY); setTo(TODAY); }} />
+          <StatCard label="Received today" icon="fees" loading={q.isLoading} value={<AnimatedNumber value={d?.summary.paidToday.amount ?? 0} format={formatRs} />} foot={`${formatCount(d?.summary.paidToday.count ?? 0)} candidates · ${formatDate(feeToday())}`} onClick={() => { setFrom(feeToday()); setTo(feeToday()); }} />
           <StatCard label={`Received in ${formatSession(ctx.session)}`} icon="checkCircle" loading={q.isLoading} value={<AnimatedNumber value={d?.summary.paidSession.amount ?? 0} format={formatRs} />} foot={`${formatCount(d?.summary.paidSession.count ?? 0)} candidates`} onClick={() => setStatus("PAID")} />
           <StatCard label="Not paid yet" icon="clock" tone={(d?.summary.due.count ?? 0) > 0 ? "warning" : "neutral"} loading={q.isLoading} value={<AnimatedNumber value={d?.summary.due.count ?? 0} format={formatCount} />} foot={`${formatRs(d?.summary.due.amount ?? 0)} · no test slip until paid`} onClick={() => setStatus("DUE")} />
         </div>
@@ -405,10 +406,10 @@ export function CandidatesPage() {
                 <Select aria-label="Received by" value={cashier} onChange={(e) => setCashier(e.target.value)} options={[{ value: "", label: "Every cashier" }, ...(d?.cashiers ?? []).map((c) => ({ value: c, label: c }))]} />
               </div>
               <div className="w-40">
-                <DatePicker aria-label="Paid from" placeholder="Paid from" value={from} onValueChange={setFrom} today={TODAY} maxDate={TODAY} />
+                <DatePicker aria-label="Paid from" placeholder="Paid from" value={from} onValueChange={setFrom} today={feeToday()} maxDate={feeToday()} />
               </div>
               <div className="w-40">
-                <DatePicker aria-label="Paid to" placeholder="Paid to" value={to} onValueChange={setTo} today={TODAY} maxDate={TODAY} error={dateError} />
+                <DatePicker aria-label="Paid to" placeholder="Paid to" value={to} onValueChange={setTo} today={feeToday()} maxDate={feeToday()} error={dateError} />
               </div>
               {filtered && (
                 <Button
@@ -473,12 +474,12 @@ export function CandidatesPage() {
                   <h1>Candidate fee collection</h1>
                   <p>
                     {campusLabel(ctx.campus)} · Session {formatSession(ctx.session)}
-                    {from || to ? ` · ${from ? formatDate(from) : "start"} to ${to ? formatDate(to) : formatDate(TODAY)}` : ""}
+                    {from || to ? ` · ${from ? formatDate(from) : "start"} to ${to ? formatDate(to) : formatDate(feeToday())}` : ""}
                     {cashier ? ` · ${cashier}` : ""}
                     {cls ? ` · ${cls}` : ""}
                   </p>
                 </div>
-                <p>Printed {formatDate(TODAY)}</p>
+                <p>Printed {formatDate(feeToday())}</p>
               </div>
               <table>
                 <thead>
@@ -541,8 +542,8 @@ function FragmentRows({ name, rows, heads }: { name: string; rows: FeeCandidate[
       {rows.map((r, i) => (
         <tr key={r.id}>
           <td>{i === 0 ? name || "—" : ""}</td>
-          <td>{r.receiptNo}</td>
-          <td>{r.paidOn ? formatDate(r.paidOn) : ""}</td>
+          <td>{r.receiptNo ?? "—"}</td>
+          <td>{r.paidOn ? formatDate(r.paidOn) : "—"}</td>
           <td>{r.applicationNo}</td>
           <td>{r.name}</td>
           <td>{r.classApplied}</td>

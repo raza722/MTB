@@ -5,7 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { z } from "zod";
-import { CLASS_SHORTS, className, errorField, errorText, slide } from "../shared";
+import { className, errorField, errorText, slide } from "../shared";
 
 const CATEGORY_LABEL: Record<FeeHeadCategory, string> = { FEE: "Fee", FINE: "Fine", APPLICATION: "Application (before admission)" };
 const PLAN_BILLINGS: FeeBilling[] = ["MONTHLY", "QUARTERLY", "TERMLY", "ANNUAL"];
@@ -73,7 +73,7 @@ function HeadEditor({ structure, head, onClose }: { structure: FeeStructure; hea
     order: Number(d.order),
     concessionEligible: d.category === "FEE" && d.concessionEligible,
     lateFine: d.category === "FEE" && d.lateFine,
-    classes: d.classes.length === CLASS_SHORTS.length ? [] : d.classes,
+    classes: structure.classes.length > 0 && d.classes.length === structure.classes.length ? [] : d.classes,
     active: d.active,
     note: d.note.trim(),
     ...(head ? { rowVer: head.rowVer ?? 1 } : {}),
@@ -92,7 +92,8 @@ function HeadEditor({ structure, head, onClose }: { structure: FeeStructure; hea
       onClose();
     },
   });
-  const conflict = save.error instanceof ApiError && save.error.status === 409 && save.error.code === "CONFLICT";
+  // The server answers 409 CONCURRENCY when someone else saved the head first (the mock said CONFLICT).
+  const conflict = save.error instanceof ApiError && save.error.status === 409 && (save.error.code === "CONCURRENCY" || save.error.code === "CONFLICT");
   const serverField = errorField(save.error);
   const err = (f: string) => (tried ? (errors[f] ?? (serverField === f ? errorText(save.error) : undefined)) : undefined);
   const toggleClass = (c: string) => set("classes", d.classes.includes(c) ? d.classes.filter((x) => x !== c) : [...d.classes, c]);
@@ -162,7 +163,7 @@ function HeadEditor({ structure, head, onClose }: { structure: FeeStructure; hea
           <Segmented
             aria-label="Classes"
             value={d.classes.length === 0 ? "ALL" : "SOME"}
-            onChange={(v) => set("classes", v === "ALL" ? [] : ["9"])}
+            onChange={(v) => set("classes", v === "ALL" ? [] : structure.classes.slice(-1).map((c) => c.classShort))}
             options={[
               { value: "ALL", label: "Every class" },
               { value: "SOME", label: "Only some classes" },
@@ -170,8 +171,8 @@ function HeadEditor({ structure, head, onClose }: { structure: FeeStructure; hea
           />
           {d.classes.length > 0 && (
             <div className="flex flex-wrap gap-x-4 gap-y-2">
-              {CLASS_SHORTS.map((c) => (
-                <Checkbox key={c} label={className(c)} checked={d.classes.includes(c)} onChange={() => toggleClass(c)} />
+              {structure.classes.map(({ classShort: c, className: name }) => (
+                <Checkbox key={c} label={name} checked={d.classes.includes(c)} onChange={() => toggleClass(c)} />
               ))}
             </div>
           )}
@@ -210,6 +211,7 @@ const CATEGORY_TONE = { FEE: "neutral", FINE: "warning", APPLICATION: "info" } a
 
 /** The fee head list with add and edit (legacy Fee Type). */
 export function HeadsPanel({ structure, editable }: { structure: FeeStructure; editable: boolean }) {
+  const nameOf = (short: string) => structure.classes.find((c) => c.classShort === short)?.className ?? className(short);
   const [editing, setEditing] = useState<FeeHead | "new" | null>(null);
   const [show, setShow] = useState<"active" | "all">("active");
   const heads = structure.heads.filter((h) => show === "all" || h.active);
@@ -255,13 +257,16 @@ export function HeadsPanel({ structure, editable }: { structure: FeeStructure; e
                 </span>
                 <span className="text-small text-ink-muted">
                   {h.note}
-                  {h.linked === "TRANSPORT" && (
-                    <>
-                      {" "}
-                      {formatRs(structure.transport.from)} – {formatRs(structure.transport.to)} a month on {structure.transport.routes} routes.
-                    </>
-                  )}
-                  {h.classes?.length ? ` Only ${h.classes.map(className).join(", ")}.` : ""}
+                  {h.linked === "TRANSPORT" &&
+                    (structure.transport ? (
+                      <>
+                        {" "}
+                        {formatRs(structure.transport.from)} – {formatRs(structure.transport.to)} a month on {structure.transport.routes} routes.
+                      </>
+                    ) : (
+                      " Fares are set per route in Transport."
+                    ))}
+                  {h.classes?.length ? ` Only ${h.classes.map(nameOf).join(", ")}.` : ""}
                 </span>
               </div>
               <div className="flex flex-wrap items-center gap-1.5">
