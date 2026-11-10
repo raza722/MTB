@@ -24,7 +24,7 @@ import {
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
-import { accountOptions, AccountsShell, asOfFor, errorText, lakhTick, LoadError, monthName, monthsSoFar, shortDate, slide, TODAY, useChart } from "./shared";
+import { accountOptions, AccountsShell, accToday, asOfFor, errorText, lakhTick, LoadError, monthName, monthsSoFar, shortDate, slide, useChart } from "./shared";
 import { DayReceiptsLink, VoucherPeek } from "./VoucherPeek";
 
 export interface FeePostingSearch {
@@ -33,8 +33,11 @@ export interface FeePostingSearch {
   batch?: string;
 }
 
+/** Cash or bank of a batch: "—" on a day of the old system, which kept no payment method (the server sends null). */
+const rsOrDash = (v: number | null) => (v === null ? "—" : formatRs(v));
+
 function BatchStatus({ b }: { b: AccountsFeeBatch }) {
-  if (b.status === "OPEN") return <StatusBadge status="pending">Counter open</StatusBadge>;
+  if (b.status === "OPEN") return <StatusBadge status="pending">{b.date === accToday() ? "Counter open" : "Not posted yet"}</StatusBadge>;
   if (b.status === "DIFFERENCE")
     return (
       <StatusBadge status="overdue" icon="alertCircle">
@@ -137,15 +140,29 @@ export function FeePostingPage({ search, setSearch }: { search: FeePostingSearch
           </div>
 
           {open.length > 0 && (
-            <Panel id="fee-today" rise={4} title="Today at the counter" description={`${formatDate(TODAY)}. Receipts are still being taken; the batch posts by itself at 6:00 PM.`}>
+            <Panel
+              id="fee-today"
+              rise={4}
+              title={open.every((b) => b.date === accToday()) ? "Today at the counter" : "Not posted yet"}
+              description={
+                open.every((b) => b.date === accToday())
+                  ? `${formatDate(accToday())}. Receipts are still being taken; the batch posts by itself at 6:00 PM.`
+                  : "Today's batch posts by itself at 6:00 PM. An earlier day still here could not post by itself (for example, the campus's bank account isn't set up in Accounts)."
+              }
+            >
               <ul className="m-0 grid list-none gap-3 p-0 md:grid-cols-2 xl:grid-cols-3">
                 {open.map((b, i) => (
                   <li key={b.key} className="mtb-slide-in grid gap-2 rounded-md border border-border p-4" style={slide(i)}>
-                    <span className="text-small font-medium text-ink-muted">{b.campusName}</span>
+                    <span className="text-small font-medium text-ink-muted">
+                      {b.campusName}
+                      {b.date === accToday() ? "" : ` · ${formatDate(b.date)}`}
+                    </span>
                     <span className="text-title-3 tabular-nums">
                       <AnimatedNumber value={b.feeOfficeTotal} format={formatRs} />
                     </span>
-                    <span className="text-small text-ink-muted">{formatCount(b.receipts)} receipts so far</span>
+                    <span className="text-small text-ink-muted">
+                      {formatCount(b.receipts)} receipts{b.date === accToday() ? " so far" : ""}
+                    </span>
                     {canPost && !readOnly && (
                       <Button
                         size="sm"
@@ -156,7 +173,7 @@ export function FeePostingPage({ search, setSearch }: { search: FeePostingSearch
                           setClosing(b);
                         }}
                       >
-                        Close the day and post now
+                        {b.date === accToday() ? "Close the day and post now" : "Post now"}
                       </Button>
                     )}
                   </li>
@@ -181,11 +198,11 @@ export function FeePostingPage({ search, setSearch }: { search: FeePostingSearch
                 data={byDay}
                 value={(x) => x.ledger}
                 target={(x) => x.feeOffice}
-                axisLabel={(x) => (x.date === TODAY ? "Today" : shortDate(x.date).slice(0, 2))}
+                axisLabel={(x) => (x.date === accToday() ? "Today" : shortDate(x.date).slice(0, 2))}
                 formatAxis={lakhTick}
                 valueLabel="Posted to the ledger"
                 targetLabel="Fee office total"
-                partial={(x) => x.date === TODAY}
+                partial={(x) => x.date === accToday()}
                 partialLabel="Counter still open"
                 tooltip={(x) => (
                   <>
@@ -255,8 +272,12 @@ export function FeePostingPage({ search, setSearch }: { search: FeePostingSearch
         open={Boolean(closing)}
         onClose={() => setClosing(null)}
         onConfirm={() => closing && key && closeDay.mutate({ b: closing, k: key })}
-        title={`Close the day at ${closing?.campusName ?? ""} and post now?`}
-        message="Today's batch posts to the ledger with the fee office's total so far. Receipts taken after this go into a second batch for the difference."
+        title={closing && closing.date !== accToday() ? `Post ${formatDate(closing.date)} at ${closing.campusName} now?` : `Close the day at ${closing?.campusName ?? ""} and post now?`}
+        message={
+          closing && closing.date !== accToday()
+            ? "The day's batch posts to the ledger with the fee office's total for that day."
+            : "Today's batch posts to the ledger with the fee office's total so far. Receipts taken after this go into a second batch for the difference."
+        }
         details={closing ? [["Fee office so far", formatRs(closing.feeOfficeTotal)], ["Receipts", formatCount(closing.receipts)], ["Date", formatDate(closing.date)]] : []}
         confirmLabel={`Post ${closing ? formatRs(closing.feeOfficeTotal) : ""}`}
         icon="lock"
@@ -337,9 +358,10 @@ function BatchPanel({ batchKey, onClose }: { batchKey: string; onClose: () => vo
               ["Fee office total", formatRs(b.feeOfficeTotal)],
               ["Posted to the ledger", formatRs(b.ledgerTotal)],
               ["Receipts", formatCount(b.receipts)],
-              ["Cash / bank in the ledger", `${formatRs(b.cash)} / ${formatRs(b.bank)}`],
+              ["Cash / bank in the ledger", `${rsOrDash(b.cash)} / ${rsOrDash(b.bank)}`],
             ]}
           />
+          {b.note && b.status !== "DIFFERENCE" && <p className="m-0 text-small text-ink-muted">{b.note}</p>}
           <div className="grid gap-2">
             <h3 className="m-0 text-title-3">By fee head</h3>
             <DataTable
@@ -369,12 +391,15 @@ function BatchPanel({ batchKey, onClose }: { batchKey: string; onClose: () => vo
                 { key: "acc", header: "Goes to", render: (m) => <span className="text-ink-muted">{m.accountName}</span> },
                 { key: "amount", header: "Amount", align: "right", width: 130, render: (m) => <Money value={m.amount} /> },
               ]}
+              empty={<p className="m-0 p-3 text-small text-ink-muted">Not known: the old system did not record how parents paid.</p>}
             />
           </div>
           <div className="grid gap-2">
             <h3 className="m-0 text-title-3">Vouchers</h3>
             {b.vouchers.length === 0 ? (
-              <p className="m-0 text-small text-ink-muted">Nothing posted yet: the counter is still open.</p>
+              <p className="m-0 text-small text-ink-muted">
+                {b.ledgerTotal > 0 ? "Posted by the old system, one voucher per receipt." : b.date === accToday() ? "Nothing posted yet: the counter is still open." : "Nothing posted yet."}
+              </p>
             ) : (
               <ul className="m-0 grid list-none gap-1 p-0">
                 {b.vouchers.map((v) => (

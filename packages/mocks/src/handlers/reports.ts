@@ -45,7 +45,7 @@ import { FAMILIES } from "../fixtures/sms";
 import { groupsOfClass, seatsFor, setupSectionOf, subjectsOfGroup } from "../fixtures/student-records";
 import { findStudent, STUDENTS } from "../fixtures/students";
 import { ctxFrom, fail, HttpResponse, latency, requirePermission, requireUser } from "../util";
-import { accountsReportBook, accountsReportIncomeExpenditure, accountsReportTrialBalance, accountsReportVouchers } from "./accounts";
+import { accountsReportBook, accountsReportIncomeExpenditure, accountsReportTrialBalance, accountsReportVouchers } from "./accounts-model";
 import { chargesOf, feesStore, receiptsOf } from "./fees-state";
 import { feeCandidateRows, feeClassArrears, feeCollectionRows, feeConcessionSummary, feeDefaulterRows, feeHeadByCode, headCodeOf } from "./fee-setup-model";
 import { librarySnapshot, transportSnapshot, warehouseSnapshot } from "./operations";

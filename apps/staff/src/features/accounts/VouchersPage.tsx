@@ -1,11 +1,11 @@
-import { ACCOUNTS_VOUCHER_TYPE_LABEL, accountsQueries, type AccountsManualType, type AccountsStatusFilter, type AccountsTypeFilter, type AccountsVoucherRow } from "@mtb/api";
-import { formatCount, formatDate, formatRs } from "@mtb/domain";
+import { ACCOUNTS_VOUCHER_TYPE_LABEL, accountsQueries, CURRENT_SESSION, type AccountsManualType, type AccountsStatusFilter, type AccountsTypeFilter, type AccountsVoucherRow } from "@mtb/api";
+import { formatCount, formatDate, formatRs, formatSession } from "@mtb/domain";
 import { Banner, Button, Combobox, DataTable, DatePicker, EmptyState, Input, Menu, MenuItem, MenuLabel, Money, Pagination, Segmented, Select, Tooltip, type Column } from "@mtb/ui";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { campusLabel } from "../../app/shell/campus";
-import { accountOptions, AccountsShell, LoadError, sessionStartOf, TODAY, TypeChip, useChart, useGo, useOpenVoucher, VoucherStatus } from "./shared";
+import { accountOptions, AccountsShell, accToday, LoadError, sessionStartOf, TypeChip, useChart, useGo, useOpenVoucher, VoucherStatus } from "./shared";
 
 export interface VouchersSearch {
   type?: AccountsTypeFilter;
@@ -44,6 +44,7 @@ export function NewVoucherMenu() {
   const go = useGo();
   const canPost = useCan("accounts.post");
   const readOnly = useReadOnly();
+  const { session } = useCtx();
   if (!canPost) return null;
   const trigger = (
     <Button variant="primary" icon="plus" iconRight="chevronDown" disabled={readOnly}>
@@ -52,7 +53,7 @@ export function NewVoucherMenu() {
   );
   if (readOnly)
     return (
-      <Tooltip content="2025–26 is read-only. Switch to 2026–27 to enter vouchers.">
+      <Tooltip content={`${formatSession(session)} is read-only. Switch to ${formatSession(CURRENT_SESSION)} to enter vouchers.`}>
         <span tabIndex={0} className="rounded-md">
           {trigger}
         </span>
@@ -73,7 +74,7 @@ export function NewVoucherMenu() {
   );
 }
 
-/** Journal vouchers saved as drafts that don't balance yet (the demo's "Rs 1,500 out of balance"). */
+/** Journal vouchers saved as drafts that don't balance yet. */
 export function OutOfBalanceBanners() {
   const ctx = useCtx();
   const open = useOpenVoucher();
@@ -190,8 +191,8 @@ export function VouchersPage({ search, setSearch }: { search: VouchersSearch; se
             <div className="grid w-full gap-3 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_150px_150px_minmax(0,1.2fr)_auto] md:items-end">
               <Input aria-label="Search vouchers" icon="search" placeholder="Number, narration, party, cheque or amount" value={text} onChange={(e) => setText(e.target.value)} />
               <Select aria-label="Kind of voucher" value={filters.type} onChange={(e) => set({ type: e.target.value as AccountsTypeFilter })} options={TYPE_OPTIONS} />
-              <DatePicker aria-label="From" placeholder="From" value={search.from ?? null} onValueChange={(v) => set({ from: v ?? undefined })} today={TODAY} minDate={sessionStartOf(ctx.session)} />
-              <DatePicker aria-label="To" placeholder="To" value={search.to ?? null} onValueChange={(v) => set({ to: v ?? undefined })} today={TODAY} minDate={sessionStartOf(ctx.session)} />
+              <DatePicker aria-label="From" placeholder="From" value={search.from ?? null} onValueChange={(v) => set({ from: v ?? undefined })} today={accToday()} minDate={sessionStartOf(ctx.session)} />
+              <DatePicker aria-label="To" placeholder="To" value={search.to ?? null} onValueChange={(v) => set({ to: v ?? undefined })} today={accToday()} minDate={sessionStartOf(ctx.session)} />
               <Combobox options={accountOptions(accounts)} value={search.account ?? null} onValueChange={(v) => set({ account: v })} placeholder="Any account" searchPlaceholder="Type a code or name" />
               <Button variant="ghost" icon="x" disabled={!filtered} onClick={() => { setText(""); setSearch({ status: search.status }); }}>
                 Clear
@@ -209,7 +210,7 @@ export function VouchersPage({ search, setSearch }: { search: VouchersSearch; se
         />
       )}
       <p className="m-0 text-small text-ink-muted">
-        {ACCOUNTS_VOUCHER_TYPE_LABEL.FEE} and {ACCOUNTS_VOUCHER_TYPE_LABEL.FEE_CANCEL.toLowerCase()} vouchers are posted by the fee office automatically; choose "Posted by the system" to see them.
+        {ACCOUNTS_VOUCHER_TYPE_LABEL.FEE} and {ACCOUNTS_VOUCHER_TYPE_LABEL.FEE_CANCEL.toLowerCase()} vouchers are posted from the fee office, salary journals from payroll, and vouchers from the old system came over with it; choose "Posted by the system" to see them.
       </p>
     </AccountsShell>
   );

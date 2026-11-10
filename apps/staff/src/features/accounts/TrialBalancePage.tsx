@@ -6,7 +6,7 @@ import { useMemo, useState } from "react";
 import { z } from "zod";
 import { useCtx } from "../../app/session";
 import { campusLabel } from "../../app/shell/campus";
-import { AccountsShell, asOfFor, Bal, DocFoot, DocHead, LoadError, sessionStartOf, slide, TODAY, useGo } from "./shared";
+import { AccountsShell, accToday, asOfFor, Bal, DocFoot, DocHead, LoadError, sessionStartOf, slide, useGo } from "./shared";
 
 export type TrialDepth = "1" | "2" | "3" | "4" | "5" | "all";
 export type TrialView = "balances" | "movement" | "period";
@@ -118,14 +118,14 @@ export function TrialBalancePage({ search, setSearch }: { search: TrialSearch; s
               label="From"
               value={from}
               onValueChange={(v) => setSearch({ ...search, from: v && v !== start ? v : undefined })}
-              today={TODAY}
+              today={accToday()}
               minDate={start}
               maxDate={asOf}
               {...(fromError ? { error: fromError } : {})}
             />
           </div>
           <div className="w-44">
-            <DatePicker label="To" value={asOf} onValueChange={(v) => setSearch({ ...search, asOf: v && v !== end ? v : undefined })} today={TODAY} minDate={from <= end ? from : start} maxDate={end} />
+            <DatePicker label="To" value={asOf} onValueChange={(v) => setSearch({ ...search, asOf: v && v !== end ? v : undefined })} today={accToday()} minDate={from <= end ? from : start} maxDate={end} />
           </div>
           <Segmented
             aria-label="Period"

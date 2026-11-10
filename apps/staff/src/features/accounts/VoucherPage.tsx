@@ -7,12 +7,13 @@ import {
   accountsVoucherSide,
   ApiError,
   can,
+  CURRENT_SESSION,
   newIdempotencyKey,
   type AccountsManualType,
   type AccountsVoucher,
   type CampusCode,
 } from "@mtb/api";
-import { amountInWords, formatDate, formatDateTime, formatRs, formatTime } from "@mtb/domain";
+import { amountInWords, formatDate, formatDateTime, formatRs, formatSession, formatTime } from "@mtb/domain";
 import {
   AmountInput,
   Banner,
@@ -42,7 +43,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { useCan, useCtx, useReadOnly, useSessionUser } from "../../app/session";
 import { CAMPUS_LABEL, campusLabel } from "../../app/shell/campus";
-import { AccLink, AccountsShell, accountOptions, DocFoot, DocHead, errorField, errorText, LoadError, sessionStartOf, TODAY, TypeChip, useGo, VoucherStatus } from "./shared";
+import { AccLink, AccountsShell, accountOptions, accToday, DocFoot, DocHead, errorField, errorText, LoadError, sessionStartOf, TypeChip, useGo, VoucherStatus } from "./shared";
 import { amountOf, draftFrom, emptyDraft, isUsed, newLine, toInput, totalsOf, validateFinal, type Draft, type DraftLine, type HeaderField, type LineErrors, type Prefill } from "./voucher-model";
 
 const CAMPUS_CODES: CampusCode[] = ["KC", "SM", "UC", "MC", "HC"];
@@ -143,7 +144,7 @@ function VoucherForm({ initial, voucher }: { initial: Draft; voucher: AccountsVo
   const [actionError, setActionError] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const [reason, setReason] = useState("");
-  const [reverseDate, setReverseDate] = useState<string | null>(TODAY);
+  const [reverseDate, setReverseDate] = useState<string | null>(accToday());
   const [tried, setTried] = useState(false);
 
   const type = draft.type;
@@ -263,7 +264,7 @@ function VoucherForm({ initial, voucher }: { initial: Draft; voucher: AccountsVo
   });
 
   const reverse = useMutation({
-    mutationFn: (key: string) => accountsApi.reverse(draft.id ?? "", { reason, date: reverseDate ?? TODAY }, key),
+    mutationFn: (key: string) => accountsApi.reverse(draft.id ?? "", { reason, date: reverseDate ?? accToday() }, key),
     onSuccess: (v) => {
       setDialog(null);
       setActionKey(null);
@@ -314,7 +315,7 @@ function VoucherForm({ initial, voucher }: { initial: Draft; voucher: AccountsVo
   };
 
   const postBlockedReason = readOnlySession
-    ? "2025–26 is read-only. Switch to 2026–27 to post vouchers."
+    ? `${formatSession(ctx.session)} is read-only. Switch to ${formatSession(CURRENT_SESSION)} to post vouchers.`
     : type === "JV" && totals.debit === 0 && totals.credit === 0
       ? "Enter the amounts first."
       : type === "JV" && !totals.balanced
@@ -495,8 +496,17 @@ function VoucherForm({ initial, voucher }: { initial: Draft; voucher: AccountsVo
             <>
               Receipt {voucher.source.receiptNo} for {voucher.source.studentName} was cancelled ({voucher.source.cnNo}); its fee income was reversed automatically.
             </>
-          ) : (
+          ) : voucher.type === "OPENING" ? (
             <>Balances brought forward at the start of the session. They can't be changed by hand.</>
+          ) : voucher.type === "FEE" || voucher.type === "FEE_CANCEL" ? (
+            // A voucher migrated from the old system carries no source until contract change C8.
+            <>
+              Recorded in the old system and brought over with its books{voucher.reference ? ` (receipt or fee number ${voucher.reference})` : ""}. It can't be changed or reversed by hand; a
+              correction is made with a journal voucher.
+            </>
+          ) : (
+            // Payroll journals: a system JV without a source until contract change C2.
+            <>Posted by payroll when the salary sheet was marked paid. It can't be reversed by hand; a correction is made with a journal voucher.</>
           )}
         </Banner>
       )}
@@ -555,9 +565,9 @@ function VoucherForm({ initial, voucher }: { initial: Draft; voucher: AccountsVo
             required
             value={draft.date}
             onValueChange={(v) => setHeader("date", v, "date")}
-            today={TODAY}
+            today={accToday()}
             minDate={sessionStartOf(ctx.session)}
-            maxDate={TODAY}
+            maxDate={accToday()}
             disabled={!editable}
             {...(headerErrors.date ? { error: headerErrors.date } : {})}
           />
@@ -570,7 +580,7 @@ function VoucherForm({ initial, voucher }: { initial: Draft; voucher: AccountsVo
               required
               value={draft.campus ?? ""}
               onChange={(e) => setHeader("campus", (e.target.value || null) as CampusCode | null, "campus")}
-              options={[{ value: "", label: "Choose…" }, ...CAMPUS_CODES.map((c) => ({ value: c, label: CAMPUS_LABEL[c] }))]}
+              options={[{ value: "", label: "Choose…" }, ...CAMPUS_CODES.filter((c) => can(user, "accounts.post", c)).map((c) => ({ value: c, label: CAMPUS_LABEL[c] }))]}
               {...(headerErrors.campus ? { error: headerErrors.campus } : {})}
             />
           )}
@@ -615,7 +625,7 @@ function VoucherForm({ initial, voucher }: { initial: Draft; voucher: AccountsVo
                     required
                     value={draft.chequeDate}
                     onValueChange={(v) => setHeader("chequeDate", v, "chequeDate")}
-                    today={TODAY}
+                    today={accToday()}
                     disabled={!editable}
                     {...(headerErrors.chequeDate ? { error: headerErrors.chequeDate } : {})}
                   />
@@ -744,7 +754,7 @@ function VoucherForm({ initial, voucher }: { initial: Draft; voucher: AccountsVo
                   setActionKey((k) => k ?? newIdempotencyKey());
                   setActionError(null);
                   setReason("");
-                  setReverseDate(TODAY);
+                  setReverseDate(accToday());
                   setTried(false);
                   setDialog("reverse");
                 }}
@@ -888,7 +898,7 @@ function VoucherForm({ initial, voucher }: { initial: Draft; voucher: AccountsVo
             placeholder="e.g. Cheque cancelled before it was presented"
             {...(tried && reason.trim().length < 5 ? { error: "Say why, so the reason stays with the books." } : {})}
           />
-          <DatePicker label="Date of the reversal" required value={reverseDate} onValueChange={setReverseDate} today={TODAY} minDate={voucher?.date ?? sessionStartOf(ctx.session)} maxDate={TODAY} help="Usually today. It must be in an open month." />
+          <DatePicker label="Date of the reversal" required value={reverseDate} onValueChange={setReverseDate} today={accToday()} minDate={voucher?.date ?? sessionStartOf(ctx.session)} maxDate={accToday()} help="Usually today. It must be in an open month." />
         </div>
       </ConfirmDialog>
 

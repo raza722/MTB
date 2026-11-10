@@ -164,9 +164,6 @@ const ELECTRIC_CO: Record<CampusCode, string> = { KC: "MEPCO", SM: "MEPCO", UC: 
 /** Smaller campuses scaled from Khalid Campus figures (close to each campus's monthly fee target). */
 const SCALE: Record<CampusCode, number> = { KC: 1, SM: 0.47, UC: 0.57, MC: 0.31, HC: 0.82 };
 
-/** Unpaid fees in the fee office (the dashboard's arrears card). The books are cash basis, so this is memo only. */
-export const FEE_ARREARS: Record<CampusCode, number> = { KC: 3925750, SM: 1480500, UC: 1102250, MC: 935000, HC: 2710400 };
-
 /** Cash kept at the counter overnight; everything above it is deposited the next weekday morning. */
 const FLOAT = 50000;
 
@@ -973,51 +970,4 @@ export function initialVouchers(): AccountsVoucher[] {
       ],
     }),
   ];
-}
-
-/* ================================================================== Periods */
-
-export interface PeriodRecord {
-  status: "CLOSED" | "OPEN";
-  closedBy?: string;
-  closedAt?: IsoDateTime;
-  reopened?: { by: string; at: IsoDateTime; reason: string };
-}
-
-/** 2025–26 is closed; 2026–27 is closed up to September. October is still open everywhere. */
-export function initialPeriods(): Record<string, PeriodRecord> {
-  const out: Record<string, PeriodRecord> = {};
-  const closed = [...sessionMonths(2025), "2026-04", "2026-05", "2026-06", "2026-07", "2026-08", "2026-09"];
-  for (const c of ACC_CAMPUSES) {
-    for (const m of closed) {
-      const next = nextMonth(m);
-      out[`${c}:${m}`] = { status: "CLOSED", closedBy: "Nadia Shah", closedAt: `${next}-${m === "2026-03" ? "15" : "06"}T17:30:00+05:00` };
-    }
-  }
-  return out;
-}
-
-/* ================================================================== Bank statements */
-
-/** Each bank's statement is matched up to this date when the demo starts; later lines are waiting to be matched. */
-export const MATCHED_UP_TO: Record<string, IsoDate> = { "1102": "2026-10-23", "1103": "2026-10-31", "1104": "2026-10-31", "1105": "2026-10-31", "1106": "2026-10-31", "1107": "2026-10-31" };
-
-/** Bank statements have been imported up to yesterday. */
-export const STATEMENT_TO: IsoDate = BOOKS_TO;
-
-/** Lines on Meezan Bank's October statement that are not in the books yet. */
-export const STATEMENT_EXTRAS: Array<{ id: string; account: string; date: IsoDate; description: string; reference: string; debit: number; credit: number }> = [
-  { id: "st-x-1102-2026-10-cb", account: "1102", date: "2026-10-26", description: "CHEQUE BOOK ISSUANCE CHARGES (50 LEAVES)", reference: "SVC-26OCT", debit: 600, credit: 0 },
-  // The bank did receive the late challan on 28-Oct; the books get it when the fee batch difference is posted.
-  { id: "st-x-1102-2026-10-lc", account: "1102", date: "2026-10-28", description: "FEE CREDIT: BANK CHALLAN (1 ITEM)", reference: "FEE-261028-B", debit: 0, credit: 7500 },
-  { id: "st-x-1102-2026-10-pr", account: "1102", date: "2026-10-31", description: "PROFIT CREDIT FOR OCTOBER 2026", reference: "PRF-OCT26", debit: 0, credit: 38640 },
-];
-
-/** Months already signed off as reconciled. */
-export function initialSignOffs(): Record<string, { by: string; at: IsoDateTime }> {
-  const out: Record<string, { by: string; at: IsoDateTime }> = {};
-  for (const acc of ["1102", "1103", "1104", "1105", "1106", "1107"]) {
-    for (const m of ["2026-04", "2026-05", "2026-06", "2026-07", "2026-08", "2026-09"]) out[`${acc}:${m}`] = { by: "Nadia Shah", at: `${nextMonth(m)}-05T16:00:00+05:00` };
-  }
-  return out;
 }
