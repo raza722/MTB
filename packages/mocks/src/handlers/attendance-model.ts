@@ -4,7 +4,7 @@
 // and the teacher app's /api/teacher/registers* fall through to it. What is left here is the fixture-based register
 // picture other still-fictional mocks read: the teacher app's Today, Timetable and Classes (closedOn,
 // attendanceDayFor), the dashboard tile (attendanceDayFor), the parent portal (attendanceMarkOf, closedOn) and
-// Activities (closedOn). These stay fictional (fictional G.R. numbers, the demo's fixed date and calendar) until
+// the timetable model (closedOn). These stay fictional (fictional G.R. numbers, the demo's fixed date and calendar) until
 // those modules read att.fn_DayRegisters, att.vw_RegisterTotals, att.vw_EnrolmentAttendance and att.fn_CampusDays.
 // Nothing here writes: the office marking, change requests and calendar edits happen in the real backend.
 import type { AttendanceClosedDay, CampusCode, CampusScope, RegisterCode, SchoolEvent } from "@mtb/api";

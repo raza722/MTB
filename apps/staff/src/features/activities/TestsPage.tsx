@@ -8,7 +8,7 @@ import { z } from "zod";
 import { campusLabel } from "../../app/shell/campus";
 import { Page, PageHeader } from "../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
-import { ActivitiesNav, errorField, errorText, LoadError, TestBadge, useRefresh } from "./shared";
+import { ActivitiesNav, dateLimits, errorField, errorText, LoadError, TestBadge, useRefresh, useSessionDays, useToday } from "./shared";
 
 /** Scholarship tests and merit lists: from declared exam results, or a dedicated test with its own papers. */
 export function TestsPage({ creating, onCreating }: { creating: boolean; onCreating: (open: boolean) => void }) {
@@ -124,7 +124,9 @@ function NewTestModal({ onClose }: { onClose: (id?: string) => void }) {
   const [source, setSource] = useState<ActivitiesTestSource>("EXAM");
   const [title, setTitle] = useState("");
   const [examId, setExamId] = useState("");
-  const [schemeId, setSchemeId] = useState("sc-merit");
+  const today = useToday();
+  const { starts, ends } = useSessionDays();
+  const [pickedScheme, setSchemeId] = useState("");
   const [seats, setSeats] = useState("3");
   const [pass, setPass] = useState("80");
   const [classLabel, setClassLabel] = useState("");
@@ -136,6 +138,8 @@ function NewTestModal({ onClose }: { onClose: (id?: string) => void }) {
   ]);
   const [tried, setTried] = useState(false);
   const active = (schemes.data ?? []).filter((s) => s.active);
+  // Until one is chosen: the first scheme awarded from a test, else the first merit scheme.
+  const schemeId = active.some((s) => s.id === pickedScheme) ? pickedScheme : ((active.find((s) => s.needsTest) ?? active.find((s) => s.kind === "MERIT") ?? active[0])?.id ?? "");
   const check = base.safeParse({ title, schemeId, pass: pass === "" ? undefined : Number(pass) });
   const errs: Record<string, string> = check.success ? {} : Object.fromEntries(check.error.issues.map((i) => [String(i.path[0]), i.message]));
   if (seats !== "" && (Number(seats) < 1 || Number(seats) > 50)) errs.seats = "From 1 to 50, or leave empty to award everyone who passes.";
@@ -218,13 +222,13 @@ function NewTestModal({ onClose }: { onClose: (id?: string) => void }) {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
             <Input label="Who may sit" required value={classLabel} onChange={(e) => setClassLabel(e.target.value)} error={err("classLabel")} placeholder="Class 9 (students and applicants)" />
-            <DatePicker label="Test date" required value={date} onValueChange={setDate} minDate="2026-04-01" maxDate="2027-03-31" today="2026-11-04" error={err("date")} />
+            <DatePicker label="Test date" required value={date} onValueChange={setDate} {...dateLimits(starts, ends)} today={today} error={err("date")} />
             <Select label="Where" value={venue} onChange={(e) => setVenue(e.target.value)} options={[{ value: "", label: "Choose…" }, ...(catalogue.data?.venues ?? []).filter((v) => v.active).map((v) => ({ value: v.name, label: v.name }))]} />
           </div>
         )}
         <Input label="Title" required value={title} onChange={(e) => setTitle(e.target.value)} error={err("title")} />
         <div className="grid gap-4 sm:grid-cols-3">
-          <Select label="Scheme" required value={schemeId} onChange={(e) => setSchemeId(e.target.value)} error={err("schemeId")} options={active.map((s) => ({ value: s.id, label: s.name }))} />
+          <Select label="Scheme" required value={schemeId} onChange={(e) => setSchemeId(e.target.value)} error={err("schemeId")} options={active.length ? active.map((s) => ({ value: s.id, label: s.name })) : [{ value: "", label: schemes.isLoading ? "Loading…" : "No scheme is switched on" }]} />
           <Input label="Seats" inputMode="numeric" value={seats} onChange={(e) => setSeats(e.target.value.replace(/\D/g, ""))} error={err("seats")} help="Empty = everyone who passes." />
           <Input label="Pass mark" required inputMode="numeric" suffix="%" value={pass} onChange={(e) => setPass(e.target.value.replace(/\D/g, ""))} error={err("pass") ?? err("passPercent")} />
         </div>

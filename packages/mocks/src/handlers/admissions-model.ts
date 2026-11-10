@@ -3,7 +3,7 @@
 // Admissions is served by the real backend now (backend/docs/modules/03_admissions.md): every /api/admissions request
 // falls through to it. What is left here is the mock store that other still-fictional modules read and write
 // (conventions §5): Exams starts an application for a Diamond Minds participant, Fees › Candidates takes the candidate
-// fee, Reports lists candidates, sittings and merit, Messages and Activities pick applicants. These stay fictional until
+// fee, Reports lists candidates, sittings and merit, Messages picks applicants. These stay fictional until
 // those modules read adm.vw_ApplicationAudience / adm.vw_ApplicationPaymentSource.
 import type { AdmissionsApplicant, AdmissionsTest, CampusCode } from "@mtb/api";
 import { createStore } from "../db";

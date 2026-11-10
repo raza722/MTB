@@ -101,7 +101,7 @@ export function ScholarshipsPage({ search, onSearch }: { search: ScholarshipsSea
         );
       },
     },
-    { key: "monthly", header: "Off a month", align: "right", width: 120, render: (a) => <span className="mtb-num">{formatRs(a.feeEffect.monthly)}</span> },
+    { key: "monthly", header: "Off a month", align: "right", width: 120, render: (a) => (a.feeEffect.lines.length ? <span className="mtb-num">{formatRs(a.feeEffect.monthly)}</span> : "—") },
     { key: "from", header: "From", width: 120, render: (a) => <span className="mtb-num">{formatDate(a.effectiveFrom)}</span> },
     {
       key: "status",

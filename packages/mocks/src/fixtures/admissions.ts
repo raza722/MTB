@@ -4,8 +4,8 @@ import { campusName } from "./campuses";
 import { initialClassSubjects, initialGroups } from "./setup";
 
 /**
- * Fictional 2026–27 intake, kept for the modules that are still mocked (Exams, Fees › Candidates, Reports, Messages,
- * Activities: see handlers/admissions-model.ts). Admissions itself is real; its screens never read these.
+ * Fictional 2026–27 intake, kept for the modules that are still mocked (Exams, Fees › Candidates, Reports, Messages:
+ * see handlers/admissions-model.ts). Admissions itself is real; its screens never read these.
  *
  * Fictional 2026–27 intake. Khalid Campus (Sadiqabad) runs entrance tests for Class 1, 3, 6 and 9; other classes
  * are admitted directly on seats and an interview. The Diamond Minds talent test brings in applicants from other

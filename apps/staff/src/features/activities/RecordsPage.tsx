@@ -9,7 +9,7 @@ import { campusLabel } from "../../app/shell/campus";
 import { Page, PageHeader } from "../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { RecordDoc } from "./print";
-import { ActivitiesNav, AwardBadge, errorField, errorText, HouseTag, LoadError, PlaceBadge, PrintLayer, StudentSearch, useHouseTones, useRefresh } from "./shared";
+import { ActivitiesNav, AwardBadge, dateLimits, errorField, errorText, HouseTag, LoadError, PlaceBadge, PrintLayer, StudentSearch, useHouseTones, useRefresh, useSessionDays, useToday } from "./shared";
 
 /** A student's co-curricular record across sessions: events, places, house, certificates and scholarships. */
 export function RecordsPage({ studentId, onStudent }: { studentId: string | undefined; onStudent: (id: string | undefined) => void }) {
@@ -190,6 +190,8 @@ const recordSchema = z.object({
 
 function AddRecordPanel({ studentId, name, onClose }: { studentId: string; name: string; onClose: () => void }) {
   const ctx = useCtx();
+  const today = useToday();
+  const { starts } = useSessionDays();
   const toast = useToast();
   const refresh = useRefresh();
   const catalogue = useQuery(activitiesQueries.catalogue(ctx));
@@ -243,7 +245,7 @@ function AddRecordPanel({ studentId, name, onClose }: { studentId: string; name:
         />
         <Input label="What it was" required value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} error={err("title")} placeholder="Inter-school cricket tournament, Sadiqabad (Under-15)" />
         <div className="grid gap-4 sm:grid-cols-3">
-          <DatePicker label="Date" required value={f.date} onValueChange={(d) => setF({ ...f, date: d })} minDate={`${ctx.session}-04-01`} maxDate="2026-11-04" today="2026-11-04" error={err("date")} />
+          <DatePicker label="Date" required value={f.date} onValueChange={(d) => setF({ ...f, date: d })} {...dateLimits(starts, today)} today={today} error={err("date")} />
           <Select label="Part" value={f.role} onChange={(e) => setF({ ...f, role: e.target.value as ActivitiesRole })} options={(Object.keys(ACTIVITIES_ROLE_LABEL) as ActivitiesRole[]).map((r) => ({ value: r, label: ACTIVITIES_ROLE_LABEL[r] }))} />
           <Select
             label="Place"

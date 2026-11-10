@@ -37,8 +37,8 @@ import { genderOfName } from "./sms";
 // Exams are real now (/api/exams*, /api/exams-*, and the teacher app's /api/teacher/papers*): their routes were
 // removed, so those requests fall through to the backend (backend/docs/modules/05_exams.md). What stays here is the
 // fictional exam store and the pure helpers the unfinished modules' mocks still read (no routes): the parent portal's
-// results (module 12), the report centre's exam reports (module 13), Messages' exam audience (module 10), Activities'
-// test figures (module 9) and the teacher app's Today papers (module 8). Their exam ids and G.R.s are fictional, so
+// results (module 12), the report centre's exam reports (module 13), Messages' exam audience (module 10)
+// and the teacher app's Today papers (module 8). Their exam ids and G.R.s are fictional, so
 // they do not match the real exams until those modules read the real views.
 
 /** Every fictional exam record (marks, papers, declarations), shared by the unfinished modules' mocks. */

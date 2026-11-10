@@ -9,9 +9,10 @@ const STATUSES: ActivitiesAwardStatus[] = ["PENDING", "APPROVED", "REJECTED", "E
 export const Route = createFileRoute("/_app/activities/scholarships")({
   validateSearch: (s: Record<string, unknown>): ScholarshipsSearch => ({
     ...(s.view === "renewals" ? { view: "renewals" as const } : {}),
-    ...(typeof s.award === "string" && s.award ? { award: s.award } : {}),
+    // Ids are numeric text ("12"): a typed or pasted link reaches the router as a number.
+    ...(typeof s.award === "string" && s.award ? { award: s.award } : typeof s.award === "number" ? { award: String(s.award) } : {}),
     ...(STATUSES.includes(s.status as ActivitiesAwardStatus) ? { status: s.status as ActivitiesAwardStatus } : {}),
-    ...(typeof s.scheme === "string" && s.scheme ? { scheme: s.scheme } : {}),
+    ...(typeof s.scheme === "string" && s.scheme ? { scheme: s.scheme } : typeof s.scheme === "number" ? { scheme: String(s.scheme) } : {}),
     ...(s.new === true || s.new === "true" ? { new: true } : {}),
   }),
   component: function ScholarshipsRoute() {

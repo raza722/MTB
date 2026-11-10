@@ -5,6 +5,7 @@ import {
   ACTIVITIES_RENEWAL_OUTCOME_LABEL,
   ACTIVITIES_TEST_STATUS_LABEL,
   ApiError,
+  attendanceQueries,
   can,
   type ActivitiesAwardStatus,
   type ActivitiesBasis,
@@ -14,7 +15,7 @@ import {
   type ActivitiesRenewalOutcome,
   type ActivitiesTestStatus,
 } from "@mtb/api";
-import { formatRs } from "@mtb/domain";
+import { formatDate, formatRs, pakistanToday, type IsoDate } from "@mtb/domain";
 import { Banner, Button, Icon, Input, Segmented, Spinner, StatusBadge, cx } from "@mtb/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDeferredValue, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
@@ -22,8 +23,45 @@ import { createPortal } from "react-dom";
 import { campusLabel } from "../../app/shell/campus";
 import { SubNav } from "../../app/shell/SubNav";
 import { useAppearance } from "../../app/appearance";
-import { useCtx, useSessionUser } from "../../app/session";
+import { useCan, useCtx, useSessionUser } from "../../app/session";
 import "./activities.css";
+
+/** Today in Pakistan (the backend's "today" too: dates after it are refused where the server says so). */
+export function useToday(): IsoDate {
+  return pakistanToday();
+}
+
+/** The first day of the month a date falls in. */
+export const monthStart = (d: IsoDate): IsoDate => `${d.slice(0, 7)}-01`;
+
+/** The first day of the month after the one a date falls in. */
+export function nextMonthStart(d: IsoDate): IsoDate {
+  const y = Number(d.slice(0, 4));
+  const m = Number(d.slice(5, 7));
+  return m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, "0")}-01`;
+}
+
+/**
+ * The session's first and last day, from the campus calendar (Attendance) when the user may read it. Without it the
+ * date pickers are not limited by the session: the server still refuses a day outside it.
+ */
+export function useSessionDays(): { starts?: IsoDate; ends?: IsoDate } {
+  const ctx = useCtx();
+  const canCalendar = useCan("attendance.view");
+  const cal = useQuery({ ...attendanceQueries.calendar(ctx), enabled: canCalendar && ctx.campus !== "ALL" });
+  return cal.data ? { starts: cal.data.starts, ends: cal.data.ends } : {};
+}
+
+/** minDate / maxDate props for a DatePicker, leaving out the limits that are not known. */
+export function dateLimits(min?: IsoDate | null, max?: IsoDate | null): { minDate?: IsoDate; maxDate?: IsoDate } {
+  return { ...(min ? { minDate: min } : {}), ...(max ? { maxDate: max } : {}) };
+}
+
+/** The earlier of two dates, either of which may be unknown. */
+export const earlier = (a?: IsoDate | null, b?: IsoDate | null): IsoDate | undefined => (a && b ? (a < b ? a : b) : (a ?? b ?? undefined));
+
+/** The later of two dates, either of which may be unknown. */
+export const later = (a?: IsoDate | null, b?: IsoDate | null): IsoDate | undefined => (a && b ? (a > b ? a : b) : (a ?? b ?? undefined));
 
 /** Plain-English text for a failed request. */
 export const errorText = (e: unknown) => (e instanceof ApiError ? (e.isNetwork ? "No response from the server — nothing was changed. Try again." : e.message) : "Something went wrong. Try again.");
@@ -335,4 +373,5 @@ export function DocPreview({ zoom = 0.5, children, label }: { zoom?: number; chi
   );
 }
 
-export const PRINTED_ON = "04-Nov-2026";
+/** "04-Nov-2026": today in Pakistan, for the "Printed" line of documents. */
+export const printedOn = () => formatDate(pakistanToday());
