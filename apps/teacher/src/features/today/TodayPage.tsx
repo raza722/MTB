@@ -135,7 +135,7 @@ function PeriodCard({ p, i, isNext }: { p: TeacherPeriod; i: number; isNext: boo
           {p.cover && <StatusBadge status="info">Cover</StatusBadge>}
         </p>
         <p className="m-0 text-small text-ink-muted">
-          {p.room} · until {clock(p.end)}
+          {p.room ? `${p.room} · ` : ""}until {clock(p.end)}
         </p>
         {p.register && (
           <div className="mt-2 flex flex-wrap items-center gap-2">

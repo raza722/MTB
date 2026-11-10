@@ -54,7 +54,7 @@ import { genderOfName, outboxSnapshot, queueBatch, rosterPeople } from "./sms";
 import { admissionsSeats, admissionsStore } from "./admissions-model";
 import { allMovements, sessionOfDate, streamFor } from "./student-records-model";
 import { portalFamilies } from "./portal";
-import { timetableReportBoard } from "./timetable";
+import { timetableReportBoard } from "./timetable-model";
 
 const ALL: CampusCode[] = ["KC", "SM", "UC", "MC", "HC"];
 const campusesOf = (scope: CampusScope): CampusCode[] => (scope === "ALL" ? ALL : [scope]);

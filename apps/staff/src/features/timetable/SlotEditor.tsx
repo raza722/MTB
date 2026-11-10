@@ -1,16 +1,9 @@
-import { ApiError, CLASH_LABEL, clockTime, findTimetableClashes, periodTime, streamShort, timetableApi, timetableQueries, type CampusCode, type TimetableBoard, type TimetableClashDetails, type TimetableDay, type TimetableSection, type TimetableSlot } from "@mtb/api";
+import { ApiError, countLessons, CLASH_LABEL, clockTime, findTimetableClashes, periodTime, streamShort, timetableApi, timetableQueries, type CampusCode, type TimetableBoard, type TimetableClashDetails, type TimetableDay, type TimetableSection, type TimetableSlot } from "@mtb/api";
 import { Banner, Button, Combobox, Select, SidePanel, StatusBadge, Textarea, useToast } from "@mtb/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { useCtx } from "../../app/session";
 import { cellSlots, dayLong, errorText } from "./shared";
-
-const LABS: Record<string, (cs: string) => string | null> = {
-  cmp: () => "Computer lab",
-  phy: (cs) => (cs.startsWith("9-") || cs.startsWith("10-") ? "Physics lab" : null),
-  che: (cs) => (cs.startsWith("9-") || cs.startsWith("10-") ? "Chemistry lab" : null),
-  bio: (cs) => (cs.startsWith("9-") || cs.startsWith("10-") ? "Biology lab" : null),
-};
 
 export interface SlotTarget {
   section: TimetableSection;
@@ -40,7 +33,7 @@ export function SlotEditor({ board, target, onClose }: { board: TimetableBoard; 
   const [subjectId, setSubjectId] = useState(existing?.subjectId ?? firstReq?.subjectId ?? "");
   const req = reqs.find((r) => r.subjectId === subjectId);
   const [teacherId, setTeacherId] = useState<string | null>(existing?.teacherId ?? req?.teacherId ?? null);
-  const [room, setRoom] = useState(existing?.room ?? LABS[subjectId]?.(section.classSection) ?? section.room);
+  const [room, setRoom] = useState(existing?.room ?? section.room);
   const [reason, setReason] = useState(existing?.override?.reason ?? "");
   const [serverError, setServerError] = useState<string | null>(null);
   const time = periodTime(board, section.classSection, day, period);
@@ -56,7 +49,7 @@ export function SlotEditor({ board, target, onClose }: { board: TimetableBoard; 
     const r = ex ? list.find((x) => x.subjectId === ex.subjectId) : (list.find((x) => others.filter((s) => s.classSection === section.classSection && s.subjectId === x.subjectId && (s.stream ?? null) === next).length < x.periodsPerWeek) ?? list[0]);
     setSubjectId(ex?.subjectId ?? r?.subjectId ?? "");
     setTeacherId(ex?.teacherId ?? r?.teacherId ?? null);
-    setRoom(ex?.room ?? (r ? (LABS[r.subjectId]?.(section.classSection) ?? section.room) : section.room));
+    setRoom(ex?.room ?? section.room);
     setReason(ex?.override?.reason ?? "");
     setServerError(null);
   };
@@ -66,7 +59,7 @@ export function SlotEditor({ board, target, onClose }: { board: TimetableBoard; 
   const blocking = clashes.filter((c) => c.severity === "BLOCK");
 
   const teacherOptions = useMemo(() => {
-    const load = (id: string) => others.filter((s) => s.teacherId === id).length;
+    const load = (id: string) => countLessons(others.filter((s) => s.teacherId === id));
     const mine = periodTime(board, section.classSection, day, period);
     const sameTime = (s: TimetableSlot) => {
       if (s.day !== day) return false;
@@ -171,14 +164,20 @@ export function SlotEditor({ board, target, onClose }: { board: TimetableBoard; 
               setSubjectId(id);
               const r = reqs.find((x) => x.subjectId === id);
               if (r?.teacherId) setTeacherId(r.teacherId);
-              setRoom(LABS[id]?.(section.classSection) ?? section.room);
             }}
             options={reqs.map((r) => ({ value: r.subjectId, label: `${subjectName(r.subjectId)} — ${placedOf(r.subjectId)} of ${r.periodsPerWeek} placed` }))}
             help={req && !req.teacherId ? "No teacher is allotted for this subject in Setup › Teachers. Choose one here." : undefined}
           />
         )}
         <Combobox label="Teacher" required value={teacherId} onValueChange={setTeacherId} options={teacherOptions} placeholder="Choose a teacher" searchPlaceholder="Type a name" />
-        <Select label="Room" value={room} onChange={(e) => setRoom(e.target.value)} options={board.rooms.map((r) => ({ value: r, label: r === section.room ? `${r} (class room)` : r }))} />
+        {(board.rooms.length > 0 || room) && (
+          <Select
+            label="Room"
+            value={room}
+            onChange={(e) => setRoom(e.target.value)}
+            options={[...(board.rooms.includes(room) ? [] : [{ value: room, label: room || "— (no room set)" }]), ...board.rooms.map((r) => ({ value: r, label: r === section.room ? `${r} (class room)` : r }))]}
+          />
+        )}
 
         {!cellBlocked &&
           (clashes.length === 0 && draftSlot ? (

@@ -1,4 +1,4 @@
-import { periodsInWeek, placedBySubject, reqKey, scheduleOf, TIMETABLE_DAYS, type TimetableTeacher } from "@mtb/api";
+import { countLessons, periodsInWeek, placedBySubject, reqKey, scheduleOf, TIMETABLE_DAYS, type TimetableTeacher } from "@mtb/api";
 import { formatCount } from "@mtb/domain";
 import { AnimatedNumber, buttonClassName, DataTable, Panel, Segmented, Skeleton, StatCard, type Column } from "@mtb/ui";
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -48,8 +48,8 @@ export function WeeklyPeriodsPage() {
 
   const loads = board.teachers.map((t) => {
     const mine = board.slots.filter((s) => s.teacherId === t.id);
-    const days = TIMETABLE_DAYS.map((d) => mine.filter((s) => s.day === d.day).length);
-    return { id: t.id, t, n: mine.length, busiest: Math.max(0, ...days) };
+    const days = TIMETABLE_DAYS.map((d) => countLessons(mine.filter((s) => s.day === d.day)));
+    return { id: t.id, t, n: countLessons(mine), busiest: Math.max(0, ...days) };
   });
   const over = loads.filter((l) => l.n > l.t.maxPerWeek).length;
   const columns: Array<Column<{ id: string; t: TimetableTeacher; n: number; busiest: number }>> = [

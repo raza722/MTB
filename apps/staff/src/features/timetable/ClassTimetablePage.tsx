@@ -19,10 +19,10 @@ import {
   teacherShort,
   TimetableGrid,
   TimetableShell,
-  TODAY_DAY,
   useBoard,
   useBoardIndex,
   useCanEdit,
+  useTodayDay,
   type BoardIndex,
   type PrintMatrixRow,
 } from "./shared";
@@ -235,8 +235,9 @@ export function ClassTimetablePage({ search, setSearch }: { search: ClassTimetab
   const [target, setTarget] = useState<SlotTarget | null>(null);
   const [printAll, setPrintAll] = useState(false);
   const view = search.view ?? "class";
-  const day = (search.day && search.day >= 1 && search.day <= 6 ? search.day : TODAY_DAY) as TimetableDay;
-  const section = board?.sections.find((s) => s.classSection === (search.cls ?? "7-B")) ?? board?.sections[0];
+  const todayDay = useTodayDay();
+  const day = (search.day && search.day >= 1 && search.day <= 6 ? search.day : (todayDay ?? 1)) as TimetableDay;
+  const section = board?.sections.find((s) => s.classSection === search.cls) ?? board?.sections[0];
   const st = board && idx && section ? sectionStatus(board, idx, section) : null;
   const blockCount = idx?.clashes.filter((c) => c.severity === "BLOCK").length ?? 0;
   const classes = board ? [...new Set(board.sections.map((s) => classOf(s.classSection)))] : [];
@@ -355,7 +356,7 @@ export function ClassTimetablePage({ search, setSearch }: { search: ClassTimetab
                       id="tt-class"
                       rise={0}
                       title={`${section.classSection} timetable`}
-                      description={`Class teacher ${idx.teacher(section.classTeacherId)?.name ?? "not set"} · ${section.room} · ${section.strength} students · ${scheduleOf(board, section.classSection).name} timings · ${st.have} of ${st.need} curriculum periods placed, ${periodsInWeek(scheduleOf(board, section.classSection)) - new Set(board.slots.filter((s) => s.classSection === section.classSection).map((s) => `${s.day}|${s.period}`)).size} free in a ${periodsInWeek(scheduleOf(board, section.classSection))}-period week.${section.streams.length ? ` G: the class's groups (${section.streams.join(", ")}); a split period has one lesson per group.` : ""}${canEdit ? " Choose a period to change it." : ""}`}
+                      description={`Class teacher ${idx.teacher(section.classTeacherId)?.name ?? "not set"} · ${section.room || "—"} · ${section.strength} students · ${scheduleOf(board, section.classSection).name} timings · ${st.have} of ${st.need} curriculum periods placed, ${periodsInWeek(scheduleOf(board, section.classSection)) - new Set(board.slots.filter((s) => s.classSection === section.classSection).map((s) => `${s.day}|${s.period}`)).size} free in a ${periodsInWeek(scheduleOf(board, section.classSection))}-period week.${section.streams.length ? ` G: the class's groups (${section.streams.join(", ")}); a split period has one lesson per group.` : ""}${canEdit ? " Choose a period to change it." : ""}`}
                     >
                       <TimetableGrid
                         board={board}
@@ -485,7 +486,7 @@ export function ClassTimetablePage({ search, setSearch }: { search: ClassTimetab
                         key={s.classSection}
                         board={board}
                         title={`Class timetable · ${s.classSection}`}
-                        scope={`Class teacher ${idx.teacher(s.classTeacherId)?.name ?? "—"} · ${s.room}`}
+                        scope={`Class teacher ${idx.teacher(s.classTeacherId)?.name ?? "—"} · ${s.room || "—"}`}
                         {...classGrid(s)}
                         cell={(d, p, stream) => {
                           const list = cellSlots(board, s.classSection, d, p);

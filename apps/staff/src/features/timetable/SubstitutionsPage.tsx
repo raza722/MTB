@@ -1,4 +1,4 @@
-import { clockTime, newIdempotencyKey, periodsOn, TIMETABLE_DAYS, timetableApi, timetableQueries, type CampusCode, type TimetableBoard, type TimetableCover, type TimetableCoverDay, type TimetableDay, type TimetableSlot } from "@mtb/api";
+import { clockTime, countLessons, newIdempotencyKey, periodsOn, TIMETABLE_DAYS, timetableApi, timetableQueries, type CampusCode, type TimetableBoard, type TimetableCover, type TimetableCoverDay, type TimetableDay, type TimetableSlot } from "@mtb/api";
 import { formatCount, formatDate, formatLongDate, formatTime, type IsoDate } from "@mtb/domain";
 import { AnimatedNumber, Avatar, Banner, Button, Combobox, DataTable, DatePicker, EmptyState, Panel, Select, SidePanel, Skeleton, StatCard, StatusBadge, Textarea, useToast, type Column } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -6,7 +6,7 @@ import { useState, type CSSProperties } from "react";
 import { RequireSingleCampus } from "../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { campusLabel } from "../../app/shell/campus";
-import { dayLong, errorText, freeTeachers, PrintArea, printSoon, QueryError, TimetableShell, TODAY, useBoard, useBoardIndex, useCanEdit, type BoardIndex } from "./shared";
+import { dayLong, errorText, freeTeachers, PrintArea, printSoon, QueryError, TimetableShell, useBoard, useBoardIndex, useCanEdit, useSessionDays, useToday, type BoardIndex } from "./shared";
 import { TeacherTextsDialog } from "./TeacherTextsDialog";
 
 const REASONS = ["Casual leave", "Sick leave", "Training", "Exam duty", "Official visit", "Late arrival"];
@@ -116,7 +116,7 @@ function MarkAway({ board, date, away, onClose }: { board: TimetableBoard; date:
           required
           value={teacherId}
           onValueChange={setTeacherId}
-          options={board.teachers.filter((t) => !away.includes(t.id)).map((t) => ({ value: t.id, label: t.name, hint: `${board.slots.filter((s) => s.teacherId === t.id).length} a week` }))}
+          options={board.teachers.filter((t) => !away.includes(t.id)).map((t) => ({ value: t.id, label: t.name, hint: `${countLessons(board.slots.filter((s) => s.teacherId === t.id))} a week` }))}
           placeholder="Choose a teacher"
         />
         <Select label="Reason" value={reason} onChange={(e) => setReason(e.target.value)} options={REASONS} />
@@ -142,7 +142,9 @@ export function SubstitutionsPage({ date, onDate }: { date: IsoDate | undefined;
   const b = useBoard();
   const board = b.data;
   const idx = useBoardIndex(board);
-  const day = date ?? TODAY;
+  const today = useToday();
+  const sessionDays = useSessionDays();
+  const day = date ?? today;
   const c = useQuery({ ...timetableQueries.cover(ctx, day), enabled: ctx.campus !== "ALL" && !readOnly });
   const cover = c.data;
   const [picking, setPicking] = useState<Need | null>(null);
@@ -150,7 +152,7 @@ export function SubstitutionsPage({ date, onDate }: { date: IsoDate | undefined;
   const wd = (cover?.day ?? null) as TimetableDay | null;
   const [finderDay, setFinderDay] = useState<TimetableDay | null>(null);
   const [finderPeriod, setFinderPeriod] = useState(1);
-  const fDay = (finderDay ?? wd ?? 3) as TimetableDay;
+  const fDay = (finderDay ?? wd ?? 1) as TimetableDay;
 
   const remove = useMutation({
     mutationFn: (id: string) => timetableApi.removeCover(id),
@@ -170,18 +172,18 @@ export function SubstitutionsPage({ date, onDate }: { date: IsoDate | undefined;
 
   const header = (
     <div className="flex flex-wrap items-end gap-2">
-      {day !== TODAY && (
+      {day !== today && (
         <Button size="sm" variant="quiet" onClick={() => onDate(undefined)}>
           Today
         </Button>
       )}
       <div className="w-44">
-        <DatePicker aria-label="Day" value={day} today={TODAY} minDate="2026-04-01" maxDate="2026-12-31" onValueChange={(d) => onDate(d && d !== TODAY ? d : undefined)} />
+        <DatePicker aria-label="Day" value={day} today={today} {...(sessionDays.starts ? { minDate: sessionDays.starts } : {})} {...(sessionDays.ends ? { maxDate: sessionDays.ends } : {})} onValueChange={(d) => onDate(d && d !== today ? d : undefined)} />
       </div>
       <Button icon="printer" disabled={!cover || !wd} onClick={printSoon}>
         Print cover list
       </Button>
-      {canText && day >= TODAY && (
+      {canText && day >= today && (
         <Button icon="message" disabled={!cover || !wd || !!cover.closed} onClick={() => setTexting(true)}>
           Text teachers their day
         </Button>
@@ -240,13 +242,13 @@ export function SubstitutionsPage({ date, onDate }: { date: IsoDate | undefined;
             n.cover ? (
               <span className="flex flex-wrap items-center gap-2">
                 <StatusBadge status="approved">{n.cover.substituteName}</StatusBadge>
-                {canEdit && day >= TODAY && (
+                {canEdit && day >= today && (
                   <Button size="sm" variant="quiet" onClick={() => remove.mutate(n.cover!.id)} disabled={remove.isPending}>
                     Remove
                   </Button>
                 )}
               </span>
-            ) : canEdit && day >= TODAY ? (
+            ) : canEdit && day >= today ? (
               <Button size="sm" variant="primary" icon="user" onClick={() => setPicking(n)}>
                 Choose cover
               </Button>
@@ -295,7 +297,7 @@ export function SubstitutionsPage({ date, onDate }: { date: IsoDate | undefined;
                   title="Away today"
                   description="Leave approved in HR shows here by itself."
                   actions={
-                    canEdit && day >= TODAY ? (
+                    canEdit && day >= today ? (
                       <Button size="sm" icon="plus" onClick={() => setMarking(true)}>
                         Mark away
                       </Button>
@@ -315,7 +317,7 @@ export function SubstitutionsPage({ date, onDate }: { date: IsoDate | undefined;
                               {a.reason} · {a.source === "HR" ? "from HR" : `marked by ${a.markedBy}`} · {formatTime(a.markedAt)}
                             </span>
                           </span>
-                          {a.source === "Office" && canEdit && day >= TODAY ? (
+                          {a.source === "Office" && canEdit && day >= today ? (
                             <Button size="sm" variant="quiet" className="ml-auto" onClick={() => clearAway.mutate(a.teacherId)} disabled={clearAway.isPending}>
                               In after all
                             </Button>

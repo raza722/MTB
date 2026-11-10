@@ -4,9 +4,11 @@
 // Today's register cards and papers, the periods' register badges and the classes' attendance figures below stay
 // fictional (fixture rosters, the fictional exams of handlers/exams-model.ts, the demo's fixed date) until module 8
 // reads the real attendance and exam views, so the Today card and the Registers / Marks tabs can disagree meanwhile.
-// Timetables, rosters and the school calendar come from the timetable mock and handlers/attendance-model.ts.
+// The teacher's own week (/api/teacher/timetable) is real now (Timetable, backend/docs/modules/08_timetable.md T01).
+// Today's periods and the classes list stay fictional (spec 08 Q1: T02–T04 not built yet): they read the fictional
+// timetable of handlers/timetable-model.ts, so they can disagree with the real Timetable tab meanwhile. Rosters and
+// the school calendar come from handlers/attendance-model.ts.
 import {
-  bellDay,
   teacherCountMarks,
   type CampusCode,
   type RegisterCode,
@@ -25,8 +27,6 @@ import {
   type TeacherRegisterStatus,
   type TeacherStudentContact,
   type TeacherToday,
-  type TeacherWeek,
-  type TeacherWeekDay,
 } from "@mtb/api";
 import { formatDate, formatTime, summariseAttendance, type AttendanceCode, type IsoDate } from "@mtb/domain";
 import { http, type HttpHandler } from "msw";
@@ -36,11 +36,10 @@ import { addDays, pastMark, registersFor, rosterFor, SESSION_DATES, weekdayOf, t
 import { campusName } from "../fixtures/campuses";
 import type { ExamRecord } from "../fixtures/exams";
 import { seedTeacherChanges, seedTeacherNotifications, TEACHER_DEMO_HOLIDAY } from "../fixtures/teacher";
-import { scheduleSeed } from "../fixtures/timetable";
 import { ctxFrom, fail, HttpResponse, latency, requirePermission, requireUser } from "../util";
 import { attendanceDayFor, closedOn } from "./attendance-model";
 import { examPapersForTeacher, examsStore } from "./exams-model";
-import { teacherDay } from "./timetable";
+import { teacherDay } from "./timetable-model";
 
 /* ------------------------------------------------------------------ State */
 
@@ -162,7 +161,7 @@ function sessionSchoolDays(campus: CampusCode): IsoDate[] {
   return out;
 }
 
-/* ------------------------------------------------------------------ Periods and the week */
+/* ------------------------------------------------------------------ Periods and this week's classes */
 
 function periodsOf(campus: CampusCode, teacher: string, date: IsoDate, withRegister: boolean): TeacherPeriod[] {
   if (closedDay(campus, date)) return [];
@@ -184,31 +183,17 @@ function periodsOf(campus: CampusCode, teacher: string, date: IsoDate, withRegis
   });
 }
 
-const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-
-function week(campus: CampusCode, teacher: string): TeacherWeek {
+/** The (fictional) periods of each school day this week, Monday to Saturday. */
+function weekPeriods(campus: CampusCode, teacher: string): TeacherPeriod[][] {
   const monday = addDays(DEMO_TODAY, -((weekdayOf(DEMO_TODAY) + 6) % 7));
-  const days: TeacherWeekDay[] = [0, 1, 2, 3, 4, 5].map((i) => {
-    const date = addDays(monday, i);
-    return { date, day: i + 1, dayName: DAY_NAMES[weekdayOf(date)] ?? "", closed: closedDay(campus, date), periods: periodsOf(campus, teacher, date, date === DEMO_TODAY) };
-  });
-  const sched = scheduleSeed().find((s) => s.campus === campus && s.active) ?? scheduleSeed()[0]!;
-  return {
-    weekOf: monday,
-    today: DEMO_TODAY,
-    days,
-    normal: bellDay(sched, sched.normal),
-    friday: bellDay(sched, sched.friday),
-    periodsThisWeek: days.reduce((a, d) => a + d.periods.length, 0),
-  };
+  return [0, 1, 2, 3, 4, 5].map((i) => periodsOf(campus, teacher, addDays(monday, i), false));
 }
 
 /** Sections the teacher teaches this week or takes the register for, with subjects and periods. */
 function myClasses(campus: CampusCode, teacher: string): TeacherClass[] {
-  const w = week(campus, teacher);
   const map = new Map<string, { subjects: Set<string>; periods: number; rooms: Map<string, number> }>();
-  for (const d of w.days)
-    for (const p of d.periods) {
+  for (const day of weekPeriods(campus, teacher))
+    for (const p of day) {
       if (p.cover) continue;
       const x = map.get(p.classSection) ?? { subjects: new Set<string>(), periods: 0, rooms: new Map<string, number>() };
       x.subjects.add(p.subject);
@@ -318,14 +303,7 @@ export const teacherHandlers: HttpHandler[] = [
     return HttpResponse.json(body);
   }),
 
-  /* ---------------- Timetable, classes, contacts */
-  http.get("/api/teacher/timetable", async ({ request }) => {
-    await latency();
-    const c = context(request);
-    if (c instanceof Response) return c;
-    return HttpResponse.json(week(c.campus, c.user.name));
-  }),
-
+  /* ---------------- Classes, contacts (the timetable, /api/teacher/timetable, is real) */
   http.get("/api/teacher/classes", async ({ request }) => {
     await latency();
     const c = context(request);
