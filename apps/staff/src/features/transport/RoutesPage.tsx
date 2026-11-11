@@ -21,7 +21,7 @@ function RouteSheet({ s }: { s: TransportRouteSheet }) {
         <dt>Vehicle</dt>
         <dd>{v ? `${v.regNo} · ${v.make} ${v.model} · ${v.capacity} seats` : "None"}</dd>
         <dt>Driver</dt>
-        <dd>{v ? `${v.driverName} · ${formatMobile(v.driverMobile)}` : "—"}</dd>
+        <dd>{v ? [v.driverName, v.driverMobile ? formatMobile(v.driverMobile) : ""].filter(Boolean).join(" · ") || "—" : "—"}</dd>
         <dt>Conductor</dt>
         <dd>{v?.conductorName || "—"}</dd>
         <dt>Fare</dt>
@@ -53,9 +53,9 @@ function RouteSheet({ s }: { s: TransportRouteSheet }) {
                   <tr key={r.id}>
                     <td>{i + 1}</td>
                     <td>{r.name}</td>
-                    <td>{r.detail}</td>
+                    <td>{r.detail || "—"}</td>
                     <td>{r.father || "—"}</td>
-                    <td>{formatMobile(r.mobile)}</td>
+                    <td>{r.mobile ? formatMobile(r.mobile) : "—"}</td>
                     <td>{TRANSPORT_DIRECTION_LABEL[r.direction]}</td>
                     <td />
                     <td />
@@ -127,7 +127,8 @@ function RouteForm({ route, onClose }: { route: TransportRoute | null; onClose: 
     [next[i], next[j]] = [next[j]!, next[i]!];
     setStops(next);
   };
-  const free = (vehicles.data ?? []).filter((v) => v.active && (!v.routeId || v.routeId === route?.id));
+  // Vehicles in service not running another route, plus the route's own vehicle even when it is out of service.
+  const free = (vehicles.data ?? []).filter((v) => (v.active && (!v.routeId || v.routeId === route?.id)) || (route?.vehicleId != null && v.id === route.vehicleId));
   return (
     <SidePanel
       open

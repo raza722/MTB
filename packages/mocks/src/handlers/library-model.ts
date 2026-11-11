@@ -1,7 +1,7 @@
 // The fictional library the report centre still reads (no routes). The library itself and the shared people search
 // (/api/library/*, /api/operations/people) are real now: their requests fall through to the backend. librarySnapshot
 // stays until the report centre moves to the real API (module 13); studentPerson / staffPerson / personOf stay while the
-// warehouse and transport mocks (modules 11b / 11c) still look people up in the fixtures.
+// report centre's fictional loans and transport riders (transport-model.ts) still look people up in the fixtures.
 import {
   type CampusCode,
   type LibraryCopyRow,

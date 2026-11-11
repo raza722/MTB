@@ -918,7 +918,7 @@ export interface TransportAlert {
 export interface TransportVehicle {
   id: string;
   campus: CampusCode;
-  /** "BSA-1427" */
+  /** "BSA-1427": 2-4 letters, a dash, 1-4 digits; unique within the campus. */
   regNo: string;
   type: TransportVehicleType;
   make: string;
@@ -1009,8 +1009,9 @@ export interface TransportRider {
   fromDate: IsoDate;
   toDate: IsoDate | null;
   monthlyFee: Rupees;
-  /** BILLED: charged monthly with the fee. PAYROLL: staff, deducted from salary. */
+  /** BILLED: charged monthly with the fee (Fees). PAYROLL: staff; recorded for payroll, never charged in Fees (no salary deduction is made yet). */
   feeLink: "BILLED" | "PAYROLL";
+  /** ACTIVE: no last day, or the last day is today or later (a start up to 60 days ahead already counts). */
   status: "ACTIVE" | "ENDED";
   endReason: string;
 }
@@ -1029,8 +1030,9 @@ export interface TransportRiderInput {
 /** What assigning a student did in Fees. */
 export interface TransportRiderResult {
   rider: TransportRider;
-  /** "Transport fee – Nov 2026", or empty for staff. */
+  /** "Transport fee – Nov 2026" (assign) or "Transport fee Rs 1,250 a month from the next fee voucher" (move); empty for staff, and on assign for a student whose fare is Rs 0. */
   feeHead: string;
+  /** Due date of the month charged on assign; null for staff, a move, or when nothing was charged. */
   feeDueOn: IsoDate | null;
 }
 

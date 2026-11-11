@@ -166,7 +166,7 @@ export interface FeeStructure {
   heads: FeeHead[];
   classes: FeeClassStructure[];
   plans: FeeInstallmentPlan[];
-  /** Transport is charged by route; the range shows what families pay. null until the transport module prices routes. */
+  /** Transport is charged by route; the range shows what families pay. null when the campus has no route in use with a vehicle. */
   transport: { routes: number; from: Rupees; to: Rupees } | null;
   /** First and last day of the session at this campus (Setup → Sessions). Omitted by older servers: April–March then. */
   sessionStart?: IsoDate;

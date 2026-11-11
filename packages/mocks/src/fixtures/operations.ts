@@ -1280,6 +1280,9 @@ export function initialWarehouse(): WarehouseFixtures {
 
 /* ================================================================================================ Transport */
 
+// Transport is real since module 11c; these fictional records feed only the report centre's transport reports
+// (handlers/transport-model.ts) until module 13.
+
 export interface TrnVehicleRec {
   id: string;
   campus: CampusCode;

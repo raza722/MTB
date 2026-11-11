@@ -45,7 +45,7 @@ import { accountsReportBook, accountsReportIncomeExpenditure, accountsReportTria
 import { chargesOf, feesStore, receiptsOf } from "./fees-state";
 import { feeCandidateRows, feeClassArrears, feeCollectionRows, feeConcessionSummary, feeDefaulterRows, feeHeadByCode, headCodeOf } from "./fee-setup-model";
 import { librarySnapshot } from "./library-model";
-import { transportSnapshot } from "./operations";
+import { transportSnapshot } from "./transport-model";
 import { warehouseSnapshot } from "./warehouse-model";
 import { examReportGenerators, liveExamDefinition } from "./reports-exams";
 import { genderOfName, outboxSnapshot, rosterPeople } from "./sms-model";
@@ -1168,8 +1168,8 @@ const GENERATORS: Record<string, (g: Gen) => GenOut> = {
     }),
 
   // ---------- Library ----------
-  // Library and warehouse reports read the fictional stores in library-model.ts and warehouse-model.ts (those modules
-  // are real; module 13 makes these reports real); transport reports read the live transport mock (handlers/operations.ts).
+  // Library, warehouse and transport reports read the fictional stores in library-model.ts, warehouse-model.ts and
+  // transport-model.ts (those modules are real; module 13 makes these reports real).
   "lib-catalogue": ({ campuses, f }) => {
     const snap = librarySnapshot(campuses);
     const rows: Row[] = [];

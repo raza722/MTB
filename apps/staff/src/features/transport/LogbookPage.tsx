@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { campusLabel } from "../../app/shell/campus";
-import { addDays, CampusNote, errorField, errorText, LoadError, RequireSingleCampusOverlay, slide, TODAY } from "../library/common";
+import { addDays, CampusNote, errorField, errorText, LoadError, opsToday, RequireSingleCampusOverlay, slide } from "../library/common";
 import { TransportShell } from "./shared";
 
 const n = (s: string) => (s.trim() === "" ? null : Number(s.replace(/[^\d.]/g, "")));
@@ -17,7 +17,8 @@ function TripModal({ vehicles, onClose }: { vehicles: TransportVehicle[]; onClos
   const qc = useQueryClient();
   const [vehicleId, setVehicleId] = useState("");
   const v = vehicles.find((x) => x.id === vehicleId);
-  const [date, setDate] = useState<string | null>(TODAY);
+  const today = opsToday();
+  const [date, setDate] = useState<string | null>(today);
   const [direction, setDirection] = useState<"PICKUP" | "DROP" | "OTHER">("PICKUP");
   const [purpose, setPurpose] = useState("");
   const [departAt, setDepart] = useState("06:45");
@@ -93,7 +94,7 @@ function TripModal({ vehicles, onClose }: { vehicles: TransportVehicle[]; onClos
             error={errors.vehicleId}
             options={[{ value: "", label: "Choose…" }, ...vehicles.filter((x) => x.active).map((x) => ({ value: x.id, label: `${x.regNo}${x.routeCode ? ` · ${x.routeCode}` : ""}` }))]}
           />
-          <DatePicker label="Date" value={date} onValueChange={setDate} maxDate={TODAY} today={TODAY} error={errors.date} />
+          <DatePicker label="Date" value={date} onValueChange={setDate} maxDate={today} today={today} error={errors.date} />
           <Input label="On board" inputMode="numeric" value={riders} onChange={(e) => setRiders(e.target.value)} error={errors.ridersPresent} />
           {direction === "OTHER" && (
             <div className="sm:col-span-3">
@@ -107,7 +108,7 @@ function TripModal({ vehicles, onClose }: { vehicles: TransportVehicle[]; onClos
           <Input label="Meter at end" suffix="km" inputMode="numeric" value={endKm} onChange={(e) => setEnd(e.target.value)} error={errors.endKm} help={n(startKm) !== null && n(endKm) !== null && n(endKm)! >= n(startKm)! ? `${n(endKm)! - n(startKm)!} km` : undefined} />
         </div>
         <Textarea label="Note (optional)" rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
-        {v && <span className="text-small text-ink-muted">Driver: {v.driverName}{v.routeName ? ` · ${v.routeCode} ${v.routeName}` : ""}</span>}
+        {v && <span className="text-small text-ink-muted">Driver: {v.driverName || "—"}{v.routeName ? ` · ${v.routeCode} ${v.routeName}` : ""}</span>}
         {m.isError && !errorField(m.error) && <Banner tone="danger">{errorText(m.error)}</Banner>}
       </div>
     </Modal>
@@ -119,11 +120,12 @@ function FuelModal({ vehicles, fuel, onClose }: { vehicles: TransportVehicle[]; 
   const toast = useToast();
   const qc = useQueryClient();
   const [vehicleId, setVehicleId] = useState("");
-  const [date, setDate] = useState<string | null>(TODAY);
+  const today = opsToday();
+  const [date, setDate] = useState<string | null>(today);
   const [litres, setLitres] = useState("");
   const [amount, setAmount] = useState<number | null>(null);
   const [odometer, setOdo] = useState("");
-  const [station, setStation] = useState("PSO, Bypass Road");
+  const [station, setStation] = useState("");
   const [slipNo, setSlip] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const last = fuel.find((f) => f.vehicleId === vehicleId);
@@ -172,7 +174,7 @@ function FuelModal({ vehicles, fuel, onClose }: { vehicles: TransportVehicle[]; 
     >
       <div className="grid gap-4 sm:grid-cols-3">
         <Select label="Vehicle" value={vehicleId} onChange={(e) => setVehicleId(e.target.value)} error={errors.vehicleId} options={[{ value: "", label: "Choose…" }, ...vehicles.filter((x) => x.active).map((x) => ({ value: x.id, label: x.regNo }))]} />
-        <DatePicker label="Date" value={date} onValueChange={setDate} maxDate={TODAY} minDate={addDays(TODAY, -60)} today={TODAY} error={errors.date} />
+        <DatePicker label="Date" value={date} onValueChange={setDate} maxDate={today} today={today} error={errors.date} />
         <Input label="Slip number" mono value={slipNo} onChange={(e) => setSlip(e.target.value)} error={errors.slipNo} />
         <Input label="Litres" inputMode="decimal" value={litres} onChange={(e) => setLitres(e.target.value)} error={errors.litres} />
         <AmountInput label="Amount paid" value={amount} onValueChange={setAmount} error={errors.amount} help={rate ? `${formatRs(rate)} a litre` : undefined} />
@@ -200,13 +202,15 @@ export function LogbookPage() {
   const [tab, setTab] = useState("trips");
   const [vehicleId, setVehicleId] = useState("");
   const [adding, setAdding] = useState<"trip" | "fuel" | null>(null);
-  const weekAgo = addDays(TODAY, -7);
+  const today = opsToday();
+  const weekAgo = addDays(today, -7);
   const tripRows = (trips.data ?? []).filter((t) => !vehicleId || t.vehicleId === vehicleId);
   const fuelRows = (fuel.data ?? []).filter((f) => !vehicleId || f.vehicleId === vehicleId);
   const kmWeek = (trips.data ?? []).filter((t) => t.date > weekAgo).reduce((a, t) => a + (t.endKm - t.startKm), 0);
-  const fuel30 = (fuel.data ?? []).filter((f) => f.date > addDays(TODAY, -30));
+  const fuel30 = (fuel.data ?? []).filter((f) => f.date > addDays(today, -30));
   const kml = fuelRows.filter((f) => f.kmPerLitre !== null);
-  const avgKml = kml.length ? Math.round((kml.reduce((a, f) => a + f.kmPerLitre!, 0) / kml.length) * 10) / 10 : 0;
+  // null when no fill-up has a previous reading: the card shows "—", not 0.
+  const avgKml = kml.length ? Math.round((kml.reduce((a, f) => a + f.kmPerLitre!, 0) / kml.length) * 10) / 10 : null;
 
   const tripCols: Array<Column<TransportTrip>> = [
     { key: "date", header: "Date", render: (t) => <span className="mtb-num">{formatDate(t.date)}</span> },
@@ -215,7 +219,7 @@ export function LogbookPage() {
     { key: "time", header: "Time", render: (t) => <span className="mtb-num text-small">{t.departAt}–{t.arriveAt}</span> },
     { key: "km", header: "Km", align: "right", render: (t) => <span className="mtb-num">{formatCount(t.endKm - t.startKm)}</span> },
     { key: "on", header: "On board", align: "right", render: (t) => <span className="mtb-num">{t.ridersPresent}</span> },
-    { key: "driver", header: "Driver", render: (t) => <span className="text-small">{t.driverName}</span> },
+    { key: "driver", header: "Driver", render: (t) => <span className="text-small">{t.driverName || "—"}</span> },
   ];
   const fuelCols: Array<Column<TransportFuel>> = [
     { key: "date", header: "Date", render: (f) => <span className="mtb-num">{formatDate(f.date)}</span> },
@@ -224,7 +228,7 @@ export function LogbookPage() {
     { key: "amount", header: "Amount", align: "right", render: (f) => <span className="grid justify-items-end"><span className="mtb-num font-medium">{formatRs(f.amount)}</span><span className="text-small text-ink-muted">{formatRs(Math.round(f.amount / f.litres))} a litre</span></span> },
     { key: "odo", header: "Meter", align: "right", render: (f) => <span className="mtb-num text-small">{formatCount(f.odometer)} km</span> },
     { key: "kml", header: "Km a litre", align: "right", render: (f) => (f.kmPerLitre === null ? <span className="text-ink-subtle">—</span> : <span className={`mtb-num ${avgKml && f.kmPerLitre < avgKml * 0.75 ? "font-semibold text-status-overdue-ink" : ""}`}>{f.kmPerLitre}</span>) },
-    { key: "slip", header: "Pump and slip", render: (f) => <span className="grid"><span className="text-small">{f.station}</span><span className="text-small text-ink-muted">Slip {f.slipNo} · {f.enteredBy}</span></span> },
+    { key: "slip", header: "Pump and slip", render: (f) => <span className="grid"><span className="text-small">{f.station || "—"}</span><span className="text-small text-ink-muted">Slip {f.slipNo}{f.enteredBy ? ` · ${f.enteredBy}` : ""}</span></span> },
   ];
   return (
     <TransportShell
@@ -250,7 +254,7 @@ export function LogbookPage() {
           { label: "Fill-ups recorded", value: fuelRows.length, icon: "receipt" as const, foot: "This session" },
         ].map((k, i) => (
           <div key={k.label} className="mtb-rise" style={slide(i)}>
-            <StatCard loading={trips.isLoading || fuel.isLoading} label={k.label} icon={k.icon} value={<AnimatedNumber value={k.value} format={k.money ? formatRs : k.decimal ? (v) => v.toFixed(1) : formatCount} />} foot={k.foot} />
+            <StatCard loading={trips.isLoading || fuel.isLoading} label={k.label} icon={k.icon} value={k.value === null ? "—" : <AnimatedNumber value={k.value} format={k.money ? formatRs : k.decimal ? (v) => v.toFixed(1) : formatCount} />} foot={k.foot} />
           </div>
         ))}
       </div>

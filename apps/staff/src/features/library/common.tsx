@@ -20,12 +20,6 @@ import "./ops.css";
  */
 export const opsToday = (): IsoDate => pakistanToday();
 
-/**
- * The mock clock's today (Wednesday 04-Nov-2026) for the transport pages only, whose data is still fictional
- * (module 11c). Remove when transport is real; library and warehouse pages use opsToday().
- */
-export const TODAY: IsoDate = "2026-11-04";
-
 /** A library title's language, or "—" when the old system recorded none. */
 export const languageLabel = (l: LibraryLanguage | null): string => (l ? LIBRARY_LANGUAGE_LABEL[l] : "—");
 
