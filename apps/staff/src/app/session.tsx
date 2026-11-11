@@ -44,6 +44,15 @@ export function useCan(permission: Permission): boolean {
   return can(user, permission, campus);
 }
 
+/**
+ * A group-wide right: held through an all-campus grant (the SMS kill switch is one switch for every campus, so the
+ * backend checks pause / resume at ALL; a single-campus admin cannot use it).
+ */
+export function useCanGroupWide(permission: Permission): boolean {
+  const user = useSessionUser();
+  return can(user, permission, "ALL");
+}
+
 export function useRoleLabel(): string {
   const user = useSessionUser();
   const { campus } = useCtx();

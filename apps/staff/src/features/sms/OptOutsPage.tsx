@@ -1,8 +1,8 @@
-import { smsApi, smsQueries, type CampusCode, type SmsOptOut } from "@mtb/api";
+import { newIdempotencyKey, smsApi, smsQueries, type CampusCode, type SmsOptOut } from "@mtb/api";
 import { formatDateTime, normalizeMobile } from "@mtb/domain";
 import { Button, ConfirmDialog, DataTable, EmptyState, Input, Modal, Select, useToast, type Column } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { campusLabel } from "../../app/shell/campus";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { errorField, errorText, LoadError, MessagesShell } from "./shell";
@@ -30,16 +30,19 @@ export function OptOutsPage() {
       const who = removing;
       setRemoving(null);
       await queryClient.invalidateQueries({ queryKey: smsQueries.optOuts(ctx).queryKey });
-      if (who) toast({ title: `${who.guardian} will get notices again`, message: `${who.mobile} was removed from the opt-out list.` });
+      if (who) toast({ title: `${who.guardian || who.mobile} will get notices again`, message: `${who.mobile} was removed from the opt-out list.` });
     },
   });
+  // Kept until the add succeeds, so a retry after a lost reply can't answer "already opted out".
+  const addKey = useRef(newIdempotencyKey());
   const add = useMutation({
-    mutationFn: () => smsApi.addOptOut({ campus: ctx.campus as CampusCode, mobile, via }),
+    mutationFn: () => smsApi.addOptOut({ campus: ctx.campus as CampusCode, mobile, via }, addKey.current),
     onSuccess: async (o) => {
+      addKey.current = newIdempotencyKey();
       setAdding(false);
       setMobile("");
       await queryClient.invalidateQueries({ queryKey: smsQueries.optOuts(ctx).queryKey });
-      toast({ title: `${o.guardian} won't get notices`, message: `Fee, attendance and result messages about ${o.students.map((s) => s.name).join(", ")} still reach ${o.mobile}.` });
+      toast({ title: `${o.guardian || o.mobile} won't get notices`, message: `Fee, attendance and result messages about ${o.students.length ? o.students.map((s) => s.name).join(", ") : "their children"} still reach ${o.mobile}.` });
     },
     onError: (e) => setMobileError(errorField(e) === "mobile" ? errorText(e) : null),
   });
@@ -50,7 +53,7 @@ export function OptOutsPage() {
       header: "Guardian",
       render: (o) => (
         <span className="grid">
-          <span className="mtb-cell-primary">{o.guardian}</span>
+          <span className="mtb-cell-primary">{o.guardian || "—"}</span>
           <span className="mtb-mono text-small text-ink-muted">{o.mobile}</span>
         </span>
       ),

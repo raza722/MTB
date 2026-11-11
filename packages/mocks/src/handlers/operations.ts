@@ -76,7 +76,7 @@ import {
 import { findStudent, STUDENTS } from "../fixtures/students";
 import { currentUser } from "./auth-state";
 import { chargesOf, feesStore } from "./fees-state";
-import { smsStatusStore } from "./sms";
+import { smsStatusStore } from "./sms-model";
 import { ctxFrom, fail, HttpResponse, latency } from "../util";
 
 // v2: libraries, room numbers and floors, copy placement and write-offs, supplier email and mobile, tax on receipts.

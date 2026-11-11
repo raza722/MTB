@@ -2,10 +2,13 @@ import { SMS_GSM_REPLACEMENTS, SMS_VARIABLES, smsRender, smsSegments, type SmsLa
 import { Button, cx, Icon } from "@mtb/ui";
 import type { ReactNode, RefObject } from "react";
 
-/** Preview values from the brief's demo cast (Ayesha Khan, 7-B). */
-export const DEMO_VALUES: Record<SmsLanguage, SmsValues> = {
-  en: { student_name: "Ayesha Khan", class: "7-B", amount_due: "8,500", due_date: "10-Nov-2026", campus: "Khalid Campus", guardian_name: "Imran Khan", exam_name: "First Term 2026–27", result: "512/700 (73.1%), Grade B", event_date: "14-Nov-2026", tests_summary: "3 tests, 64/75 (85.3%)", subject_marks: "Eng 22/25, Urdu 20/25, Maths 24/25, Sci 21/25" },
-  ur: { student_name: "عائشہ خان", class: "7-B", amount_due: "8,500", due_date: "10-Nov-2026", campus: "Khalid Campus", guardian_name: "عمران خان", exam_name: "First Term 2026–27", result: "512/700 (73.1%), Grade B", event_date: "14-Nov-2026", tests_summary: "3 tests, 64/75 (85.3%)", subject_marks: "Eng 22/25, Urdu 20/25, Maths 24/25, Sci 21/25" },
+/**
+ * Neutral placeholders for the editor preview and the SMS-parts estimate (no invented child or family). Each has
+ * about the length of a real value, so the parts count stays close; the real values come from the server's preview.
+ */
+export const PREVIEW_VALUES: Record<SmsLanguage, SmsValues> = {
+  en: { student_name: "Student name", class: "7-B", amount_due: "2,500", due_date: "DD-MMM-YYYY", campus: "Campus name", guardian_name: "Guardian name", exam_name: "Exam name", result: "Marks and grade", event_date: "DD-MMM-YYYY", tests_summary: "Tests total and %", subject_marks: "Marks by subject" },
+  ur: { student_name: "طالب علم کا نام", class: "7-B", amount_due: "2,500", due_date: "DD-MMM-YYYY", campus: "Campus name", guardian_name: "سرپرست کا نام", exam_name: "Exam name", result: "Marks and grade", event_date: "DD-MMM-YYYY", tests_summary: "Tests total and %", subject_marks: "Marks by subject" },
 };
 
 export const VARIABLE_LABEL: Record<SmsVariable, string> = {
@@ -126,7 +129,7 @@ export function toStandardCharacters(text: string): string {
 }
 
 export function renderPreview(template: string, language: SmsLanguage, values: Partial<SmsValues> = {}): string {
-  return smsRender(template, { ...DEMO_VALUES[language], ...values });
+  return smsRender(template, { ...PREVIEW_VALUES[language], ...values });
 }
 
 /** Inserts {variable} at the cursor of the given textarea (or at the end if it never had focus). */

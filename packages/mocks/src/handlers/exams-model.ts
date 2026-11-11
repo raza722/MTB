@@ -32,7 +32,7 @@ import {
   type ProgrammeRecord,
 } from "../fixtures/exams";
 import { findStudent } from "../fixtures/students";
-import { genderOfName } from "./sms";
+import { genderOfName } from "./sms-model";
 
 // Exams are real now (/api/exams*, /api/exams-*, and the teacher app's /api/teacher/papers*): their routes were
 // removed, so those requests fall through to the backend (backend/docs/modules/05_exams.md). What stays here is the

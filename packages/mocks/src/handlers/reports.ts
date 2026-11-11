@@ -1,4 +1,5 @@
-// Report centre, background report jobs, scheduled reports, staff notifications (the bell) and notices.
+// Report centre, background report jobs, scheduled reports and staff notifications (the bell). Notices are real
+// (/api/notices: module 10); noticesStore stays only for the portal mock's published notices (module 12).
 import {
   ACCOUNTS_STATUS_LABEL,
   ACCOUNTS_VOUCHER_TYPE_LABEL,
@@ -14,8 +15,6 @@ import {
   REPORT_SUBTOTAL_KEY,
   type CampusCode,
   type CampusScope,
-  type Notice,
-  type NoticeInput,
   type ReportCatalogue,
   type ReportCell,
   type ReportColumnDef,
@@ -28,7 +27,6 @@ import {
   type ReportSchedule,
   type ReportScheduleInput,
   type SessionUser,
-  type SmsAudience,
   type StaffNotification,
   smsMaskMobile,
 } from "@mtb/api";
@@ -39,9 +37,7 @@ import { createStore } from "../db";
 import { pastMark, registersFor, registerSections, rosterFor, type RosterEntry } from "../fixtures/attendance";
 import { campusName } from "../fixtures/campuses";
 import { CONCESSION_TYPES } from "../fixtures/fee-setup";
-import { noticesStore } from "../fixtures/notices";
 import { DEFAULT_FAVOURITES, hashStr, pick, rand01, REPORT_DEFINITIONS, reportById, staffOf } from "../fixtures/reports";
-import { FAMILIES } from "../fixtures/sms";
 import { groupsOfClass, seatsFor, setupSectionOf, subjectsOfGroup } from "../fixtures/student-records";
 import { findStudent, STUDENTS } from "../fixtures/students";
 import { ctxFrom, fail, HttpResponse, latency, requirePermission, requireUser } from "../util";
@@ -50,7 +46,7 @@ import { chargesOf, feesStore, receiptsOf } from "./fees-state";
 import { feeCandidateRows, feeClassArrears, feeCollectionRows, feeConcessionSummary, feeDefaulterRows, feeHeadByCode, headCodeOf } from "./fee-setup-model";
 import { librarySnapshot, transportSnapshot, warehouseSnapshot } from "./operations";
 import { examReportGenerators, liveExamDefinition } from "./reports-exams";
-import { genderOfName, outboxSnapshot, queueBatch, rosterPeople } from "./sms";
+import { genderOfName, outboxSnapshot, rosterPeople } from "./sms-model";
 import { admissionsSeats, admissionsStore } from "./admissions-model";
 import { allMovements, sessionOfDate, streamFor } from "./student-records-model";
 import { portalFamilies } from "./portal";
@@ -1588,53 +1584,6 @@ function tick(user: SessionUser) {
 const publicJob = ({ requestedAtMs: _a, durationMs: _d, notified: _n, ...j }: MockJob): ReportJob => j;
 
 // ---------------------------------------------------------------------------------------------------
-// Notices
-// ---------------------------------------------------------------------------------------------------
-
-function validateNotice(b: NoticeInput): Response | null {
-  if (!b.title?.trim()) return fail(422, "VALIDATION", "Write the title in English.", { field: "title" });
-  if (b.title.trim().length > 120) return fail(422, "VALIDATION", "Keep the title under 120 characters.", { field: "title" });
-  if (!b.titleUr?.trim()) return fail(422, "VALIDATION", "Write the title in Urdu. Parents who read Urdu see this one.", { field: "titleUr" });
-  if (!b.body?.trim()) return fail(422, "VALIDATION", "Write the notice in English.", { field: "body" });
-  if (!b.bodyUr?.trim()) return fail(422, "VALIDATION", "Write the notice in Urdu.", { field: "bodyUr" });
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(b.date ?? "")) return fail(422, "VALIDATION", "Choose the date the notice is about.", { field: "date" });
-  if (b.audience === "CLASS" && !(b.classSections ?? []).length) return fail(422, "VALIDATION", "Choose at least one class.", { field: "classSections" });
-  if (b.expiresOn && b.expiresOn < DEMO_TODAY) return fail(422, "VALIDATION", "The notice would already be hidden. Choose today or a later date, or leave it empty.", { field: "expiresOn" });
-  return null;
-}
-
-function audienceCountOf(n: Pick<Notice, "campus" | "audience" | "classSections">): number {
-  if (n.audience === "STAFF") return staffOf(n.campus).length;
-  if (n.audience === "ALL_PARENTS") return FAMILIES[n.campus];
-  return Math.round((n.classSections ?? []).reduce((s, cs) => s + rosterFor(n.campus, cs).length, 0) * 0.82);
-}
-
-/** Publishing with "also send": an app notification and/or SMS through the messages outbox. */
-function sendNotice(n: Notice, user: SessionUser): string | Response | null {
-  if (!n.sendApp && !n.sendSms) return null;
-  const audience: SmsAudience = n.audience === "STAFF" ? { kind: "STAFF", group: "ALL" } : n.audience === "CLASS" ? { kind: "SECTIONS", classSections: n.classSections ?? [] } : { kind: "ALL_PARENTS" };
-  const channel = n.sendApp && n.sendSms ? "APP_FIRST" : n.sendApp ? "APP" : "SMS";
-  const shortBody = (s: string) => (s.length > 220 ? `${s.slice(0, 217)}...` : s);
-  const r = queueBatch(
-    {
-      campus: n.campus,
-      session: 2026,
-      templateId: "custom",
-      language: "en",
-      audience,
-      channel,
-      title: n.title,
-      source: "Notices",
-      customText: { en: `${n.title}. ${shortBody(n.body)} - MTB ${campusName(n.campus)}`, ur: `${n.titleUr}۔ ${shortBody(n.bodyUr)}`, category: n.audience === "STAFF" ? "STAFF" : "NOTICE" },
-    },
-    // Publishing is the approval for a notice.
-    { ...user, roles: [...user.roles, { role: "PRINCIPAL", roleName: "", campus: n.campus, campusName: "", permissions: ["approvals.decide"] }] },
-  );
-  if (r instanceof Response) return r;
-  return r.batchId;
-}
-
-// ---------------------------------------------------------------------------------------------------
 // Handlers
 // ---------------------------------------------------------------------------------------------------
 
@@ -1872,137 +1821,6 @@ export const reportsHandlers = [
     const user = requireUser();
     if (user instanceof Response) return user;
     reportsStore.set((s) => ({ ...s, notifications: { ...s.notifications, [user.id]: (s.notifications[user.id] ?? []).map((n) => (n.id === String(params.id) ? { ...n, read: true } : n)) } }));
-    return HttpResponse.json({ status: "ok" });
-  }),
-
-  // ---- Notices ----
-  http.get("/api/notices", async ({ request }) => {
-    await latency();
-    const ctx = ctxFrom(new URL(request.url));
-    const user = requirePermission("sms.view", ctx.campus);
-    if (user instanceof Response) return user;
-    return HttpResponse.json(
-      noticesStore
-        .get()
-        .filter((n) => ctx.campus === "ALL" || n.campus === ctx.campus)
-        .sort((a, b) => (b.updatedAt ?? b.publishedAt).localeCompare(a.updatedAt ?? a.publishedAt)),
-    );
-  }),
-  http.post("/api/notices", async ({ request }) => {
-    await latency();
-    const body = (await request.json()) as NoticeInput & { publish: boolean };
-    const user = requirePermission("sms.send", body.campus);
-    if (user instanceof Response) return user;
-    const bad = validateNotice(body);
-    if (bad) return bad;
-    const now = demoNow();
-    let n: Notice = {
-      id: `nt-${Date.now().toString(36)}`,
-      campus: body.campus,
-      title: body.title.trim(),
-      titleUr: body.titleUr.trim(),
-      body: body.body.trim(),
-      bodyUr: body.bodyUr.trim(),
-      date: body.date,
-      publishedAt: now,
-      publishedBy: user.name,
-      audience: body.audience,
-      ...(body.audience === "CLASS" ? { classSections: body.classSections ?? [] } : {}),
-      status: body.publish ? "PUBLISHED" : "DRAFT",
-      category: body.category,
-      createdAt: now,
-      createdBy: user.name,
-      updatedAt: now,
-      updatedBy: user.name,
-      ...(body.expiresOn ? { expiresOn: body.expiresOn } : {}),
-      pinned: Boolean(body.pinned),
-      sendApp: Boolean(body.sendApp),
-      sendSms: Boolean(body.sendSms),
-    };
-    n.audienceCount = audienceCountOf(n);
-    if (body.publish) {
-      const sent = sendNotice(n, user);
-      if (sent instanceof Response) return sent;
-      if (sent) n = { ...n, batchId: sent, readCount: 0 };
-    }
-    noticesStore.set((list) => [n, ...list]);
-    return HttpResponse.json(n, { status: 201 });
-  }),
-  http.put("/api/notices/:id", async ({ params, request }) => {
-    await latency();
-    const current = noticesStore.get().find((n) => n.id === String(params.id));
-    if (!current) return fail(404, "NOT_FOUND", "This notice was deleted.");
-    const body = (await request.json()) as NoticeInput;
-    const user = requirePermission("sms.send", current.campus);
-    if (user instanceof Response) return user;
-    const bad = validateNotice(body);
-    if (bad) return bad;
-    const saved: Notice = {
-      ...current,
-      title: body.title.trim(),
-      titleUr: body.titleUr.trim(),
-      body: body.body.trim(),
-      bodyUr: body.bodyUr.trim(),
-      date: body.date,
-      audience: body.audience,
-      category: body.category,
-      pinned: Boolean(body.pinned),
-      sendApp: Boolean(body.sendApp),
-      sendSms: Boolean(body.sendSms),
-      updatedAt: demoNow(),
-      updatedBy: user.name,
-    };
-    if (body.audience === "CLASS") saved.classSections = body.classSections ?? [];
-    else delete saved.classSections;
-    if (body.expiresOn) saved.expiresOn = body.expiresOn;
-    else delete saved.expiresOn;
-    saved.audienceCount = audienceCountOf(saved);
-    noticesStore.set((list) => list.map((n) => (n.id === saved.id ? saved : n)));
-    return HttpResponse.json(saved);
-  }),
-  http.post("/api/notices/:id/publish", async ({ params }) => {
-    await latency();
-    const current = noticesStore.get().find((n) => n.id === String(params.id));
-    if (!current) return fail(404, "NOT_FOUND", "This notice was deleted.");
-    const user = requirePermission("sms.send", current.campus);
-    if (user instanceof Response) return user;
-    if (current.status === "PUBLISHED") return fail(409, "ALREADY_PUBLISHED", "This notice is already published.");
-    const bad = validateNotice({ ...current, category: current.category ?? "GENERAL" });
-    if (bad) return bad;
-    let saved: Notice = { ...current, status: "PUBLISHED", publishedAt: demoNow(), publishedBy: user.name, updatedAt: demoNow(), updatedBy: user.name };
-    delete saved.unpublishedAt;
-    delete saved.unpublishedBy;
-    delete saved.unpublishReason;
-    // A notice taken down and published again does not send its app notification or SMS twice.
-    if (!current.batchId && !current.unpublishedAt) {
-      const sent = sendNotice(saved, user);
-      if (sent instanceof Response) return sent;
-      if (sent) saved = { ...saved, batchId: sent, readCount: 0 };
-    }
-    noticesStore.set((list) => list.map((n) => (n.id === saved.id ? saved : n)));
-    return HttpResponse.json(saved);
-  }),
-  http.post("/api/notices/:id/unpublish", async ({ params, request }) => {
-    await latency();
-    const current = noticesStore.get().find((n) => n.id === String(params.id));
-    if (!current) return fail(404, "NOT_FOUND", "This notice was deleted.");
-    const user = requirePermission("sms.send", current.campus);
-    if (user instanceof Response) return user;
-    if (current.status !== "PUBLISHED") return fail(409, "NOT_PUBLISHED", "This notice is not published.");
-    const { reason } = (await request.json()) as { reason: string };
-    if (!reason?.trim()) return fail(422, "VALIDATION", "Say why it is being taken down. It is kept with the notice.", { field: "reason" });
-    const saved: Notice = { ...current, status: "DRAFT", unpublishedAt: demoNow(), unpublishedBy: user.name, unpublishReason: reason.trim(), updatedAt: demoNow(), updatedBy: user.name };
-    noticesStore.set((list) => list.map((n) => (n.id === saved.id ? saved : n)));
-    return HttpResponse.json(saved);
-  }),
-  http.delete("/api/notices/:id", async ({ params }) => {
-    await latency();
-    const current = noticesStore.get().find((n) => n.id === String(params.id));
-    if (!current) return fail(404, "NOT_FOUND", "This notice was already deleted.");
-    const user = requirePermission("sms.send", current.campus);
-    if (user instanceof Response) return user;
-    if (current.status === "PUBLISHED" || current.unpublishedAt) return fail(409, "WAS_PUBLISHED", "Families have seen this notice, so it is kept for the record. Take it down instead.");
-    noticesStore.set((list) => list.filter((n) => n.id !== current.id));
     return HttpResponse.json({ status: "ok" });
   }),
 ];

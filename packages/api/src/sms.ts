@@ -6,6 +6,12 @@ import { ctxKey, ctxQuery, type CampusCode, type Ctx } from "./context";
 // Messages centre (staff app → Messages): SMS and app notifications, templates, compose and send,
 // scheduled sends, the outbox, delivery report, opt-outs, gateway settings and the kill switch.
 // The kill switch is read by the staff shell to show "All SMS paused" on every page.
+//
+// SENDING IS SWITCHED OFF IN THIS SYSTEM (backend module 10, deviation D1): no SMS ever leaves the server. send,
+// sendBatchNow, retryFailed, a scheduled batch whose time comes and a notice published with SMS only write messages
+// that stay held in the outbox (delivery status "queued"; a released batch stays "SENDING"). Delivery statuses
+// sent / delivered / failed and batch status SENT occur only on migrated history. The kill switch starts paused;
+// resuming only lifts the "paused" checks. Retry-unsafe writes take an optional Idempotency-Key (contract change C2).
 
 export interface SmsSystemStatus {
   paused: boolean;
@@ -16,8 +22,8 @@ export interface SmsSystemStatus {
 
 export const smsStatusApi = {
   status: () => apiFetch<SmsSystemStatus>("/sms/status"),
-  pause: (reason: string) => apiFetch<SmsSystemStatus>("/sms/pause", { method: "POST", body: { reason } }),
-  resume: () => apiFetch<SmsSystemStatus>("/sms/resume", { method: "POST" }),
+  pause: (reason: string, idempotencyKey?: string) => apiFetch<SmsSystemStatus>("/sms/pause", { method: "POST", body: { reason }, ...(idempotencyKey ? { idempotencyKey } : {}) }),
+  resume: (idempotencyKey?: string) => apiFetch<SmsSystemStatus>("/sms/resume", { method: "POST", ...(idempotencyKey ? { idempotencyKey } : {}) }),
 };
 
 export const smsStatusQueries = {
@@ -29,6 +35,7 @@ export const smsStatusQueries = {
 // ---------------------------------------------------------------------------------------------------
 
 export type SmsLanguage = "en" | "ur";
+/** "queued" = held in the outbox (nothing sends it); sent / delivered / failed only on migrated history. */
 export type SmsDeliveryStatus = "queued" | "sent" | "delivered" | "failed" | "optedout";
 
 /** Variables a template may use. Each appears as a chip in the editor. */
@@ -192,6 +199,8 @@ export interface SmsAudiencePreview {
   optedOutIncluded: number;
   /** Excluded from fee messages because nothing is due. */
   excludedNothingDue: number;
+  /** People with no valid mobile number, left out before counting (contract change C4). */
+  excludedNoMobile?: number;
   /** Messages that will be queued. */
   sendable: number;
   /** Estimated SMS (parts) across all messages going by SMS. */
@@ -227,7 +236,8 @@ export type SmsBatchStatus = "AWAITING_APPROVAL" | "SCHEDULED" | "SENDING" | "SE
 export const SMS_BATCH_STATUS_LABEL: Record<SmsBatchStatus, string> = {
   AWAITING_APPROVAL: "Waiting for approval",
   SCHEDULED: "Scheduled",
-  SENDING: "Sending",
+  /** A released batch: its messages are held in the outbox because sending is switched off (contract change C6). */
+  SENDING: "Held: sending is switched off",
   SENT: "Sent",
   CANCELLED: "Cancelled",
   REJECTED: "Not approved",
@@ -299,6 +309,7 @@ export interface SmsDeliveryRow {
   id: string;
   campus: CampusCode;
   at: IsoDateTime;
+  /** Masked in the report and batch rows, e.g. "0300-•••4567" (contract change C5). */
   mobile: string;
   guardian: string;
   studentName: string;
@@ -382,9 +393,14 @@ export interface SmsGatewaySettings {
   /** No SMS between these times (24-hour "21:00" → "07:00"). */
   quietFrom: string;
   quietTo: string;
-  /** Account details live in the secure vault and are never shown or stored in the database. */
+  /**
+   * Account details are never shown or stored in the database. Always "NOT_SET" while sending is switched off in
+   * this system (contract change C1): no SMS company account is connected.
+   */
   credentials: "VERIFIED" | "NOT_SET";
+  /** Absent until the first check. */
   lastCheckedAt?: IsoDateTime;
+  /** Always false while sending is switched off. */
   deliveryReports: boolean;
   updatedAt: IsoDateTime;
   updatedBy: string;
@@ -409,21 +425,25 @@ export const smsApi = {
   previewAudience: (body: SmsAudienceRequest) => apiFetch<SmsAudiencePreview>("/sms/audience/preview", { method: "POST", body }),
   send: (body: SmsAudienceRequest, idempotencyKey: string) => apiFetch<SmsSendResult>("/sms/send", { method: "POST", body, idempotencyKey }),
   report: (ctx: Ctx, q: SmsReportQuery = {}) => apiFetch<SmsReport>("/sms/report", { query: { ...ctxQuery(ctx), batch: q.batchId } }),
-  retryFailed: (ctx: Ctx, batchId?: string) => apiFetch<{ retried: number }>("/sms/report/retry-failed", { method: "POST", body: { campus: ctx.campus, ...(batchId ? { batchId } : {}) } }),
+  /** Only migrated messages can have failed and they are frozen: retried is always 0 while sending is switched off. */
+  retryFailed: (ctx: Ctx, batchId?: string, idempotencyKey?: string) => apiFetch<{ retried: number }>("/sms/report/retry-failed", { method: "POST", body: { campus: ctx.campus, ...(batchId ? { batchId } : {}) }, ...(idempotencyKey ? { idempotencyKey } : {}) }),
   optOuts: (ctx: Ctx) => apiFetch<SmsOptOut[]>("/sms/opt-outs", { query: ctxQuery(ctx) }),
-  addOptOut: (body: { campus: CampusCode; mobile: string; via: string }) => apiFetch<SmsOptOut>("/sms/opt-outs", { method: "POST", body }),
+  addOptOut: (body: { campus: CampusCode; mobile: string; via: string }, idempotencyKey?: string) => apiFetch<SmsOptOut>("/sms/opt-outs", { method: "POST", body, ...(idempotencyKey ? { idempotencyKey } : {}) }),
   removeOptOut: (id: string) => apiFetch<{ status: "ok" }>(`/sms/opt-outs/${encodeURIComponent(id)}`, { method: "DELETE" }),
 
   overview: (ctx: Ctx) => apiFetch<SmsOverview>("/sms/overview", { query: ctxQuery(ctx) }),
   batches: (ctx: Ctx, q: SmsBatchListQuery = {}) => apiFetch<SmsBatch[]>("/sms/batches", { query: { ...ctxQuery(ctx), status: q.status } }),
   batch: (id: string) => apiFetch<SmsBatchDetail>(`/sms/batches/${encodeURIComponent(id)}`),
-  decideBatch: (id: string, decision: "approve" | "reject", note?: string) => apiFetch<SmsBatch>(`/sms/batches/${encodeURIComponent(id)}/decide`, { method: "POST", body: { decision, note } }),
+  /** The person who wrote the batch can't decide it (409 OWN_BATCH). */
+  decideBatch: (id: string, decision: "approve" | "reject", note?: string, idempotencyKey?: string) => apiFetch<SmsBatch>(`/sms/batches/${encodeURIComponent(id)}/decide`, { method: "POST", body: { decision, note }, ...(idempotencyKey ? { idempotencyKey } : {}) }),
   cancelBatch: (id: string, reason: string) => apiFetch<SmsBatch>(`/sms/batches/${encodeURIComponent(id)}/cancel`, { method: "POST", body: { reason } }),
-  sendBatchNow: (id: string) => apiFetch<SmsBatch>(`/sms/batches/${encodeURIComponent(id)}/send-now`, { method: "POST" }),
+  /** Releases the batch now; its messages stay held in the outbox (nothing is sent from this system). */
+  sendBatchNow: (id: string, idempotencyKey?: string) => apiFetch<SmsBatch>(`/sms/batches/${encodeURIComponent(id)}/send-now`, { method: "POST", ...(idempotencyKey ? { idempotencyKey } : {}) }),
   rescheduleBatch: (id: string, scheduledFor: IsoDateTime) => apiFetch<SmsBatch>(`/sms/batches/${encodeURIComponent(id)}/reschedule`, { method: "POST", body: { scheduledFor } }),
 
   settings: (ctx: Ctx) => apiFetch<SmsGatewaySettings[]>("/sms/settings", { query: ctxQuery(ctx) }),
   saveSettings: (campus: CampusCode, body: SmsGatewaySettingsInput) => apiFetch<SmsGatewaySettings>(`/sms/settings/${campus}`, { method: "PUT", body }),
+  /** Contacts nothing while sending is switched off: answers ok false with the reason. */
   testGateway: (campus: CampusCode) => apiFetch<{ ok: boolean; message: string; checkedAt: IsoDateTime }>(`/sms/settings/${campus}/test`, { method: "POST" }),
 };
 

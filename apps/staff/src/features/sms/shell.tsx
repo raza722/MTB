@@ -1,5 +1,5 @@
 import { ApiError, CURRENT_SESSION, SMS_BATCH_STATUS_LABEL, SMS_CHANNEL_LABEL, smsStatusQueries, type SmsBatch, type SmsBatchStatus, type SmsChannel } from "@mtb/api";
-import { formatDate, formatSession, formatTime } from "@mtb/domain";
+import { formatDate, formatSession, formatTime, pakistanToday, type IsoDate } from "@mtb/domain";
 import { Banner, Button, Icon, StatusBadge, type IconName } from "@mtb/ui";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -93,18 +93,37 @@ export function ChannelLabel({ channel, short }: { channel: SmsChannel; short?: 
   );
 }
 
-/** "Today 4:30 PM", "Thu 05-Nov 4:30 PM". */
+const DAY_MS = 86_400_000;
+
+/** The Pakistan calendar date of a moment (the backend sends UTC times with "Z"). */
+export const pkDateOf = (iso: string): IsoDate => pakistanToday(new Date(iso));
+
+/** The Pakistan time of day of a moment, "HH:mm" (24-hour, as TIME_SLOTS values). */
+export function pkTimeOf(iso: string): string {
+  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Karachi", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(new Date(iso));
+  const hh = parts.find((x) => x.type === "hour")?.value ?? "00";
+  const mm = parts.find((x) => x.type === "minute")?.value ?? "00";
+  return `${hh === "24" ? "00" : hh}:${mm}`;
+}
+
+/** True when a moment is later than now (compares instants, whatever offset each string carries). */
+export const isLaterThanNow = (iso: string): boolean => Date.parse(iso) > Date.now();
+
+/** "Today 4:30 PM", "Tomorrow 9:00 AM", "05-Nov-2026 4:30 PM" (Pakistan time). */
 export function whenText(iso: string): string {
-  const day = iso.slice(0, 10);
-  const today = "2026-11-04";
+  const day = pkDateOf(iso);
+  const now = Date.now();
   const time = formatTime(iso);
-  if (day === today) return `Today ${time}`;
-  if (day === "2026-11-05") return `Tomorrow ${time}`;
-  if (day === "2026-11-03") return `Yesterday ${time}`;
+  if (day === pakistanToday(new Date(now))) return `Today ${time}`;
+  if (day === pakistanToday(new Date(now + DAY_MS))) return `Tomorrow ${time}`;
+  if (day === pakistanToday(new Date(now - DAY_MS))) return `Yesterday ${time}`;
   return `${formatDate(day)} ${time}`;
 }
 
-/** Delivered / failed / waiting as a slim bar for an outbox row. */
+/**
+ * A slim bar for an outbox row. Nothing is sent from this system, so a new batch only has held ("queued") messages;
+ * sent / delivered / failed come from migrated history.
+ */
 export function BatchProgress({ b }: { b: SmsBatch }) {
   const c = b.counts;
   const sms = c.delivered + c.failed + c.sent + c.queued;
@@ -113,23 +132,27 @@ export function BatchProgress({ b }: { b: SmsBatch }) {
   const pct = (n: number) => `${total ? (n / total) * 100 : 0}%`;
   return (
     <span className="grid gap-1">
-      <span className="sms-mini-bar" role="img" aria-label={`${c.delivered + c.app} delivered, ${c.failed} failed, ${c.queued + c.sent} on the way`}>
-        <span style={{ width: pct(c.delivered + c.app), background: "var(--status-paid)" }} />
-        <span style={{ width: pct(c.sent + c.queued), background: "var(--info)" }} />
+      <span className="sms-mini-bar" role="img" aria-label={`${c.delivered + c.sent + c.app} sent, ${c.failed} failed, ${c.queued} held`}>
+        <span style={{ width: pct(c.delivered + c.sent + c.app), background: "var(--status-paid)" }} />
+        <span style={{ width: pct(c.queued), background: "var(--info)" }} />
         <span style={{ width: pct(c.failed), background: "var(--danger)" }} />
       </span>
       <span className="text-small text-ink-muted">
-        <span className="mtb-num">{(c.delivered + c.app).toLocaleString("en-PK")}</span> delivered
+        {c.delivered + c.sent + c.app ? (
+          <>
+            <span className="mtb-num">{(c.delivered + c.sent + c.app).toLocaleString("en-PK")}</span> sent
+          </>
+        ) : null}
         {c.failed ? (
           <>
-            {" · "}
+            {c.delivered + c.sent + c.app ? " · " : ""}
             <span className="mtb-num text-danger-ink">{c.failed}</span> failed
           </>
         ) : null}
-        {c.queued + c.sent ? (
+        {c.queued ? (
           <>
-            {" · "}
-            <span className="mtb-num">{(c.queued + c.sent).toLocaleString("en-PK")}</span> on the way
+            {c.delivered + c.sent + c.app + c.failed ? " · " : ""}
+            <span className="mtb-num">{c.queued.toLocaleString("en-PK")}</span> held in the outbox
           </>
         ) : null}
       </span>
@@ -146,11 +169,3 @@ export const TIME_SLOTS: Array<{ value: string; label: string }> = Array.from({ 
 });
 
 export const isoAt = (date: string, time: string) => `${date}T${time}:00+05:00`;
-
-/** The demo's "now": today's demo date with the real time of day in Pakistan (as the mock server uses). */
-export function demoNowIso(): string {
-  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Karachi", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(new Date());
-  const hh = parts.find((x) => x.type === "hour")?.value ?? "10";
-  const mm = parts.find((x) => x.type === "minute")?.value ?? "00";
-  return `2026-11-04T${hh === "24" ? "00" : hh}:${mm}:00+05:00`;
-}
