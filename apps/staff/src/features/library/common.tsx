@@ -21,8 +21,8 @@ import "./ops.css";
 export const opsToday = (): IsoDate => pakistanToday();
 
 /**
- * The mock clock's today (Wednesday 04-Nov-2026) for the warehouse and transport pages only, whose data is still
- * fictional (modules 11b / 11c). Remove when they are real; library pages use opsToday().
+ * The mock clock's today (Wednesday 04-Nov-2026) for the transport pages only, whose data is still fictional
+ * (module 11c). Remove when transport is real; library and warehouse pages use opsToday().
  */
 export const TODAY: IsoDate = "2026-11-04";
 

@@ -2,7 +2,8 @@
 // Library: catalogue of titles and copies, issue and return with a fine worked out from the campus rule,
 // overdue reminders, member history, lost and damaged copies, stock counts that correct the records.
 // Warehouse: items, suppliers, goods received, issues to departments, returns, a stock ledger per item,
-// stock counts with approval, and the book shop (books, uniform and stationery sold to students).
+// stock counts with approval, and the book shop (books, uniform and stationery sold to students). Real since module
+// 11b (backend/docs/modules/11_warehouse.md); migrated records leave some text fields "" (spec §5.3): show "—".
 // Transport: vehicles and their documents, routes and stops, students on each route with the monthly
 // transport fee sent to Fees, trips and fuel, printable route sheets.
 import type { IsoDate, IsoDateTime, Rupees } from "@mtb/domain";
@@ -657,6 +658,7 @@ export interface WarehouseGrn {
   campus: CampusCode;
   supplierId: string;
   supplierName: string;
+  /** "" on migrated receipts (the old system kept no supplier bill number). */
   supplierInvoiceNo: string;
   date: IsoDate;
   lines: WarehouseGrnLine[];
@@ -694,6 +696,7 @@ export interface WarehouseRequest {
   departmentId: string;
   department: string;
   room: string;
+  /** "" on migrated requests. */
   requestedBy: string;
   requestedOn: IsoDate;
   lines: Array<{ itemId: string; itemName: string; unit: string; qty: number; issued: number }>;
@@ -719,7 +722,7 @@ export interface WarehouseIssueLine {
   qty: number;
   returned: number;
   unitCost: Rupees;
-  /** What it was used for (the legacy "consumption remarks"). */
+  /** What it was used for (the legacy "consumption remarks"); "" when none was entered. */
   remarks: string;
 }
 
@@ -732,6 +735,7 @@ export interface WarehouseIssue {
   departmentId: string;
   department: string;
   room: string;
+  /** "" on migrated issues. */
   receivedBy: string;
   requestId: string | null;
   requestNo: string | null;
@@ -852,6 +856,7 @@ export interface WarehouseSaleInput {
 }
 
 export interface WarehouseBookSet {
+  /** One set per class with a live section at the campus; a class never saved has lines [] (the first save creates it). */
   id: string;
   campus: CampusCode;
   classShort: string;

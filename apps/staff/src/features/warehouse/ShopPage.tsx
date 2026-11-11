@@ -1,5 +1,5 @@
 import { newIdempotencyKey, warehouseApi, warehouseQueries, type OperationsPerson, type WarehouseBookSet, type WarehouseSale } from "@mtb/api";
-import { formatCount, formatDate, formatDateTime, formatRs, formatTime } from "@mtb/domain";
+import { formatCount, formatDate, formatDateTime, formatRs, formatTime, pakistanToday } from "@mtb/domain";
 import {
   AmountInput,
   AnimatedNumber,
@@ -27,7 +27,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { RequireSingleCampus } from "../../app/shell/page";
-import { errorText, LoadError, PersonPicker, slide, TODAY, usePrinter } from "../library/common";
+import { errorText, LoadError, opsToday, PersonPicker, slide, usePrinter } from "../library/common";
 import { WarehouseShell } from "./shared";
 
 /* ---------------------------------------------------------------- Receipt (A5) */
@@ -58,7 +58,7 @@ export function ShopReceipt({ s, duplicate }: { s: WarehouseSale; duplicate?: bo
       <section className="grid gap-1 rounded-md bg-surface-sunken px-3 py-2">
         <span className="text-[14px] font-semibold">{s.studentName}</span>
         <span className="text-ink-muted">
-          G.R. <span className="mtb-mono text-ink">{s.grNo}</span> · Class {s.classSection} · {s.relation} {s.father}
+          G.R. <span className="mtb-mono text-ink">{s.grNo}</span> · Class {s.classSection || "—"}{s.father ? ` · ${[s.relation, s.father].filter(Boolean).join(" ")}` : ""}
         </span>
       </section>
       <table>
@@ -141,7 +141,7 @@ function SaleModal({ sale, onClose }: { sale: WarehouseSale; onClose: () => void
       description={`${sale.studentName} · ${formatDateTime(sale.at)}`}
       footer={
         <>
-          {canManage && sale.status === "POSTED" && sale.at.startsWith(TODAY) && !cancelling && (
+          {canManage && sale.status === "POSTED" && pakistanToday(new Date(sale.at)) === opsToday() && !cancelling && (
             <Button variant="danger-quiet" onClick={() => setCancelling(true)}>
               Cancel sale
             </Button>
@@ -200,7 +200,7 @@ function Counter() {
   const readOnly = useReadOnly();
   const canManage = useCan("warehouse.manage") && !readOnly;
   const shop = useQuery(warehouseQueries.shop(ctx));
-  const today = useQuery(warehouseQueries.sales(ctx, TODAY));
+  const today = useQuery(warehouseQueries.sales(ctx, opsToday()));
   const [student, setStudent] = useState<OperationsPerson | null>(null);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [pick, setPick] = useState<string | null>(null);
@@ -400,7 +400,7 @@ function AllSales() {
   const total = rows.filter((s) => s.status === "POSTED").reduce((a, s) => a + s.total, 0);
   const columns: Array<Column<WarehouseSale>> = [
     { key: "no", header: "Receipt", render: (s) => <span className="grid"><span className="mtb-mono font-medium">{s.receiptNo}</span><span className="text-small text-ink-muted">{formatDateTime(s.at)}</span></span> },
-    { key: "student", header: "Student", render: (s) => <span className="grid"><span>{s.studentName}</span><span className="text-small text-ink-muted">{s.grNo} · {s.classSection}</span></span> },
+    { key: "student", header: "Student", render: (s) => <span className="grid"><span>{s.studentName}</span><span className="text-small text-ink-muted">{s.grNo} · {s.classSection || "—"}</span></span> },
     { key: "items", header: "Items", render: (s) => <span className="text-small">{s.lines.length} {s.lines.length === 1 ? "item" : "items"}</span> },
     { key: "pay", header: "Payment", render: (s) => (s.payment === "CASH" ? "Cash" : "Fee account") },
     { key: "total", header: "Total", align: "right", render: (s) => <span className={`mtb-num font-medium ${s.status === "CANCELLED" ? "mtb-strike text-ink-muted" : ""}`}>{formatRs(s.total)}</span> },
@@ -454,7 +454,7 @@ function BookSets() {
   return (
     <div className="grid gap-4">
       <Banner tone="info" icon="info">
-        A book set is everything a class needs. At the counter one click adds the whole set for the student's class (this replaces the old "recipe" set-up).
+        A book set is everything a class needs. At the counter one click adds the whole set for the student's class.
       </Banner>
       {shop.isLoading ? (
         <Skeleton height={200} />

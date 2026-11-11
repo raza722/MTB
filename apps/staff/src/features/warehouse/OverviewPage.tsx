@@ -5,13 +5,17 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
-import { LoadError, monthShort, slide, ViewToggle } from "../library/common";
+import { LoadError, monthShort, opsToday, slide, ViewToggle } from "../library/common";
 import { StockBadge, WarehouseShell } from "./shared";
 
 const lakhTick = (v: number) => (v === 0 ? "0" : v >= 100_000 ? `${(v / 100_000).toFixed(1).replace(/\.0$/, "")} lakh` : `${Math.round(v / 1000)}k`);
 
+/** "2026-11" → "November" */
+const monthLong = (m: string) => new Date(`${m}-01T00:00:00Z`).toLocaleString("en-GB", { month: "long", timeZone: "UTC" });
+
 function MoneyByMonth({ o }: { o: WarehouseOverview }) {
   const [view, setView] = useState("chart");
+  const thisMonth = opsToday().slice(0, 7);
   return (
     <Panel id="wh-months" rise={1} title="Stock received and issued" description="Value per month this session, at cost." actions={<ViewToggle value={view} onChange={setView} label="Show stock movement as" />}>
       {view === "chart" ? (
@@ -21,8 +25,8 @@ function MoneyByMonth({ o }: { o: WarehouseOverview }) {
           target={(d) => d.received}
           valueLabel="Issued to departments"
           targetLabel="Received from suppliers"
-          partial={(d) => d.month === "2026-11"}
-          partialLabel="November so far"
+          partial={(d) => d.month === thisMonth}
+          partialLabel={`${monthLong(thisMonth)} so far`}
           axisLabel={(d) => monthShort(d.month)}
           formatAxis={lakhTick}
           tooltip={(d) => (
