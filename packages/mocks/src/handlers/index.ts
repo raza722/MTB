@@ -16,7 +16,8 @@ import { operationsHandlers } from "./operations";
  * (/api/fees/*, /api/fee-setup/*), every kind of /api/approvals* (attendance corrections, receipt and charge
  * cancellations), Accounts (/api/accounts/*), Timetable (/api/timetable/*, the teacher app's /api/teacher/timetable) and Activities
  * (/api/activities/*: scholarships, scholarship tests, houses, events, sports, records, certificates and the catalogue)
- * and Messages (/api/sms/*: kill switch, templates, compose, outbox, delivery report, opt-outs, settings; /api/notices*).
+ * Messages (/api/sms/*: kill switch, templates, compose, outbox, delivery report, opt-outs, settings; /api/notices*)
+ * and Library (/api/library/*, with the shared people search /api/operations/people that warehouse and transport use).
  * The fictional student records the unfinished modules still share
  * live in student-records-model.ts, the fictional staff in fixtures/hr.ts with handlers/hr-model.ts, the fictional
  * applicants in fixtures/admissions.ts with handlers/admissions-model.ts, the fictional registers and calendar in
@@ -25,8 +26,9 @@ import { operationsHandlers } from "./operations";
  * fixtures/fee-setup.ts with handlers/fees-state.ts and handlers/fee-setup-model.ts, the fictional books the
  * report centre's accounts reports read in fixtures/accounts.ts with handlers/accounts-model.ts, and the fictional
  * timetable the report centre and the teacher app's Today / Classes read in fixtures/timetable.ts with
- * handlers/timetable-model.ts, the fictional outbox, rosters and library kill switch the report centre and library
- * reminders read in fixtures/sms.ts with handlers/sms-model.ts, and the fictional notices the portal reads in
+ * handlers/timetable-model.ts, the fictional outbox and rosters the report centre reads in fixtures/sms.ts with
+ * handlers/sms-model.ts, the fictional library the report centre reads in fixtures/operations.ts with
+ * handlers/library-model.ts, and the fictional notices the portal reads in
  * fixtures/notices.ts (no routes).
  */
 export const handlers: HttpHandler[] = [

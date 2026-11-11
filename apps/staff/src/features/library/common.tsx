@@ -1,7 +1,7 @@
 // Shared pieces for the operations modules (library, warehouse with the book shop, transport):
 // the module page shell with sub-navigation, error banners, the person search, print layers and form validation.
-import { ApiError, CURRENT_SESSION, operationsQueries, type OperationsPerson, type OperationsPersonType } from "@mtb/api";
-import { formatDate, formatSession, type IsoDate } from "@mtb/domain";
+import { ApiError, CURRENT_SESSION, LIBRARY_LANGUAGE_LABEL, operationsQueries, type LibraryLanguage, type OperationsPerson, type OperationsPersonType } from "@mtb/api";
+import { formatDate, formatSession, pakistanToday, type IsoDate } from "@mtb/domain";
 import { Banner, Button, cx, Icon, Input, Modal, Segmented, Spinner, StatusBadge } from "@mtb/ui";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from "react";
@@ -14,8 +14,20 @@ import { Page, PageHeader, RequireSingleCampus } from "../../app/shell/page";
 import { SubNav, type SubNavItem } from "../../app/shell/SubNav";
 import "./ops.css";
 
-/** The demo's today (Wednesday 04-Nov-2026), for form defaults only; the server decides dates. */
+/**
+ * Today in Pakistan (Asia/Karachi). Only for form defaults, date-picker limits, "due today / overdue" badges and
+ * "printed on" lines; the server decides due dates, days late and fines (the library is real since module 11).
+ */
+export const opsToday = (): IsoDate => pakistanToday();
+
+/**
+ * The mock clock's today (Wednesday 04-Nov-2026) for the warehouse and transport pages only, whose data is still
+ * fictional (modules 11b / 11c). Remove when they are real; library pages use opsToday().
+ */
 export const TODAY: IsoDate = "2026-11-04";
+
+/** A library title's language, or "—" when the old system recorded none. */
+export const languageLabel = (l: LibraryLanguage | null): string => (l ? LIBRARY_LANGUAGE_LABEL[l] : "—");
 
 export const addDays = (d: IsoDate, n: number): IsoDate => {
   const x = new Date(`${d}T00:00:00Z`);
@@ -319,7 +331,7 @@ export function DocHead({ title, subtitle, campus }: { title: string; subtitle?:
         <h1>{title}</h1>
         {subtitle && <p>{subtitle}</p>}
       </div>
-      <p>Printed {formatDate(TODAY)}</p>
+      <p>Printed {formatDate(opsToday())}</p>
     </header>
   );
 }

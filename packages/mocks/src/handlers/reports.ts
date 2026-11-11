@@ -44,7 +44,8 @@ import { ctxFrom, fail, HttpResponse, latency, requirePermission, requireUser } 
 import { accountsReportBook, accountsReportIncomeExpenditure, accountsReportTrialBalance, accountsReportVouchers } from "./accounts-model";
 import { chargesOf, feesStore, receiptsOf } from "./fees-state";
 import { feeCandidateRows, feeClassArrears, feeCollectionRows, feeConcessionSummary, feeDefaulterRows, feeHeadByCode, headCodeOf } from "./fee-setup-model";
-import { librarySnapshot, transportSnapshot, warehouseSnapshot } from "./operations";
+import { librarySnapshot } from "./library-model";
+import { transportSnapshot, warehouseSnapshot } from "./operations";
 import { examReportGenerators, liveExamDefinition } from "./reports-exams";
 import { genderOfName, outboxSnapshot, rosterPeople } from "./sms-model";
 import { admissionsSeats, admissionsStore } from "./admissions-model";

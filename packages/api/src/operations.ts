@@ -140,14 +140,17 @@ export interface LibraryTitle {
   titleUr: string;
   authors: string[];
   publisher: string;
+  /** "" (with category "") for a migrated title the old system filed under no subject. */
   categoryId: string;
   category: string;
-  language: LibraryLanguage;
+  /** null for a migrated title the old system recorded no language for (shown as "—"); new titles always have one. */
+  language: LibraryLanguage | null;
   edition: string;
   /** Volume number of a work in several volumes; null for a single book. */
   volume: number | null;
   publisherCountry: string;
   year: number | null;
+  /** Stored without spaces or dashes ("9789694480076"); "" when none. */
   isbn: string;
   pages: number | null;
   copies: number;
@@ -175,7 +178,10 @@ export interface LibraryCopy {
   id: string;
   titleId: string;
   campus: CampusCode;
-  /** "KC-L-04213" — printed on the spine label. */
+  /**
+   * "KC-L-00001" for a copy added here — printed on the spine label. Numbers carried over from the old system are
+   * bare digits ("5210"; "5210-B" where the old system gave one number to two books).
+   */
   accessionNo: string;
   shelfId: string | null;
   shelfLabel: string | null;
@@ -247,6 +253,7 @@ export interface LibraryLoan {
   daysLate: number;
   /** Worked out from the campus rule: charged at return, or what it would be if returned today. */
   fine: Rupees;
+  /** PAID with fineNote "Fine recorded in the old system" for a fine settled before the move. */
   fineStatus: LibraryFineStatus;
   fineNote: string;
   issuedBy: string;
@@ -291,6 +298,8 @@ export interface LibraryOverview {
   outOfUse: number;
   /** Issues and returns per week, last 10 weeks, oldest first. */
   byWeek: Array<{ weekStart: IsoDate; issued: number; returned: number }>;
+  /** Copies per subject, most first; every copy counted once, so the copies add up to `copies`. Titles without a subject
+   *  (carried over from the old system) form the last bucket, named "No subject". */
   byCategory: Array<{ name: string; copies: number; onLoan: number }>;
   recent: LibraryActivity[];
   openCount: { id: string; name: string; scanned: number; expected: number } | null;
@@ -452,6 +461,7 @@ export interface LibraryPolicyInput {
 }
 
 export interface OperationsSmsResult {
+  /** Messages written to the outbox. They are held there (SMS sending is off), never sent from this system. */
   queued: number;
   skipped: Array<{ name: string; reason: string }>;
 }
@@ -1210,7 +1220,9 @@ export const libraryQueries = {
   titles: (ctx: Ctx) => queryOptions({ queryKey: lk(ctx, "titles"), queryFn: () => libraryApi.titles(ctx) }),
   title: (ctx: Ctx, id: string) => queryOptions({ queryKey: lk(ctx, "title", id), queryFn: () => libraryApi.title(id), enabled: id !== "" }),
   lookup: (ctx: Ctx, accessionNo: string) =>
-    queryOptions({ queryKey: lk(ctx, "lookup", accessionNo), queryFn: () => libraryApi.lookup(ctx, accessionNo), enabled: accessionNo.trim().length >= 3, retry: false }),
+    queryOptions({ queryKey: lk(ctx, "lookup", accessionNo), queryFn: () => libraryApi.lookup(ctx, accessionNo), enabled: accessionNo.trim().length >= 1, retry: false }),
+  // ^ legacy accession numbers can be 1-2 characters ("57"): the desk only sets accessionNo on Find, so any
+  //   non-blank submitted value must run the lookup (fix L5 of backend/docs/modules/11_library.md §9).
   loans: (ctx: Ctx, q: LibraryLoansQuery = {}) =>
     queryOptions({
       queryKey: lk(ctx, "loans", q.status ?? "ALL", q.borrowerType ?? "", q.from ?? "", q.to ?? "", q.q ?? "", q.cls ?? "", q.section ?? "", q.staffGroup ?? ""),

@@ -1,6 +1,5 @@
 import {
   LIBRARY_CONDITION_LABEL,
-  LIBRARY_LANGUAGE_LABEL,
   libraryApi,
   libraryQueries,
   newIdempotencyKey,
@@ -17,7 +16,7 @@ import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { RequireSingleCampus } from "../../app/shell/page";
-import { addDays, errorCode, errorText, LoadError, PersonPicker, Spine, TODAY } from "./common";
+import { addDays, errorCode, errorText, languageLabel, LoadError, opsToday, PersonPicker, Spine } from "./common";
 import { CopyStatusBadge, LibraryShell, LoanStatus, MemberLink, TitleText } from "./shared";
 
 function CopyCard({ found }: { found: LibraryLookup }) {
@@ -33,7 +32,7 @@ function CopyCard({ found }: { found: LibraryLookup }) {
           <Spine>{copy.accessionNo}</Spine>
           <CopyStatusBadge status={copy.status} />
           <span className="text-small text-ink-muted">
-            {copy.shelfLabel ?? "No shelf yet"} · {title.category} · {LIBRARY_LANGUAGE_LABEL[title.language]} · {LIBRARY_CONDITION_LABEL[copy.condition]}
+            {copy.shelfLabel ?? "No shelf yet"} · {title.category || "—"} · {languageLabel(title.language)} · {LIBRARY_CONDITION_LABEL[copy.condition]}
           </span>
         </div>
       </div>
@@ -52,8 +51,9 @@ function IssueForm({ found, onDone }: { found: LibraryLookup; onDone: () => void
   const key = useMemo(() => newIdempotencyKey(), [found.copy.id, person?.id]);
   const member = useQuery(libraryQueries.member(ctx, person?.type ?? "STUDENT", person?.id ?? ""));
   const m = member.data;
+  const today = opsToday();
   useEffect(() => {
-    if (m) setDueOn(addDays(TODAY, m.policy.loanDays));
+    if (m) setDueOn(addDays(opsToday(), m.policy.loanDays));
   }, [m?.person.id, m?.policy.loanDays]);
 
   const issue = useMutation({
@@ -72,7 +72,7 @@ function IssueForm({ found, onDone }: { found: LibraryLookup; onDone: () => void
     const next: Record<string, string> = {};
     if (!person) next.person = "Choose who is borrowing the book.";
     if (!dueOn) next.dueOn = "Choose the date it is due back.";
-    else if (dueOn < TODAY) next.dueOn = "The due date can't be in the past.";
+    else if (dueOn < today) next.dueOn = "The due date can't be in the past.";
     setErr(next);
     if (Object.keys(next).length === 0) issue.mutate(false);
   };
@@ -108,7 +108,7 @@ function IssueForm({ found, onDone }: { found: LibraryLookup; onDone: () => void
         </Banner>
       )}
       <div className="grid gap-4 sm:grid-cols-2">
-        <DatePicker label="Due back on" value={dueOn} onValueChange={setDueOn} minDate={TODAY} maxDate={addDays(TODAY, 60)} today={TODAY} error={err.dueOn} help={m ? `${m.policy.loanDays} days is the usual loan.` : undefined} />
+        <DatePicker label="Due back on" value={dueOn} onValueChange={setDueOn} minDate={today} maxDate={addDays(today, 60)} today={today} error={err.dueOn} help={m ? `${m.policy.loanDays} days is the usual loan.` : undefined} />
       </div>
       {issue.isError && errorCode(issue.error) !== "HAS_OVERDUE" && <Banner tone="danger">{errorText(issue.error)}</Banner>}
       <div className="flex flex-wrap gap-2">
@@ -176,6 +176,7 @@ function ReturnForm({ found, onDone }: { found: LibraryLookup; onDone: () => voi
   const [condition, setCondition] = useState<LibraryCondition>(found.copy.condition === "NEW" ? "GOOD" : found.copy.condition);
   const [noteErr, setNoteErr] = useState<string | undefined>();
   const [renewTo, setRenewTo] = useState<string | null>(null);
+  const today = opsToday();
   const ret = useMutation({
     mutationFn: () => libraryApi.returnLoan(ctx, loan.id, { fineAction: action, note, condition }),
     onSuccess: (l) => {
@@ -228,7 +229,7 @@ function ReturnForm({ found, onDone }: { found: LibraryLookup; onDone: () => voi
           )}
         </div>
       ) : loan.daysLate > 0 ? (
-        <Banner tone="info">Returned {loan.daysLate} days late. Staff have no late fine under the campus rule.</Banner>
+        <Banner tone="info">Returned {loan.daysLate} days late. No late fine under the campus rule.</Banner>
       ) : (
         <Banner tone="success" icon="checkCircle">
           On time. No fine.
@@ -248,9 +249,9 @@ function ReturnForm({ found, onDone }: { found: LibraryLookup; onDone: () => voi
         <Button variant="primary" icon="arrowLeft" loading={ret.isPending} loadingLabel="Taking back…" onClick={submit}>
           Take back{loan.fine > 0 ? ` · ${formatRs(loan.fine)}` : ""}
         </Button>
-        {loan.dueOn >= TODAY && (
+        {loan.dueOn >= today && (
           <div className="flex flex-wrap items-end gap-2 sm:ml-auto">
-            <DatePicker label="Or renew until" value={renewTo} onValueChange={setRenewTo} minDate={addDays(loan.dueOn, 1)} maxDate={addDays(TODAY, 60)} today={TODAY} />
+            <DatePicker label="Or renew until" value={renewTo} onValueChange={setRenewTo} minDate={addDays(loan.dueOn, 1)} maxDate={addDays(today, 60)} today={today} />
             <Button icon="refresh" disabled={!renewTo} loading={renew.isPending} onClick={() => renew.mutate()}>
               Renew
             </Button>
@@ -264,9 +265,10 @@ function ReturnForm({ found, onDone }: { found: LibraryLookup; onDone: () => voi
 
 function TodayList() {
   const ctx = useCtx();
-  const q = useQuery(libraryQueries.loans(ctx, { from: TODAY, to: TODAY }));
+  const today = opsToday();
+  const q = useQuery(libraryQueries.loans(ctx, { from: today, to: today }));
   const due = useQuery(libraryQueries.loans(ctx, { status: "OPEN" }));
-  const dueToday = (due.data ?? []).filter((l) => l.dueOn === TODAY);
+  const dueToday = (due.data ?? []).filter((l) => l.dueOn === today);
   return (
     <div className="grid gap-6 xl:grid-cols-2">
       <Panel id="desk-today" rise={2} title="Issued today" description="Every book that left the library today." flush={!q.isError}>
@@ -363,9 +365,9 @@ export function DeskPage({ accession, setAccession }: { accession: string; setAc
             }}
           >
             <div className="w-full max-w-[340px]">
-              <Input ref={input} label="Accession number" icon="search" mono size="lg" value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="KC-L-14063 or 14063" autoFocus />
+              <Input ref={input} label="Accession number" icon="search" mono size="lg" value={typed} onChange={(e) => setTyped(e.target.value)} placeholder={`${ctx.campus}-L-00001 or 5210`} autoFocus />
             </div>
-            <Button type="submit" variant="primary" size="lg" disabled={typed.trim().length < 3}>
+            <Button type="submit" variant="primary" size="lg" disabled={typed.trim().length < 1}>
               Find book
             </Button>
             <Link to="/library/catalogue" className="text-small font-medium text-brand-ink underline-offset-2 hover:underline">

@@ -1,4 +1,4 @@
-import type { CampusCode, SmsBatch, SmsBatchCounts, SmsSystemStatus } from "@mtb/api";
+import type { CampusCode, SmsBatch, SmsBatchCounts } from "@mtb/api";
 import { daysBetween, type IsoDate } from "@mtb/domain";
 import { DEMO_TODAY } from "../clock";
 import { createStore } from "../db";
@@ -10,12 +10,8 @@ import { findStudent } from "../fixtures/students";
 import { chargesOf } from "./fees-state";
 
 // Fictional Messages model (no routes). Messages itself is real (/api/sms/*, /api/notices: module 10); this model only
-// serves the mocks of unfinished modules that still import it: the library reminders (operations.ts, module 11) read
-// the kill switch, and the report centre (reports.ts, module 13) reads rosters and a snapshot of the fictional
-// outbox. Nothing here is the real outbox.
-
-/** Fictional kill switch for the library reminders mock (the real one is GET /api/sms/status). */
-export const smsStatusStore = createStore<SmsSystemStatus>("sms-status", () => ({ paused: false }));
+// serves the mocks of unfinished modules that still import it: the report centre (reports.ts, module 13) reads
+// rosters and a snapshot of the fictional outbox (library reminders are real since module 11 and use the real outbox). Nothing here is the real outbox.
 
 interface OutboxState {
   rows: MockSmsRow[];

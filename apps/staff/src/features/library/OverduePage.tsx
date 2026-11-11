@@ -5,31 +5,29 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { campusLabel } from "../../app/shell/campus";
-import { DocHead, errorCode, errorText, LoadError, slide, Spine, usePrinter } from "./common";
+import { addDays, DocHead, errorCode, errorText, LoadError, opsToday, slide, Spine, usePrinter } from "./common";
 import { LibraryShell, MemberLink, TitleText } from "./shared";
 
+// Preview of the built-in "Library book overdue" template (Messages, purpose Library overdue reminder). The server
+// renders the real text from the template as it stands, so an admin's rewording shows in the outbox, not here. The
+// template has no book-title variable, so the message names the borrower, the due date and the fine, not the book.
+// The guardian's name is not in the loan row: the preview says "Parent".
+const whoOf = (l: LibraryLoan) => (l.borrowerType === "STUDENT" ? "Parent" : l.borrowerName);
+
 function englishText(l: LibraryLoan, campus: string) {
-  const who = l.borrowerType === "STUDENT" ? `Dear parent, the library book "${l.title || l.titleUr}" taken by ${l.borrowerName} (${l.borrowerDetail})` : `Dear ${l.borrowerName}, the library book "${l.title || l.titleUr}"`;
-  return `${who} was due back on ${formatDate(l.dueOn)}.${l.fine > 0 ? ` Fine so far: ${formatRs(l.fine)}.` : ""} Please return it to the library. MTB ${campus}`;
+  return `Dear ${whoOf(l)}, the library book issued to ${l.borrowerName} was due on ${formatDate(l.dueOn)}. Please return it to the library. Fine so far: Rs ${formatCount(l.fine)}. - MTB ${campus}`;
 }
 
-/** The Urdu message as sent (for counting SMS parts); the preview below shows it with dates kept left-to-right. */
+/** The Urdu message as held (for counting SMS parts); the preview below shows it with dates kept left-to-right. */
 function urduText(l: LibraryLoan, campus: string) {
-  return `${l.borrowerType === "STUDENT" ? "محترم والدین، " : "محترم، "}${l.borrowerName} نے لائبریری سے کتاب «${l.titleUr || l.title}» لی تھی جو ${formatDate(l.dueOn)} کو واپس ہونی تھی۔${l.fine > 0 ? ` اب تک جرمانہ ${formatRs(l.fine)}۔` : ""} براہِ کرم کتاب واپس کریں۔ ایم ٹی بی ${campus}`;
+  return `محترم ${whoOf(l)}، ${l.borrowerName} کو جاری کی گئی لائبریری کی کتاب کی واپسی کی تاریخ ${formatDate(l.dueOn)} تھی۔ براہِ کرم کتاب لائبریری میں واپس کریں۔ اب تک جرمانہ: ${formatCount(l.fine)} روپے۔ — MTB ${campus}`;
 }
 
 function UrduPreview({ l, campus }: { l: LibraryLoan; campus: string }) {
   return (
     <Urdu>
-      {l.borrowerType === "STUDENT" ? "محترم والدین، " : "محترم، "}
-      {l.borrowerName} نے لائبریری سے کتاب «{l.titleUr || l.title}» لی تھی جو <bdi dir="ltr">{formatDate(l.dueOn)}</bdi> کو واپس ہونی تھی۔
-      {l.fine > 0 && (
-        <>
-          {" "}
-          اب تک جرمانہ <bdi dir="ltr">{formatRs(l.fine)}</bdi>۔
-        </>
-      )}{" "}
-      براہِ کرم کتاب واپس کریں۔ ایم ٹی بی {campus}
+      محترم {whoOf(l)}، {l.borrowerName} کو جاری کی گئی لائبریری کی کتاب کی واپسی کی تاریخ <bdi dir="ltr">{formatDate(l.dueOn)}</bdi> تھی۔ براہِ کرم کتاب لائبریری میں واپس کریں۔ اب تک جرمانہ:{" "}
+      <bdi dir="ltr">{formatCount(l.fine)}</bdi> روپے۔ — MTB {campus}
     </Urdu>
   );
 }
@@ -47,7 +45,10 @@ function ReminderModal({ rows, onClose, onSent }: { rows: LibraryLoan[]; onClose
   const send = useMutation({
     mutationFn: () => libraryApi.remind(ctx, { loanIds: rows.map((r) => r.id), language: lang }, key),
     onSuccess: (r) => {
-      toast({ title: `${formatCount(r.queued)} reminder SMS queued`, message: r.skipped.length ? `${r.skipped.length} skipped: ${r.skipped.map((s) => `${s.name} (${s.reason.toLowerCase()})`).join(", ")}` : "They go out within a few minutes; the SMS centre shows delivery." });
+      toast({
+        title: `${formatCount(r.queued)} ${r.queued === 1 ? "reminder" : "reminders"} held (SMS sending is off)`,
+        message: r.skipped.length ? `${formatCount(r.skipped.length)} skipped: ${r.skipped.map((s) => `${s.name} (${s.reason.toLowerCase()})`).join(", ")}` : "They wait in the Messages outbox. Nothing is sent from this system.",
+      });
       void qc.invalidateQueries({ queryKey: ["library"] });
       onSent();
     },
@@ -58,13 +59,13 @@ function ReminderModal({ rows, onClose, onSent }: { rows: LibraryLoan[]; onClose
       open
       onClose={onClose}
       size="lg"
-      title={`Send an overdue reminder for ${rows.length} ${rows.length === 1 ? "book" : "books"}?`}
-      description="Students' guardians get the message; staff get it on their own mobile."
+      title={`Add an overdue reminder for ${rows.length} ${rows.length === 1 ? "book" : "books"} to the outbox?`}
+      description="Students' guardians get the message; staff get it on their own mobile. SMS sending is off, so the messages are held in the Messages outbox; numbers that opted out of SMS are skipped."
       footer={
         <>
           <Button onClick={onClose}>Cancel</Button>
-          <Button variant="primary" icon="send" loading={send.isPending} loadingLabel="Sending…" onClick={() => send.mutate()}>
-            Send {rows.length} SMS
+          <Button variant="primary" icon="send" loading={send.isPending} loadingLabel="Saving…" onClick={() => send.mutate()}>
+            Hold {rows.length} SMS
           </Button>
         </>
       }
@@ -79,7 +80,8 @@ function ReminderModal({ rows, onClose, onSent }: { rows: LibraryLoan[]; onClose
             </span>
             <div className="max-w-[460px] rounded-[18px_18px_18px_4px] bg-surface-sunken px-4 py-3 text-[14px] leading-5">{lang === "ur" ? <UrduPreview l={first} campus={campus} /> : text}</div>
             <span className="text-small text-ink-muted">
-              About {parts.parts} SMS {parts.parts === 1 ? "part" : "parts"} each. Every message carries its own book, date and fine.
+              About {parts.parts} SMS {parts.parts === 1 ? "part" : "parts"} each. Every message carries its own borrower, due date and fine; the wording is the
+              "Library book overdue" template in Messages.
             </span>
           </div>
         )}
@@ -149,7 +151,7 @@ export function OverduePage() {
   useEffect(() => setSelected(new Set()), [ctx.campus, ctx.session, type]);
   const rows = (q.data ?? []).filter((l) => (!type || l.borrowerType === type) && (!search.trim() || `${l.borrowerName} ${l.title} ${l.borrowerDetail}`.toLowerCase().includes(search.trim().toLowerCase())));
   const chosen = rows.filter((r) => selected.has(r.id));
-  const weekAgo = "2026-10-28";
+  const weekAgo = addDays(opsToday(), -7);
   const totals = {
     count: rows.length,
     fines: rows.reduce((a, r) => a + r.fine, 0),
@@ -175,7 +177,7 @@ export function OverduePage() {
     { key: "book", header: "Book", render: (l) => <TitleText title={l.title} titleUr={l.titleUr} sub={<Spine>{l.accessionNo}</Spine>} /> },
     { key: "due", header: "Was due", width: 110, render: (l) => <span className="mtb-num">{formatDate(l.dueOn)}</span> },
     { key: "late", header: "Days late", align: "right", render: (l) => <span className={`mtb-num font-medium ${l.daysLate > 30 ? "text-status-overdue-ink" : ""}`}>{l.daysLate}</span> },
-    { key: "fine", header: "Fine to date", align: "right", render: (l) => (l.fine > 0 ? <span className="mtb-num">{formatRs(l.fine)}</span> : <span className="text-small text-ink-muted">No fine (staff)</span>) },
+    { key: "fine", header: "Fine to date", align: "right", render: (l) => (l.fine > 0 ? <span className="mtb-num">{formatRs(l.fine)}</span> : <span className="text-small text-ink-muted">No fine</span>) },
     {
       key: "rem",
       header: "Last reminder",
@@ -183,7 +185,7 @@ export function OverduePage() {
         l.lastReminderAt ? (
           <span className="grid">
             <span className="text-small">{formatDateTime(l.lastReminderAt)}</span>
-            <span className="text-small text-ink-muted">{l.reminders} sent</span>
+            <span className="text-small text-ink-muted">{l.reminders} held in the outbox</span>
           </span>
         ) : (
           <StatusBadge status="neutral" dot={false}>

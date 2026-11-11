@@ -28,7 +28,7 @@ import { useRef, useState } from "react";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { campusLabel } from "../../app/shell/campus";
 import { RequireSingleCampus } from "../../app/shell/page";
-import { DocHead, errorText, LoadError, slide, Spine, TODAY, usePrinter } from "./common";
+import { DocHead, errorText, LoadError, slide, Spine, usePrinter } from "./common";
 import { LibraryShell } from "./shared";
 
 const RESULT_TONE: Record<LibraryCountResult, Status> = { FOUND: "paid", MISSING: "overdue", WRONG_SHELF: "warning", ON_LOAN_FOUND: "info", WRITTEN_OFF_FOUND: "info", UNKNOWN: "late", ON_LOAN: "neutral" };
@@ -279,7 +279,7 @@ export function CountPage({ countId }: { countId: string }) {
               >
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Select label="Shelf" value={shelf} onChange={(e) => setShelfId(e.target.value)} options={d.shelves.map((s) => ({ value: s.id, label: `${s.fullLabel} (${s.copies} on record)` }))} />
-                  {!showBulk && <Input ref={input} label="Accession number" mono icon="search" value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="KC-L-14063 or 14063" autoFocus />}
+                  {!showBulk && <Input ref={input} label="Accession number" mono icon="search" value={typed} onChange={(e) => setTyped(e.target.value)} placeholder={`${d.campus}-L-00001 or 5210`} autoFocus />}
                 </div>
                 {showBulk && <Textarea label="Many accession numbers" rows={4} value={bulk} onChange={(e) => setBulk(e.target.value)} help="Paste from a scanner file: one per line, or separated by commas." />}
                 {scan.isError && <Banner tone="danger">{errorText(scan.error)}</Banner>}
@@ -317,7 +317,7 @@ export function CountPage({ countId }: { countId: string }) {
           id="count-results"
           rise={3}
           title={open ? "What the count shows so far" : "Findings"}
-          description={open ? "Nothing changes in the catalogue until the count is closed." : `Closed on ${d.closedOn ? formatDate(d.closedOn) : TODAY}.`}
+          description={open ? "Nothing changes in the catalogue until the count is closed." : d.closedOn ? `Closed on ${formatDate(d.closedOn)}${d.closedBy ? ` by ${d.closedBy}` : ""}.` : "Closed."}
           actions={
             <Segmented
               aria-label="Rows to show"
