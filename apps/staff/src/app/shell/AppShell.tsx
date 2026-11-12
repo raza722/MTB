@@ -4,6 +4,7 @@ import { Avatar, Banner, Button, cx, Icon, IconButton, Menu, MenuItem, MenuLabel
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { lazy, Suspense, useRef, useState, type ReactNode } from "react";
+import { ReportNotificationItems, useReportNotificationCount } from "../../features/reports/bell";
 import { useAppearance } from "../appearance";
 import { campusesFor, useCan, useCanGroupWide, useCtx, useReadOnly, useRoleLabel, useSessionStatus, useSessionUser, useSetCtx, type SessionStatus } from "../session";
 import { campusLabel } from "./campus";
@@ -199,7 +200,10 @@ function Notifications() {
   const canApprove = useCan("approvals.decide");
   const approvals = useQuery({ ...dashboardQueries.approvals(ctx), enabled: canApprove });
   const summary = useQuery(dashboardQueries.summary(ctx));
-  const count = (approvals.data?.length ?? 0) + (summary.data?.sms.failed ? 1 : 0);
+  // Report notifications (ready, failed, scheduled report sent) are the user's own, from GET /notifications.
+  const canReports = useCan("reports.view");
+  const reportUnread = useReportNotificationCount(canReports);
+  const count = (approvals.data?.length ?? 0) + (summary.data?.sms.failed ? 1 : 0) + reportUnread;
   return (
     <Menu
       label="Notifications"
@@ -223,6 +227,7 @@ function Notifications() {
       )}
       {summary.data && summary.data.sms.failed > 0 && <MenuItem icon="alertCircle">{summary.data.sms.failed} SMS failed today</MenuItem>}
       {count === 0 && <MenuItem icon="checkCircle">You're all caught up</MenuItem>}
+      <ReportNotificationItems enabled={canReports} />
     </Menu>
   );
 }

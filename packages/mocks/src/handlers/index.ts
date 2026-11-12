@@ -3,7 +3,6 @@ import { authTapHandlers } from "./auth-state";
 import { dashboardHandlers } from "./dashboard";
 import { portalHandlers } from "./portal";
 import { teacherHandlers } from "./teacher";
-import { reportsHandlers } from "./reports";
 import { operationsHandlers } from "./operations";
 
 /**
@@ -20,28 +19,25 @@ import { operationsHandlers } from "./operations";
  * Library (/api/library/*, with the shared people search /api/operations/people that warehouse and transport use),
  * Warehouse (/api/warehouse/*: stock, receipts, issues, returns, counts, the book shop and its sales), Transport
  * (/api/transport/*: vehicles, routes and stops, route sheets, riders with the transport fee in Fees, trips and fuel)
- * and the parent and student portal (/api/portal/*: code sign-in, session, preferences and every child page; only the
- * mock-mode /api/portal/demo hint stays in portal.ts).
- * The fictional student records the unfinished modules still share
- * live in student-records-model.ts, the fictional staff in fixtures/hr.ts with handlers/hr-model.ts, the fictional
- * applicants in fixtures/admissions.ts with handlers/admissions-model.ts, the fictional registers and calendar in
+ * the parent and student portal (/api/portal/*: code sign-in, session, preferences and every child page; only the
+ * mock-mode /api/portal/demo hint stays in portal.ts) and the report centre with the staff bell (/api/reports/*:
+ * catalogue, favourites, run, jobs, schedules, recipients; /api/notifications*). Reports of modules not built yet
+ * (13b / 13c) are listed in the catalogue and answer "This report is not available yet." from the backend.
+ * Model files without routes that the remaining mocks (dashboard, teacher app, portal hint) still read: the
+ * fictional staff in fixtures/hr.ts with handlers/hr-model.ts, the fictional registers and calendar in
  * fixtures/attendance.ts with handlers/attendance-model.ts, the fictional exams in fixtures/exams.ts with
- * handlers/exams-model.ts, the fictional fee figures the dashboard, reports and SMS mocks still read in
- * fixtures/fee-setup.ts with handlers/fees-state.ts and handlers/fee-setup-model.ts, the fictional books the
- * report centre's accounts reports read in fixtures/accounts.ts with handlers/accounts-model.ts, and the fictional
- * timetable the report centre and the teacher app's Today / Classes read in fixtures/timetable.ts with
- * handlers/timetable-model.ts, the fictional outbox and rosters the report centre reads in fixtures/sms.ts with
- * handlers/sms-model.ts, the fictional library the report centre reads in fixtures/operations.ts with
- * handlers/library-model.ts, the fictional warehouse the report centre reads in fixtures/operations.ts with
- * handlers/warehouse-model.ts, the fictional transport the report centre reads in fixtures/operations.ts with
- * handlers/transport-model.ts, and the fictional portal families the report centre reads in fixtures/portal.ts with
- * handlers/portal-model.ts (no routes).
+ * handlers/exams-model.ts (and the rosters of handlers/sms-model.ts it uses), the fictional fee figures of the
+ * dashboard and SMS mocks in handlers/fees-state.ts, and the fictional timetable of the teacher app's Today /
+ * Classes in fixtures/timetable.ts with handlers/timetable-model.ts.
+ * Since the report centre became real (module 13a) nothing imports handlers/accounts-model.ts,
+ * admissions-model.ts, fee-setup-model.ts, library-model.ts, portal-model.ts, student-records-model.ts,
+ * transport-model.ts or warehouse-model.ts any more (their last importer was the deleted handlers/reports.ts):
+ * they are dead code, kept only until the lead deletes them.
  */
 export const handlers: HttpHandler[] = [
   ...authTapHandlers,
   ...dashboardHandlers,
   ...operationsHandlers,
-  ...reportsHandlers,
   ...teacherHandlers,
   ...portalHandlers,
 ];

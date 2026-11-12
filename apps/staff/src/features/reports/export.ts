@@ -1,10 +1,14 @@
 import type { ReportResult } from "@mtb/api";
+import { formatDate } from "@mtb/domain";
 import { cellText } from "./shell";
 
-/** "daily-fee-collection-summary-kc-04-nov-2026" */
+/**
+ * "daily-fee-collection-summary-kc-04-nov-2026": the server's `ReportJob.fileName` form, with the date the report
+ * was prepared in Pakistan (`generatedAt` is UTC).
+ */
 export function fileBase(result: ReportResult, campus: string): string {
   const slug = result.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-  return `${slug}-${campus === "ALL" ? "all-campuses" : campus.toLowerCase()}-${result.generatedAt.slice(0, 10)}`;
+  return `${slug}-${campus === "ALL" ? "all-campuses" : campus.toLowerCase()}-${formatDate(result.generatedAt).toLowerCase()}`;
 }
 
 const csvCell = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
@@ -18,7 +22,7 @@ export function toCsv(result: ReportResult): string {
   lines.push(csvCell(result.campusHeading));
   lines.push(csvCell(result.title));
   lines.push(csvCell(result.subtitle));
-  lines.push(csvCell(`Prepared by ${result.generatedBy} on ${result.generatedAt.slice(0, 10)}`));
+  lines.push(csvCell(`Prepared by ${result.generatedBy} on ${formatDate(result.generatedAt)}`));
   lines.push("");
   lines.push(result.columns.map((c) => csvCell(c.label)).join(","));
   for (const row of result.rows) {

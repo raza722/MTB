@@ -30,7 +30,11 @@ export function JobsPage() {
       if (j.format === "EXCEL") toast({ title: `Excel file saved · ${j.reportName}`, message: j.fileName ?? "" });
       else void navigate({ to: "/reports/$reportId", params: { reportId: j.reportId }, search: { job: j.id, ...(j.format === "PDF" ? { print: 1 } : {}) } } as never);
     },
-    onError: (e) => toast({ tone: "danger", title: "Download failed", message: errorText(e) }),
+    onError: async (e) => {
+      // An expired or removed copy: refresh the list so its status shows.
+      await refresh();
+      toast({ tone: "danger", title: "Download failed", message: errorText(e) });
+    },
   });
   const retry = useMutation({
     mutationFn: (j: ReportJob) => reportsApi.retryJob(j.id),
@@ -38,14 +42,20 @@ export function JobsPage() {
       await refresh();
       toast({ tone: "info", title: `Preparing again · ${j.reportName}`, message: "You'll be told when it is ready." });
     },
+    onError: async (e) => {
+      await refresh();
+      toast({ tone: "danger", title: "Not started", message: errorText(e) });
+    },
   });
   const remove = useMutation({
     mutationFn: (j: ReportJob) => reportsApi.removeJob(j.id),
     onSuccess: () => refresh(),
+    onError: (e) => toast({ tone: "danger", title: "Not removed", message: errorText(e) }),
   });
   const readAll = useMutation({
     mutationFn: notificationsApi.markAllRead,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: notificationsQueries.list().queryKey }),
+    onError: (e) => toast({ tone: "danger", title: "Not marked read", message: errorText(e) }),
   });
 
   const columns: Array<Column<ReportJob>> = [
@@ -116,7 +126,7 @@ export function JobsPage() {
         : {})}
     >
       <p className="m-0 max-w-3xl text-small text-ink-muted">
-        Reports you exported or prepared in the background. Large reports are prepared here so the screen never freezes; you get a notification when one is ready. Files are kept for 7 days and only you can see yours.
+        Reports you exported or prepared in the background. Large reports are prepared here so the screen never freezes; you get a notification when one is ready. Files are kept for 7 days. Only you can see yours; a scheduled report also shows here for the people it was sent to.
       </p>
       {jobs.error && !jobs.data ? (
         <LoadError what="Your downloads" error={jobs.error} onRetry={() => void jobs.refetch()} />

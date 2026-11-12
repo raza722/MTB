@@ -6,8 +6,10 @@ import { CASHIERS, CONCESSION_TYPES, FEE_HEADS } from "./fee-setup";
 import { STREAMS } from "./student-records";
 import { LIB_CABINET_CODES, LIB_CATEGORIES, WH_CATEGORIES, WH_DEPARTMENT_NAMES, WH_ITEM_GROUPS, WH_ROOM_NAMES, WH_SUPPLIER_NAMES } from "./operations";
 
-// Report centre catalogue (fictional data generators live in handlers/reports.ts) and a fictional staff
-// roster shared by the staff reports and staff SMS. Legacy names come from docs 02 §A14, 03 §F8/§A4/§H5,
+// Report centre catalogue and a fictional staff roster. The report centre is real now (backend module 13a, no
+// routes here): REPORT_DEFINITIONS, reportById and DEFAULT_FAVOURITES are the contract reference the backend's
+// catalogue seed is generated from and compared with; nothing imports them at run time. The deterministic
+// randomness helpers stay for the mocks that still use them (sms-model). Legacy names come from docs 02 §A14, 03 §F8/§A4/§H5,
 // 04 §M1–M4/§P7 and the screenshots index (folders 11 and 16).
 
 // ---------- deterministic randomness ----------
@@ -166,7 +168,7 @@ const F = {
   text: (key: string, label: string, def: string, help?: string): ReportFilterDef => ({ key, label, kind: "text", default: def, required: true, ...(help ? { help } : {}) }),
 };
 
-/** Exam choices: the catalogue fills in the exams of the campus and session (handlers/reports-exams.ts). */
+/** Exam choices: the backend's catalogue fills in the exams of the campus and session (module 13b). */
 const EXAMS: Array<[string, string]> = [["", "Latest exam of the class"]];
 
 /** Subjects for the one-subject-across-tests report. */
@@ -244,6 +246,8 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     ],
     columns: [c("head", "Fee head"), c("receipts", "Receipts", "count", true), c("amount", "Collected", "money", true), c("share", "Share", "percent")],
     chart: { kind: "column", label: "Collected by head", x: "head", y: "amount" },
+    // D5 / C3 (spec 13 fix G4): over 1 s on the first call after a plan recompile over a long period at KC, so it runs in the background
+    background: true,
     tags: ["heads", "tuition", "annual"],
   }),
   def({
@@ -279,6 +283,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     permission: "fees.reports",
     filters: [F.cls(), F.section(), F.number("minAmount", "Arrears above (Rs)", "0")],
     columns: [c("grNo", "G.R. No.", "mono"), c("student", "Student"), c("father", "Father"), c("classSection", "Class"), c("mobile", "Mobile", "mono"), c("oldestDue", "Oldest due", "date"), c("days", "Days overdue", "count"), c("arrears", "Arrears", "money", true)],
+    background: true,
     tags: ["arrears", "balance", "outstanding"],
   }),
   def({
@@ -302,6 +307,8 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
       c("over30", "More than 30 days", "money", true),
     ],
     chart: { kind: "column", label: "Arrears by class", x: "classSection", y: "arrears" },
+    // D5 / C3 (spec 13 fix G3): over 1 s on the first call after a plan recompile at KC, so it runs in the background
+    background: true,
     tags: ["arrears", "class"],
   }),
   def({
@@ -316,6 +323,8 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     permission: "fees.reports",
     filters: [F.number("minDays", "Overdue more than (days)", "30"), F.number("minAmount", "Amount above (Rs)", "5000"), F.cls()],
     columns: [c("grNo", "G.R. No.", "mono"), c("student", "Student"), c("classSection", "Class"), c("guardian", "Guardian"), c("mobile", "Mobile", "mono"), c("days", "Days overdue", "count"), c("amount", "Overdue", "money", true)],
+    // D5 / C3 (spec 13 fix G3): over 1 s on the first call after a plan recompile at KC, so it runs in the background
+    background: true,
     tags: ["defaulters", "overdue", "strike off"],
   }),
   def({
@@ -354,6 +363,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
       c("concession", "Concession", "money", true),
       c("payable", "Payable", "money", true),
     ],
+    background: true,
     tags: ["discount", "scholarship", "concession"],
   }),
   def({
@@ -415,6 +425,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
       c("total", "Total", "money", true),
       c("amount", "Received", "money", true),
     ],
+    background: true,
     tags: ["candidate", "admission", "test fee"],
   }),
   def({
@@ -686,6 +697,8 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
       c("status", "Status", "status"),
     ],
     paper: "A4_LANDSCAPE",
+    // D5 / C3 (spec 13 fix G3): over 1 s on the first call after a plan recompile at KC, so it runs in the background
+    background: true,
     tags: ["candidates", "entry test", "address"],
   }),
   def({
