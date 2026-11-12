@@ -1,6 +1,3 @@
-import type { StudentMovement } from "@mtb/api";
-import type { IsoDate } from "@mtb/domain";
-import { campusName } from "./campuses";
 import { initialClassSubjects, initialGroups, initialSubjects } from "./setup";
 
 /** Houses at Khalid Campus (fictional). */
@@ -49,36 +46,3 @@ export function groupOfStudent(grNo: string, classShort: string, stored?: string
   const list = pool.length ? pool : STREAMS;
   return list.length ? list[groupHash(grNo) % list.length] : undefined;
 }
-
-const mv = (
-  id: string,
-  kind: StudentMovement["kind"],
-  grNo: string,
-  name: string,
-  relation: "s/o" | "d/o",
-  father: string,
-  classSection: string,
-  campus: StudentMovement["campus"],
-  date: IsoDate,
-  reason: string,
-  by: string,
-  balanceAtTime: number,
-  extra: Partial<StudentMovement> = {},
-): StudentMovement => ({ id, kind, grNo, name, relation, father, classSection, campus, campusName: campusName(campus), date, reason, by, balanceAtTime, ...extra });
-
-/** What happened before the demo starts: matches the statuses of the fixture students. */
-export const INITIAL_MOVEMENTS: StudentMovement[] = [
-  mv("mv-1", "PASSED_OUT", "KC-13981", "Sara Nadeem", "d/o", "Nadeem Abbas", "10-A", "KC", "2026-03-31", "Completed Class 10", "Farah Naz", 0, { remarks: "Leaving certificate issued the same day." }),
-  mv("mv-2", "LEFT", "KC-14502", "Hassan Iqbal", "s/o", "Javed Iqbal", "9-B", "KC", "2026-06-30", "Family moved to another city", "Farah Naz", 9000, { remarks: "Family moved to Rahim Yar Khan. Dues of Rs 9,000 still to be collected." }),
-  mv("mv-3", "TRANSFER", "KC-14598", "Rameen Asif", "d/o", "Asif Mehmood", "5-A", "KC", "2026-08-03", "Family moved closer to the other campus", "Kamran Yousaf", 0, {
-    toCampus: "HC",
-    toCampusName: campusName("HC"),
-    toClassSection: "5-A",
-    approvedBy: "Mrs Sadia Rehman",
-    remarks: "Father posted to Lahore. G.R. number and history kept.",
-  }),
-  mv("mv-4", "STRUCK_OFF", "KC-14215", "Usman Tariq", "s/o", "Tariq Jamil", "8-A", "KC", "2026-09-05", "Non-payment of dues", "Usman Ali", 17000, { approvedBy: "Mrs Sadia Rehman" }),
-  mv("mv-5", "RESTORED", "KC-14215", "Usman Tariq", "s/o", "Tariq Jamil", "8-A", "KC", "2026-09-12", "Dues cleared", "Usman Ali", 0, { remarks: "August and September dues paid at the counter." }),
-  mv("mv-6", "EXPELLED", "KC-14108", "Shahzaib Anwar", "s/o", "Anwar Saleem", "9-B", "KC", "2026-09-18", "Discipline violation", "Kamran Yousaf", 0, { approvedBy: "Mrs Sadia Rehman", remarks: "Disciplinary committee decision of 16-Sep-2026." }),
-  mv("mv-7", "STRUCK_OFF", "KC-14215", "Usman Tariq", "s/o", "Tariq Jamil", "8-A", "KC", "2026-10-30", "Continuous absence", "Farah Naz", 17000, { remarks: "Absent since 21-Oct-2026. Father not reachable on the registered mobile." }),
-];

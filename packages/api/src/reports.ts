@@ -252,7 +252,12 @@ export const REPORT_BACKGROUND_NOTE = "Large reports are prepared in the backgro
 export const reportsApi = {
   catalogue: (ctx: Ctx) => apiFetch<ReportCatalogue>("/reports/catalogue", { query: ctxQuery(ctx) }),
   setFavourite: (reportId: string, favourite: boolean) => apiFetch<{ favourite: boolean }>(`/reports/favourites/${encodeURIComponent(reportId)}`, { method: "PUT", body: { favourite } }),
-  /** A report not built yet (listed in the catalogue) answers 404 "This report is not available yet." after the filter checks. */
+  /**
+   * Every catalogue entry is built (module 13c); a catalogue row without a report would answer 404 "This report is not
+   * available yet." after the filter checks. A report whose module is switched off at the chosen campus (Payroll,
+   * Transport today) answers 403 "Your role can't open this report at this campus."; at ALL it answers rows [] with a
+   * note saying the module is switched off (spec 13 D63). Cells the server has no value for come as null ("—").
+   */
   run: (body: ReportRunRequest) => apiFetch<ReportResult>("/reports/run", { method: "POST", body }),
   /** Starts a background job (export, or a large report to view on screen). Small exports come back READY. */
   startJob: (body: ReportRunRequest & { format: ReportFormat | "SCREEN" }) => apiFetch<ReportJob>("/reports/jobs", { method: "POST", body }),

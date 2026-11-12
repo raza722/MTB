@@ -5,7 +5,7 @@ import { findStudent } from "./students";
 /**
  * Parent and student portal fixtures (fictional). The portal itself is real now (/api/portal/*: module 12); what is
  * left here are the two demo families the mock-only /api/portal/demo hint lists (the report centre's "Parent portal
- * accounts" report is real since module 13b; handlers/portal-model.ts is dead code). The demo code works only against the old mock, never the server.
+ * accounts" report is real since module 13b). The demo code works only against the old mock, never the server.
  */
 export const PORTAL_DEMO_CODE = "135790";
 

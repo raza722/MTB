@@ -209,7 +209,7 @@ export function DeliveryPage({ search, setSearch }: { search: DeliverySearch; se
           />
           {data && (
             <p className="m-0 text-small text-ink-muted">
-              Showing the latest {formatCount(all.length)} messages{search.batch ? ` of ${formatCount(grandTotal)} in this message` : `; ${formatCount(grandTotal)} today`}. The totals above count every message{search.batch ? "" : " of today"}. For earlier days, run the <Link to="/reports/$reportId" params={{ reportId: "msg-log" } as never} className="font-medium text-brand-ink">Message log</Link> report.
+              Showing the latest {formatCount(all.length)} messages{search.batch ? ` of ${formatCount(grandTotal)} in this message` : `; ${formatCount(grandTotal)} today`}. The totals above count every message{search.batch ? "" : " of today"}. For earlier days, run the <Link to="/reports/$reportId" params={{ reportId: "msg-log" }} className="font-medium text-brand-ink">Message log</Link> report.
             </p>
           )}
         </>

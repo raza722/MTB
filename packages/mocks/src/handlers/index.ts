@@ -3,7 +3,6 @@ import { authTapHandlers } from "./auth-state";
 import { dashboardHandlers } from "./dashboard";
 import { portalHandlers } from "./portal";
 import { teacherHandlers } from "./teacher";
-import { operationsHandlers } from "./operations";
 
 /**
  * Modules that are real now have no handlers here: their requests fall through (onUnhandledRequest "bypass") to the
@@ -22,24 +21,20 @@ import { operationsHandlers } from "./operations";
  * the parent and student portal (/api/portal/*: code sign-in, session, preferences and every child page; only the
  * mock-mode /api/portal/demo hint stays in portal.ts) and the report centre with the staff bell (/api/reports/*:
  * catalogue, favourites, run, jobs, schedules, recipients; /api/notifications*), with the fee and admission reports
- * (13a) and the student, attendance and exam reports (13b). Reports of 13c (accounts, staff, timetable, library,
- * warehouse, transport, messages) are listed in the catalogue and answer "This report is not available yet." from the
- * backend.
+ * (13a), the student, attendance and exam reports (13b) and the accounts, staff, timetable, library, warehouse,
+ * transport and message reports (13c): every report in the catalogue is real.
  * Model files without routes that the remaining mocks (dashboard, teacher app, portal hint) still read: the
  * fictional staff in fixtures/hr.ts with handlers/hr-model.ts, the fictional registers and calendar in
  * fixtures/attendance.ts with handlers/attendance-model.ts, the fictional exams in fixtures/exams.ts with
  * handlers/exams-model.ts (the teacher app's Today papers), the fictional fee figures of the
- * dashboard and SMS mocks in handlers/fees-state.ts, and the fictional timetable of the teacher app's Today /
+ * dashboard mocks in handlers/fees-state.ts, and the fictional timetable of the teacher app's Today /
  * Classes in fixtures/timetable.ts with handlers/timetable-model.ts.
- * Since the report centre became real (module 13a) nothing imports handlers/accounts-model.ts,
- * admissions-model.ts, fee-setup-model.ts, library-model.ts, portal-model.ts, student-records-model.ts,
- * transport-model.ts, warehouse-model.ts or (since 13b) sms-model.ts any more (their last importer was the deleted handlers/reports.ts):
- * they are dead code, kept only until the lead deletes them.
+ * The report centre's mock builders, their model files (accounts, admissions, fee setup, library, portal, student
+ * records, transport, warehouse, SMS) and the fixtures only they read were deleted in module 13c.
  */
 export const handlers: HttpHandler[] = [
   ...authTapHandlers,
   ...dashboardHandlers,
-  ...operationsHandlers,
   ...teacherHandlers,
   ...portalHandlers,
 ];

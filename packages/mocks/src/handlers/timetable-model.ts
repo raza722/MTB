@@ -1,8 +1,7 @@
 // The fictional timetable the unfinished mocks still read (no routes). The Timetable module is real now
 // (backend/docs/modules/08_timetable.md): /api/timetable/* and the teacher app's /api/teacher/timetable fall through
-// to the backend. What stays here until those modules are built:
-// - timetableReportBoard: the report centre's class timetable and teacher load reports (module 13);
-// - teacherDay: the teacher app's Today and Classes (T02–T04, spec 08 Q1), still mocked.
+// to the backend, and so do the report centre's class timetable and teacher load reports (module 13c). What stays
+// here: teacherDay, the teacher app's Today and Classes (T02–T04, spec 08 Q1), still mocked.
 // Read-only: no away marks or cover (those live in the backend now), the boards are generated once per tab.
 import { bellDay, periodTime, type BellSchedule, type CampusCode, type TimetableBoard, type TimetableDay, type TimetableSlot } from "@mtb/api";
 import type { IsoDate } from "@mtb/domain";
@@ -58,9 +57,6 @@ function boardFor(campus: CampusCode, session: number): TimetableBoard {
   boards.set(key, board);
   return board;
 }
-
-/** A campus's (fictional) timetable board for the report centre (class timetable and teacher load reports). */
-export const timetableReportBoard = (campus: CampusCode, session: number): TimetableBoard => boardFor(campus, session);
 
 /** One teacher's (fictional) periods on a date, for the teacher app's Today and Classes. No cover: that is real now. */
 export function teacherDay(campus: CampusCode, teacherName: string, date: IsoDate): Array<{ period: number; start: string; end: string; classSection: string; stream?: string; subject: string; room: string; cover: boolean }> {
