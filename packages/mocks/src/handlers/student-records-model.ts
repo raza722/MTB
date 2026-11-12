@@ -9,14 +9,13 @@ import { type AdmissionsApplicant, type StudentMovement, type StudentSummary } f
 import { formatSession, type IsoDate } from "@mtb/domain";
 import { createStore } from "../db";
 import { initialApplicants } from "../fixtures/admissions";
-import { groupOfStudent, INITIAL_MOVEMENTS } from "../fixtures/student-records";
+import { INITIAL_MOVEMENTS } from "../fixtures/student-records";
 import { findStudent, STUDENTS, type StudentRecord } from "../fixtures/students";
 import { financeOf } from "./fees-state";
 
 /* ================================================================ small helpers */
 
-const classShortOf = (cs: string) => cs.split("-")[0] ?? "";
-export const sessionOfDate = (d: IsoDate) => {
+const sessionOfDate = (d: IsoDate) => {
   const [y, m] = d.split("-").map(Number) as [number, number];
   return m >= 4 ? y : y - 1;
 };
@@ -144,18 +143,6 @@ export function patchStudent(grNo: string, patch: Partial<StudentRecord>) {
 }
 
 /* ================================================================ read helpers for other mocks */
-
-/**
- * Group (stream) of a student in a class with groups, by G.R. number and class. Without a stored group the
- * student is spread over the groups Setup has subjects for, so nobody lands in an empty group.
- * Also used for the generated classmates on the report registers (no record of their own).
- */
-export function streamFor(grNo: string, classSection: string, stored?: string): string | undefined {
-  return groupOfStudent(grNo, classShortOf(classSection), stored);
-}
-
-/** Every change of status on record (leaving, struck off, expelled, restored, transfers), oldest first. */
-export const allMovements = (): StudentMovement[] => recordsStore.get().movements;
 
 export function statusNoteOf(s: StudentRecord): { on: IsoDate; reason: string; remarks?: string; by?: string } | undefined {
   if (s.status === "ACTIVE") return undefined;

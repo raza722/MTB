@@ -244,7 +244,7 @@ const FATHER_FIRST = ["Muhammad", "Ghulam", "Abdul", "Mian", "Rana", "Malik", "C
 const NETWORKS = ["0300", "0301", "0302", "0311", "0321", "0333", "0345"];
 
 /** Class-sections with a register at a campus (today's order). */
-export function registerSections(campus: CampusCode): string[] {
+function registerSections(campus: CampusCode): string[] {
   return registersFor(campus).map((r) => r.classSection);
 }
 

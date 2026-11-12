@@ -40,8 +40,8 @@ export interface ExamsRosterEntry {
 }
 
 /**
- * Group (stream) of a student in a class with groups: the same rule as the student profile (groupOfStudent, used by
- * handlers/student-records-model streamFor), so a student shows one group everywhere. The group stored on a student's record
+ * Group (stream) of a student in a class with groups: the same rule as the student profile (groupOfStudent in
+ * fixtures/student-records), so a student shows one group everywhere. The group stored on a student's record
  * wins; the register's classmates without a record are spread by number. The real backend reads the enrolment's group.
  */
 export function groupFor(id: string, classSection: string): string | undefined {

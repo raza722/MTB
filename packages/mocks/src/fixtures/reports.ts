@@ -3,7 +3,6 @@ import { formatMobile, type IsoDate } from "@mtb/domain";
 import { CLASSES } from "./campuses";
 import { initialChart } from "./accounts";
 import { CASHIERS, CONCESSION_TYPES, FEE_HEADS } from "./fee-setup";
-import { STREAMS } from "./student-records";
 import { LIB_CABINET_CODES, LIB_CATEGORIES, WH_CATEGORIES, WH_DEPARTMENT_NAMES, WH_ITEM_GROUPS, WH_ROOM_NAMES, WH_SUPPLIER_NAMES } from "./operations";
 
 // Report centre catalogue and a fictional staff roster. The report centre is real now (backend module 13a, no
@@ -168,24 +167,19 @@ const F = {
   text: (key: string, label: string, def: string, help?: string): ReportFilterDef => ({ key, label, kind: "text", default: def, required: true, ...(help ? { help } : {}) }),
 };
 
-/** Exam choices: the backend's catalogue fills in the exams of the campus and session (module 13b). */
+/**
+ * Exam choices (module 13b, spec 13 D32 / C10): only the first option is static. The backend's catalogue adds the
+ * campus's term and board exams of the session and its class tests of the last `reports.examOptionDays` days
+ * (option source EXAM).
+ */
 const EXAMS: Array<[string, string]> = [["", "Latest exam of the class"]];
 
-/** Subjects for the one-subject-across-tests report. */
-const EXAM_SUBJECTS: Array<[string, string]> = [
-  ["mat", "Mathematics"],
-  ["eng", "English"],
-  ["urd", "Urdu"],
-  ["sci", "Science"],
-  ["phy", "Physics"],
-  ["che", "Chemistry"],
-  ["bio", "Biology"],
-  ["cmp", "Computer Science"],
-  ["isl", "Islamiyat"],
-  ["sst", "Social Studies"],
-  ["pst", "Pakistan Studies"],
-  ["tqn", "Tarjuma-tul-Quran"],
-];
+/**
+ * Subjects of the one-subject-across-tests report (13b D36 / C11): none here. The backend's catalogue lists the
+ * subjects of the session's class-test papers (option source EXAM_SUBJECT); there is no default, and an empty subject
+ * answers "Choose a subject.".
+ */
+const EXAM_SUBJECTS: Array<[string, string]> = [];
 
 const c = (key: string, label: string, kind: ReportColumnDef["kind"] = "text", total = false): ReportColumnDef => ({ key, label, kind, ...(total ? { total } : {}) });
 
@@ -455,6 +449,8 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     ownerPath: "/students",
     ownerLabel: "Students",
     permission: "students.view",
+    // 13b C8: over 1 s on screen at KC (spec 13 Part 13b §13b.2.5), so it runs in the background
+    background: true,
     filters: [
       F.cls(),
       F.section(),
@@ -500,6 +496,8 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     ownerPath: "/students",
     ownerLabel: "Students",
     permission: "students.view",
+    // 13b C8: over 1 s on screen at KC (spec 13 Part 13b §13b.2.5), so it runs in the background
+    background: true,
     filters: [F.cls(), F.section(), F.select("status", "Portal", [["", "All"], ["SIGNED_IN", "Signed in"], ["NEVER", "Never signed in"], ["NOT_SET_UP", "Not set up"]])],
     columns: [c("grNo", "G.R. No.", "mono"), c("student", "Student"), c("father", "Father"), c("classSection", "Class"), c("mobile", "Registered mobile", "mono"), c("status", "Portal", "status"), c("lastSignIn", "Last sign-in", "date")],
     tags: ["portal", "app", "parents", "sign-in", "accounts"],
@@ -515,7 +513,8 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     permission: "students.view",
     filters: [
       { key: "class", label: "Class", kind: "class", default: "9", required: true },
-      F.select("group", "Group", [["", "All groups"], ...STREAMS.map((g): [string, string] => [g, g])]),
+      // the groups (streams) of the campus's classes come from the backend's catalogue (13b C11, option source STREAM)
+      F.select("group", "Group", [["", "All groups"]]),
       F.gender(),
     ],
     columns: [c("sr", "Sr", "count"), c("grNo", "G.R. No.", "mono"), c("student", "Student"), c("marks", "Marks", "blank"), c("classSection", "Class"), c("section", "Section"), c("group", "Group"), c("subjects", "Subjects")],
@@ -626,6 +625,8 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     ownerPath: "/students/families",
     ownerLabel: "Students → Families",
     permission: "students.view",
+    // C8 (spec 13b fix W2): over 1 s on the first call after a plan recompile at KC, even after the warm-up, so it runs in the background
+    background: true,
     filters: [],
     columns: [c("father", "Father"), c("cnic", "CNIC", "mono"), c("children", "Children"), c("count", "Children", "count", true), c("campuses", "Campuses")],
     tags: ["siblings", "family"],
@@ -771,6 +772,8 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     ownerPath: "/attendance/students",
     ownerLabel: "Attendance → Students",
     permission: "attendance.view",
+    // C8 (spec 13b fix W2): over 1 s on the first call after a plan recompile at KC, even after the warm-up, so it runs in the background
+    background: true,
     filters: [F.number("below", "Attendance below (%)", "80"), F.cls()],
     columns: [c("grNo", "G.R. No.", "mono"), c("student", "Student"), c("classSection", "Class"), c("days", "School days", "count"), c("present", "Present", "count"), c("percent", "Attendance", "percent"), c("mobile", "Guardian mobile", "mono")],
     tags: ["low attendance", "chronic"],
@@ -827,6 +830,8 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     ownerPath: "/exams",
     ownerLabel: "Exams",
     permission: "exams.view",
+    // 13b C8: over 1 s on screen at KC (spec 13 Part 13b §13b.2.5), so it runs in the background
+    background: true,
     filters: [F.select("exam", "Exam", EXAMS), F.cls(), F.gender()],
     columns: [
       c("grNo", "G.R. No.", "mono"),
@@ -893,6 +898,8 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     ownerPath: "/exams/combined",
     ownerLabel: "Exams → Combined results",
     permission: "exams.view",
+    // 13b C8: over 1 s on screen at KC (spec 13 Part 13b §13b.2.5), so it runs in the background
+    background: true,
     filters: [F.classSection()],
     columns: [c("roll", "Roll", "count"), c("grNo", "G.R. No.", "mono"), c("student", "Student"), c("last", "Last exam %", "percent"), c("average", "Average", "percent")],
     singleCampus: true,
@@ -911,13 +918,8 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
       F.classSection(),
       F.select("subject", "Subject", EXAM_SUBJECTS),
       F.range("2026-09-01|today"),
-      F.select("examType", "Tests", [
-        ["", "Every class test"],
-        ["et-morning", "Morning tests"],
-        ["et-weekly", "Weekly tests"],
-        ["et-monthly", "Monthly tests"],
-        ["et-chapter", "Chapter-wise tests"],
-      ]),
+      // the campus's class-test types of the session come from the backend's catalogue (13b C11, option source EXAM_TYPE_TEST)
+      F.select("examType", "Tests", [["", "Every class test"]]),
     ],
     columns: [
       c("grNo", "G.R. No.", "mono"),

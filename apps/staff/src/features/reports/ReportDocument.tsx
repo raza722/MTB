@@ -7,7 +7,8 @@ const NUMERIC = new Set(["money", "count", "percent"]);
 /**
  * The printable report (A4 portrait or landscape): campus heading, title, the filters used, the table with
  * totals, notes and who printed it. Hidden on screen; only it prints. "Save as PDF" in the print dialog
- * gives the PDF.
+ * gives the PDF. A value the server sends as null or "" (no seats set, no roll number, never signed in, a legacy
+ * student without a date of birth) prints "—", as on screen; subtotal lines leave such cells empty.
  */
 export function ReportDocument({ result, landscape }: { result: ReportResult; landscape: boolean }) {
   return (
@@ -39,7 +40,7 @@ export function ReportDocument({ result, landscape }: { result: ReportResult; la
               <tr key={i} className={r[REPORT_SUBTOTAL_KEY] ? "rpt-subtotal" : undefined}>
                 {result.columns.map((c) => (
                   <td key={c.key} className={NUMERIC.has(c.kind) ? "num" : c.kind === "blank" ? "rpt-blank-cell" : undefined} {...(c.kind === "urdu" ? { lang: "ur", dir: "rtl" } : {})}>
-                    {c.kind === "blank" ? "" : cellText(r[c.key] ?? null, c.kind)}
+                    {c.kind === "blank" ? "" : cellText(r[c.key] ?? null, c.kind) || (r[REPORT_SUBTOTAL_KEY] ? "" : "—")}
                   </td>
                 ))}
               </tr>

@@ -1,13 +1,10 @@
 import type { StudentMovement } from "@mtb/api";
 import type { IsoDate } from "@mtb/domain";
 import { campusName } from "./campuses";
-import { initialClassSubjects, initialGroups, initialSections, initialSubjects, type SectionRecord } from "./setup";
+import { initialClassSubjects, initialGroups, initialSubjects } from "./setup";
 
 /** Houses at Khalid Campus (fictional). */
 export const HOUSES = ["Iqbal House", "Jinnah House", "Liaquat House", "Sir Syed House"];
-
-/** Seats per section (class strength limit). */
-export const seatsFor = (classShort: string) => (classShort === "Prep" ? 30 : classShort === "1" || classShort === "2" ? 35 : 40);
 
 /* ---------------------------------------------------------------- Groups (streams), one list for every module */
 
@@ -15,16 +12,16 @@ const GROUPS = initialGroups().filter((g) => g.active);
 const classIdOf = (classShort: string) => `c-${classShort.toLowerCase()}`;
 
 /** Every group in Setup → Subjects → Groups: "Science (Biology)", "Science (Computer)", "Humanities". */
-export const STREAMS: string[] = GROUPS.map((g) => g.name);
+const STREAMS: string[] = GROUPS.map((g) => g.name);
 
 /** Groups offered in a class ("9" → the three groups; "7" → none). */
-export const groupsOfClass = (classShort: string): string[] => GROUPS.filter((g) => g.classIds.includes(classIdOf(classShort))).map((g) => g.name);
+const groupsOfClass = (classShort: string): string[] => GROUPS.filter((g) => g.classIds.includes(classIdOf(classShort))).map((g) => g.name);
 
 const CLASS_SUBJECTS = initialClassSubjects();
 const SUBJECT_NAME = new Map(initialSubjects().map((s) => [s.id, s.name]));
 
 /** Subjects a group studies in a class, from Setup → Subjects and marks (empty when Setup has none for that group). */
-export function subjectsOfGroup(classShort: string, group: string | undefined): string[] {
+function subjectsOfGroup(classShort: string, group: string | undefined): string[] {
   const groupId = group ? (GROUPS.find((g) => g.name === group)?.id ?? null) : null;
   const rec = CLASS_SUBJECTS.find((r) => r.classId === classIdOf(classShort) && r.groupId === groupId);
   return (rec?.subjects ?? []).map((r) => SUBJECT_NAME.get(r.subjectId) ?? r.subjectId).sort((a, b) => a.localeCompare(b));
@@ -51,13 +48,6 @@ export function groupOfStudent(grNo: string, classShort: string, stored?: string
   const pool = groupsWithSubjects(classShort);
   const list = pool.length ? pool : STREAMS;
   return list.length ? list[groupHash(grNo) % list.length] : undefined;
-}
-
-let sectionCache: Map<string, SectionRecord> | null = null;
-/** A section as Setup → Classes and sections has it (seats, room), by campus, session and "7-B". */
-export function setupSectionOf(campus: string, session: number, classSection: string): SectionRecord | undefined {
-  if (!sectionCache) sectionCache = new Map(initialSections().map((s) => [s.id, s]));
-  return sectionCache.get(`${campus}-${session}-${classSection}`);
 }
 
 const mv = (

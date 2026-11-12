@@ -21,17 +21,19 @@ import { operationsHandlers } from "./operations";
  * (/api/transport/*: vehicles, routes and stops, route sheets, riders with the transport fee in Fees, trips and fuel)
  * the parent and student portal (/api/portal/*: code sign-in, session, preferences and every child page; only the
  * mock-mode /api/portal/demo hint stays in portal.ts) and the report centre with the staff bell (/api/reports/*:
- * catalogue, favourites, run, jobs, schedules, recipients; /api/notifications*). Reports of modules not built yet
- * (13b / 13c) are listed in the catalogue and answer "This report is not available yet." from the backend.
+ * catalogue, favourites, run, jobs, schedules, recipients; /api/notifications*), with the fee and admission reports
+ * (13a) and the student, attendance and exam reports (13b). Reports of 13c (accounts, staff, timetable, library,
+ * warehouse, transport, messages) are listed in the catalogue and answer "This report is not available yet." from the
+ * backend.
  * Model files without routes that the remaining mocks (dashboard, teacher app, portal hint) still read: the
  * fictional staff in fixtures/hr.ts with handlers/hr-model.ts, the fictional registers and calendar in
  * fixtures/attendance.ts with handlers/attendance-model.ts, the fictional exams in fixtures/exams.ts with
- * handlers/exams-model.ts (and the rosters of handlers/sms-model.ts it uses), the fictional fee figures of the
+ * handlers/exams-model.ts (the teacher app's Today papers), the fictional fee figures of the
  * dashboard and SMS mocks in handlers/fees-state.ts, and the fictional timetable of the teacher app's Today /
  * Classes in fixtures/timetable.ts with handlers/timetable-model.ts.
  * Since the report centre became real (module 13a) nothing imports handlers/accounts-model.ts,
  * admissions-model.ts, fee-setup-model.ts, library-model.ts, portal-model.ts, student-records-model.ts,
- * transport-model.ts or warehouse-model.ts any more (their last importer was the deleted handlers/reports.ts):
+ * transport-model.ts, warehouse-model.ts or (since 13b) sms-model.ts any more (their last importer was the deleted handlers/reports.ts):
  * they are dead code, kept only until the lead deletes them.
  */
 export const handlers: HttpHandler[] = [
