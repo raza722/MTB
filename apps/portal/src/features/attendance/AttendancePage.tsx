@@ -4,7 +4,7 @@ import { AttendanceCalendar, ColumnChart, cx, Icon, IconButton, Panel, Segmented
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useState, type CSSProperties } from "react";
-import { DateL, Percent, Phone, SessionL } from "../../app/format";
+import { DateL, NONE, Percent, Phone, SessionL } from "../../app/format";
 import { Ltr, useLang } from "../../app/i18n";
 import { PageHeader, QueryState } from "../../app/shell/page";
 import { useChild } from "../../app/session";
@@ -239,7 +239,7 @@ function AttendanceBody({ a, month, go }: { a: PortalAttendanceMonth; month: str
           </Panel>
           <p className="m-0 flex items-start gap-2 text-small text-ink-muted">
             <Icon name="info" size={16} className="mt-1 shrink-0" />
-            <span>{rich("att.wrong", { teacher: <span className="text-ink">{name(a.classTeacher, a.classTeacherUr)}</span>, phone: <Phone value={a.officePhone} call /> })}</span>
+            <span>{rich("att.wrong", { teacher: <span className="text-ink">{a.classTeacher ? name(a.classTeacher, a.classTeacherUr) : NONE}</span>, phone: <Phone value={a.officePhone} call /> })}</span>
           </p>
         </div>
       </div>

@@ -1,4 +1,4 @@
-import { CURRENT_SESSION, portalQueries, type PortalDue, type PortalFees, type PortalReceiptRow } from "@mtb/api";
+import { portalQueries, type PortalDue, type PortalFees, type PortalReceiptRow } from "@mtb/api";
 import { buttonClassName, cx, EmptyState, Icon, Panel, SegmentedBar, Skeleton, StatusBadge } from "@mtb/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -74,7 +74,8 @@ function ToPay({ f }: { f: PortalFees }) {
         <p className="m-0 flex items-start gap-2 text-small text-ink-muted">
           <Icon name="info" size={16} className="mt-1 shrink-0" />
           <span>
-            {t("fees.fineRule")} {rich("fees.voucherHint", { bank: <span className="text-ink">{name(f.bankName)}</span> })}
+            {f.finePerDay > 0 && <>{rich("fees.fineRule", { amount: <Money value={f.finePerDay} /> })} </>}
+            {f.bankName ? rich("fees.voucherHint", { bank: <span className="text-ink">{name(f.bankName)}</span> }) : t("fees.voucherHintCounter")}
           </span>
         </p>
       </div>
@@ -159,7 +160,7 @@ function Receipts({ f }: { f: PortalFees }) {
         <div className="grid gap-4">
           {sessions.map((s) => (
             <section key={s} aria-label={formatSession(s)}>
-              {s !== CURRENT_SESSION && <h3 className="m-0 mb-1 text-caption text-ink-subtle">{rich("fees.pastSession", { session: <SessionL value={s} /> })}</h3>}
+              {s !== f.child.session && <h3 className="m-0 mb-1 text-caption text-ink-subtle">{rich("fees.pastSession", { session: <SessionL value={s} /> })}</h3>}
               <ul className="m-0 list-none p-0">
                 {f.receipts
                   .filter((r) => r.session === s)

@@ -37,8 +37,12 @@ export function DateTimeL({ value }: { value: IsoDateTime }) {
   );
 }
 
-/** "0300-1234567"; a tel: link when `call` is set. */
+/** Shown where the school has no value on record ("", 0): a dash, never a made-up 0 or blank. */
+export const NONE = "—";
+
+/** "0300-1234567"; a tel: link when `call` is set. "—" when the school has no number on record. */
 export function Phone({ value, call }: { value: string; call?: boolean }) {
+  if (!value.replace(/\D/g, "")) return <span className="text-ink-muted">{NONE}</span>;
   const text = formatMobile(value);
   return call ? (
     <a href={`tel:${value.replace(/\D/g, "")}`} className="font-medium text-brand-ink underline-offset-2 hover:underline">
@@ -58,9 +62,10 @@ export function SessionL({ value }: { value: number }) {
   return <Ltr className="tabular-nums">{formatSession(value)}</Ltr>;
 }
 
-/** "07:45" → "7:45 AM" (English) or "صبح 7:45" (Urdu). */
+/** "07:45" → "7:45 AM" (English) or "صبح 7:45" (Urdu); "—" when there is no time on record. */
 export function ClockTime({ value }: { value: string }) {
   const { isUr } = useLang();
+  if (!/^\d{1,2}:\d{2}/.test(value)) return <>{NONE}</>;
   const [hh, mm] = value.split(":").map(Number) as [number, number];
   const h12 = ((hh + 11) % 12) + 1;
   const digits = `${h12}:${String(mm).padStart(2, "0")}`;

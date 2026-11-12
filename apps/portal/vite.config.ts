@@ -31,6 +31,14 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/api/, "/api/v1"),
         // Keep the cookie on this origin even if the backend ever names a Domain (127.0.0.1 is not localhost).
         cookieDomainRewrite: { "*": "" },
+        // Spec 12 fix R2: the portal limits code requests per client address. Overwrite X-Forwarded-For with the
+        // address this proxy saw (never the browser's own header, which anyone can set), so the backend, which trusts
+        // this proxy (FORWARDED_ALLOW_IPS), counts each device and not the proxy as one shared address.
+        configure: (proxy) => {
+          proxy.on("proxyReq", (proxyReq, req) => {
+            proxyReq.setHeader("x-forwarded-for", req.socket.remoteAddress ?? "");
+          });
+        },
       },
     },
   },

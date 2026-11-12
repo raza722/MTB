@@ -1,11 +1,17 @@
 // Parent and student portal: one-time SMS code sign-in, children, fees, attendance, results, notices, contacts.
 // Parents and students never pick a campus or session: every request names one child (by G.R. number), the server
-// checks the child is linked to the signed-in account, and the child's campus and current session come with it.
-// Query keys still carry the session, so a new session never shows last session's cached pages.
+// checks the child is linked to the signed-in account, and the child's campus and current session come with it
+// (PortalChild.campus / .session, resolved by the server on every call; the client never sends either).
+//
+// Session cookie (backend/docs/modules/12_portal.md D2, C4): verifyCode sets `mtb_portal` (HttpOnly, SameSite=Lax,
+// Secure in production, Path=/api/portal), signOut clears it. It is separate from the staff `mtb_session`: a portal
+// session never reaches a staff route and a staff session never reaches a portal route (401 UNAUTHENTICATED).
+// apiFetch already sends cookies, so the client needs nothing else. No portal call carries an Idempotency-Key:
+// requestCode / resendCode are rate-limited, markNoticeRead / markAllNoticesRead are idempotent by nature.
 import type { AttendanceCode, AttendanceSummary, IsoDate, IsoDateTime, Rupees } from "@mtb/domain";
 import { queryOptions } from "@tanstack/react-query";
 import { apiFetch } from "./client";
-import { CURRENT_SESSION, type CampusCode } from "./context";
+import type { CampusCode } from "./context";
 import type { ExamsCategory } from "./exams";
 import type { FeeVoucher } from "./fee-setup";
 import type { PaymentMethod, Receipt } from "./fees";
@@ -27,6 +33,7 @@ export interface PortalChild {
   campusName: string;
   campusNameUr: string;
   classSection: string;
+  /** 0 when the school has not given a roll number (show "—"). */
   rollNo: number;
   /** Start year of the child's current session (2026 = 2026–27). */
   session: number;
@@ -48,7 +55,7 @@ export interface PortalAccount {
   /** Language of SMS from the school (set by the parent). */
   smsLanguage: PortalLang;
   signedInAt: IsoDateTime;
-  /** The sign-in before this one. */
+  /** The sign-in before this one (omitted on the first sign-in). */
   lastSignInAt?: IsoDateTime;
 }
 
@@ -56,6 +63,12 @@ export interface PortalAccount {
 // Sign-in with a one-time SMS code
 // ---------------------------------------------------------------------------------------------------------
 
+/**
+ * `mobile`: 11 digits starting with 03 (or +92 / 92…). `grNo`: the campus code, a dash and the G.R. number as the
+ * school card prints it, letters allowed ("KC-14823", "KC-C-1234"; up to 20 characters, C5).
+ * The server gives the same answer for a number or G.R. it does not know (no user enumeration, D6): a challenge whose
+ * code never arrives. It may answer 429 TOO_SOON (details.waitSec) when codes are asked for too often (C3).
+ */
 export type PortalCodeRequest = { kind: "PARENT"; mobile: string } | { kind: "STUDENT"; grNo: string };
 
 export interface PortalChallenge {
@@ -69,14 +82,29 @@ export interface PortalChallenge {
   resendAfterSec: number;
 }
 
-/** Error codes the sign-in pages turn into plain English or Urdu. */
-export type PortalAuthErrorCode = "NOT_REGISTERED" | "GR_NOT_FOUND" | "PORTAL_NOT_ENABLED" | "CODE_INVALID" | "CODE_LOCKED" | "CODE_EXPIRED" | "TOO_SOON" | "VALIDATION";
+/**
+ * Error codes the sign-in pages turn into plain English or Urdu. The server never answers "this number / G.R. is not
+ * registered" (C1): an unknown mobile or G.R. number gets an ordinary challenge whose code is always wrong.
+ */
+export type PortalAuthErrorCode = "CODE_INVALID" | "CODE_LOCKED" | "CODE_EXPIRED" | "TOO_SOON" | "VALIDATION";
 
+/** `details` of 401 CODE_INVALID. */
 export interface PortalCodeErrorDetails {
   attemptsLeft: number;
 }
 
-/** Mock mode only: who can sign in to the demo and the one-time code (the real server never sends this). */
+/** `details` of 429 TOO_SOON (requestCode and resendCode). */
+export interface PortalTooSoonDetails {
+  waitSec: number;
+}
+
+/**
+ * Error codes of the child pages: 403 NOT_LINKED (the child is not on this account: unknown, another family's, left
+ * the school), 404 NOT_FOUND (receipt, notice), 404 NO_DUES and 404 NO_VOUCHER (voucher, C2), 422 VALIDATION (month).
+ */
+export type PortalPageErrorCode = "NOT_LINKED" | "NOT_FOUND" | "NO_DUES" | "NO_VOUCHER" | "VALIDATION";
+
+/** Mock mode only: who can sign in to the demo and the one-time code (the real server has no such endpoint: 404). */
 export interface PortalDemoHint {
   code: string;
   parents: Array<{ name: string; mobile: string; children: string[] }>;
@@ -188,8 +216,9 @@ export interface PortalFees {
   totalDue: Rupees;
   lateFineSoFar: Rupees;
   payBy: IsoDate | null;
+  /** The child's campus's late fine rule in force (0: no fine). */
   finePerDay: Rupees;
-  /** Bank shown on the voucher ("Meezan Bank, Sadiqabad Branch"). */
+  /** Bank shown on the voucher ("Meezan Bank, Sadiqabad Branch"); "" when the campus has none set. */
   bankName: string;
   session: { charged: Rupees; paid: Rupees };
   /** Newest first, this session and earlier ones. */
@@ -216,8 +245,10 @@ export interface PortalAttendanceMonth {
   /** Every month of the session so far. */
   months: Array<{ month: string; schoolDays: number; percent: number | null; note?: string; noteUr?: string }>;
   sessionSummary: AttendanceSummary;
+  /** "" when the section has no class teacher. */
   classTeacher: string;
   classTeacherUr?: string;
+  /** "" when the campus has no phone on record. */
   officePhone: string;
 }
 
@@ -245,12 +276,15 @@ export interface PortalProfile {
     mother?: string;
     motherUr?: string;
   };
+  /** `address` "" when the family has none on record. */
   guardian: { name: string; nameUr?: string; relation: string; mobile: string; address: string };
   school: {
     campusName: string;
     campusNameUr: string;
     address: string;
+    /** "" when there is no Urdu address. */
     addressUr: string;
+    /** "" when the campus has no phone on record. */
     phone: string;
     principal: string;
     principalUr?: string;
@@ -284,6 +318,7 @@ export const portalApi = {
   home: (grNo: string) => apiFetch<PortalHome>(`${child(grNo)}/home`),
   fees: (grNo: string) => apiFetch<PortalFees>(`${child(grNo)}/fees`),
   receipt: (grNo: string, receiptNo: string) => apiFetch<PortalReceipt>(`${child(grNo)}/receipts/${encodeURIComponent(receiptNo)}`),
+  /** The child's current voucher as the office issued it (module 6); 404 NO_DUES when nothing is due, 404 NO_VOUCHER when dues are open but no voucher is issued (C2). Never issues one. */
   voucher: (grNo: string) => apiFetch<FeeVoucher>(`${child(grNo)}/voucher`),
   attendance: (grNo: string, month: string) => apiFetch<PortalAttendanceMonth>(`${child(grNo)}/attendance`, { query: { month } }),
   results: (grNo: string) => apiFetch<PortalResults>(`${child(grNo)}/results`),
@@ -293,7 +328,8 @@ export const portalApi = {
   profile: (grNo: string) => apiFetch<PortalProfile>(`${child(grNo)}/profile`),
 };
 
-const key = (grNo: string, ...rest: Array<string | number>) => ["portal", "child", grNo, CURRENT_SESSION, ...rest] as const;
+// The server picks the child's session; the cache is cleared on sign-out and pages go stale after 30 s.
+const key = (grNo: string, ...rest: Array<string | number>) => ["portal", "child", grNo, ...rest] as const;
 
 export const portalQueries = {
   /** Everything the portal caches starts with this key (cleared on sign-out). */

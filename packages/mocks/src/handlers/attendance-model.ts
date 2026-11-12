@@ -3,12 +3,12 @@
 // Attendance is served by the real backend now (backend/docs/modules/04_attendance.md): every /api/attendance request
 // and the teacher app's /api/teacher/registers* fall through to it. What is left here is the fixture-based register
 // picture other still-fictional mocks read: the teacher app's Today, Timetable and Classes (closedOn,
-// attendanceDayFor), the dashboard tile (attendanceDayFor), the parent portal (attendanceMarkOf, closedOn) and
-// the timetable model (closedOn). These stay fictional (fictional G.R. numbers, the demo's fixed date and calendar) until
+// attendanceDayFor), the dashboard tile (attendanceDayFor) and the timetable
+// model (closedOn). The parent portal is real (module 12) and reads the backend. These stay fictional (fictional G.R. numbers, the demo's fixed date and calendar) until
 // those modules read att.fn_DayRegisters, att.vw_RegisterTotals, att.vw_EnrolmentAttendance and att.fn_CampusDays.
 // Nothing here writes: the office marking, change requests and calendar edits happen in the real backend.
 import type { AttendanceClosedDay, CampusCode, CampusScope, RegisterCode, SchoolEvent } from "@mtb/api";
-import type { AttendanceCode, IsoDate } from "@mtb/domain";
+import type { IsoDate } from "@mtb/domain";
 import { DEMO_TODAY } from "../clock";
 import { calendarSeed, pastMark, pastSubmission, registersFor, rosterFor, todayMarks, weekdayOf, type FixtureClassRow } from "../fixtures/attendance";
 
@@ -63,9 +63,3 @@ export function attendanceDayFor(campus: CampusCode, date: IsoDate): { rows: Fix
   return { rows, closed: null };
 }
 
-/** For the parent portal: one student's mark on a date ("H" when closed, null when not marked or still to come). */
-export function attendanceMarkOf(campus: CampusCode, classSection: string, date: IsoDate, grNo: string): AttendanceCode | null {
-  if (closedOn(campus, date)) return "H";
-  if (date > DEMO_TODAY) return null;
-  return marksOn(campus, classSection, date)?.[grNo] ?? null;
-}

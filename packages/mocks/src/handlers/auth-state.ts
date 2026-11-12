@@ -7,7 +7,8 @@ import { createStore } from "../db";
  * built yet still need to know who is signed in, so these handlers tap the real auth calls on their way through:
  * each request goes to the backend unchanged (`bypass`), the SessionUser from a successful answer is remembered here,
  * and the real response goes back to the app as it came. Mock permission checks then use the real user's grants
- * (same campus codes and permission codes as the backend). The portal's own sign-in (/api/portal/*) stays mocked.
+ * (same campus codes and permission codes as the backend). The portal's own sign-in
+ * (/api/portal/*) is real too and separate: its mtb_portal cookie is never a staff session, so nothing is tapped for it.
  */
 interface AuthState {
   user: SessionUser | null;

@@ -1,4 +1,4 @@
-import { ApiError, portalApi, portalQueries, type PortalCodeErrorDetails } from "@mtb/api";
+import { ApiError, portalApi, portalQueries, type PortalCodeErrorDetails, type PortalTooSoonDetails } from "@mtb/api";
 import { Banner, Button, cx, useToast } from "@mtb/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, Navigate, useNavigate } from "@tanstack/react-router";
@@ -128,10 +128,22 @@ export function VerifyPage() {
 
   const err = verify.error instanceof ApiError ? verify.error : null;
   const resendErr = resend.error instanceof ApiError ? resend.error : null;
-  const locked = err?.code === "CODE_LOCKED";
+  const locked = err?.code === "CODE_LOCKED" || resendErr?.code === "CODE_LOCKED";
   const expired = err?.code === "CODE_EXPIRED" || resendErr?.code === "CODE_EXPIRED";
   const code = digits.join("");
   const attemptsLeft = (err?.details as PortalCodeErrorDetails | undefined)?.attemptsLeft;
+  const waitSec = resendErr?.code === "TOO_SOON" ? (resendErr.details as PortalTooSoonDetails | undefined)?.waitSec : undefined;
+  const resendError = !resend.error || locked || expired
+    ? null
+    : !resendErr
+      ? t("error.generic")
+      : resendErr.isNetwork
+        ? t("error.network")
+        : resendErr.code === "TOO_SOON"
+          ? waitSec !== undefined
+            ? t("signin.err.TOO_SOON", { sec: waitSec })
+            : t("verify.err.TOO_SOON")
+          : t("error.generic");
 
   const inlineError = !err
     ? null
@@ -144,7 +156,10 @@ export function VerifyPage() {
           : t("error.generic");
 
   return (
-    <AuthLayout title={t("verify.title")} subtitle={rich("verify.subtitle", { phone: <Ltr className="font-medium text-ink">{pending.maskedPhone}</Ltr> })}>
+    <AuthLayout
+      title={t("verify.title")}
+      subtitle={rich(pending.kind === "STUDENT" ? "verify.subtitleStudent" : "verify.subtitle", { phone: <Ltr className="font-medium text-ink">{pending.maskedPhone}</Ltr> })}
+    >
       <form
         className="grid gap-4"
         onSubmit={(e) => {
@@ -166,9 +181,9 @@ export function VerifyPage() {
             {locked ? t("verify.err.CODE_LOCKED") : t("verify.err.CODE_EXPIRED")}
           </Banner>
         )}
-        {resendErr?.code === "TOO_SOON" && (
+        {resendError && (
           <div className="mtb-error" role="alert">
-            {t("verify.err.TOO_SOON")}
+            {resendError}
           </div>
         )}
 
@@ -192,6 +207,7 @@ export function VerifyPage() {
             </Link>
           </div>
         )}
+        {!locked && !expired && <p className="m-0 text-small text-ink-muted">{pending.kind === "STUDENT" ? t("verify.noCodeStudent") : t("verify.noCode")}</p>}
       </form>
     </AuthLayout>
   );

@@ -1,10 +1,8 @@
 import {
-  examsGradeFor,
   examsScaleFor,
   examsSits,
   EXAMS_DEFAULT_PASS_RULES,
   type CampusCode,
-  type DeclaredResult,
   type ExamDetail,
   type ExamsGradeScale,
   type ExamsPaper,
@@ -36,8 +34,7 @@ import { genderOfName } from "./sms-model";
 
 // Exams are real now (/api/exams*, /api/exams-*, and the teacher app's /api/teacher/papers*): their routes were
 // removed, so those requests fall through to the backend (backend/docs/modules/05_exams.md). What stays here is the
-// fictional exam store and the pure helpers the unfinished modules' mocks still read (no routes): the parent portal's
-// results (module 12), the report centre's exam reports (module 13), Messages' exam audience (module 10)
+// fictional exam store and the pure helpers the unfinished modules' mocks still read (no routes): the report centre's exam reports (module 13), Messages' exam audience (module 10)
 // and the teacher app's Today papers (module 8). Their exam ids and G.R.s are fictional, so
 // they do not match the real exams until those modules read the real views.
 
@@ -173,33 +170,3 @@ export function examPapersForTeacher(teacherName: string, campus?: CampusCode): 
     .filter((p) => p.teacher === teacherName);
 }
 
-/** Declared fictional results for one person, newest first (the parent portal's and Messages' mocks; drafts and withheld results never). */
-export function declaredResultsFor(personId: string): DeclaredResult[] {
-  return examsStore
-    .get()
-    .filter((e) => e.status === "DECLARED" && e.roster.some((p) => p.id === personId))
-    .sort((a, b) => b.startDate.localeCompare(a.startDate))
-    .flatMap<DeclaredResult>((e) => {
-      const row = examRows(e).find((r) => r.id === personId);
-      if (!row || row.percent === null || row.withheld) return [];
-      const usedBands = e.frozenBands ?? bands(e);
-      return [
-        {
-          examId: e.id,
-          exam: e.name,
-          session: e.session,
-          declaredOn: (e.declaredOn ?? e.startDate).slice(0, 10),
-          obtained: row.obtained,
-          total: row.max,
-          percent: row.percent,
-          grade: row.grade ?? "",
-          ...(row.position !== null ? { position: row.position } : {}),
-          subjects: e.subjects.filter((s) => examsSits(s, row.group)).map((s) => {
-            const m = row.marks[s.id] ?? null;
-            const n = typeof m === "number" ? m : null;
-            return { subject: s.name, obtained: n, max: s.maxMarks, grade: n === null ? "F" : (examsGradeFor((n / s.maxMarks) * 100, usedBands) ?? ""), ...(m === "A" || m === "L" ? { absent: true } : {}) };
-          }),
-        },
-      ];
-    });
-}

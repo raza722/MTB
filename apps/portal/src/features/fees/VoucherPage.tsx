@@ -3,7 +3,7 @@ import { Banner, Button, buttonClassName, EmptyState, Icon, KeyValue, Panel, Ske
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import type { CSSProperties } from "react";
-import { DateL, firstName, Money } from "../../app/format";
+import { DateL, firstName, Money, Phone } from "../../app/format";
 import { Ltr, useLang } from "../../app/i18n";
 import { PageHeader, QueryState } from "../../app/shell/page";
 import { useChild } from "../../app/session";
@@ -51,7 +51,12 @@ export function VoucherPage() {
   const child = useChild()!;
   const { t, rich, pick } = useLang();
   const voucher = useQuery(portalQueries.voucher(child.grNo));
-  const noDues = voucher.error instanceof ApiError && voucher.error.code === "NO_DUES";
+  const code = voucher.error instanceof ApiError ? voucher.error.code : null;
+  const noDues = code === "NO_DUES";
+  // Dues are open but the office has not issued this month's voucher (C2): the portal never issues one itself.
+  const noVoucher = code === "NO_VOUCHER";
+  // The campus office's phone for the "no voucher yet" message (the profile page's figure, cached).
+  const phone = useQuery({ ...portalQueries.profile(child.grNo), enabled: noVoucher }).data?.school.phone;
   const v = voucher.data;
   return (
     <div key={child.grNo}>
@@ -64,7 +69,7 @@ export function VoucherPage() {
               <Icon name="arrowLeft" size={18} className="portal-flip" />
               {t("doc.backToFees")}
             </Link>
-            {!noDues && (
+            {!noDues && !noVoucher && (
               <Button variant="primary" size="touch" icon="download" disabled={!v} onClick={() => window.print()}>
                 {t("doc.save")}
               </Button>
@@ -75,6 +80,18 @@ export function VoucherPage() {
       {noDues ? (
         <div className="mtb-card">
           <EmptyState icon="checkCircle" title={t("doc.noVoucher")} description={t("doc.noVoucherDesc", { child: firstName(pick(child.name, child.nameUr)) })} />
+        </div>
+      ) : noVoucher ? (
+        <div className="mtb-card">
+          <EmptyState
+            icon="receipt"
+            title={t("doc.noVoucherYet")}
+            description={
+              <>
+                {t("doc.noVoucherYetDesc")} {phone ? rich("doc.noVoucherYetCall", { phone: <Phone value={phone} call /> }) : null}
+              </>
+            }
+          />
         </div>
       ) : (
         <QueryState

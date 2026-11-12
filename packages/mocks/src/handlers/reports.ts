@@ -1,5 +1,5 @@
 // Report centre, background report jobs, scheduled reports and staff notifications (the bell). Notices are real
-// (/api/notices: module 10); noticesStore stays only for the portal mock's published notices (module 12).
+// (/api/notices: module 10), and so is the portal (/api/portal/*: module 12).
 import {
   ACCOUNTS_STATUS_LABEL,
   ACCOUNTS_VOUCHER_TYPE_LABEL,
@@ -51,7 +51,7 @@ import { examReportGenerators, liveExamDefinition } from "./reports-exams";
 import { genderOfName, outboxSnapshot, rosterPeople } from "./sms-model";
 import { admissionsSeats, admissionsStore } from "./admissions-model";
 import { allMovements, sessionOfDate, streamFor } from "./student-records-model";
-import { portalFamilies } from "./portal";
+import { portalFamilies } from "./portal-model";
 import { timetableReportBoard } from "./timetable-model";
 
 const ALL: CampusCode[] = ["KC", "SM", "UC", "MC", "HC"];
