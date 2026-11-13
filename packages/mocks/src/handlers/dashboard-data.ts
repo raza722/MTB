@@ -143,7 +143,7 @@ export function feeStatusFor(code: CampusCode, f: DayFigures) {
 
 // ---------- activity and calendar ----------
 
-const PAY_LABEL = { CASH: "Cash", BANK: "Bank deposit", CHEQUE: "Cheque", ONLINE: "Online transfer" } as const;
+const PAY_LABEL = { CASH: "Cash", BANK: "Bank deposit", CHEQUE: "Cheque", ONLINE: "Online transfer", SALARY: "Salary deduction", LEGACY: "Old system" } as const;
 
 /** Receipts and cancellation requests from the fees store (including anything posted in this demo), last two days. */
 function feesActivity(code: CampusCode): DashboardActivity[] {

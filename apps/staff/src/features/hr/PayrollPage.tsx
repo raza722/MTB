@@ -1,4 +1,4 @@
-import { HR_CATEGORY_LABEL, HR_PAYMENT_LABEL, HR_PAYROLL_STATUS_LABEL, hrApi, hrMonthLabel, hrMonthShort, hrQueries, newIdempotencyKey, type HrPayrollRun, type HrPayslip, type HrSalaryStructureRow } from "@mtb/api";
+import { HR_CATEGORY_LABEL, HR_PAYMENT_LABEL, HR_PAYROLL_STATUS_LABEL, hrApi, hrMonthLabel, hrMonthShort, hrQueries, newIdempotencyKey, type CampusCode, type HrPayrollRun, type HrPayslip, type HrSalaryStructureRow } from "@mtb/api";
 import { formatCount, formatDate, formatDateTime, formatLakh, formatRs, formatSession } from "@mtb/domain";
 import {
   AmountInput,
@@ -37,7 +37,7 @@ import { RequirePermission } from "../../app/shell/page";
 import { useCan, useCtx, useReadOnly, useSessionUser } from "../../app/session";
 import { BankAdviceDoc, PayslipDoc, SalarySheetDoc } from "./print";
 import { issues } from "./StaffPanels";
-import { DesignationSelect, downloadCsv, errorField, errorText, filterNote, HrShell, LoadError, RunBadge, slide, TODAY, useDesignationTitle, usePayAccess, usePrint } from "./shared";
+import { basicRs, DesignationSelect, downloadCsv, errorField, errorText, filterNote, HrShell, LoadError, RunBadge, slide, today, useDesignationTitle, usePayAccess, usePrint } from "./shared";
 
 export interface PayrollSearch {
   month?: string;
@@ -62,7 +62,7 @@ function PayslipPanel({ run, slip, onClose, onPrint }: { run: HrPayrollRun; slip
   const canRelease = canPayroll && !readOnly && run.status === "PAID" && slip.hold && !slip.paidOn;
   const [releasing, setReleasing] = useState(false);
   const [releaseTried, setReleaseTried] = useState(false);
-  const [releaseDate, setReleaseDate] = useState<string | null>(TODAY);
+  const [releaseDate, setReleaseDate] = useState<string | null>(today());
   const earliest = run.paymentDate ?? `${run.month}-28`;
   const releaseSchema = z.object({ paymentDate: z.string({ error: "Enter the date it was paid." }).min(1, "Enter the date it was paid.").refine((v) => v >= earliest, `Can't be before the sheet was paid (${formatDate(earliest)}).`) });
   const releaseParsed = releaseSchema.safeParse({ paymentDate: releaseDate ?? "" });
@@ -72,7 +72,7 @@ function PayslipPanel({ run, slip, onClose, onPrint }: { run: HrPayrollRun; slip
     onSuccess: (r) => {
       queryClient.setQueryData(hrQueries.payrollRun(run.id).queryKey, r);
       void queryClient.invalidateQueries({ queryKey: ["hr"] });
-      toast({ title: `${slip.name}'s held salary paid`, message: `${formatRs(slip.net)} · ${HR_PAYMENT_LABEL[slip.paymentMethod]} · ${formatDate(releaseDate ?? TODAY)}` });
+      toast({ title: `${slip.name}'s held salary paid`, message: `${formatRs(slip.net)} · ${HR_PAYMENT_LABEL[slip.paymentMethod]} · ${formatDate(releaseDate ?? today())}` });
       setReleasing(false);
       onClose();
     },
@@ -94,7 +94,7 @@ function PayslipPanel({ run, slip, onClose, onPrint }: { run: HrPayrollRun; slip
       wide
       onClose={onClose}
       title={`${slip.name} · ${hrMonthLabel(run.month)}`}
-      description={`${slip.employeeNo} · ${slip.designation} · ${slip.department}`}
+      description={[slip.employeeNo, slip.designation, slip.department].filter(Boolean).join(" · ")}
       footer={
         <>
           <Button icon="printer" onClick={onPrint}>
@@ -118,6 +118,7 @@ function PayslipPanel({ run, slip, onClose, onPrint }: { run: HrPayrollRun; slip
             ["Leave", slip.leaveDays],
             ["Unpaid", slip.unpaidDays],
             ["Late", slip.lateCount],
+            ...(slip.notMarkedDays ? ([["Not marked", slip.notMarkedDays]] as Array<[string, number]>) : []),
           ].map(([k, v]) => (
             <div key={k as string} className="rounded-md bg-surface-sunken p-2 text-center">
               <dt className="text-small text-ink-muted">{k}</dt>
@@ -166,7 +167,7 @@ function PayslipPanel({ run, slip, onClose, onPrint }: { run: HrPayrollRun; slip
                 <span className="text-small text-ink-muted">Pay it now in {HR_PAYMENT_LABEL[slip.paymentMethod].toLowerCase()}. Its loan installments and child fee are recorded with it, and the slip prints the date.</span>
                 <div className="flex flex-wrap items-end gap-3">
                   <div className="w-48">
-                    <DatePicker label="Paid on" required value={releaseDate} onValueChange={setReleaseDate} today={TODAY} minDate={earliest} error={releaseError} />
+                    <DatePicker label="Paid on" required value={releaseDate} onValueChange={setReleaseDate} today={today()} minDate={earliest} error={releaseError} />
                   </div>
                   <Button
                     variant="primary"
@@ -198,7 +199,7 @@ function PayslipPanel({ run, slip, onClose, onPrint }: { run: HrPayrollRun; slip
             ["Month", hrMonthLabel(run.month)],
             ["Net pay", formatRs(slip.net)],
             ["Paid by", HR_PAYMENT_LABEL[slip.paymentMethod]],
-            ["Paid on", formatDate(releaseDate ?? TODAY)],
+            ["Paid on", formatDate(releaseDate ?? today())],
           ]}
           confirmLabel={`Pay ${formatRs(slip.net)}`}
           loading={release.isPending}
@@ -240,7 +241,7 @@ function RunView({ runId }: { runId: string }) {
   const desTitle = useDesignationTitle(des);
   const [confirm, setConfirm] = useState<null | "submit" | "approve" | "return" | "pay">(null);
   const [note, setNote] = useState("");
-  const [payDate, setPayDate] = useState<string | null>(TODAY);
+  const [payDate, setPayDate] = useState<string | null>(today());
   const r = q.data;
   const payKey = useMemo(() => newIdempotencyKey(), [runId]);
   const done = (title: string, message?: string) => {
@@ -252,7 +253,13 @@ function RunView({ runId }: { runId: string }) {
   const recalc = useMutation({ mutationFn: () => hrApi.recalculatePayroll(runId), onSuccess: () => done("Recalculated", "Latest attendance, leave, loans and pay picked up.") });
   const submit = useMutation({ mutationFn: () => hrApi.submitPayroll(runId), onSuccess: () => done("Sent for approval", "The principal approves the salary sheet.") });
   const decide = useMutation({ mutationFn: (approve: boolean) => hrApi.decidePayroll(runId, { approve, note }), onSuccess: (x) => done(x.status === "APPROVED" ? "Salary sheet approved" : "Returned to the accountant", x.status === "APPROVED" ? `${formatRs(x.net)} for ${x.staff} staff. The accountant can now pay.` : undefined) });
-  const pay = useMutation({ mutationFn: () => hrApi.payPayroll(runId, { paymentDate: payDate ?? "" }, payKey), onSuccess: (x) => done(`${hrMonthLabel(x.month)} salaries marked as paid`, `${formatRs(x.net)} · loan installments recorded and child fees sent to the fee office.`) });
+  const pay = useMutation({ mutationFn: () => hrApi.payPayroll(runId, { paymentDate: payDate ?? "" }, payKey), onSuccess: (x) =>
+      done(
+        `${hrMonthLabel(x.month)} salaries marked as paid`,
+        // Only what the sheet actually deducted: child fees exist once the fee module fills them.
+        [formatRs(x.net), x.totals.loans > 0 && "loan installments recorded", x.totals.childFee > 0 && "children's fees deducted"].filter(Boolean).join(" · ") + ".",
+      ),
+  });
   const bank = useQuery({ ...hrQueries.bankList(runId), enabled: Boolean(r && (r.status === "APPROVED" || r.status === "PAID") && canPayroll) });
   const error = recalc.error ?? submit.error ?? decide.error ?? pay.error;
 
@@ -279,7 +286,7 @@ function RunView({ runId }: { runId: string }) {
   const steps = [
     { label: `Prepared by ${r.preparedBy}`, state: r.status === "DRAFT" ? "is-now" : "is-done" },
     { label: r.decidedBy ? `Approved by ${r.decidedBy}` : "Principal approves", state: r.status === "PENDING" ? "is-now" : r.status === "APPROVED" || r.status === "PAID" ? "is-done" : "" },
-    { label: r.status === "PAID" ? `Paid ${formatDate(r.paymentDate ?? TODAY)}` : "Salaries paid", state: r.status === "APPROVED" ? "is-now" : r.status === "PAID" ? "is-done" : "" },
+    { label: r.status === "PAID" ? `Paid ${formatDate(r.paymentDate ?? today())}` : "Salaries paid", state: r.status === "APPROVED" ? "is-now" : r.status === "PAID" ? "is-done" : "" },
   ];
 
   return (
@@ -451,7 +458,7 @@ function RunView({ runId }: { runId: string }) {
         tone="warning"
         icon="checkCircle"
         title={`Mark ${hrMonthLabel(r.month)} salaries as paid?`}
-        message="Do this after the bank transfer goes through and cash salaries are handed over. Loan installments are recorded and children's fees go to the fee office. A paid sheet can't be changed."
+        message="Do this after the bank transfer goes through and cash salaries are handed over. The sheet's loan installments (and children's fees, when it has any) are recorded. A paid sheet can't be changed."
         details={[
           ["Bank transfer", formatRs(t.bank)],
           ["Cash and cheque", formatRs(t.cash + t.cheque)],
@@ -464,7 +471,7 @@ function RunView({ runId }: { runId: string }) {
         error={pay.error ? errorText(pay.error) : undefined}
       >
         <div className="mt-3">
-          <DatePicker label="Paid on" required value={payDate} onValueChange={setPayDate} today={TODAY} />
+          <DatePicker label="Paid on" required value={payDate} onValueChange={setPayDate} today={today()} />
         </div>
       </ConfirmDialog>
       {area}
@@ -484,13 +491,14 @@ function StructuresView() {
     { key: "name", header: "Staff", render: (r) => <span className="grid"><span className="font-medium">{r.name}</span><span className="text-small text-ink-muted">{r.employeeNo} · {r.designation}</span></span> },
     { key: "cat", header: "Kind", render: (r) => <span className="text-small">{HR_CATEGORY_LABEL[r.category]}</span> },
     { key: "scale", header: "Scale", render: (r) => r.payScale ?? "—" },
-    { key: "basic", header: "Basic", align: "right", render: (r) => <span className="mtb-num">{formatRs(r.basic)}</span> },
-    { key: "allow", header: "Allowances", align: "right", render: (r) => <span className="mtb-num">{formatRs(r.allowances)}</span> },
-    { key: "gross", header: "Gross", align: "right", render: (r) => <span className="mtb-num">{formatRs(r.gross)}</span> },
-    { key: "ded", header: "Standing deductions", align: "right", render: (r) => <span className="mtb-num">{formatRs(r.standingDeductions)}</span> },
-    { key: "net", header: "Usual take-home", align: "right", render: (r) => <span className="mtb-num font-medium">{formatRs(r.net)}</span> },
+    // Basic 0 = no salary set yet (migrated staff): "—" across the row rather than "Rs 0".
+    { key: "basic", header: "Basic", align: "right", render: (r) => <span className="mtb-num">{basicRs(r.basic)}</span> },
+    { key: "allow", header: "Allowances", align: "right", render: (r) => <span className="mtb-num">{r.basic ? formatRs(r.allowances) : "—"}</span> },
+    { key: "gross", header: "Gross", align: "right", render: (r) => <span className="mtb-num">{r.basic ? formatRs(r.gross) : "—"}</span> },
+    { key: "ded", header: "Standing deductions", align: "right", render: (r) => <span className="mtb-num">{r.basic ? formatRs(r.standingDeductions) : "—"}</span> },
+    { key: "net", header: "Usual take-home", align: "right", render: (r) => <span className="mtb-num font-medium">{r.basic ? formatRs(r.net) : "—"}</span> },
     { key: "pay", header: "Paid by", render: (r) => <span className="text-small">{HR_PAYMENT_LABEL[r.paymentMethod]}{r.bankName ? ` · ${r.bankName}` : ""}</span> },
-    { key: "change", header: "Last change", render: (r) => <span className="grid text-small"><span className="mtb-num">{formatDate(r.lastChange)}</span>{r.pendingChange && <span className="text-success-ink">{formatRs(r.pendingChange.basic)} from {formatDate(r.pendingChange.effectiveFrom)}</span>}</span> },
+    { key: "change", header: "Last change", render: (r) => <span className="grid text-small"><span className="mtb-num">{r.lastChange ? formatDate(r.lastChange) : "—"}</span>{r.pendingChange && <span className="text-success-ink">{formatRs(r.pendingChange.basic)} from {formatDate(r.pendingChange.effectiveFrom)}</span>}</span> },
   ];
   return (
     <>
@@ -537,7 +545,7 @@ export function PayrollPage({ search, setSearch }: { search: PayrollSearch; setS
   const current = months.find((m) => m.month === month);
   const key = useMemo(() => newIdempotencyKey(), [month, ctx.campus]);
   const prepare = useMutation({
-    mutationFn: () => hrApi.preparePayroll({ campus: ctx.campus as "KC", month: month! }, key),
+    mutationFn: () => hrApi.preparePayroll({ campus: ctx.campus as CampusCode, month: month! }, key),
     onSuccess: (r) => {
       toast({ title: `${hrMonthLabel(r.month)} salary sheet prepared`, message: `${r.staff} staff · ${formatRs(r.net)} net. Check it, then send it for approval.` });
       void queryClient.invalidateQueries({ queryKey: ["hr"] });
@@ -606,7 +614,7 @@ export function PayrollPage({ search, setSearch }: { search: PayrollSearch; setS
                         <button type="button" onClick={() => setSearch({ ...search, month: m.month })} aria-current={m.month === month ? "true" : undefined} className={`flex w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-left ${m.month === month ? "bg-brand-tint" : "hover:bg-surface-hover"}`}>
                           <span className="grid">
                             <span className="font-medium">{hrMonthLabel(m.month)}</span>
-                            <span className="text-small text-ink-muted tabular-nums">{m.run ? formatRs(m.run.net) : m.canPrepare ? "Ready to prepare" : m.month >= TODAY.slice(0, 7) ? "Month not over" : "Not prepared"}</span>
+                            <span className="text-small text-ink-muted tabular-nums">{m.run ? formatRs(m.run.net) : m.canPrepare ? "Ready to prepare" : m.month >= today().slice(0, 7) ? "Month not over" : "Not prepared"}</span>
                           </span>
                           {m.run && <RunBadge status={m.run.status} />}
                         </button>
@@ -683,7 +691,7 @@ export function PayrollPage({ search, setSearch }: { search: PayrollSearch; setS
                   </div>
                 ) : current ? (
                   <div className="mtb-card">
-                    <EmptyState icon="calendar" title={current.month >= TODAY.slice(0, 7) ? `${hrMonthLabel(current.month)} isn't over yet` : `No salary sheet for ${hrMonthLabel(current.month)}`} description={current.month >= TODAY.slice(0, 7) ? "A month's sheet is prepared after it ends." : readOnly ? "This session is closed." : "Only the accountant prepares salary sheets."} />
+                    <EmptyState icon="calendar" title={current.month >= today().slice(0, 7) ? `${hrMonthLabel(current.month)} isn't over yet` : `No salary sheet for ${hrMonthLabel(current.month)}`} description={current.month >= today().slice(0, 7) ? "A month's sheet is prepared after it ends." : readOnly ? "This session is closed." : "Only the accountant prepares salary sheets."} />
                   </div>
                 ) : null}
               </div>

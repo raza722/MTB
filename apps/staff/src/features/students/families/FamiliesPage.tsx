@@ -112,6 +112,12 @@ export function FamiliesPage({ q: initialQ, setQ: pushQ }: { q: string; setQ: (q
           }
           pagination={rows.length > 25 ? <Pagination page={page} pageSize={25} total={rows.length} onPageChange={setPage} /> : undefined}
         />
+        {/* The server sends at most 1,000 families (no paging in the contract yet, spec 01_students D2 / C4). */}
+        {list.data && list.data.total > list.data.items.length && (
+          <p className="m-0 text-small text-ink-muted" role="status">
+            Showing the first {formatCount(list.data.items.length)} of {formatCount(list.data.total)} families. Search to find the others.
+          </p>
+        )}
       </Page>
     </RequirePermission>
   );

@@ -164,7 +164,8 @@ export interface StudentPromotionCandidate {
   rollNo: number;
   feeStatus: FeeStatusCode;
   balance: Rupees;
-  attendancePercent: number;
+  /** null until the Attendance module has this session's registers (spec 01_students C5). */
+  attendancePercent: number | null;
   /** Latest declared result, as advice only; promotion stays a decision. */
   latestResult?: { exam: string; percent: number; grade: string };
   suggestion: StudentPromotionOutcome;
@@ -443,8 +444,9 @@ export interface StudentDocSnapshot {
   relation: "s/o" | "d/o";
   father: string;
   gender: "F" | "M";
-  dob: IsoDate;
-  /** "Fourteenth March Two Thousand Thirteen" */
+  /** null when the record has no date of birth (spec 01_students C1). */
+  dob: IsoDate | null;
+  /** "Fourteenth March Two Thousand Thirteen"; "" when dob is null. */
   dobInWords: string;
   campus: CampusCode;
   campusName: string;
@@ -453,6 +455,8 @@ export interface StudentDocSnapshot {
   campusPhone?: string;
   /** Campus office email, printed on the letterhead when the campus has one. */
   campusEmail?: string;
+  /** The campus principal (designation Principal, employed at the campus) when there is one (spec 01_students C6). */
+  principalName?: string;
   classSection: string;
   /** "Class 7" */
   className: string;

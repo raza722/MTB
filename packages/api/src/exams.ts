@@ -1,5 +1,7 @@
 // Exams API — owned by the exams feature. One exam engine for term exams, class tests, board exams, entrance tests
-// and university semesters; grading and pass rules are data; results are frozen as a snapshot when declared.
+// and university semesters; grading and pass rules are data. Served by the real backend
+// (backend/docs/modules/05_exams.md): results are never stored; a declaration records who, when and which grade-scale
+// version the results use, and a declared exam's marks and rules are locked, so its results stay as declared.
 import type { IsoDate, IsoDateTime } from "@mtb/domain";
 import { queryOptions } from "@tanstack/react-query";
 import { apiFetch } from "./client";
@@ -152,7 +154,10 @@ export interface ExamSummary {
   endDate?: IsoDate;
   status: ExamsResultStatus;
   students: number;
-  /** Marks not yet entered. Declaring is blocked until this is 0. Absent and leave are entered values, not missing. */
+  /**
+   * Marks not yet entered. Declaring is blocked until this is 0. Absent and leave are entered values, not missing.
+   * Exams declared in the old system may have marks missing (the old system declared with gaps).
+   */
   missingMarks: number;
   /** Class-section × subject papers, and how many are submitted or checked. */
   papersTotal: number;
@@ -168,8 +173,10 @@ export interface ExamSummary {
   sourceSession?: number;
   /** Groups (streams) among the candidates, when the class has any. */
   groups?: string[];
-  /** Name of the grade scale the results use. */
+  /** Name of the grade scale the results use ("Old system" for results declared in the old system). */
   scaleName?: string;
+  /** Version of that scale the results use: the one recorded at declaration, else the scale's current version. */
+  scaleVersion?: number;
 }
 
 /**
@@ -203,7 +210,7 @@ export interface ExamsResultRow {
   father?: string;
   classSection: string;
   rollNo: number;
-  /** True when this person has a student profile to open. */
+  /** True when this person has a student profile to open: students yes; applicants and programme participants no. */
   hasProfile: boolean;
   marks: Record<string, ExamsMark>;
   obtained: number;
@@ -330,6 +337,8 @@ export interface ExamsGradeScale {
   rowVer: number;
   /** The fallback scale: it can't be removed and applies to everything. */
   standard?: boolean;
+  /** Current version: every change to the bands or pass rules makes a new one; declared exams keep theirs. */
+  version?: number;
 }
 
 export interface ExamsGradeScaleInput {
@@ -362,16 +371,6 @@ export const EXAMS_DEFAULT_SCALE: ExamsGradeBand[] = [
   { grade: "D", min: 40, max: 49, remark: "Fair" },
   { grade: "E", min: 33, max: 39, remark: "Pass" },
   { grade: "F", min: 0, max: 32, remark: "Fail" },
-];
-
-/** The old desktop system's scale (≥ thresholds, no D), shown for comparison only — not yet decided. */
-export const EXAMS_LEGACY_SCALE: ExamsGradeBand[] = [
-  { grade: "A+", min: 80, max: 100, remark: "" },
-  { grade: "A", min: 70, max: 79, remark: "" },
-  { grade: "B", min: 60, max: 69, remark: "" },
-  { grade: "C", min: 45, max: 59, remark: "" },
-  { grade: "E", min: 33, max: 44, remark: "" },
-  { grade: "F", min: 0, max: 32, remark: "" },
 ];
 
 /** Grade for a %: a band covers min ≤ % < max + 1 (100 included in the top band). */
@@ -437,14 +436,15 @@ export interface ExamsSubjectStat {
   /** Students with a mark (absent and leave count as sat with 0 for averages). */
   sat: number;
   absent: number;
-  average: number;
-  averagePercent: number;
-  passRate: number;
+  /** The averages, pass rate, highest and lowest are null when nobody has a mark yet (`sat` 0): show "—", never 0. */
+  average: number | null;
+  averagePercent: number | null;
+  passRate: number | null;
   passed: number;
   /** Students who sat the paper and scored below the pass mark (absent and leave are counted in `absent`). */
   failed: number;
-  highest: number;
-  lowest: number;
+  highest: number | null;
+  lowest: number | null;
   top?: { name: string; classSection: string; mark: number };
   /** Subject teacher, when one section is analysed. */
   teacher?: string | null;
@@ -455,8 +455,9 @@ export interface ExamsSectionStat {
   subjectId: string;
   subjectName: string;
   teacher: string | null;
-  averagePercent: number;
-  passRate: number;
+  /** null when nobody in the section has a mark yet (`sat` 0). */
+  averagePercent: number | null;
+  passRate: number | null;
   sat: number;
 }
 
@@ -493,20 +494,20 @@ export function examsAnalyse(exam: Pick<ExamDetail, "rows" | "subjects" | "paper
     const passed = vals.filter((x) => typeof x.m === "number" && x.m >= pass).length;
     const failed = vals.filter((x) => typeof x.m === "number" && x.m < pass).length;
     const best = vals.filter((x) => typeof x.m === "number").sort((a, b) => (b.m as number) - (a.m as number))[0];
-    const avg = nums.length ? nums.reduce((a, v) => a + v, 0) / nums.length : 0;
+    const avg = nums.length ? nums.reduce((a, v) => a + v, 0) / nums.length : null;
     return {
       subjectId: s.id,
       name: s.name,
       maxMarks: s.maxMarks,
       sat: vals.length,
       absent,
-      average: round1(avg),
-      averagePercent: round1((avg / s.maxMarks) * 100),
-      passRate: vals.length ? round1((passed / vals.length) * 100) : 0,
+      average: avg === null ? null : round1(avg),
+      averagePercent: avg === null || s.maxMarks <= 0 ? null : round1((avg / s.maxMarks) * 100),
+      passRate: vals.length ? round1((passed / vals.length) * 100) : null,
       passed,
       failed,
-      highest: nums.length ? Math.max(...nums) : 0,
-      lowest: nums.length ? Math.min(...nums) : 0,
+      highest: nums.length ? Math.max(...nums) : null,
+      lowest: nums.length ? Math.min(...nums) : null,
       ...(best ? { top: { name: best.r.name, classSection: best.r.classSection, mark: best.m as number } } : {}),
       ...(section !== "ALL" ? { teacher: exam.papers?.find((p) => p.classSection === section && p.subjectId === s.id)?.teacher ?? null } : {}),
     };
@@ -518,14 +519,14 @@ export function examsAnalyse(exam: Pick<ExamDetail, "rows" | "subjects" | "paper
       const pass = examsPassMark(s.maxMarks, rules);
       const vals = rows.filter((r) => r.classSection === cs).map((r) => r.marks[s.id] ?? null).filter((m) => m !== null);
       const nums = vals.map((m) => (typeof m === "number" ? m : 0));
-      const avg = nums.length ? nums.reduce((a, v) => a + v, 0) / nums.length : 0;
+      const avg = nums.length ? nums.reduce((a, v) => a + v, 0) / nums.length : null;
       sections.push({
         classSection: cs,
         subjectId: s.id,
         subjectName: s.name,
         teacher: exam.papers?.find((p) => p.classSection === cs && p.subjectId === s.id)?.teacher ?? null,
-        averagePercent: round1((avg / s.maxMarks) * 100),
-        passRate: vals.length ? round1((vals.filter((m) => typeof m === "number" && m >= pass).length / vals.length) * 100) : 0,
+        averagePercent: avg === null || s.maxMarks <= 0 ? null : round1((avg / s.maxMarks) * 100),
+        passRate: vals.length ? round1((vals.filter((m) => typeof m === "number" && m >= pass).length / vals.length) * 100) : null,
         sat: vals.length,
       });
     }
@@ -721,7 +722,8 @@ export function examsLevelOf(classShort: string): ExamsClassLevel {
 
 /** One teacher's paper in one exam and section. */
 export interface ExamsTeacherPerfRow {
-  teacher: string;
+  /** The section's subject teacher; null or "" when none is recorded (earlier sessions until the timetable history is loaded). */
+  teacher: string | null;
   subjectId: string;
   subjectName: string;
   classSection: string;
@@ -730,7 +732,7 @@ export interface ExamsTeacherPerfRow {
   examType: string;
   startDate: IsoDate;
   status: ExamsResultStatus;
-  /** Students with a mark (absent and leave included). */
+  /** Students with a mark (absent and leave included); at least 1, so the average and pass rate always have a base. */
   sat: number;
   averagePercent: number;
   passRate: number;
@@ -745,7 +747,11 @@ export interface ExamsTeacherPerfQuery {
   subject?: string;
   level?: ExamsClassLevel;
   examTypeId?: string;
-  /** "2026-10" */
+  /**
+   * "2026-10". Required unless `teacher` is given (contract change C13): a whole session of every teacher is ~10,800 paper
+   * rows at a big campus, so the server answers 422 VALIDATION (field `month`) "Choose a month, or a teacher to see every
+   * month of the session." when both are empty.
+   */
   month?: string;
   gender?: ExamsGender;
 }
@@ -813,7 +819,8 @@ export interface ExamsUniCourse {
    * send the same value (change them in Setup › Subjects › Class subjects). Set while the semester is open.
    */
   creditHoursFromSetup?: boolean;
-  teacher: string;
+  /** Course teacher; null, "" or missing when none is recorded (migrated courses without an examiner). */
+  teacher: string | null;
   /** Sum of the components' maxima. */
   sessionalMax: number;
   midMax: number;
@@ -854,7 +861,7 @@ export interface ExamsUniCourseResult {
 export type ExamsUniStanding = "GOOD" | "PROBATION" | "INCOMPLETE";
 
 export interface ExamsUniStudentRow {
-  /** Registration number, e.g. "KC-BSCS-25-014". */
+  /** Registration number: the student's G.R. number. */
   id: string;
   name: string;
   father: string;
@@ -904,7 +911,7 @@ export interface ExamsUniProgramme {
   semesters: ExamsUniSemesterSummary[];
   /** Default internal-assessment components for new courses (BSCS: Quiz, Test, Assignment). */
   components: ExamsUniComponent[];
-  /** Students enrolled in the programme (any semester), for setting up the next semester. */
+  /** Students enrolled (ACTIVE) in the programme's class in the ctx session: exactly the students a new semester of that session accepts (uniCreateSemester). */
   students: Array<{ id: string; name: string; father: string }>;
 }
 
@@ -922,10 +929,11 @@ export interface ExamsUniSemesterInput {
   /** "Fall 2026" (the semester number is added in front). */
   label: string;
   session: number;
-  /** Students carried over from the programme. */
+  /**
+   * Enrolled students of the programme's class, by G.R. number (also their registration number). New students join
+   * through Admissions first: the semester takes no "new students" list.
+   */
   studentIds: string[];
-  /** New students joining this semester; registration numbers are given automatically. */
-  newStudents?: Array<{ name: string; father: string }>;
 }
 
 export interface ExamsUniCourseInput {
@@ -1006,7 +1014,8 @@ export interface ExamsProgrammeCentre {
   id: string;
   /** School name. */
   name: string;
-  city: string;
+  /** null for old centres (the old system kept no city). */
+  city: string | null;
 }
 
 /** An assessment programme for outside children (the Diamond Minds talent test). */
@@ -1031,16 +1040,19 @@ export interface ExamsParticipant {
   regNo: string;
   name: string;
   father: string;
-  dob: IsoDate;
+  /** null when unknown (most records from the old system have none); saving a participant needs one. */
+  dob: IsoDate | null;
   gender: ExamsGender;
   /** B-form or CNIC, when given. */
   cnic?: string;
   mobile?: string;
+  /** "" when unknown (old records). */
   address: string;
-  /** School the child attends now. */
+  /** School the child attends now; "" when unknown (old records). */
   previousSchool: string;
-  /** Class the child is in now ("Class 9"). */
+  /** Class the child is in now ("Class 9"); "" when unknown (old records). */
   currentClass: string;
+  /** "" when unknown (old records). */
   city: string;
   centreId: string;
   /** Group (stream) for classes 9–10. */
@@ -1063,12 +1075,55 @@ export interface ExamsParticipantQuery {
   school?: string;
 }
 
+/* ================================================================================================ Exam list (paged) */
+
+/** Exam list filters (contract change C9: a campus session can hold thousands of exams, so the server filters and pages). */
+export type ExamsListStatus = "ALL" | "MISSING" | "READY" | "DECLARED";
+
+export interface ExamsListQuery {
+  /** Contains, in the exam name, its class-sections or its type name. */
+  q?: string;
+  category?: "ALL" | ExamsCategory;
+  /** MISSING / READY: draft exams with / without marks missing. */
+  status?: ExamsListStatus;
+  /** 1-based; past the last page the server answers the last page. */
+  page?: number;
+  /** 1 to 200; default 50. */
+  pageSize?: number;
+}
+
+/** Counts over every exam of the session the caller sees, whatever the filters. */
+export interface ExamsListCounts {
+  exams: number;
+  declared: number;
+  draft: number;
+  /** Draft exams with every mark in. */
+  ready: number;
+  /** Marks missing across draft exams. */
+  missingMarks: number;
+  reopenPending: number;
+}
+
+export interface ExamsListPage {
+  items: ExamSummary[];
+  /** Exams matching the filters. */
+  total: number;
+  page: number;
+  pageSize: number;
+  counts: ExamsListCounts;
+  /** At most six exams waiting on someone, most urgent first: a pending reopen request, then drafts with every mark in, then drafts with marks missing. */
+  todo: ExamSummary[];
+}
+
 /* ================================================================================================ Client */
 
 const j = encodeURIComponent;
 
 export const examsApi = {
-  list: (ctx: Ctx) => apiFetch<ExamSummary[]>("/exams", { query: ctxQuery(ctx) }),
+  list: (ctx: Ctx, q: ExamsListQuery = {}) =>
+    apiFetch<ExamsListPage>("/exams", {
+      query: { ...ctxQuery(ctx), q: q.q ?? "", category: q.category ?? "ALL", status: q.status ?? "ALL", page: String(q.page ?? 1), pageSize: String(q.pageSize ?? 50) },
+    }),
   get: (id: string) => apiFetch<ExamDetail>(`/exams/${j(id)}`),
   create: (ctx: Ctx, body: ExamsCreateInput) => apiFetch<ExamDetail>("/exams", { method: "POST", body, query: ctxQuery(ctx) }),
   templates: (ctx: Ctx) => apiFetch<ExamsClassTemplate[]>("/exams-templates", { query: ctxQuery(ctx) }),
@@ -1076,6 +1131,10 @@ export const examsApi = {
   saveMarks: (id: string, body: ExamsMarksInput) => apiFetch<ExamsMarksSaved>(`/exams/${j(id)}/marks`, { method: "PUT", body }),
   paperAction: (id: string, body: { classSection: string; subjectId: string; action: ExamsPaperAction; note?: string }) => apiFetch<ExamDetail>(`/exams/${j(id)}/papers`, { method: "POST", body }),
   withhold: (id: string, personId: string, reason: string | null) => apiFetch<ExamDetail>(`/exams/${j(id)}/withhold`, { method: "POST", body: { personId, reason } }),
+  /**
+   * Declares the results. `notifyParents` queues one result message per candidate (to the guardian mobile), held until SMS sending starts (the
+   * exam's history says how many were held); a reopen cancels the ones still held.
+   */
   declare: (id: string, opts: { notifyParents?: boolean } = {}) => apiFetch<ExamDetail>(`/exams/${j(id)}/declare`, { method: "POST", body: opts }),
   requestReopen: (id: string, reason: string) => apiFetch<ExamDetail>(`/exams/${j(id)}/reopen`, { method: "POST", body: { reason } }),
   decideReopen: (id: string, decision: "APPROVE" | "REJECT") => apiFetch<ExamDetail>(`/exams/${j(id)}/reopen/decide`, { method: "POST", body: { decision } }),
@@ -1083,7 +1142,7 @@ export const examsApi = {
   types: (ctx: Ctx) => apiFetch<ExamsType[]>("/exams-types", { query: ctxQuery(ctx) }),
   saveType: (ctx: Ctx, body: ExamsTypeInput, id?: string) => apiFetch<ExamsType>(id ? `/exams-types/${j(id)}` : "/exams-types", { method: id ? "PUT" : "POST", body, query: ctxQuery(ctx) }),
 
-  /** Every grade scale, the standard one first. */
+  /** Every grade scale in use, the standard one first (the retired "Old system" scale of migrated results is not listed). */
   grading: () => apiFetch<ExamsGradeScale[]>("/exams-grading"),
   /** Adds a scale (no id) or saves one (409 when it changed since `rowVer`). */
   saveGrading: (ctx: Ctx, body: ExamsGradeScaleInput, id?: string) =>
@@ -1131,7 +1190,11 @@ export const examsApi = {
 };
 
 export const examsQueries = {
-  list: (ctx: Ctx) => queryOptions({ queryKey: ["exams", ...ctxKey(ctx), "list"], queryFn: () => examsApi.list(ctx) }),
+  list: (ctx: Ctx, q: ExamsListQuery = {}) =>
+    queryOptions({
+      queryKey: ["exams", ...ctxKey(ctx), "list", q.q ?? "", q.category ?? "ALL", q.status ?? "ALL", q.page ?? 1, q.pageSize ?? 50],
+      queryFn: () => examsApi.list(ctx, q),
+    }),
   detail: (id: string) => queryOptions({ queryKey: ["exams", "detail", id], queryFn: () => examsApi.get(id) }),
   templates: (ctx: Ctx) => queryOptions({ queryKey: ["exams", ...ctxKey(ctx), "templates"], queryFn: () => examsApi.templates(ctx) }),
   types: (ctx: Ctx) => queryOptions({ queryKey: ["exams", ...ctxKey(ctx), "types"], queryFn: () => examsApi.types(ctx) }),

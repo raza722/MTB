@@ -57,6 +57,9 @@ const formOf = (c: SetupCampus): CampusForm => ({
 /** "07:45 AM to 01:30 PM" */
 const span = (t: SetupCampusTimings) => `${clockTime(t.assembly)} to ${clockTime(t.dayEnds)}`;
 
+/** Shown while the campus has no bell timings yet (they come from Timetable › Bell timings). */
+const TIMINGS_NOT_SET = "Not set yet, see Timetable › Bell timings.";
+
 /**
  * The campus school day, read from Timetable › Bell timings: one place keeps the bell, so Setup shows it and links
  * there instead of holding its own copy of the times.
@@ -65,6 +68,25 @@ function SchoolDay({ campus }: { campus: SetupCampus }) {
   const canOpen = useCan("timetable.view");
   const canChange = useCan("timetable.manage");
   const t = campus.timings;
+  const footer = (
+    <div className="flex flex-wrap items-center gap-3">
+      <span className="text-small text-ink-muted">Bell times are kept in one place, Timetable › Bell timings. Teacher attendance and late marks start from them.</span>
+      {canOpen && (
+        <Link to="/timetable/periods" className={buttonClassName({ size: "sm", variant: "secondary" })}>
+          {canChange ? "Change bell timings" : "Open bell timings"}
+        </Link>
+      )}
+    </div>
+  );
+  if (!t) {
+    return (
+      <fieldset className="m-0 grid gap-3 border-0 p-0">
+        <legend className="mtb-label mb-2">School day</legend>
+        <p className="m-0 text-small text-ink-muted">{TIMINGS_NOT_SET}</p>
+        {footer}
+      </fieldset>
+    );
+  }
   const rows: Array<[string, string]> = [
     ["Assembly", clockTime(t.assembly)],
     ["Period 1", clockTime(t.firstPeriod)],
@@ -103,14 +125,7 @@ function SchoolDay({ campus }: { campus: SetupCampus }) {
           ))}
         </ul>
       )}
-      <div className="flex flex-wrap items-center gap-3">
-        <span className="text-small text-ink-muted">Bell times are kept in one place, Timetable › Bell timings. Teacher attendance and late marks start from them.</span>
-        {canOpen && (
-          <Link to="/timetable/periods" className={buttonClassName({ size: "sm", variant: "secondary" })}>
-            {canChange ? "Change bell timings" : "Open bell timings"}
-          </Link>
-        )}
-      </div>
+      {footer}
     </fieldset>
   );
 }
@@ -358,8 +373,8 @@ function CampusCard({ c, i, onEdit, onModules }: { c: SetupCampus; i: number; on
           {c.email && <span className="text-ink-muted">{c.email}</span>}
         </div>
         <div className="grid gap-1 text-small">
-          <span className="text-ink-muted">School day ({c.timingsSeason.toLowerCase()})</span>
-          <span className="tabular-nums text-ink">{span(c.timings)}</span>
+          <span className="text-ink-muted">School day{c.timings && c.timingsSeason ? ` (${c.timingsSeason.toLowerCase()})` : ""}</span>
+          <span className={c.timings ? "tabular-nums text-ink" : "text-ink-muted"}>{c.timings ? span(c.timings) : TIMINGS_NOT_SET}</span>
           {c.otherTimings.map((o) => (
             <span key={o.name} className="tabular-nums text-ink-muted">
               {o.name}: {span(o)}

@@ -1,9 +1,9 @@
-import { accountsApi, accountsQueries, type AccountsPeriod, type CampusCode } from "@mtb/api";
+import { accountsApi, accountsQueries, can, type AccountsPeriod, type CampusCode } from "@mtb/api";
 import { formatDate, formatDateTime } from "@mtb/domain";
 import { Banner, Button, ConfirmDialog, cx, EmptyState, Icon, Modal, Panel, SidePanel, Skeleton, StatusBadge, Textarea, useToast } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { useCan, useCtx, useReadOnly } from "../../app/session";
+import { useCtx, useReadOnly, useSessionUser } from "../../app/session";
 import { campusLabel } from "../../app/shell/campus";
 import { AccLink, AccountsShell, errorText, LoadError, monthName, monthShort, sessionMonths, slide } from "./shared";
 
@@ -153,8 +153,10 @@ function PeriodPanel({ p, onClose }: { p: AccountsPeriod; onClose: () => void })
   const toast = useToast();
   const queryClient = useQueryClient();
   const readOnly = useReadOnly();
-  const canPost = useCan("accounts.post");
-  const canReopen = useCan("settings.manage");
+  // Rights at the month's own campus (the server checks them there too).
+  const user = useSessionUser();
+  const canPost = can(user, "accounts.post", p.campus);
+  const canReopen = can(user, "settings.manage", p.campus);
   const [confirm, setConfirm] = useState(false);
   const [reopen, setReopen] = useState(false);
   const [reason, setReason] = useState("");

@@ -1,6 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 import { apiFetch } from "./client";
-import type { CampusScope } from "./context";
+import type { CampusCode, CampusScope } from "./context";
 
 /** feature.action permissions, granted through roles per campus. */
 export type Permission =
@@ -62,7 +62,13 @@ export interface RoleGrant {
   campus: CampusScope;
   /** "Khalid Campus" or "All campuses" */
   campusName: string;
+  /** For an all-campus grant: what it allows with "All campuses" selected. For a campus grant: what it allows there. */
   permissions: Permission[];
+  /**
+   * All-campus grants only: what the grant allows at each campus, with that campus's module switches applied
+   * (e.g. no payroll.manage where Payroll is switched off). `can()` uses it when one campus is selected.
+   */
+  campusPermissions?: Partial<Record<CampusCode, Permission[]>>;
 }
 
 export interface SessionUser {
@@ -106,9 +112,15 @@ export function grantsFor(user: SessionUser | undefined, campus: CampusScope): R
   return user.roles.filter((g) => g.campus === "ALL" || (campus !== "ALL" && g.campus === campus));
 }
 
+/** What one grant allows in a campus scope: an all-campus grant at one campus follows that campus's module switches. */
+export function grantPermissions(g: RoleGrant, campus: CampusScope): Permission[] {
+  if (g.campus !== "ALL" || campus === "ALL") return g.permissions;
+  return g.campusPermissions?.[campus] ?? g.permissions;
+}
+
 /** The single permission check used by menus, buttons and route guards. The API enforces it again. */
 export function can(user: SessionUser | undefined, permission: Permission, campus: CampusScope): boolean {
-  return grantsFor(user, campus).some((g) => g.permissions.includes(permission));
+  return grantsFor(user, campus).some((g) => grantPermissions(g, campus).includes(permission));
 }
 
 /** "Cashier — Khalid Campus" */

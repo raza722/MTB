@@ -27,7 +27,9 @@ function PaymentDetails({ r }: { r: PortalReceipt }) {
     if (p.change !== undefined) rows.push(["Change returned", formatRs(p.change)]);
   } else if (p.method === "BANK") rows.push(["Bank", p.bank], ["Slip number", p.slipNo], ["Deposit date", formatDate(p.depositDate)]);
   else if (p.method === "CHEQUE") rows.push(["Cheque number", p.chequeNo], ["Bank", p.bank], ["Cheque date", formatDate(p.chequeDate)]);
-  else rows.push(["Transaction ID", p.transactionId]);
+  else if (p.method === "ONLINE") rows.push(["Transaction ID", p.transactionId]);
+  else if (p.method === "SALARY") rows.push(["Deducted from salary of", feeMonthLongLabel(p.month)]);
+  // LEGACY: the old system did not record how the parent paid.
   return (
     <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-4 gap-y-0.5 text-[12px] leading-4">
       {rows.map(([k, v]) => (
@@ -131,7 +133,7 @@ export function ReceiptA5({ receipt: r }: { receipt: PortalReceipt }) {
                 <td className="py-1.5 text-right">{formatRs(l.amount)}</td>
                 <td className="py-1.5 text-right">
                   {l.lateFine > 0 ? formatRs(l.lateFine) : "—"}
-                  {l.lateFine > 0 && <span className="block text-[10px] text-ink-muted">{l.daysOverdue} days × Rs 10</span>}
+                  {l.lateFine > 0 && <span className="block text-[10px] text-ink-muted">{l.daysOverdue} days late</span>}
                 </td>
                 <td className="py-1.5 text-right font-medium">{formatRs(l.applied)}</td>
               </tr>

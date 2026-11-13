@@ -287,7 +287,8 @@ export function ChartOfAccountsPage() {
                               {a.note && <span className="mtb-cell-secondary">{a.note}</span>}
                               {a.bank && (
                                 <span className="mtb-cell-secondary">
-                                  {a.bank.bankName}, {a.bank.branch} · {a.bank.accountNoMasked}
+                                  {/* The migrated bank account has no branch and no known last digits. */}
+                                  {[[a.bank.bankName, a.bank.branch].filter(Boolean).join(", "), a.bank.accountNoMasked].filter(Boolean).join(" · ")}
                                 </span>
                               )}
                             </span>

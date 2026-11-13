@@ -10,7 +10,7 @@ import { RequirePermission } from "../../app/shell/page";
 import { useCan, useCtx, useReadOnly, useSessionUser } from "../../app/session";
 import { ReportDoc } from "./print";
 import { issues, useHrSettings } from "./StaffPanels";
-import { campusHeading, errorField, errorText, filterNote, HrShell, LoadError, RunBadge, slide, TODAY, usePayAccess, usePrint, years } from "./shared";
+import { addMonths, basicRs, campusHeading, errorField, errorText, filterNote, HrShell, LoadError, monthEnd, RunBadge, slide, thisMonth, today, usePayAccess, usePrint, years } from "./shared";
 
 /* ---------------------------------------------------------------- New run */
 
@@ -26,8 +26,9 @@ function NewRunPanel({ campus, onClose, onCreated }: { campus: CampusCode; onClo
   const [designationId, setDesignation] = useState("");
   const [payScale, setPayScale] = useState("");
   const [level, setLevel] = useState("");
-  const [asOf, setAsOf] = useState<string | null>("2026-11-30");
-  const [from, setFrom] = useState("2026-12-01");
+  // Service counted to the end of this month; new salaries from the 1st of a coming month (or this month's 1st).
+  const [asOf, setAsOf] = useState<string | null>(() => monthEnd(thisMonth()));
+  const [from, setFrom] = useState(() => `${addMonths(thisMonth(), 1)}-01`);
   const [tried, setTried] = useState(false);
   const schema = z.object({
     title: z.string().trim().min(3, "Give the run a name."),
@@ -48,7 +49,7 @@ function NewRunPanel({ campus, onClose, onCreated }: { campus: CampusCode; onClo
   });
   const sf = errorField(save.error);
   const err = (k: string) => (tried ? (errors[k] ?? (sf === k ? errorText(save.error) : undefined)) : undefined);
-  const months = ["2026-12-01", "2027-01-01", "2027-02-01", "2027-03-01", "2026-11-01"];
+  const months = [1, 2, 3, 4, 0].map((n) => `${addMonths(thisMonth(), n)}-01`);
   return (
     <SidePanel
       open
@@ -90,7 +91,7 @@ function NewRunPanel({ campus, onClose, onCreated }: { campus: CampusCode; onClo
           <Select label="Pay scale" value={payScale} onChange={(e) => setPayScale(e.target.value)} options={[{ value: "", label: "Every scale" }, ...(settings.data?.payScales ?? []).map((s) => ({ value: s, label: `Scale ${s}` }))]} />
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <DatePicker label="Count service up to" required value={asOf} onValueChange={setAsOf} today={TODAY} error={err("asOf") ?? err("experienceAsOf")} help="Less than a year by then: left out." />
+          <DatePicker label="Count service up to" required value={asOf} onValueChange={setAsOf} today={today()} error={err("asOf") ?? err("experienceAsOf")} help="Less than a year by then: left out." />
           <Select label="New salaries from" value={from} onChange={(e) => setFrom(e.target.value)} options={months.map((m) => ({ value: m, label: formatDate(m) }))} error={err("effectiveFrom")} />
         </div>
         {save.error && !sf && <Banner tone="danger">{errorText(save.error)}</Banner>}
@@ -139,7 +140,7 @@ function LinePanel({ run, line, onClose }: { run: HrIncrementRun; line: HrIncrem
           <AmountInput label="Special increment" value={special} onValueChange={setSpecial} help="One-off amount on top, for merit or a promotion." />
         </div>
         <div className="rounded-md border border-border bg-surface-sunken p-4 text-small">
-          {formatRs(line.currentBasic)} + {formatRs(line.perIncrement)} × {n} + {formatRs(special ?? 0)} = <span className="font-semibold">{formatRs(line.currentBasic + increase)}</span> from {formatDate(run.effectiveFrom)}
+          {basicRs(line.currentBasic)} + {formatRs(line.perIncrement)} × {n} + {formatRs(special ?? 0)} = <span className="font-semibold">{formatRs(line.currentBasic + increase)}</span> from {formatDate(run.effectiveFrom)}
         </div>
         {save.error && <Banner tone="danger">{errorText(save.error)}</Banner>}
       </div>
@@ -230,10 +231,10 @@ export function IncrementsPage({ runId, setRunId }: { runId: string | undefined;
     { key: "name", header: "Staff", render: (l) => <span className="grid"><span className="font-medium">{l.name}</span><span className="text-small text-ink-muted">{l.employeeNo} · {l.designation}</span></span> },
     { key: "scale", header: "Scale", render: (l) => l.payScale ?? "—" },
     { key: "service", header: "Service", align: "right", render: (l) => <span className="mtb-num">{years(l.serviceYears)}</span> },
-    { key: "current", header: "Basic now", align: "right", render: (l) => <span className="mtb-num">{formatRs(l.currentBasic)}</span> },
+    { key: "current", header: "Basic now", align: "right", render: (l) => <span className="mtb-num">{basicRs(l.currentBasic)}</span> },
     { key: "per", header: "Increment", align: "right", render: (l) => <span className="mtb-num">{l.included ? `${formatRs(l.perIncrement)}${l.increments > 1 ? ` × ${l.increments}` : ""}${l.special ? ` + ${formatRs(l.special)}` : ""}` : "—"}</span> },
-    { key: "new", header: "New basic", align: "right", render: (l) => <span className="mtb-num font-medium">{formatRs(l.newBasic)}</span> },
-    { key: "pct", header: "Rise", align: "right", render: (l) => <span className="mtb-num text-small">{l.included ? formatPercent(l.percent) : ""}</span> },
+    { key: "new", header: "New basic", align: "right", render: (l) => <span className="mtb-num font-medium">{basicRs(l.newBasic)}</span> },
+    { key: "pct", header: "Rise", align: "right", render: (l) => <span className="mtb-num text-small">{l.included ? (l.currentBasic ? formatPercent(l.percent) : "—") : ""}</span> },
     ...(show === "excluded" ? [{ key: "note", header: "Why left out", render: (l: HrIncrementLine) => <span className="text-small text-ink-muted">{l.note}</span> }] : []),
   ];
 
@@ -316,7 +317,7 @@ export function IncrementsPage({ runId, setRunId }: { runId: string | undefined;
                             small
                             head={["#", "Emp. no", "Name", "Scale", "Service", "Basic now", "Increment", "No.", "Annual × no.", "Special", "Total", "New basic"]}
                             numeric={[4, 5, 6, 7, 8, 9, 10, 11]}
-                            rows={r.lines.filter((l) => l.included).map((l, i) => [i + 1, l.employeeNo, l.name, l.payScale ?? "", l.serviceYears.toFixed(1), formatRs(l.currentBasic), formatRs(l.perIncrement), l.increments, formatRs(l.perIncrement * l.increments), l.special ? formatRs(l.special) : "", formatRs(l.increase), formatRs(l.newBasic)])}
+                            rows={r.lines.filter((l) => l.included).map((l, i) => [i + 1, l.employeeNo, l.name, l.payScale ?? "", l.serviceYears.toFixed(1), basicRs(l.currentBasic), formatRs(l.perIncrement), l.increments, formatRs(l.perIncrement * l.increments), l.special ? formatRs(l.special) : "", formatRs(l.increase), basicRs(l.newBasic)])}
                             total={["", "", "Total", "", "", formatRs(r.totals.currentBasic), "", "", formatRs(r.lines.filter((l) => l.included).reduce((a, l) => a + l.perIncrement * l.increments, 0)), formatRs(r.lines.filter((l) => l.included).reduce((a, l) => a + l.special, 0)), formatRs(r.totals.monthlyIncrease), formatRs(r.totals.newBasic)]}
                             signatures={["Prepared by (Accountant)", "Checked by", "Approved by (Principal)"]}
                           />,
@@ -351,7 +352,7 @@ export function IncrementsPage({ runId, setRunId }: { runId: string | undefined;
                 <div className="hr-steps" aria-label="Progress">
                   <span className={`hr-step ${r.status === "DRAFT" ? "is-now" : "is-done"}`}>1 · Prepared by {r.preparedBy}</span>
                   <span className={`hr-step ${r.status === "PENDING" ? "is-now" : r.status === "APPROVED" ? "is-done" : ""}`}>2 · {r.status === "APPROVED" ? `Approved by ${r.decidedBy}` : "Principal approves"}</span>
-                  <span className={`hr-step ${r.status === "APPROVED" ? (r.effectiveFrom <= TODAY ? "is-done" : "is-now") : ""}`}>3 · New salaries from {formatDate(r.effectiveFrom)}</span>
+                  <span className={`hr-step ${r.status === "APPROVED" ? (r.effectiveFrom <= today() ? "is-done" : "is-now") : ""}`}>3 · New salaries from {formatDate(r.effectiveFrom)}</span>
                 </div>
                 {r.status === "PENDING" && r.preparedBy === user?.name && <Banner tone="info">You prepared this run, so someone else (the principal) approves it.</Banner>}
                 {r.decisionNote && r.status === "DRAFT" && <Banner tone="warning" title="Returned for changes">{r.decisionNote}</Banner>}
@@ -362,7 +363,7 @@ export function IncrementsPage({ runId, setRunId }: { runId: string | undefined;
                 <StatCard label="Staff getting an increment" icon="hr" value={<AnimatedNumber value={r.staff} format={formatCount} />} foot={`${r.totals.excluded} left out`} onClick={() => setShow("excluded")} />
                 <StatCard label="More a month" icon="trendUp" value={<AnimatedNumber value={r.totals.monthlyIncrease} format={formatRs} />} foot={`${formatRs(r.totals.currentBasic)} → ${formatRs(r.totals.newBasic)}`} />
                 <StatCard label="Cost over a year" icon="fees" value={<AnimatedNumber value={r.totals.yearlyCost} format={formatRs} />} foot="Basic pay only; house rent follows" />
-                <StatCard label="Average rise" icon="trendUp" value={formatPercent(r.totals.averagePercent)} foot="Of basic pay" />
+                <StatCard label="Average rise" icon="trendUp" value={r.totals.averagePercent == null ? "—" : formatPercent(r.totals.averagePercent)} foot="Of basic pay" />
               </div>
 
               {byScale.length > 1 && (

@@ -248,12 +248,16 @@ export function setupIsPhone(v: string): boolean {
 
 /* ------------------------------------------------------------------ Section names */
 
-/** Section names: a letter ("B"), a word ("Khadija") or a batch ("BSCS (5th) 2026"). 1 to 40 characters. */
-export const SETUP_SECTION_NAME_RULE = "Use 1 to 40 letters, numbers, spaces, hyphens, brackets or apostrophes, e.g. B, Khadija or Batch 2026.";
+/**
+ * Section names: a letter ("B"), a word ("Khadija"), a batch ("BSCS (5th) 2026") or a legacy name such as
+ * "P.G (New)" or "Pre-College Girls ICS+GS-I". 1 to 60 characters; the server applies the same rule.
+ */
+export const SETUP_SECTION_NAME_MAX = 60;
+export const SETUP_SECTION_NAME_RULE = "Use 1 to 60 letters, numbers, spaces or - ' ( ) . / , + &, e.g. B, Khadija or Batch 2026.";
 
 export function setupSectionNameOk(name: string): boolean {
-  const t = name.trim();
-  return t.length >= 1 && t.length <= 40 && /^[A-Za-z0-9 '()-]+$/.test(t) && /[A-Za-z0-9]/.test(t);
+  const t = name.trim().replace(/\s+/g, " ");
+  return t.length >= 1 && t.length <= SETUP_SECTION_NAME_MAX && /^[A-Za-z0-9 '()./,+&-]+$/.test(t) && /[A-Za-z0-9]/.test(t);
 }
 
 /** "7-B" for short section names, "BS Computer Science – Batch 2025" for words and batches. */
@@ -286,7 +290,8 @@ export interface SetupOverview {
   roles: { total: number; custom: number };
   attention: SetupAttention[];
   recent: SetupAuditEntry[];
-  backup: { lastAt: IsoDateTime; nextAt: IsoDateTime; keepDays: number; restoreWindowDays: number; size: string };
+  /** Central backup status. null until backups are reported by the server (none are today). */
+  backup: { lastAt: IsoDateTime; nextAt: IsoDateTime; keepDays: number; restoreWindowDays: number; size: string } | null;
 }
 
 /* ------------------------------------------------------------------ Campuses */
@@ -340,11 +345,14 @@ export interface SetupCampus {
   reportHeading: string;
   reportHeadingUrdu: string;
   isMain: boolean;
-  /** The school day: the campus's main bell timings in use, read from Timetable › Bell timings (read-only here). */
-  timings: SetupCampusTimings;
+  /**
+   * The school day: the campus's main bell timings in use, read from Timetable › Bell timings (read-only here).
+   * null until bell timings are set up in Timetable.
+   */
+  timings: SetupCampusTimings | null;
   /** Other timings in use this season, e.g. senior classes or an evening shift. */
   otherTimings: SetupCampusTimings[];
-  /** "Normal timings" or "Winter timings": the season the campus is on. */
+  /** "Normal timings" or "Winter timings": the season the campus is on; "" while timings are not set. */
   timingsSeason: string;
   modules: SetupModuleCode[];
   active: boolean;

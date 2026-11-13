@@ -1,11 +1,12 @@
-import { authApi, can, CURRENT_SESSION, dashboardQueries, metaQueries, smsStatusApi, smsStatusQueries, type CampusScope, type Permission, type SessionInfo } from "@mtb/api";
-import { formatSession, formatTime } from "@mtb/domain";
+import { authApi, can, CURRENT_SESSION, dashboardQueries, metaQueries, newIdempotencyKey, smsStatusApi, smsStatusQueries, type CampusScope, type Permission, type SessionInfo } from "@mtb/api";
+import { formatDateTime, formatSession } from "@mtb/domain";
 import { Avatar, Banner, Button, cx, Icon, IconButton, Menu, MenuItem, MenuLabel, MenuSeparator, Tooltip, useToast, type IconName } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
-import { lazy, Suspense, useState, type ReactNode } from "react";
+import { lazy, Suspense, useRef, useState, type ReactNode } from "react";
+import { ReportNotificationItems, useReportNotificationCount } from "../../features/reports/bell";
 import { useAppearance } from "../appearance";
-import { campusesFor, useCan, useCtx, useReadOnly, useRoleLabel, useSessionStatus, useSessionUser, useSetCtx, type SessionStatus } from "../session";
+import { campusesFor, useCan, useCanGroupWide, useCtx, useReadOnly, useRoleLabel, useSessionStatus, useSessionUser, useSetCtx, type SessionStatus } from "../session";
 import { campusLabel } from "./campus";
 import { GlobalSearch, SearchTrigger } from "./GlobalSearch";
 
@@ -199,7 +200,10 @@ function Notifications() {
   const canApprove = useCan("approvals.decide");
   const approvals = useQuery({ ...dashboardQueries.approvals(ctx), enabled: canApprove });
   const summary = useQuery(dashboardQueries.summary(ctx));
-  const count = (approvals.data?.length ?? 0) + (summary.data?.sms.failed ? 1 : 0);
+  // Report notifications (ready, failed, scheduled report sent) are the user's own, from GET /notifications.
+  const canReports = useCan("reports.view");
+  const reportUnread = useReportNotificationCount(canReports);
+  const count = (approvals.data?.length ?? 0) + (summary.data?.sms.failed ? 1 : 0) + reportUnread;
   return (
     <Menu
       label="Notifications"
@@ -223,6 +227,7 @@ function Notifications() {
       )}
       {summary.data && summary.data.sms.failed > 0 && <MenuItem icon="alertCircle">{summary.data.sms.failed} SMS failed today</MenuItem>}
       {count === 0 && <MenuItem icon="checkCircle">You're all caught up</MenuItem>}
+      <ReportNotificationItems enabled={canReports} />
     </Menu>
   );
 }
@@ -271,17 +276,24 @@ function UserMenu() {
   );
 }
 
-/** "All SMS paused by Admin at 10:41 AM · Resume" on every staff page while the kill switch is on. */
+/**
+ * "All SMS paused by Admin at 04-Nov-2026, 10:41 AM · Resume" on every staff page while the kill switch is on.
+ * Sending is switched off in this system anyway (backend module 10, D1): resuming only lifts the paused checks.
+ */
 function SmsPausedBanner() {
   const status = useQuery(smsStatusQueries.status());
-  const canResume = useCan("sms.pause");
+  // the kill switch is group-wide: resume needs an all-campus grant (the backend checks it at ALL)
+  const canResume = useCanGroupWide("sms.pause");
   const queryClient = useQueryClient();
   const toast = useToast();
+  // kept until the call succeeds, so a retry after a lost reply can't record the resume twice
+  const resumeKey = useRef(newIdempotencyKey());
   const resume = useMutation({
-    mutationFn: smsStatusApi.resume,
+    mutationFn: () => smsStatusApi.resume(resumeKey.current),
     onSuccess: (data) => {
+      resumeKey.current = newIdempotencyKey();
       queryClient.setQueryData(smsStatusQueries.status().queryKey, data);
-      toast({ title: "SMS resumed", message: "Queued messages will start sending." });
+      toast({ title: "SMS resumed", message: "Messages can be written again. Sending is switched off in this system, so they stay held in the outbox." });
     },
   });
   const s = status.data;
@@ -289,7 +301,7 @@ function SmsPausedBanner() {
   return (
     <Banner
       tone="danger"
-      title={`All SMS paused by ${s.pausedBy ?? "Admin"}${s.pausedAt ? ` at ${formatTime(s.pausedAt)}` : ""}.`}
+      title={`All SMS paused by ${s.pausedBy ?? "Admin"}${s.pausedAt ? ` at ${formatDateTime(s.pausedAt)}` : ""}.`}
       actions={
         canResume ? (
           <Button size="sm" variant="secondary" loading={resume.isPending} onClick={() => resume.mutate()}>
@@ -298,7 +310,7 @@ function SmsPausedBanner() {
         ) : undefined
       }
     >
-      {s.reason ? `Reason: ${s.reason}. ` : ""}No messages will be sent until SMS is resumed.
+      {s.reason ? `Reason: ${s.reason}. ` : ""}No new messages can be sent until SMS is resumed.
     </Banner>
   );
 }

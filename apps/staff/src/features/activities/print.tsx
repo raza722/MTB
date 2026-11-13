@@ -19,7 +19,7 @@ import { formatDate, formatRs, formatSession } from "@mtb/domain";
 import { Urdu } from "@mtb/ui";
 import type { ReactNode } from "react";
 import { campusLabel } from "../../app/shell/campus";
-import { ordinal, PRINTED_ON, valueShort } from "./shared";
+import { ordinal, printedOn, valueShort } from "./shared";
 
 const CITY: Partial<Record<CampusCode, string>> = { KC: "Sadiqabad", HC: "Lahore" };
 const campusLine = (c: CampusCode) => `${campusLabel(c)}${CITY[c] ? `, ${CITY[c]}` : ""}`;
@@ -92,7 +92,7 @@ export function CertificateDoc({ cert, duplicate }: { cert: ActivitiesCertificat
             </span>
             <span>
               Issued <bdi dir="ltr">{formatDate(cert.issuedOn)}</bdi>
-              {duplicate ? ` · Duplicate printed ${PRINTED_ON}` : ""}
+              {duplicate ? ` · Duplicate printed ${printedOn()}` : ""}
             </span>
           </div>
         </div>
@@ -119,7 +119,7 @@ export function AwardLetter({ award, letterNo }: { award: ActivitiesAward; lette
           ) : null}
         </span>
         <span>
-          Date: <bdi dir="ltr">{PRINTED_ON}</bdi>
+          Date: <bdi dir="ltr">{printedOn()}</bdi>
         </span>
       </div>
       <p className="mt-6">To the parent or guardian of</p>
@@ -156,9 +156,13 @@ export function AwardLetter({ award, letterNo }: { award: ActivitiesAward; lette
           ))}
         </tbody>
       </table>
-      <p className="mt-3">
-        This saves <b>{formatRs(fx.monthly)}</b> on each monthly voucher and <b>{formatRs(fx.session)}</b> this session ({fx.months} {fx.months === 1 ? "voucher" : "vouchers"} from {fx.firstVoucher}).
-      </p>
+      {fx.lines.length ? (
+        <p className="mt-3">
+          This saves <b>{formatRs(fx.monthly)}</b> a month on tuition and <b>{formatRs(fx.session)}</b> this session ({fx.months} {fx.months === 1 ? "month" : "months"} from the {fx.firstVoucher} voucher).
+        </p>
+      ) : (
+        <p className="mt-3">{fx.note}</p>
+      )}
       <p className="mt-3 text-small text-ink-muted">
         The scholarship is reviewed before the next session. It continues while the conditions of the scheme are met; the office will write to you if anything changes. Vouchers already issued are not changed.
       </p>
@@ -169,7 +173,7 @@ export function AwardLetter({ award, letterNo }: { award: ActivitiesAward; lette
       </div>
       <footer className="act-doc-foot">
         <span>
-          Printed <bdi dir="ltr">{PRINTED_ON}</bdi>
+          Printed <bdi dir="ltr">{printedOn()}</bdi>
         </span>
         <span>{ACTIVITIES_AWARD_STATUS_LABEL[award.status]}</span>
       </footer>
@@ -267,7 +271,7 @@ export function MeritListDoc({ test, feeHeads }: { test: ActivitiesTestDetail; f
       </div>
       <footer className="act-doc-foot">
         <span>
-          Printed <bdi dir="ltr">{PRINTED_ON}</bdi>
+          Printed <bdi dir="ltr">{printedOn()}</bdi>
         </span>
         <span>{rows.length} candidates ranked</span>
       </footer>
@@ -332,7 +336,7 @@ export function ScholarshipListDoc({ awards, campus, session, title }: { awards:
                     {awardHeadText(a, h)}
                   </td>
                 ))}
-                <td className="n">{formatRs(a.feeEffect.monthly)}</td>
+                <td className="n">{a.feeEffect.lines.length ? formatRs(a.feeEffect.monthly) : "—"}</td>
                 <td>{formatDate(a.effectiveFrom)}</td>
                 <td>{formatDate(a.endedOn ?? a.effectiveTo)}</td>
                 <td>{ACTIVITIES_AWARD_STATUS_LABEL[a.status]}</td>
@@ -355,7 +359,7 @@ export function ScholarshipListDoc({ awards, campus, session, title }: { awards:
       </div>
       <footer className="act-doc-foot">
         <span>
-          Printed <bdi dir="ltr">{PRINTED_ON}</bdi>
+          Printed <bdi dir="ltr">{printedOn()}</bdi>
         </span>
         <span>{awards.length} awards</span>
       </footer>
@@ -550,7 +554,7 @@ export function SportsListDoc({
       </div>
       <footer className="act-doc-foot">
         <span>
-          Printed <bdi dir="ltr">{PRINTED_ON}</bdi>
+          Printed <bdi dir="ltr">{printedOn()}</bdi>
         </span>
         <span>
           {students} {students === 1 ? "student" : "students"} · {rows.length} {rows.length === 1 ? "entry" : "entries"}
@@ -641,7 +645,7 @@ export function EventsByTeacherDoc({ campus, session, heading, events, teacher }
       </div>
       <footer className="act-doc-foot">
         <span>
-          Printed <bdi dir="ltr">{PRINTED_ON}</bdi>
+          Printed <bdi dir="ltr">{printedOn()}</bdi>
         </span>
         <span>
           {events.length} {events.length === 1 ? "event" : "events"} · {groups.length} {groups.length === 1 ? "teacher" : "teachers"}
@@ -657,7 +661,7 @@ export function RecordDoc({ record }: { record: ActivitiesStudentRecord }) {
   const p = record.person;
   return (
     <article className="act-doc" aria-label={`Co-curricular record, ${p.name}`}>
-      <DocHead campus={p.campus} title="Co-curricular record" titleUr="ہم نصابی سرگرمیوں کا ریکارڈ" sub={`Printed ${PRINTED_ON}`} />
+      <DocHead campus={p.campus} title="Co-curricular record" titleUr="ہم نصابی سرگرمیوں کا ریکارڈ" sub={`Printed ${printedOn()}`} />
       <dl className="mb-4 grid grid-cols-3 gap-x-6 gap-y-1">
         {[
           ["Name", p.name],
@@ -722,7 +726,7 @@ export function RecordDoc({ record }: { record: ActivitiesStudentRecord }) {
       </div>
       <footer className="act-doc-foot">
         <span>
-          Printed <bdi dir="ltr">{PRINTED_ON}</bdi>
+          Printed <bdi dir="ltr">{printedOn()}</bdi>
         </span>
         <span>{record.entries.length} entries</span>
       </footer>

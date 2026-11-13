@@ -170,8 +170,18 @@ export interface TimetableSlot {
   period: number;
   subjectId: string;
   teacherId: string | null;
+  /** "" when no room is set (no migrated timetable has rooms). */
   room: string;
-  /** Kept on purpose despite a clash (combined class, legacy arrangement). */
+  /**
+   * The lesson this slot belongs to. A combined class is one lesson taught to several classes at once: its slots share
+   * a lessonId, never clash with each other and count once in a teacher's load (spec 08 C4/C5). Missing: the slot is
+   * its own lesson.
+   */
+  lessonId?: string;
+  /**
+   * Kept on purpose despite a clash. Clashes kept from the old timetable carry reason "Kept from the old timetable"
+   * and by "Migrated from the old system" (the migration user's name, as in every module).
+   */
   override?: { reason: string; by: string; at: IsoDateTime };
 }
 
@@ -245,6 +255,12 @@ function spanFinder(board: ClashInput) {
   };
 }
 
+/** The lesson a slot belongs to: slots of one combined lesson share it. */
+export const lessonOf = (s: TimetableSlot) => s.lessonId ?? `slot:${s.id}`;
+
+/** Distinct lessons among slots (a combined lesson counts once). */
+export const countLessons = (list: TimetableSlot[]) => new Set(list.map(lessonOf)).size;
+
 /** Groups of slots whose clock times overlap (one list per group of two or more). */
 function overlapping(list: TimetableSlot[], span: (s: TimetableSlot) => [number, number]): TimetableSlot[][] {
   const sorted = [...list].sort((a, b) => span(a)[0] - span(b)[0]);
@@ -317,6 +333,8 @@ export function findTimetableClashes(board: ClashInput): TimetableClash[] {
   // A teacher in two places at once: compared by clock time, so classes on different bell timings are checked too.
   for (const list of byTeacherDay.values()) {
     for (const group of overlapping(list, span)) {
+      // The classes of one combined lesson are taught together: not a clash.
+      if (countLessons(group) < 2) continue;
       const kept = group.every((s) => s.override) ? group[0]!.override!.reason : undefined;
       out.push({
         kind: "TEACHER_DOUBLE_BOOKED",
@@ -344,15 +362,17 @@ export function findTimetableClashes(board: ClashInput): TimetableClash[] {
   }
   for (const [id, list] of byTeacherWeek) {
     const t = teacher.get(id);
-    if (t && list.length > t.maxPerWeek) {
-      out.push({ kind: "TEACHER_OVER_WEEK", severity: "WARN", slotIds: list.map((s) => s.id), message: `${t.name} has ${list.length} periods a week; the maximum is ${t.maxPerWeek}${t.partTime ? " (part-time)" : ""}.` });
+    const n = countLessons(list);
+    if (t && n > t.maxPerWeek) {
+      out.push({ kind: "TEACHER_OVER_WEEK", severity: "WARN", slotIds: list.map((s) => s.id), message: `${t.name} has ${n} periods a week; the maximum is ${t.maxPerWeek}${t.partTime ? " (part-time)" : ""}.` });
     }
   }
   for (const list of byTeacherDay.values()) {
     const s0 = list[0]!;
     const t = teacher.get(s0.teacherId!);
-    if (t && list.length > t.maxPerDay) {
-      out.push({ kind: "TEACHER_OVER_DAY", severity: "WARN", slotIds: list.map((s) => s.id), message: `${t.name} has ${list.length} periods on ${dayName(s0.day)}; the most in one day is ${t.maxPerDay}.` });
+    const n = countLessons(list);
+    if (t && n > t.maxPerDay) {
+      out.push({ kind: "TEACHER_OVER_DAY", severity: "WARN", slotIds: list.map((s) => s.id), message: `${t.name} has ${n} periods on ${dayName(s0.day)}; the most in one day is ${t.maxPerDay}.` });
     }
   }
   for (const list of bySectionSubject.values()) {
@@ -546,19 +566,24 @@ export interface TeacherDayLesson {
   /** "07:55" (24-hour) */
   start: string;
   classSection: string;
-  /** Short subject name, as it fits in an SMS. */
+  /** Short subject name (the subject's code when set), as it fits in an SMS. */
   subject: string;
   room: string;
   /** Covering for a teacher who is away. */
   cover: boolean;
 }
 
-/** CHANGED: texted already, but the day changed since (cover added or removed), so it can be sent again. */
+/**
+ * CHANGED: texted already, but the day changed since (cover added or removed), so it can be sent again.
+ * QUEUED: in the SMS outbox. Until the Messages module sends SMS, every teacher text is held there and stays QUEUED
+ * (never SENT): spec 08 D10 / C1.
+ */
 export type TeacherTextStatus = "NOT_SENT" | "QUEUED" | "SENT" | "CHANGED";
 
 export interface TeacherDayText {
   teacherId: string;
   name: string;
+  /** "" when HR has no mobile for the teacher. */
   mobile: string;
   /** Why the teacher is away that day (their own periods are covered), or null. */
   away: string | null;
@@ -615,7 +640,7 @@ export const timetableApi = {
   handOver: (body: HandOverBody) => apiFetch<HandOverResult>("/timetable/hand-over", { method: "POST", body }),
   /** Each teacher's periods on a date as the SMS they would receive, with what was already sent. */
   teacherTexts: (ctx: Ctx, date: IsoDate) => apiFetch<TeacherDayTexts>("/timetable/teacher-sms", { query: { ...ctxQuery(ctx), date } }),
-  /** Text the chosen teachers their periods for the day. 423 SMS_PAUSED while all SMS are paused. */
+  /** Text the chosen teachers their periods for the day: the SMS are queued (held until the Messages module sends them). */
   smsTeachers: (body: TeacherSmsBody, idempotencyKey: string) => apiFetch<TeacherSmsResult>("/timetable/teacher-sms", { method: "POST", body, idempotencyKey }),
 };
 

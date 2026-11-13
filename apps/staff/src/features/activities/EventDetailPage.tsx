@@ -19,9 +19,8 @@ import { Page, PageHeader } from "../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { EventPanel } from "./EventsPage";
 import { eventListRows, SportsListDoc } from "./print";
-import { ActivitiesNav, BarList, errorText, EventBadge, HouseTag, houseColor, LoadError, PersonChip, PlaceBadge, plural, PrintLayer, StudentSearch, useHouseTones, useRefresh } from "./shared";
+import { ActivitiesNav, BarList, errorText, EventBadge, HouseTag, houseColor, LoadError, PersonChip, PlaceBadge, plural, PrintLayer, StudentSearch, useHouseTones, useRefresh, useToday } from "./shared";
 
-const TODAY = "2026-11-04";
 const ROLES: ActivitiesRole[] = ["PARTICIPANT", "PLAYER", "CAPTAIN", "VOLUNTEER", "ORGANISER"];
 
 /** One event: details, the names taken per item, results with house points, and links to certificates. */
@@ -60,7 +59,8 @@ function EventView({ ev }: { ev: ActivitiesEventDetail }) {
   const [positions, setPositions] = useState<Record<string, ActivitiesPosition | null>>({});
   const [confirmResults, setConfirmResults] = useState(false);
   const [printing, setPrinting] = useState(false);
-  const held = ev.date <= TODAY;
+  const today = useToday();
+  const held = ev.date <= today;
   const editableResults = canManage && held && ev.status !== "CANCELLED" && ev.participants > 0;
   const placeOf = (p: ActivitiesParticipant) => (p.id in positions ? positions[p.id]! : p.position);
   const dirty = Object.keys(positions).length > 0;
@@ -244,7 +244,7 @@ function EventView({ ev }: { ev: ActivitiesEventDetail }) {
                 ["When", `${formatLongDate(ev.date)}${ev.endDate && ev.endDate !== ev.date ? ` to ${formatDate(ev.endDate)}` : ""}${ev.time ? `, ${ev.time}` : ""}`],
                 ["Where", ev.venue],
                 ["For", ev.forClasses],
-                ["In charge", ev.inCharge.join(", ")],
+                ["In charge", ev.inCharge.join(", ") || "—"],
                 ["House points", ev.houseEvent ? `1st ${ev.pointsRule.first} · 2nd ${ev.pointsRule.second} · 3rd ${ev.pointsRule.third} · taking part ${ev.pointsRule.participation}` : "Not a house event"],
                 ...(ev.description ? ([["Notes", ev.description]] as Array<[string, string]>) : []),
               ]}

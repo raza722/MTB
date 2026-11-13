@@ -12,7 +12,10 @@ import {
   type ExamsParticipant,
   type ExamsParticipantInput,
   type ExamsProgramme,
+  type ExamsProgrammeCentre,
   type ExamsResultRow,
+  type ExamsSubject,
+  type Ctx,
 } from "@mtb/api";
 import { formatCount, formatDate, formatPercent, formatSession, isValidCnic, normalizeCnic, normalizeMobile, type IsoDate } from "@mtb/domain";
 import { AnimatedNumber, Banner, Button, buttonClassName, Checkbox, DataTable, DatePicker, EmptyState, Input, Panel, Radio, Segmented, Select, SidePanel, Skeleton, StatCard, useToast, type Column } from "@mtb/ui";
@@ -23,10 +26,9 @@ import { z } from "zod";
 import { campusLabel } from "../../app/shell/campus";
 import { Page, PageHeader } from "../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
-import { EXAMS_TODAY } from "./NewExamPage";
-import { DocHead, PRINTED_ON } from "./print/docs";
+import { DocHead, printedOn } from "./print/docs";
 import { PrintSheet, printNow, type ExamPaper } from "./print/PrintSheet";
-import { errorText, ExamsNav, LoadError, ordinal } from "./shared";
+import { errorText, ExamsNav, examsToday, LoadError, ordinal } from "./shared";
 
 export interface ProgrammesSearch {
   programme?: string;
@@ -36,8 +38,31 @@ export interface ProgrammesSearch {
 }
 
 const GENDER = { M: "Boy", F: "Girl" } as const;
-const GROUPS = ["Science (Biology)", "Science (Computer)"];
-const CLASSES_APPLIED = ["Class 6", "Class 7", "Class 8", "Class 9", "Class 10"];
+/** Used only until the campus's classes have loaded. */
+const CLASSES_FALLBACK = ["Class 6", "Class 7", "Class 8", "Class 9", "Class 10"];
+
+/** "School name, City" (old centres have no city). */
+const centreLabel = (c: ExamsProgrammeCentre) => (c.city ? `${c.name}, ${c.city}` : c.name);
+/** Text that old records may not have: "—" instead of a blank. */
+const orDash = (v: string | null | undefined) => (v ? v : "—");
+
+/**
+ * The campus's classes (for "class now" and "applying for") and groups (streams), from the classes of the session in
+ * Setup: the same lists a new exam uses.
+ */
+function useCampusClasses(ctx: Ctx) {
+  const templates = useQuery({ ...examsQueries.templates(ctx), enabled: ctx.campus !== "ALL" });
+  const list = templates.data ?? [];
+  return {
+    classes: list.length ? list.map((t) => t.className) : CLASSES_FALLBACK,
+    groups: [...new Set(list.flatMap((t) => t.groups ?? []))].sort(),
+    templates: list,
+    loading: templates.isLoading,
+  };
+}
+
+/** Groups present among a programme's participants (old records keep theirs even if Setup renamed a group). */
+const groupsOf = (list: ExamsParticipant[]) => [...new Set(list.map((p) => p.group).filter((g): g is string => Boolean(g)))].sort();
 
 /**
  * /exams/programmes — assessment programmes for outside children: the Diamond Minds talent test. Participants
@@ -91,7 +116,8 @@ function ProgrammeView({ prog, all, search, onSearch }: { prog: ExamsProgramme; 
   const exam = useQuery({ ...examsQueries.detail(prog.examId ?? ""), enabled: Boolean(prog.examId) });
   const [open, setOpen] = useState<ExamsParticipant | "new" | null>(null);
   const [settingUp, setSettingUp] = useState(false);
-  const schools = [...new Set((everyone.data ?? []).map((p) => p.previousSchool))].sort();
+  const schools = [...new Set((everyone.data ?? []).map((p) => p.previousSchool).filter(Boolean))].sort();
+  const groups = groupsOf(everyone.data ?? []);
   const centreName = (id: string) => prog.centres.find((c) => c.id === id)?.name ?? id;
   const resultCount = (everyone.data ?? []).filter((p) => p.result?.percent != null).length;
 
@@ -110,12 +136,12 @@ function ProgrammeView({ prog, all, search, onSearch }: { prog: ExamsProgramme; 
         </span>
       ),
     },
-    { key: "dob", header: "Date of birth", width: 120, render: (p) => <span className="mtb-num">{formatDate(p.dob)}</span> },
+    { key: "dob", header: "Date of birth", width: 120, render: (p) => (p.dob ? <span className="mtb-num">{formatDate(p.dob)}</span> : <span className="text-ink-muted">—</span>) },
     { key: "cnic", header: "B-form / CNIC", width: 150, render: (p) => (p.cnic ? <span className="mtb-mono">{p.cnic}</span> : <span className="text-ink-muted">—</span>) },
     { key: "gender", header: "Gender", width: 80, render: (p) => GENDER[p.gender] },
-    { key: "address", header: "Address", width: 220, render: (p) => <span className="text-small">{p.address}</span> },
-    { key: "school", header: "Previous school", width: 190, render: (p) => <span className="text-small">{p.previousSchool}</span> },
-    { key: "city", header: "City", width: 110, render: (p) => p.city },
+    { key: "address", header: "Address", width: 220, render: (p) => <span className="text-small">{orDash(p.address)}</span> },
+    { key: "school", header: "Previous school", width: 190, render: (p) => <span className="text-small">{orDash(p.previousSchool)}</span> },
+    { key: "city", header: "City", width: 110, render: (p) => orDash(p.city) },
     { key: "centre", header: "Centre", width: 180, render: (p) => <span className="text-small">{centreName(p.centreId)}</span> },
     { key: "group", header: "Group", width: 140, render: (p) => <span className="text-small">{p.group ?? "—"}</span> },
     {
@@ -233,7 +259,7 @@ function ProgrammeView({ prog, all, search, onSearch }: { prog: ExamsProgramme; 
                   <Select aria-label="Gender" value={gender} onChange={(e) => setGender(e.target.value as "" | "M" | "F")} options={[{ value: "", label: "Girls and boys" }, { value: "F", label: "Girls" }, { value: "M", label: "Boys" }]} />
                 </div>
                 <div className="w-48">
-                  <Select aria-label="Group" value={group} onChange={(e) => setGroup(e.target.value)} options={[{ value: "", label: "Every group" }, ...GROUPS.map((g) => ({ value: g, label: g }))]} />
+                  <Select aria-label="Group" value={group} onChange={(e) => setGroup(e.target.value)} options={[{ value: "", label: "Every group" }, ...groups.map((g) => ({ value: g, label: g }))]} />
                 </div>
                 <div className="w-56">
                   <Select aria-label="Present school" value={school} onChange={(e) => setSchool(e.target.value)} options={[{ value: "", label: "Every school" }, ...schools.map((s) => ({ value: s, label: s }))]} />
@@ -269,6 +295,11 @@ const participantSchema = z.object({
 });
 
 function ParticipantPanel({ prog, participant, editable, canAdmit, onClose }: { prog: ExamsProgramme; participant: ExamsParticipant | null; editable: boolean; canAdmit: boolean; onClose: () => void }) {
+  const ctx = useCtx();
+  const campusClasses = useCampusClasses(ctx);
+  const classOptions = campusClasses.classes;
+  // The participant's own group stays choosable even if it is no longer a group in Setup.
+  const groupOptions = [...new Set([...campusClasses.groups, ...(participant?.group ? [participant.group] : [])])];
   const toast = useToast();
   const queryClient = useQueryClient();
   const [form, setForm] = useState({
@@ -280,13 +311,13 @@ function ParticipantPanel({ prog, participant, editable, canAdmit, onClose }: { 
     mobile: participant?.mobile ?? "",
     address: participant?.address ?? "",
     previousSchool: participant?.previousSchool ?? "",
-    currentClass: participant?.currentClass ?? "Class 9",
+    currentClass: participant ? participant.currentClass : "Class 9",
     city: participant?.city ?? prog.centres[0]?.city ?? "",
     centreId: participant?.centreId ?? "",
     group: participant?.group ?? "",
   });
   const [tried, setTried] = useState(false);
-  const [classApplied, setClassApplied] = useState(participant?.currentClass && CLASSES_APPLIED.includes(participant.currentClass) ? participant.currentClass : "Class 9");
+  const [classApplied, setClassApplied] = useState(participant?.currentClass ? participant.currentClass : "Class 9");
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
   const parsed = participantSchema.safeParse({ ...form, dob: form.dob ?? "" });
   const errs: Record<string, string> = parsed.success ? {} : Object.fromEntries(parsed.error.issues.map((i) => [String(i.path[0]), i.message]));
@@ -326,7 +357,7 @@ function ParticipantPanel({ prog, participant, editable, canAdmit, onClose }: { 
       toast({ title: "Admission started", message: `${p.name}: application ${p.applicationNo ?? ""} for ${classApplied}, marked Diamond Minds.` });
     },
   });
-  const conflict = save.error instanceof ApiError && save.error.status === 409 && save.error.code === "CONFLICT";
+  const conflict = save.error instanceof ApiError && save.error.status === 409 && save.error.code === "CONCURRENCY";
   const fieldErr = (k: string) => (tried ? errs[k] : undefined) ?? (save.error instanceof ApiError && save.error.field === k ? save.error.message : undefined);
   const live = participant;
 
@@ -376,7 +407,7 @@ function ParticipantPanel({ prog, participant, editable, canAdmit, onClose }: { 
         <div className="grid gap-4 sm:grid-cols-2">
           <Input label="Child's full name" required disabled={!editable} value={form.name} onChange={(e) => set({ name: e.target.value })} error={fieldErr("name")} />
           <Input label="Father's name" required disabled={!editable} value={form.father} onChange={(e) => set({ father: e.target.value })} error={fieldErr("father")} />
-          <DatePicker label="Date of birth" required disabled={!editable} value={form.dob} onValueChange={(d) => set({ dob: d })} maxDate={EXAMS_TODAY} error={fieldErr("dob")} />
+          <DatePicker label="Date of birth" required disabled={!editable} value={form.dob} onValueChange={(d) => set({ dob: d })} maxDate={examsToday()} error={fieldErr("dob")} help={participant && !participant.dob ? "Not recorded in the old system: add it to save changes." : undefined} />
           <fieldset className="m-0 grid gap-2 border-0 p-0">
             <legend className="mb-1 text-small font-medium">Gender</legend>
             <div className="flex gap-5">
@@ -391,7 +422,13 @@ function ParticipantPanel({ prog, participant, editable, canAdmit, onClose }: { 
             <Input label="Home address" required disabled={!editable} value={form.address} onChange={(e) => set({ address: e.target.value })} error={fieldErr("address")} />
           </div>
           <Input label="Present school" required disabled={!editable} value={form.previousSchool} onChange={(e) => set({ previousSchool: e.target.value })} error={fieldErr("previousSchool")} />
-          <Select label="Class now" disabled={!editable} value={form.currentClass} onChange={(e) => set({ currentClass: e.target.value })} options={CLASSES_APPLIED.map((c) => ({ value: c, label: c }))} />
+          <Select
+            label="Class now"
+            disabled={!editable}
+            value={form.currentClass}
+            onChange={(e) => set({ currentClass: e.target.value })}
+            options={[...(form.currentClass === "" ? [{ value: "", label: "Not recorded" }] : []), ...[...new Set([...classOptions, ...(form.currentClass ? [form.currentClass] : [])])].map((c) => ({ value: c, label: c }))]}
+          />
           <Input label="City" required disabled={!editable} value={form.city} onChange={(e) => set({ city: e.target.value })} error={fieldErr("city")} />
           <Select
             label="Test centre"
@@ -400,15 +437,15 @@ function ParticipantPanel({ prog, participant, editable, canAdmit, onClose }: { 
             value={form.centreId}
             onChange={(e) => set({ centreId: e.target.value })}
             error={fieldErr("centreId")}
-            options={[{ value: "", label: "Choose…" }, ...prog.centres.map((c) => ({ value: c.id, label: `${c.name}, ${c.city}` }))]}
+            options={[{ value: "", label: "Choose…" }, ...prog.centres.map((c) => ({ value: c.id, label: centreLabel(c) }))]}
           />
           <Select
             label="Group"
             disabled={!editable}
             value={form.group}
             onChange={(e) => set({ group: e.target.value })}
-            help="Decides whether the child sits Biology or Computer Science."
-            options={[{ value: "", label: "No group" }, ...GROUPS.map((g) => ({ value: g, label: g }))]}
+            help="Decides which group papers the child sits (for example Biology or Computer Science)."
+            options={[{ value: "", label: "No group" }, ...groupOptions.map((g) => ({ value: g, label: g }))]}
           />
         </div>
 
@@ -446,7 +483,7 @@ function ParticipantPanel({ prog, participant, editable, canAdmit, onClose }: { 
                 <p className="m-0 text-small text-ink-muted">Starts an admission application filled in from this participant (name, father, date of birth, school, address, mobile), marked Diamond Minds.</p>
                 <div className="flex flex-wrap items-end gap-3">
                   <div className="w-44">
-                    <Select label="Applying for" value={classApplied} onChange={(e) => setClassApplied(e.target.value)} options={CLASSES_APPLIED.map((c) => ({ value: c, label: c }))} />
+                    <Select label="Applying for" value={classApplied} onChange={(e) => setClassApplied(e.target.value)} options={[...new Set([...classOptions, classApplied])].map((c) => ({ value: c, label: c }))} />
                   </div>
                   <Button icon="admissions" loading={admit.isPending} onClick={() => admit.mutate()}>
                     Start admission
@@ -466,15 +503,6 @@ function ParticipantPanel({ prog, participant, editable, canAdmit, onClose }: { 
 
 // ------------------------------------------------------------------ Set up the programme's test
 
-const TEST_PAPERS: Array<{ id: string; name: string; groups?: string[] }> = [
-  { id: "eng", name: "English" },
-  { id: "mat", name: "Mathematics" },
-  { id: "phy", name: "Physics" },
-  { id: "che", name: "Chemistry" },
-  { id: "bio", name: "Biology", groups: ["Science (Biology)"] },
-  { id: "cmp", name: "Computer Science", groups: ["Science (Computer)"] },
-];
-
 const setupSchema = z.object({
   name: z.string().trim().min(3, "Give the test a name."),
   centres: z.array(z.string()).min(1, "Tick at least one test centre."),
@@ -483,13 +511,25 @@ const setupSchema = z.object({
   supervisor: z.string(),
 });
 
-/** The test in the exam engine: papers (Biology or Computer Science by group) and the centres that sit it. */
+/**
+ * The test in the exam engine: papers and the centres that sit it. The papers are subjects from Setup: the subjects of
+ * a class of this campus (Class 9 by default, the class most participants are in), each paper for one group or for
+ * everyone (Biology for the Biology group, Computer Science for the Computer group).
+ */
 function TestSetupPanel({ prog, onClose }: { prog: ExamsProgramme; onClose: () => void }) {
   const ctx = useCtx();
   const toast = useToast();
   const queryClient = useQueryClient();
+  const { templates, loading } = useCampusClasses(ctx);
   const [form, setForm] = useState({ name: prog.name, centres: prog.centres.map((c) => c.id), max: "20", date: null as IsoDate | null, supervisor: "" });
-  const [papers, setPapers] = useState<string[]>(TEST_PAPERS.map((p) => p.id));
+  const [classPick, setClassPick] = useState("");
+  const template = templates.find((t) => t.classShort === classPick) ?? templates.find((t) => t.classShort === "9") ?? templates.find((t) => t.groups?.length) ?? templates[0];
+  const subjects: ExamsSubject[] = template?.subjects ?? [];
+  // Unticked papers per class; everything else is ticked.
+  const [off, setOff] = useState<string[]>([]);
+  const papers = subjects.filter((s) => !off.includes(s.id)).map((s) => s.id);
+  // A paper is for one group or for everyone (a subject in every group's list is for everyone).
+  const multiGroup = subjects.filter((s) => papers.includes(s.id) && (s.groups?.length ?? 0) > 1);
   const [tried, setTried] = useState(false);
   const parsed = setupSchema.safeParse({ ...form, date: form.date ?? "" });
   const errs: Record<string, string> = parsed.success ? {} : Object.fromEntries(parsed.error.issues.map((i) => [String(i.path[0]), i.message]));
@@ -498,7 +538,9 @@ function TestSetupPanel({ prog, onClose }: { prog: ExamsProgramme; onClose: () =
       examsApi.createProgrammeExam(ctx, prog.id, {
         name: form.name.trim(),
         centreIds: form.centres,
-        subjects: TEST_PAPERS.filter((p) => papers.includes(p.id)).map((p) => ({ id: p.id, name: p.name, maxMarks: Number(form.max), date: form.date!, startTime: "10:00", durationMins: 120, ...(form.supervisor.trim() ? { supervisor: form.supervisor.trim() } : {}), ...(p.groups ? { groups: p.groups } : {}) })),
+        subjects: subjects
+          .filter((p) => papers.includes(p.id))
+          .map((p) => ({ id: p.id, name: p.name, maxMarks: Number(form.max), date: form.date!, startTime: "10:00", durationMins: 120, ...(form.supervisor.trim() ? { supervisor: form.supervisor.trim() } : {}), ...(p.groups?.length === 1 ? { groups: p.groups } : {}) })),
       }),
     onSuccess: (e) => {
       void queryClient.invalidateQueries({ queryKey: ["exams"] });
@@ -521,7 +563,7 @@ function TestSetupPanel({ prog, onClose }: { prog: ExamsProgramme; onClose: () =
             loading={create.isPending}
             onClick={() => {
               setTried(true);
-              if (parsed.success && papers.length > 0) create.mutate();
+              if (parsed.success && papers.length > 0 && multiGroup.length === 0) create.mutate();
             }}
           >
             Set up the test
@@ -535,20 +577,39 @@ function TestSetupPanel({ prog, onClose }: { prog: ExamsProgramme; onClose: () =
           <legend className="mb-1 text-small font-medium">Test centres</legend>
           <Checkbox label="Check all" checked={form.centres.length === prog.centres.length} onChange={(e) => setForm((f) => ({ ...f, centres: e.target.checked ? prog.centres.map((c) => c.id) : [] }))} />
           {prog.centres.map((c) => (
-            <Checkbox key={c.id} label={`${c.name}, ${c.city}`} checked={form.centres.includes(c.id)} onChange={(e) => setForm((f) => ({ ...f, centres: e.target.checked ? [...f.centres, c.id] : f.centres.filter((x) => x !== c.id) }))} />
+            <Checkbox key={c.id} label={centreLabel(c)} checked={form.centres.includes(c.id)} onChange={(e) => setForm((f) => ({ ...f, centres: e.target.checked ? [...f.centres, c.id] : f.centres.filter((x) => x !== c.id) }))} />
           ))}
           {tried && errs.centres && <p className="m-0 text-small text-danger-ink">{errs.centres}</p>}
         </fieldset>
         <fieldset className="m-0 grid gap-2 border-0 p-0">
           <legend className="mb-1 text-small font-medium">Papers</legend>
-          {TEST_PAPERS.map((p) => (
-            <Checkbox key={p.id} label={`${p.name}${p.groups ? ` (${p.groups.join(", ")} only)` : ""}`} checked={papers.includes(p.id)} onChange={(e) => setPapers((l) => (e.target.checked ? [...l, p.id] : l.filter((x) => x !== p.id)))} />
-          ))}
+          {templates.length > 1 && (
+            <Select
+              label="Subjects of"
+              value={template?.classShort ?? ""}
+              onChange={(e) => {
+                setClassPick(e.target.value);
+                setOff([]);
+              }}
+              help="The test's papers are subjects from Setup › Subjects. Untick the ones the test leaves out."
+              options={templates.map((t) => ({ value: t.classShort, label: t.className }))}
+            />
+          )}
+          {loading ? (
+            <Skeleton height={80} />
+          ) : subjects.length === 0 ? (
+            <p className="m-0 text-small text-ink-muted">No class subjects at this campus yet. Add them in Setup › Subjects › Class subjects first.</p>
+          ) : (
+            subjects.map((p) => (
+              <Checkbox key={p.id} label={`${p.name}${p.groups?.length ? ` (${p.groups.join(", ")} only)` : ""}`} checked={papers.includes(p.id)} onChange={(e) => setOff((l) => (e.target.checked ? l.filter((x) => x !== p.id) : [...l, p.id]))} />
+            ))
+          )}
           {tried && papers.length === 0 && <p className="m-0 text-small text-danger-ink">Tick at least one paper.</p>}
+          {multiGroup.length > 0 && <p className="m-0 text-small text-danger-ink">{multiGroup.map((s) => s.name).join(", ")}: a paper is for one group or for everyone. Untick it, or ask head office to give it one group in Setup.</p>}
         </fieldset>
         <div className="grid gap-4 sm:grid-cols-2">
           <Input label="Marks per paper" required amount inputMode="numeric" value={form.max} onChange={(e) => setForm((f) => ({ ...f, max: e.target.value.replace(/\D/g, "") }))} error={tried ? errs.max : undefined} />
-          <DatePicker label="Test date" required value={form.date} onValueChange={(d) => setForm((f) => ({ ...f, date: d }))} today={EXAMS_TODAY} error={tried ? errs.date : undefined} />
+          <DatePicker label="Test date" required value={form.date} onValueChange={(d) => setForm((f) => ({ ...f, date: d }))} today={examsToday()} error={tried ? errs.date : undefined} />
         </div>
         <Input label="Exam supervisor" value={form.supervisor} onChange={(e) => setForm((f) => ({ ...f, supervisor: e.target.value }))} placeholder="Optional" />
         {create.isError && <Banner tone="danger">{errorText(create.error)}</Banner>}
@@ -577,7 +638,8 @@ function ProgrammePrints({ prog, exam, participants, loading, search, onSearch }
   const [gender, setGender] = useState("");
   const [group, setGroup] = useState("");
   const [school, setSchool] = useState("");
-  const schools = [...new Set(participants.map((p) => p.previousSchool))].sort();
+  const schools = [...new Set(participants.map((p) => p.previousSchool).filter(Boolean))].sort();
+  const groups = groupsOf(participants);
   const rows = new Map((exam?.rows ?? []).map((r) => [r.id, r]));
   const centreName = (id: string) => prog.centres.find((c) => c.id === id)?.name ?? id;
   const lines: Line[] = participants
@@ -612,7 +674,7 @@ function ProgrammePrints({ prog, exam, participants, loading, search, onSearch }
             <Select label="Centre" value={centre} onChange={(e) => set({ centre: e.target.value || undefined })} options={[{ value: "", label: "Every centre" }, ...prog.centres.map((c) => ({ value: c.id, label: c.name }))]} />
             <Select label="Present school" value={school} onChange={(e) => setSchool(e.target.value)} options={[{ value: "", label: "Every school" }, ...schools.map((s) => ({ value: s, label: s }))]} />
             <Select label="Gender" value={gender} onChange={(e) => setGender(e.target.value)} options={[{ value: "", label: "Girls and boys" }, { value: "F", label: "Girls" }, { value: "M", label: "Boys" }]} />
-            <Select label="Group" value={group} onChange={(e) => setGroup(e.target.value)} options={[{ value: "", label: "Every group" }, ...GROUPS.map((g) => ({ value: g, label: g }))]} />
+            <Select label="Group" value={group} onChange={(e) => setGroup(e.target.value)} options={[{ value: "", label: "Every group" }, ...groups.map((g) => ({ value: g, label: g }))]} />
             <Button variant="primary" icon="printer" onClick={printNow} disabled={loading}>
               Print
             </Button>
@@ -649,7 +711,7 @@ function ParticipantList({ prog, exam, lines, centres }: { prog: ExamsProgramme;
         return (
           <article key={cid} className="exams-doc exams-doc-a4" aria-label={`Participant list, ${c.name}`}>
             {exam && exam.status !== "DECLARED" && <span className="exams-doc-mark">PROVISIONAL</span>}
-            <DocHead campus={prog.campus} title="Diamond Minds participants" sub={`${prog.name} · ${c.name}, ${c.city} · Session ${formatSession(prog.session)}`} />
+            <DocHead campus={prog.campus} title="Diamond Minds participants" sub={`${prog.name} · ${centreLabel(c)} · Session ${formatSession(prog.session)}`} />
             <table>
               <thead>
                 <tr>
@@ -681,7 +743,7 @@ function ParticipantList({ prog, exam, lines, centres }: { prog: ExamsProgramme;
               </tbody>
             </table>
             <p className="exams-doc-key">
-              {list.length} {list.length === 1 ? "participant" : "participants"} at this centre. Position is across every centre; equal marks share a position. Printed {PRINTED_ON}.
+              {list.length} {list.length === 1 ? "participant" : "participants"} at this centre. Position is across every centre; equal marks share a position. Printed {printedOn()}.
             </p>
             <div className="exams-doc-signs">
               <div>Centre in-charge</div>
@@ -759,9 +821,9 @@ function ResultSheet({ prog, exam, lines, centre, oneCentre }: { prog: ExamsProg
                   );
                 })}
                 <td className="n">{r ? r.obtained : ""}</td>
-                <td className="n">{r?.percent != null ? `${r.percent.toFixed(1)}` : ""}</td>
-                <td className="c">{r?.percent != null ? (r.grade ?? examsGradeFor(r.percent, bands) ?? "") : ""}</td>
-                <td className="n">{pos(r) ? ordinal(pos(r)!) : ""}</td>
+                <td className="n">{!r ? "" : r.percent != null ? `${r.percent.toFixed(1)}` : "—"}</td>
+                <td className="c">{!r ? "" : r.percent != null ? (r.grade ?? examsGradeFor(r.percent, bands) ?? "—") : "—"}</td>
+                <td className="n">{!r ? "" : pos(r) ? ordinal(pos(r)!) : "—"}</td>
                 <td style={{ fontSize: "7.5pt" }}>{(r?.failedSubjects ?? []).map(name).join(", ")}</td>
               </tr>
             );
@@ -769,7 +831,7 @@ function ResultSheet({ prog, exam, lines, centre, oneCentre }: { prog: ExamsProg
         </tbody>
       </table>
       <p className="exams-doc-key">
-        Grp = group ({["Science (Biology)", "Science (Computer)"].map((g) => `${examsGroupShort(g)} ${g}`).join(", ")}); a blank paper is one the group doesn't sit. Marks in red are below the pass mark ({rules.subjectPassPercent}%); A = absent. Position is {oneCentre ? "within the centre" : "across every centre"}; equal percentages share a position. Printed {PRINTED_ON}.
+        {(exam.groups?.length ? `Grp = group (${exam.groups.map((g) => `${examsGroupShort(g)} ${g}`).join(", ")}); ` : "")}a blank paper is one the group doesn't sit. Marks in red are below the pass mark ({rules.subjectPassPercent}%); A = absent. Position is {oneCentre ? "within the centre" : "across every centre"}; equal percentages share a position. Printed {printedOn()}.
       </p>
       <div className="exams-doc-signs" style={{ marginTop: "8mm" }}>
         <div>Prepared by</div>
@@ -821,7 +883,7 @@ function TopTen({ prog, exam, lines, centre }: { prog: ExamsProgramme; exam: Exa
           </tbody>
         </table>
       )}
-      <p className="exams-doc-key">Equal percentages share a position, so more than ten participants can be listed. Printed {PRINTED_ON}.</p>
+      <p className="exams-doc-key">Equal percentages share a position, so more than ten participants can be listed. Printed {printedOn()}.</p>
       <div className="exams-doc-signs">
         <div>Controller of examinations</div>
         <div />

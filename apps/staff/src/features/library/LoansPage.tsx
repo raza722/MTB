@@ -5,7 +5,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { useCtx } from "../../app/session";
 import { campusLabel } from "../../app/shell/campus";
-import { DocHead, LoadError, periodText, Spine, TODAY, usePrinter } from "./common";
+import { DocHead, LoadError, periodText, Spine, usePrinter } from "./common";
 import { FineText, LibraryShell, LoanStatus, MemberLink, TitleText } from "./shared";
 
 const STATUS_LABEL: Record<NonNullable<LibraryLoansQuery["status"]>, string> = { OPEN: "On loan", OVERDUE: "Overdue", RETURNED: "Returned", ALL: "All loans" };
@@ -42,7 +42,7 @@ function Register({ rows, title, subtitle, campus }: { rows: LibraryLoan[]; titl
               <td>{l.accessionNo}</td>
               <td>{formatDate(l.issuedOn)}</td>
               <td>{formatDate(l.dueOn)}</td>
-              <td>{l.returnedOn ? formatDate(l.returnedOn) : l.dueOn < TODAY ? `Overdue ${l.daysLate} d` : "Out"}</td>
+              <td>{l.returnedOn ? formatDate(l.returnedOn) : l.daysLate > 0 ? `Overdue ${l.daysLate} d` : "Out"}</td>
               <td className="n">{l.fine > 0 ? `${formatRs(l.fine)}${l.returnedOn ? ` (${LIBRARY_FINE_STATUS_LABEL[l.fineStatus].toLowerCase()})` : ""}` : "—"}</td>
             </tr>
           ))}

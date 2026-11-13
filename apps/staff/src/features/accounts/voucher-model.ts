@@ -1,7 +1,7 @@
 import { accountsCashBankKind, accountsVoucherSide, type AccountsManualType, type AccountsVoucher, type AccountsVoucherInput, type CampusCode } from "@mtb/api";
 import type { IsoDate, Rupees } from "@mtb/domain";
 import { z } from "zod";
-import { TODAY } from "./shared";
+import { accToday } from "./shared";
 
 export interface DraftLine {
   key: string;
@@ -70,14 +70,14 @@ export function emptyDraft(type: AccountsManualType, campus: CampusCode | null, 
     id: null,
     type,
     campus,
-    date: p.date ?? TODAY,
+    date: p.date ?? accToday(),
     narration: p.narration ?? "",
     lines,
     cashBankAccount: side ? (p.account ?? (accountsCashBankKind(type) === "CASH" ? "1101" : null)) : null,
     party: p.party ?? "",
     reference: p.reference ?? "",
     chequeNo: p.reference && accountsCashBankKind(type) === "BANK" ? p.reference : "",
-    chequeDate: accountsCashBankKind(type) === "BANK" ? (p.date ?? TODAY) : null,
+    chequeDate: accountsCashBankKind(type) === "BANK" ? (p.date ?? accToday()) : null,
   };
 }
 

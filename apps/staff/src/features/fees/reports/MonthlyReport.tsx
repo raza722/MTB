@@ -6,7 +6,7 @@ import { useState } from "react";
 import { campusLabel } from "../../../app/shell/campus";
 import { Page, PageHeader, RequirePermission } from "../../../app/shell/page";
 import { useCtx } from "../../../app/session";
-import { FeesNav, lakhTick, LoadError, PaperSize, slide, TODAY } from "../shared";
+import { FeesNav, lakhTick, LoadError, PaperSize, slide, feeToday } from "../shared";
 
 const pctOf = (r: { collected: number; target: number }) => (r.target ? (r.collected / r.target) * 100 : 0);
 
@@ -68,7 +68,7 @@ export function MonthlyReport() {
                 valueLabel="Collected"
                 targetLabel="Target"
                 partial={(m) => m.current}
-                partialLabel={`${feeMonthLabel(TODAY.slice(0, 7))} so far`}
+                partialLabel={`${feeMonthLabel(feeToday().slice(0, 7))} so far`}
                 tooltip={(m) => (
                   <>
                     <div className="mtb-chart-tip-title">

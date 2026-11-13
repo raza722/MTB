@@ -145,7 +145,7 @@ function DayList({ day, bell, isToday }: { day: TeacherWeekDay; bell: BellDay; i
                   {p.stream && <span className="block text-small font-normal text-ink-muted">{p.stream} group</span>}
                 </span>
                 <span className="block text-small text-ink-muted">
-                  {p.room} · until {clock(p.end)}
+                  {p.room ? `${p.room} · ` : ""}until {clock(p.end)}
                 </span>
               </span>
               <span className="flex shrink-0 flex-col items-end gap-1">

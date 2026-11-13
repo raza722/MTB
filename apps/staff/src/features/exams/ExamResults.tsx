@@ -5,8 +5,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { z } from "zod";
-import { useCan, useReadOnly } from "../../app/session";
-import { errorText, markText, ordinal, ResultBadge, useExam } from "./shared";
+import { useReadOnly } from "../../app/session";
+import { errorText, markText, ordinal, ResultBadge, useCanOnExam, useExam } from "./shared";
 
 type SortKey = "position" | "name" | "roll";
 
@@ -169,14 +169,14 @@ export function ExamResults() {
 function StudentResultPanel({ exam, row, onClose }: { exam: ExamDetail; row: ExamsResultRow; onClose: () => void }) {
   const toast = useToast();
   const queryClient = useQueryClient();
-  const canDeclare = useCan("exams.declare");
+  const canDeclare = useCanOnExam("exams.declare", exam.campus);
   const readOnly = useReadOnly();
   const rules = exam.passRules ?? EXAMS_DEFAULT_PASS_RULES;
   const [reason, setReason] = useState("");
   const [withholding, setWithholding] = useState(false);
   const [tried, setTried] = useState(false);
   const canWithhold = canDeclare && !readOnly && exam.status === "DRAFT";
-  const canManage = useCan("exams.manage");
+  const canManage = useCanOnExam("exams.manage", exam.campus);
   const canRemark = canManage && !readOnly && exam.status === "DRAFT";
   const [remark, setRemark] = useState(row.teacherRemark ?? "");
   const remarkCheck = z.string().max(200, "Keep the remark to 200 characters.").safeParse(remark.trim());

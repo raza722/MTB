@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { useCtx } from "../../../app/session";
-import { apiMessage, LoadError, TODAY } from "../shared";
+import { apiMessage, LoadError, today } from "../shared";
 import { PrintSheet, printNow } from "./print";
 import { AdmissionSlip, AppreciationLetter, StudentRecordForm, type DocInput } from "./templates";
 
@@ -46,7 +46,7 @@ export function AdmissionSlipsPanel({ open, onClose, grNos }: { open: boolean; o
   const [cls, setCls] = useState("");
   const [section, setSection] = useState("");
   const [from, setFrom] = useState<string | null>(sessionStart(ctx.session));
-  const [to, setTo] = useState<string | null>(TODAY);
+  const [to, setTo] = useState<string | null>(today());
   const [confirming, setConfirming] = useState(false);
   const [issued, setIssued] = useState<StudentDocIssued[] | null>(null);
   const [skipped, setSkipped] = useState<Array<{ name: string; reason: string }>>([]);
@@ -61,7 +61,7 @@ export function AdmissionSlipsPanel({ open, onClose, grNos }: { open: boolean; o
         setCls("");
         setSection("");
         setFrom(sessionStart(ctx.session));
-        setTo(TODAY);
+        setTo(today());
       }
     }
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -85,7 +85,7 @@ export function AdmissionSlipsPanel({ open, onClose, grNos }: { open: boolean; o
     { key: "grNo", header: "G.R. no.", width: 120, render: (s) => <span className="mtb-mono">{s.grNo}</span> },
     { key: "name", header: "Student", render: (s) => <span className="grid"><span className="mtb-cell-primary">{s.name}</span><span className="mtb-cell-secondary">{s.relation} {s.father}</span></span> },
     { key: "classSection", header: "Class", width: 90 },
-    { key: "rollNo", header: "Roll", width: 70, align: "right", render: (s) => <span className="tabular-nums">{s.rollNo}</span> },
+    { key: "rollNo", header: "Roll", width: 70, align: "right", render: (s) => <span className="tabular-nums">{s.rollNo || "—"}</span> },
     { key: "admissionDate", header: "Admitted", width: 120, render: (s) => <span className="tabular-nums">{formatDate(s.admissionDate)}</span> },
   ];
   return (
@@ -126,8 +126,8 @@ export function AdmissionSlipsPanel({ open, onClose, grNos }: { open: boolean; o
               options={[{ value: "", label: "Every class" }, ...(classes.data ?? []).map((c) => ({ value: c.short, label: c.name }))]}
             />
             <Select label="Section" value={section} disabled={!cur} onChange={(e) => setSection(e.target.value)} options={[{ value: "", label: "Every section" }, ...(cur?.sections ?? []).map((s) => ({ value: s, label: `${cur!.short}-${s}` }))]} />
-            <DatePicker label="Admitted from" required value={from} maxDate={TODAY} onValueChange={setFrom} error={!range.success ? range.error.issues.find((i) => i.path[0] === "from")?.message : undefined} />
-            <DatePicker label="Admitted to" required value={to} maxDate={TODAY} onValueChange={setTo} error={!range.success ? range.error.issues.find((i) => i.path[0] === "to")?.message : undefined} />
+            <DatePicker label="Admitted from" required value={from} maxDate={today()} onValueChange={setFrom} error={!range.success ? range.error.issues.find((i) => i.path[0] === "from")?.message : undefined} />
+            <DatePicker label="Admitted to" required value={to} maxDate={today()} onValueChange={setTo} error={!range.success ? range.error.issues.find((i) => i.path[0] === "to")?.message : undefined} />
           </div>
         )}
         {grNos && !issued && <p className="m-0 text-small text-ink-muted">{`${grNos.length} ${grNos.length === 1 ? "student" : "students"} ticked on the Offers page, session ${formatSession(ctx.session)}.`}</p>}
@@ -186,7 +186,7 @@ const lettersSchema = (session: number, ticked: string[]) =>
       dated: z
         .string({ error: "Choose the date on the letters." })
         .min(1, { error: "Choose the date on the letters." })
-        .refine((v) => v <= TODAY, { error: "The date can't be in the future." })
+        .refine((v) => v <= today(), { error: "The date can't be in the future." })
         .refine((v) => v >= sessionStart(session), { error: `Choose a date in this session (from ${formatDate(sessionStart(session))}).` }),
       days: z.record(z.string(), z.number()),
     })
@@ -217,7 +217,7 @@ export function LettersPanel({ open, onClose }: { open: boolean; onClose: () => 
   const [ticked, setTicked] = useState<Set<string>>(new Set());
   const [days, setDays] = useState<Record<string, string>>({});
   const [totalDays, setTotalDays] = useState("");
-  const [dated, setDated] = useState<string | null>(TODAY);
+  const [dated, setDated] = useState<string | null>(today());
   const [remarks, setRemarks] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [initFor, setInitFor] = useState("");
@@ -231,7 +231,7 @@ export function LettersPanel({ open, onClose }: { open: boolean; onClose: () => 
     setSkipped([]);
     setConfirming(false);
     setErrors({});
-    setDated(TODAY);
+    setDated(today());
     setRemarks("");
     setKey(newIdempotencyKey());
   }, [open]);
@@ -303,7 +303,7 @@ export function LettersPanel({ open, onClose }: { open: boolean; onClose: () => 
         />
       ),
     },
-    { key: "rollNo", header: "Roll", width: 60, align: "right", render: (s) => <span className="tabular-nums">{s.rollNo}</span> },
+    { key: "rollNo", header: "Roll", width: 60, align: "right", render: (s) => <span className="tabular-nums">{s.rollNo || "—"}</span> },
     { key: "name", header: "Student", render: (s) => <span className="grid"><span className="mtb-cell-primary">{s.name}</span><span className="mtb-cell-secondary">{s.relation} {s.father} · <span className="mtb-mono">{s.grNo}</span></span></span> },
     {
       key: "days",
@@ -371,7 +371,7 @@ export function LettersPanel({ open, onClose }: { open: boolean; onClose: () => 
               }}
               options={[{ value: "", label: "Choose…" }, ...options]}
             />
-            <DatePicker label="Date on the letters" required value={dated} onValueChange={setDated} today={TODAY} minDate={sessionStart(ctx.session)} maxDate={TODAY} error={errors.dated} help="Today, or the day they were signed." />
+            <DatePicker label="Date on the letters" required value={dated} onValueChange={setDated} today={today()} minDate={sessionStart(ctx.session)} maxDate={today()} error={errors.dated} help="Today, or the day they were signed." />
             <Input label="School days in the session" required inputMode="numeric" value={totalDays} error={errors.totalDays} onChange={(e) => setTotalDays(e.target.value.replace(/\D/g, ""))} help="From attendance; the same for every letter." />
             <Input label="Remarks (printed on every letter)" value={remarks} onChange={(e) => setRemarks(e.target.value)} />
           </div>
@@ -457,7 +457,7 @@ export function AdmissionFormsPanel({ open, onClose }: { open: boolean; onClose:
         {roster.data && roster.data.length > 0 && (
           <PrintSheet paper="A4" label={`Admission forms ${cs}`} zoom={0.5}>
             {roster.data.map((s) => (
-              <StudentRecordForm key={s.grNo} s={s} printedOn={TODAY} />
+              <StudentRecordForm key={s.grNo} s={s} printedOn={today()} />
             ))}
           </PrintSheet>
         )}

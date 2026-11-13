@@ -1,6 +1,6 @@
 import { ApiError, attendanceQueries, CURRENT_SESSION, type RegisterCode } from "@mtb/api";
-import { formatDate, formatSession, type AttendanceCode, type IsoDate } from "@mtb/domain";
-import { Banner, Button, buttonClassName, EmptyState, StatusBadge, type AttendanceStatus } from "@mtb/ui";
+import { formatDate, formatPercent, formatSession, pakistanToday, type AttendanceCode, type IsoDate } from "@mtb/domain";
+import { AnimatedNumber, Banner, Button, buttonClassName, EmptyState, StatusBadge, type AttendanceStatus } from "@mtb/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import type { CSSProperties, ReactNode } from "react";
@@ -10,8 +10,10 @@ import { Page, PageHeader } from "../../app/shell/page";
 import { SubNav, type SubNavItem } from "../../app/shell/SubNav";
 import "./attendance.css";
 
-export const TODAY: IsoDate = "2026-11-04";
-export const SESSION_START: IsoDate = "2026-04-01";
+/** Today in Pakistan (the backend's "today" too). */
+export function useToday(): IsoDate {
+  return pakistanToday();
+}
 
 const NAV: SubNavItem[] = [
   { to: "/attendance", label: "Today", icon: "attendance", exact: true },
@@ -73,29 +75,53 @@ export function PastSessionNote({ what }: { what: string }) {
 export interface SessionSpan {
   session: number;
   readOnly: boolean;
-  /** First day of the session. */
+  /** Today in Pakistan. */
+  today: IsoDate;
+  /**
+   * First day the session's registers can be read for (the server's read span: the session's first day, or an
+   * earlier first register: old classes sometimes started before April).
+   */
   starts: IsoDate;
-  /** Last day with registers: today in the current session, the session's last day in an earlier one. */
+  /** Last day with registers: today in the current session, the read span's last day in an earlier one. */
   last: IsoDate;
+  /** The campus's weekly days off, 0 = Sunday … 6 = Saturday. */
+  weeklyOff: number[];
+  /** False until the school calendar has answered; queries that depend on the span wait for it. */
+  ready: boolean;
 }
 
-/** The days the selected session's registers cover. */
-export function sessionSpanOf(session: number): SessionSpan {
-  const starts = `${session}-04-01`;
-  const ends = `${session + 1}-03-31`;
-  return { session, readOnly: session !== CURRENT_SESSION, starts, last: ends < TODAY ? ends : TODAY };
-}
-
+/**
+ * The days the selected session's registers cover, from the school calendar (GET /attendance/calendar: registersFrom,
+ * registersTo, weeklyOff). Until it answers, the session's April–March dates stand in and `ready` is false.
+ */
 export function useSessionSpan(): SessionSpan {
-  return sessionSpanOf(useCtx().session);
+  const ctx = useCtx();
+  const readOnly = useReadOnly();
+  const today = useToday();
+  const cal = useQuery(attendanceQueries.calendar(ctx));
+  const d = cal.data;
+  const starts = d?.registersFrom ?? d?.starts ?? `${ctx.session}-04-01`;
+  const ends = d?.registersTo ?? d?.ends ?? `${ctx.session + 1}-03-31`;
+  return {
+    session: ctx.session,
+    readOnly,
+    today,
+    starts,
+    last: ends < today ? ends : today,
+    weeklyOff: d?.weeklyOff ?? [0],
+    ready: !!d,
+  };
 }
 
-/** The last day with registers before (or on) a date: skips Sundays only; the server knows the holidays. */
-export function lastWeekday(d: IsoDate): IsoDate {
+/** The last day on or before a date that is not a weekly day off (the server knows the holidays). */
+export function lastOpenDay(d: IsoDate, weeklyOff: number[]): IsoDate {
   const x = new Date(`${d}T00:00:00Z`);
-  if (x.getUTCDay() === 0) x.setUTCDate(x.getUTCDate() - 1);
+  for (let i = 0; i < 7 && weeklyOff.includes(x.getUTCDay()); i++) x.setUTCDate(x.getUTCDate() - 1);
   return x.toISOString().slice(0, 10);
 }
+
+/** A class teacher's name, or "—" while the section has none. */
+export const teacherText = (name: string | undefined) => (name ? name : "—");
 
 export function errorText(e: unknown): string {
   if (e instanceof ApiError) return e.isNetwork ? "No response from the server. Check the connection and try again." : e.message;
@@ -145,15 +171,34 @@ export function monthLabel(month: string): string {
   return `${["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][m - 1]} ${y}`;
 }
 
-/** Months of a session up to its last day with registers (this month in the current session), newest first. */
-export function sessionMonths(session: number = CURRENT_SESSION): string[] {
-  const { last } = sessionSpanOf(session);
+/** "2026-04" … "2026-11": every month from one date's month to another's, oldest first. */
+export function monthsBetween(from: IsoDate, to: IsoDate): string[] {
   const out: string[] = [];
-  for (let y = session, m = 4; `${y}-${String(m).padStart(2, "0")}` <= last.slice(0, 7); m === 12 ? ((m = 1), y++) : m++) out.push(`${y}-${String(m).padStart(2, "0")}`);
-  return out.reverse();
+  let [y, m] = from.slice(0, 7).split("-").map(Number) as [number, number];
+  for (let guard = 0; guard < 120 && `${y}-${String(m).padStart(2, "0")}` <= to.slice(0, 7); guard++) {
+    out.push(`${y}-${String(m).padStart(2, "0")}`);
+    if (m === 12) {
+      m = 1;
+      y++;
+    } else m++;
+  }
+  return out;
 }
 
-export const pctText = (v: number | null) => (v === null ? "—" : `${v.toFixed(1)}%`);
+/** Months of the session's registers up to its last day with registers (this month in the current session), newest first. */
+export function sessionMonths(span: SessionSpan): string[] {
+  return monthsBetween(span.starts, span.last).reverse();
+}
+
+export const pctText = (v: number | null | undefined) => (v === null || v === undefined ? "—" : `${v.toFixed(1)}%`);
+
+/** A percentage stat: the animated figure, or "—" when there is nothing to divide by. */
+export function PctValue({ value }: { value: number | null | undefined }) {
+  return value === null || value === undefined ? <>—</> : <AnimatedNumber value={value} decimals={1} format={(v) => formatPercent(v)} />;
+}
+
+/** StatCard meter props for a percentage that may be missing (no meter then). */
+export const pctMeter = (value: number | null | undefined, meterLabel: string) => (value === null || value === undefined ? {} : { meter: value, meterLabel });
 
 export const stagger = (i: number) => ({ "--i": i }) as CSSProperties;
 
@@ -175,7 +220,7 @@ export function PrintSheet({ title, scope, landscape, signatures = ["Class teach
           <h1>{title}</h1>
           <div>{scope}</div>
         </div>
-        <div className="att-print-date">Printed {formatDate(TODAY)}</div>
+        <div className="att-print-date">Printed {formatDate(pakistanToday())}</div>
       </header>
       {children}
       {signatures.length > 0 && (

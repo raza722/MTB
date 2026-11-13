@@ -1,13 +1,13 @@
 import { examsApi, examsQueries, type ExamsMeritList, type ExamsMeritRow } from "@mtb/api";
 import { formatDateTime, formatPercent, formatSession } from "@mtb/domain";
 import { Banner, Button, Checkbox, DataTable, EmptyState, Input, Panel, Segmented, Select, SidePanel, Skeleton, useToast, type Column } from "@mtb/ui";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useDeferredValue, useState } from "react";
 import { z } from "zod";
 import { campusLabel } from "../../app/shell/campus";
 import { Page, PageHeader } from "../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
-import { DocHead, PRINTED_ON } from "./print/docs";
+import { DocHead, printedOn } from "./print/docs";
 import { PrintSheet, printNow } from "./print/PrintSheet";
 import { errorText, ExamsNav, examTitle, LoadError } from "./shared";
 
@@ -32,9 +32,12 @@ export function MeritPage() {
   const readOnly = useReadOnly();
   const toast = useToast();
   const queryClient = useQueryClient();
-  const exams = useQuery(examsQueries.list(ctx));
+  // declared exams, newest first, 200 at a time (the server pages the list, contract change C9); the search narrows them
+  const [examQuery, setExamQuery] = useState("");
+  const examQ = useDeferredValue(examQuery.trim());
+  const exams = useQuery({ ...examsQueries.list(ctx, { status: "DECLARED", q: examQ, pageSize: 200 }), placeholderData: keepPreviousData });
   const saved = useQuery(examsQueries.meritLists(ctx));
-  const declared = (exams.data ?? []).filter((e) => e.status === "DECLARED" && e.category !== "ENTRANCE");
+  const declared = (exams.data?.items ?? []).filter((e) => e.category !== "ENTRANCE");
   const [examId, setExamId] = useState("");
   const exam = declared.find((e) => e.id === examId) ?? declared[0];
   const [sections, setSections] = useState<string[]>([]);
@@ -69,25 +72,28 @@ export function MeritPage() {
       <Panel id="merit-draw" title="Draw a merit list" description="Ranked by percentage from declared results only. Equal percentages share a rank; students tied at the cut-off are all included." rise={0}>
         {exams.isLoading ? (
           <Skeleton height={140} />
-        ) : !exam ? (
+        ) : !exam && !examQ ? (
           <EmptyState icon="award" title={`No declared results in ${formatSession(ctx.session)}`} description="Merit lists can be drawn once an exam's results are declared." />
         ) : (
           <div className="grid gap-4">
             <div className="flex flex-wrap items-end gap-4">
+              <div className="w-64">
+                <Input label="Find an exam" icon="search" value={examQuery} onChange={(e) => setExamQuery(e.target.value)} placeholder="Name, type or section" />
+              </div>
               <div className="w-80">
                 <Select
                   label="Declared exam"
-                  value={exam.id}
+                  value={exam?.id ?? ""}
                   onChange={(e) => {
                     setExamId(e.target.value);
                     setSections([]);
                   }}
-                  options={declared.map((e) => ({ value: e.id, label: `${examTitle(e)}${ctx.campus === "ALL" ? ` · ${campusLabel(e.campus)}` : ""}` }))}
+                  options={declared.length ? declared.map((e) => ({ value: e.id, label: `${examTitle(e)}${ctx.campus === "ALL" ? ` · ${campusLabel(e.campus)}` : ""}` })) : [{ value: "", label: "No declared exam matches" }]}
                 />
               </div>
               <Segmented aria-label="How many" value={top} onChange={setTop} options={[{ value: "5", label: "Top 5" }, { value: "10", label: "Top 10" }, { value: "20", label: "Top 20" }, { value: "50", label: "Top 50" }]} />
             </div>
-            {exam.classes.length > 1 && (
+            {exam && exam.classes.length > 1 && (
               <div className="flex flex-wrap items-center gap-4">
                 <span className="text-small text-ink-muted">Sections (none ticked = whole class):</span>
                 {exam.classes.map((cs) => (
@@ -222,7 +228,7 @@ export function MeritPage() {
                 </tbody>
               </table>
               <p className="exams-doc-key">
-                Saved by {printList.createdBy} on {printList.createdAt ? formatDateTime(printList.createdAt) : "—"}. Printed {PRINTED_ON}.
+                Saved by {printList.createdBy} on {printList.createdAt ? formatDateTime(printList.createdAt) : "—"}. Printed {printedOn()}.
               </p>
               <div className="exams-doc-signs">
                 <div>Controller of examinations</div>

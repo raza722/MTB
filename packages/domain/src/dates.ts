@@ -65,6 +65,11 @@ export function daysBetween(from: IsoDate, to: IsoDate): number {
   return differenceInCalendarDays(fromIsoDate(to), fromIsoDate(from));
 }
 
+/** The calendar date in Pakistan at `now` (default: this moment), e.g. "2026-11-05". */
+export function pakistanToday(now: Date = new Date()): IsoDate {
+  return format(new TZDate(now, PK_TIME_ZONE), "yyyy-MM-dd");
+}
+
 export function toIsoDate(date: Date): IsoDate {
   return format(date, "yyyy-MM-dd");
 }

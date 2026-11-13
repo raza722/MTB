@@ -1,152 +1,13 @@
-import type { CampusCode, ReportColumnDef, ReportDefinition, ReportFilterDef } from "@mtb/api";
-import { formatMobile, type IsoDate } from "@mtb/domain";
-import { CLASSES } from "./campuses";
-import { initialChart } from "./accounts";
+import type { ReportColumnDef, ReportDefinition, ReportFilterDef } from "@mtb/api";
 import { CASHIERS, CONCESSION_TYPES, FEE_HEADS } from "./fee-setup";
-import { STREAMS } from "./student-records";
-import { LIB_CABINET_CODES, LIB_CATEGORIES, WH_CATEGORIES, WH_DEPARTMENT_NAMES, WH_ITEM_GROUPS, WH_ROOM_NAMES, WH_SUPPLIER_NAMES } from "./operations";
 
-// Report centre catalogue (fictional data generators live in handlers/reports.ts) and a fictional staff
-// roster shared by the staff reports and staff SMS. Legacy names come from docs 02 §A14, 03 §F8/§A4/§H5,
+// Report centre catalogue. The report centre is real (backend modules 13a, 13b and 13c, no routes here):
+// REPORT_DEFINITIONS, reportById and DEFAULT_FAVOURITES are the contract reference the backend's catalogue seed is
+// generated from and compared with; nothing imports them at run time. Every entry has a report procedure since 13c.
+// Filters whose choices come from data (spec 13 D71 / C13: bank account, library subject and cabinet, warehouse
+// category, department, room, supplier and item, transport route) keep only their static first option here; the
+// backend's catalogue adds the campus's own choices. Legacy names come from docs 02 §A14, 03 §F8/§A4/§H5,
 // 04 §M1–M4/§P7 and the screenshots index (folders 11 and 16).
-
-// ---------- deterministic randomness ----------
-
-export function hashStr(s: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
-}
-
-/** A number in [0, 1) that is always the same for the same key. */
-export const rand01 = (key: string) => (hashStr(key) % 100000) / 100000;
-export const pick = <T>(list: readonly T[], key: string): T => list[hashStr(key) % list.length]!;
-
-// ---------- staff (fictional) ----------
-
-export interface ReportStaff {
-  id: string;
-  staffNo: string;
-  campus: CampusCode;
-  name: string;
-  gender: "F" | "M";
-  designation: string;
-  department: string;
-  teaching: boolean;
-  mobile: string;
-  joined: IsoDate;
-  scale: number;
-  basic: number;
-  /** Class teacher of (teachers only). */
-  classSection?: string;
-}
-
-const STAFF_SIZE: Record<CampusCode, number> = { KC: 86, SM: 42, UC: 48, MC: 30, HC: 64 };
-
-/** Khalid Campus staff from the demo cast, first. */
-const CAST: Array<Omit<ReportStaff, "id" | "staffNo" | "campus" | "joined" | "scale" | "basic">> = [
-  { name: "Mrs Sadia Rehman", gender: "F", designation: "Principal", department: "Administration", teaching: false, mobile: "03025550178" },
-  { name: "Ms Hina Javed", gender: "F", designation: "Senior teacher", department: "Middle school", teaching: true, mobile: "03055550166", classSection: "7-B" },
-  { name: "Mr Adeel Anwar", gender: "M", designation: "Teacher", department: "Middle school", teaching: true, mobile: "03075550131", classSection: "7-A" },
-  { name: "Ms Sana Tariq", gender: "F", designation: "Teacher", department: "Middle school", teaching: true, mobile: "03085550152", classSection: "7-C" },
-  { name: "Usman Ali", gender: "M", designation: "Cashier", department: "Accounts office", teaching: false, mobile: "03015550142" },
-  { name: "Nadia Shah", gender: "F", designation: "Accountant", department: "Accounts office", teaching: false, mobile: "03035550113" },
-  { name: "Kamran Yousaf", gender: "M", designation: "System administrator", department: "Administration", teaching: false, mobile: "03045550190" },
-  { name: "Farah Naz", gender: "F", designation: "Office assistant", department: "Administration", teaching: false, mobile: "03065550121" },
-];
-
-const T_FEMALE = ["Ayesha", "Rabia", "Saima", "Nida", "Sobia", "Mehwish", "Kiran", "Asma", "Shazia", "Uzma", "Farzana", "Naila", "Bushra", "Sidra", "Amna", "Huma"];
-const T_MALE = ["Imran", "Tariq", "Asif", "Naveed", "Kashif", "Waqas", "Shahid", "Faisal", "Zahid", "Nadeem", "Rizwan", "Adnan", "Sajid", "Khurram"];
-const T_LAST = ["Iqbal", "Bashir", "Rasheed", "Mahmood", "Hussain", "Akram", "Saleem", "Naseem", "Hanif", "Qureshi", "Javed", "Aslam", "Latif", "Siddiqui", "Ahmed", "Riaz"];
-const DEPTS_T = ["Pre-primary", "Primary", "Middle school", "Secondary", "Science", "Computer studies", "Islamic studies"];
-const DESIG_T = ["Teacher", "Teacher", "Teacher", "Senior teacher", "Subject specialist", "Lab assistant"];
-const NONT: Array<[string, string]> = [
-  ["Clerk", "Administration"],
-  ["Peon", "Support staff"],
-  ["Security guard", "Support staff"],
-  ["Driver", "Transport"],
-  ["Librarian", "Library"],
-  ["Store keeper", "Warehouse"],
-  ["Sweeper", "Support staff"],
-  ["Data entry operator", "Administration"],
-];
-const SCALE_BASE: Record<number, number> = { 5: 16500, 7: 18000, 9: 20000, 12: 24000, 14: 28500, 15: 31500, 16: 36000, 17: 44000, 18: 56000 };
-
-const staffCache = new Map<CampusCode, ReportStaff[]>();
-
-export function staffOf(campus: CampusCode): ReportStaff[] {
-  const hit = staffCache.get(campus);
-  if (hit) return hit;
-  const size = STAFF_SIZE[campus];
-  const sections = CLASSES.flatMap((c) => c.sections.map((s) => `${c.short}-${s}`));
-  const list: ReportStaff[] = [];
-  const cast = campus === "KC" ? CAST : [];
-  for (let i = 0; i < size; i++) {
-    const key = `${campus}:staff:${i}`;
-    const base = cast[i];
-    const teaching = base ? base.teaching : i < Math.round(size * 0.68);
-    const gender: "F" | "M" = base ? base.gender : rand01(`${key}:g`) < (teaching ? 0.72 : 0.35) ? "F" : "M";
-    const first = gender === "F" ? pick(T_FEMALE, `${key}:f`) : pick(T_MALE, `${key}:f`);
-    const name = base?.name ?? `${teaching ? (gender === "F" ? "Ms " : "Mr ") : ""}${first} ${pick(T_LAST, `${key}:l`)}`;
-    const [desig, dept] = base ? [base.designation, base.department] : teaching ? [pick(DESIG_T, `${key}:d`), pick(DEPTS_T, `${key}:dp`)] : pick(NONT, `${key}:nt`);
-    const scale = base?.designation === "Principal" ? 18 : teaching ? pick([14, 15, 16, 16, 17], `${key}:s`) : pick([5, 7, 9, 12], `${key}:s`);
-    const years = 1 + Math.floor(rand01(`${key}:y`) * 18);
-    const classSection = base?.classSection ?? (teaching && i < sections.length + 8 && i >= 8 ? sections[(i - 8) % sections.length] : undefined);
-    list.push({
-      id: `st-${campus.toLowerCase()}-${i + 1}`,
-      staffNo: `${campus}-S-${String(101 + i).padStart(4, "0")}`,
-      campus,
-      name,
-      gender,
-      designation: desig,
-      department: dept,
-      teaching,
-      mobile: base?.mobile ?? `03${pick(["00", "01", "11", "21", "33", "45"], `${key}:n`)}555${String(1000 + Math.floor(rand01(`${key}:m`) * 9000))}`,
-      joined: `${2026 - years}-${String(1 + Math.floor(rand01(`${key}:jm`) * 9)).padStart(2, "0")}-01`,
-      scale,
-      basic: (SCALE_BASE[scale] ?? 24000) + years * 900,
-      ...(classSection ? { classSection } : {}),
-    });
-  }
-  staffCache.set(campus, list);
-  return list;
-}
-
-// ---------- admission candidates (fictional) ----------
-
-const dobFor = (key: string, classShort: string) => {
-  const n = classShort === "Prep" ? 0 : Number(classShort);
-  const y = 2026 - 5 - n - (rand01(`${key}:y`) < 0.25 ? 1 : 0);
-  return `${y}-${String(1 + (hashStr(`${key}m`) % 12)).padStart(2, "0")}-${String(1 + (hashStr(`${key}d`) % 28)).padStart(2, "0")}`;
-};
-
-export const CANDIDATES_PER_CAMPUS = 64;
-
-export const NAMES_F = ["Hira", "Anum", "Laiba", "Eman", "Zoya", "Noor", "Areej", "Fiza", "Mahnoor", "Hafsa"];
-export const NAMES_M = ["Abdullah", "Ibrahim", "Hassan", "Usman", "Talha", "Hamza", "Zain", "Bilal", "Ammar", "Rayyan"];
-export const LAST = ["Akhtar", "Aslam", "Farooq", "Habib", "Jamil", "Latif", "Nadeem", "Rafiq", "Saeed", "Zaheer", "Anwar", "Iqbal"];
-/** Entry-test candidates this session (fictional): the admissions report and Candidate SMS use the same list. */
-export function candidateOf(campus: CampusCode, i: number) {
-  const key = `${campus}:cand:${i}`;
-  const girl = rand01(`${key}:g`) < 0.5;
-  const last = pick(LAST, `${key}:l`);
-  const cls = pick(["Prep", "1", "2", "3", "6", "9", "Prep", "1"], `${key}:c`);
-  return {
-    formNo: `${campus}-ADM-2627-${String(301 + i).padStart(4, "0")}`,
-    name: `${pick(girl ? NAMES_F : NAMES_M, `${key}:f`)} ${last}`,
-    father: `${pick(["Muhammad", "Ghulam", "Abdul", "Malik", "Rana"], `${key}:ff`)} ${last}`,
-    gender: (girl ? "F" : "M") as "F" | "M",
-    cls,
-    dob: dobFor(key, cls),
-    mobile: formatMobile(`03${pick(["00", "01", "21", "33", "45"], `${key}:n`)}555${String(1000 + (hashStr(`${key}:m`) % 9000))}`),
-    marks: 30 + Math.round(rand01(`${key}:marks`) * 68),
-    testDate: cls === "9" ? "2026-11-07" : "2026-10-24",
-  };
-}
-
 
 // ---------- report catalogue ----------
 
@@ -166,31 +27,22 @@ const F = {
   text: (key: string, label: string, def: string, help?: string): ReportFilterDef => ({ key, label, kind: "text", default: def, required: true, ...(help ? { help } : {}) }),
 };
 
-/** Exam choices: the catalogue fills in the exams of the campus and session (handlers/reports-exams.ts). */
+/**
+ * Exam choices (module 13b, spec 13 D32 / C10): only the first option is static. The backend's catalogue adds the
+ * campus's term and board exams of the session and its class tests of the last `reports.examOptionDays` days
+ * (option source EXAM).
+ */
 const EXAMS: Array<[string, string]> = [["", "Latest exam of the class"]];
 
-/** Subjects for the one-subject-across-tests report. */
-const EXAM_SUBJECTS: Array<[string, string]> = [
-  ["mat", "Mathematics"],
-  ["eng", "English"],
-  ["urd", "Urdu"],
-  ["sci", "Science"],
-  ["phy", "Physics"],
-  ["che", "Chemistry"],
-  ["bio", "Biology"],
-  ["cmp", "Computer Science"],
-  ["isl", "Islamiyat"],
-  ["sst", "Social Studies"],
-  ["pst", "Pakistan Studies"],
-  ["tqn", "Tarjuma-tul-Quran"],
-];
+/**
+ * Subjects of the one-subject-across-tests report (13b D36 / C11): none here. The backend's catalogue lists the
+ * subjects of the session's class-test papers (option source EXAM_SUBJECT); there is no default, and an empty subject
+ * answers "Choose a subject.".
+ */
+const EXAM_SUBJECTS: Array<[string, string]> = [];
 
 const c = (key: string, label: string, kind: ReportColumnDef["kind"] = "text", total = false): ReportColumnDef => ({ key, label, kind, ...(total ? { total } : {}) });
 
-/** Bank accounts in the chart of accounts, for the bank book filter. */
-const BANK_ACCOUNTS: Array<[string, string]> = initialChart()
-  .filter((a) => a.postable && a.kind === "BANK")
-  .map((a) => [a.code, `${a.code} ${a.name}`]);
 
 type Def = Omit<ReportDefinition, "formats" | "paper" | "background" | "tags"> & Partial<Pick<ReportDefinition, "formats" | "paper" | "background" | "tags">>;
 const def = (d: Def): ReportDefinition => ({ formats: ["PDF", "EXCEL"], paper: "A4", background: false, tags: [], ...d });
@@ -244,6 +96,8 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     ],
     columns: [c("head", "Fee head"), c("receipts", "Receipts", "count", true), c("amount", "Collected", "money", true), c("share", "Share", "percent")],
     chart: { kind: "column", label: "Collected by head", x: "head", y: "amount" },
+    // D5 / C3 (spec 13 fix G4): over 1 s on the first call after a plan recompile over a long period at KC, so it runs in the background
+    background: true,
     tags: ["heads", "tuition", "annual"],
   }),
   def({
@@ -279,6 +133,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     permission: "fees.reports",
     filters: [F.cls(), F.section(), F.number("minAmount", "Arrears above (Rs)", "0")],
     columns: [c("grNo", "G.R. No.", "mono"), c("student", "Student"), c("father", "Father"), c("classSection", "Class"), c("mobile", "Mobile", "mono"), c("oldestDue", "Oldest due", "date"), c("days", "Days overdue", "count"), c("arrears", "Arrears", "money", true)],
+    background: true,
     tags: ["arrears", "balance", "outstanding"],
   }),
   def({
@@ -302,6 +157,8 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
       c("over30", "More than 30 days", "money", true),
     ],
     chart: { kind: "column", label: "Arrears by class", x: "classSection", y: "arrears" },
+    // D5 / C3 (spec 13 fix G3): over 1 s on the first call after a plan recompile at KC, so it runs in the background
+    background: true,
     tags: ["arrears", "class"],
   }),
   def({
@@ -316,6 +173,8 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     permission: "fees.reports",
     filters: [F.number("minDays", "Overdue more than (days)", "30"), F.number("minAmount", "Amount above (Rs)", "5000"), F.cls()],
     columns: [c("grNo", "G.R. No.", "mono"), c("student", "Student"), c("classSection", "Class"), c("guardian", "Guardian"), c("mobile", "Mobile", "mono"), c("days", "Days overdue", "count"), c("amount", "Overdue", "money", true)],
+    // D5 / C3 (spec 13 fix G3): over 1 s on the first call after a plan recompile at KC, so it runs in the background
+    background: true,
     tags: ["defaulters", "overdue", "strike off"],
   }),
   def({
@@ -354,6 +213,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
       c("concession", "Concession", "money", true),
       c("payable", "Payable", "money", true),
     ],
+    background: true,
     tags: ["discount", "scholarship", "concession"],
   }),
   def({
@@ -415,6 +275,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
       c("total", "Total", "money", true),
       c("amount", "Received", "money", true),
     ],
+    background: true,
     tags: ["candidate", "admission", "test fee"],
   }),
   def({
@@ -444,6 +305,8 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     ownerPath: "/students",
     ownerLabel: "Students",
     permission: "students.view",
+    // 13b C8: over 1 s on screen at KC (spec 13 Part 13b §13b.2.5), so it runs in the background
+    background: true,
     filters: [
       F.cls(),
       F.section(),
@@ -489,6 +352,8 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     ownerPath: "/students",
     ownerLabel: "Students",
     permission: "students.view",
+    // 13b C8: over 1 s on screen at KC (spec 13 Part 13b §13b.2.5), so it runs in the background
+    background: true,
     filters: [F.cls(), F.section(), F.select("status", "Portal", [["", "All"], ["SIGNED_IN", "Signed in"], ["NEVER", "Never signed in"], ["NOT_SET_UP", "Not set up"]])],
     columns: [c("grNo", "G.R. No.", "mono"), c("student", "Student"), c("father", "Father"), c("classSection", "Class"), c("mobile", "Registered mobile", "mono"), c("status", "Portal", "status"), c("lastSignIn", "Last sign-in", "date")],
     tags: ["portal", "app", "parents", "sign-in", "accounts"],
@@ -504,7 +369,8 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     permission: "students.view",
     filters: [
       { key: "class", label: "Class", kind: "class", default: "9", required: true },
-      F.select("group", "Group", [["", "All groups"], ...STREAMS.map((g): [string, string] => [g, g])]),
+      // the groups (streams) of the campus's classes come from the backend's catalogue (13b C11, option source STREAM)
+      F.select("group", "Group", [["", "All groups"]]),
       F.gender(),
     ],
     columns: [c("sr", "Sr", "count"), c("grNo", "G.R. No.", "mono"), c("student", "Student"), c("marks", "Marks", "blank"), c("classSection", "Class"), c("section", "Section"), c("group", "Group"), c("subjects", "Subjects")],
@@ -615,6 +481,8 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     ownerPath: "/students/families",
     ownerLabel: "Students → Families",
     permission: "students.view",
+    // C8 (spec 13b fix W2): over 1 s on the first call after a plan recompile at KC, even after the warm-up, so it runs in the background
+    background: true,
     filters: [],
     columns: [c("father", "Father"), c("cnic", "CNIC", "mono"), c("children", "Children"), c("count", "Children", "count", true), c("campuses", "Campuses")],
     tags: ["siblings", "family"],
@@ -686,6 +554,8 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
       c("status", "Status", "status"),
     ],
     paper: "A4_LANDSCAPE",
+    // D5 / C3 (spec 13 fix G3): over 1 s on the first call after a plan recompile at KC, so it runs in the background
+    background: true,
     tags: ["candidates", "entry test", "address"],
   }),
   def({
@@ -758,6 +628,8 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     ownerPath: "/attendance/students",
     ownerLabel: "Attendance → Students",
     permission: "attendance.view",
+    // C8 (spec 13b fix W2): over 1 s on the first call after a plan recompile at KC, even after the warm-up, so it runs in the background
+    background: true,
     filters: [F.number("below", "Attendance below (%)", "80"), F.cls()],
     columns: [c("grNo", "G.R. No.", "mono"), c("student", "Student"), c("classSection", "Class"), c("days", "School days", "count"), c("present", "Present", "count"), c("percent", "Attendance", "percent"), c("mobile", "Guardian mobile", "mono")],
     tags: ["low attendance", "chronic"],
@@ -814,6 +686,8 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     ownerPath: "/exams",
     ownerLabel: "Exams",
     permission: "exams.view",
+    // 13b C8: over 1 s on screen at KC (spec 13 Part 13b §13b.2.5), so it runs in the background
+    background: true,
     filters: [F.select("exam", "Exam", EXAMS), F.cls(), F.gender()],
     columns: [
       c("grNo", "G.R. No.", "mono"),
@@ -880,6 +754,8 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     ownerPath: "/exams/combined",
     ownerLabel: "Exams → Combined results",
     permission: "exams.view",
+    // 13b C8: over 1 s on screen at KC (spec 13 Part 13b §13b.2.5), so it runs in the background
+    background: true,
     filters: [F.classSection()],
     columns: [c("roll", "Roll", "count"), c("grNo", "G.R. No.", "mono"), c("student", "Student"), c("last", "Last exam %", "percent"), c("average", "Average", "percent")],
     singleCampus: true,
@@ -898,13 +774,8 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
       F.classSection(),
       F.select("subject", "Subject", EXAM_SUBJECTS),
       F.range("2026-09-01|today"),
-      F.select("examType", "Tests", [
-        ["", "Every class test"],
-        ["et-morning", "Morning tests"],
-        ["et-weekly", "Weekly tests"],
-        ["et-monthly", "Monthly tests"],
-        ["et-chapter", "Chapter-wise tests"],
-      ]),
+      // the campus's class-test types of the session come from the backend's catalogue (13b C11, option source EXAM_TYPE_TEST)
+      F.select("examType", "Tests", [["", "Every class test"]]),
     ],
     columns: [
       c("grNo", "G.R. No.", "mono"),
@@ -969,7 +840,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     ownerPath: "/accounts/bank",
     ownerLabel: "Accounts → Bank",
     permission: "accounts.view",
-    filters: [F.range(), F.select("bank", "Bank account", [["", "All bank accounts"], ...BANK_ACCOUNTS])],
+    filters: [F.range(), F.select("bank", "Bank account", [["", "All bank accounts"]])],
     columns: [c("date", "Date", "date"), c("voucher", "Voucher", "mono"), c("description", "Description"), c("deposits", "Deposits", "money", true), c("payments", "Payments", "money", true), c("balance", "Balance", "money")],
     tags: ["bank", "ledger"],
   }),
@@ -994,6 +865,8 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     replaces: ["Cash Payment Voucher", "Cash Receipt Voucher", "Bank Payment Voucher", "Bank Receipt Voucher", "Journal Voucher"],
     ownerPath: "/accounts/vouchers",
     ownerLabel: "Accounts → Vouchers",
+    // C12 (spec 13c): too large to answer on screen at KC, so it runs in the background
+    background: true,
     permission: "accounts.view",
     filters: [F.range(), F.select("type", "Type", [["", "All"], ["CP", "Cash payment"], ["CR", "Cash receipt"], ["BP", "Bank payment"], ["BR", "Bank receipt"], ["JV", "Journal"], ["FEE", "Fee collection"], ["FEE_CANCEL", "Receipt cancellation"]])],
     columns: [c("voucherNo", "Voucher", "mono"), c("date", "Date", "date"), c("type", "Type"), c("narration", "Narration"), c("amount", "Amount", "money", true), c("status", "Status", "status"), c("by", "Entered by")],
@@ -1124,11 +997,13 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     replaces: ["Book Info", "Book Info Cabinet Wise", "Authors List", "Book Title Wise Count", "Cabinet Info"],
     ownerPath: "/library",
     ownerLabel: "Library",
+    // C12 (spec 13c): too large to answer on screen at KC, so it runs in the background
+    background: true,
     permission: "library.view",
-    // Options come from the library module's own subjects and cabinets (live data in handlers/operations.ts).
+    // Options come from the library module's own subjects and cabinets (option sources, C13).
     filters: [
-      F.select("category", "Subject", [["", "All"], ...LIB_CATEGORIES.map((x): [string, string] => [x.id, x.name])]),
-      F.select("cabinet", "Cabinet", [["", "All cabinets"], ...LIB_CABINET_CODES().map(([code, title]): [string, string] => [code, `${code} · ${title}`])]),
+      F.select("category", "Subject", [["", "All"]]),
+      F.select("cabinet", "Cabinet", [["", "All cabinets"]]),
     ],
     columns: [c("accession", "Accession numbers", "mono"), c("title", "Title"), c("author", "Author"), c("category", "Subject"), c("cabinet", "Cabinet"), c("copies", "Copies", "count", true), c("available", "On shelf", "count", true)],
     tags: ["books", "catalogue"],
@@ -1156,8 +1031,10 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     replaces: ["Current Stock"],
     ownerPath: "/warehouse",
     ownerLabel: "Warehouse",
+    // C12 (spec 13c): too large to answer on screen at KC, so it runs in the background
+    background: true,
     permission: "warehouse.view",
-    filters: [F.select("category", "Category", [["", "All"], ...WH_CATEGORIES.map((x): [string, string] => [x.id, x.name])])],
+    filters: [F.select("category", "Category", [["", "All"]])],
     columns: [c("code", "Item code", "mono"), c("item", "Item"), c("unit", "Unit"), c("received", "Received", "count"), c("issued", "Issued or sold", "count"), c("stock", "In stock", "count"), c("reorder", "Reorder at", "count"), c("value", "Stock value", "money", true)],
     tags: ["stock", "inventory"],
   }),
@@ -1172,8 +1049,8 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     permission: "warehouse.view",
     filters: [
       F.range(),
-      F.select("department", "Department", [["", "All departments"], ...WH_DEPARTMENT_NAMES.map((n): [string, string] => [n, n])]),
-      F.select("room", "Room", [["", "All rooms"], ...WH_ROOM_NAMES.map((n): [string, string] => [n, n])]),
+      F.select("department", "Department", [["", "All departments"]]),
+      F.select("room", "Room", [["", "All rooms"]]),
     ],
     columns: [c("date", "Date", "date"), c("issueNo", "Issue No.", "mono"), c("item", "Item"), c("kind", "Kind"), c("qty", "Issued", "count", true), c("returned", "Returned", "count", true), c("remaining", "Still out", "count", true), c("department", "Department"), c("room", "Room"), c("to", "Received by")],
     paper: "A4_LANDSCAPE",
@@ -1190,8 +1067,8 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     permission: "warehouse.view",
     filters: [
       F.range("2026-09-01|today"),
-      F.select("supplier", "Supplier", [["", "All suppliers"], ...WH_SUPPLIER_NAMES().map((n): [string, string] => [n, n])]),
-      F.select("item", "Item", [["", "All items"], ...WH_ITEM_GROUPS().map((n): [string, string] => [n, n])]),
+      F.select("supplier", "Supplier", [["", "All suppliers"]]),
+      F.select("item", "Item", [["", "All items"]]),
     ],
     columns: [c("date", "Date", "date"), c("grn", "Receipt No.", "mono"), c("supplier", "Supplier"), c("invoice", "Supplier invoice", "mono"), c("items", "Items"), c("amount", "Amount", "money", true)],
     tags: ["purchases", "suppliers"],
@@ -1208,8 +1085,8 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     ownerPath: "/transport",
     ownerLabel: "Transport",
     permission: "transport.view",
-    // Route codes are the transport module's own (R-01 …); each campus numbers its routes from R-01.
-    filters: [F.select("route", "Route", [["", "All routes"], ...Array.from({ length: 9 }, (_, i): [string, string] => [`R-0${i + 1}`, `Route R-0${i + 1}`])])],
+    // Route codes are the transport module's own (R-01 …, option source, C13); each campus numbers its routes from R-01.
+    filters: [F.select("route", "Route", [["", "All routes"]])],
     columns: [c("route", "Route"), c("vehicle", "Vehicle", "mono"), c("grNo", "G.R. No.", "mono"), c("student", "Student"), c("classSection", "Class"), c("stop", "Stop"), c("fee", "Monthly fee", "money", true)],
     tags: ["routes", "vans", "students"],
   }),

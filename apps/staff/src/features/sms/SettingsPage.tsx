@@ -19,20 +19,25 @@ const HOURS = Array.from({ length: 24 }, (_, h) => ({ value: `${String(h).padSta
 export function SettingsPage() {
   const ctx = useCtx();
   const toast = useToast();
+  const queryClient = useQueryClient();
   const canAdmin = useCan("sms.pause");
   const readOnly = useReadOnly();
   const q = useQuery(smsQueries.settings(ctx));
   const [editing, setEditing] = useState<SmsGatewaySettings | null>(null);
   const test = useMutation({
     mutationFn: (campus: SmsGatewaySettings["campus"]) => smsApi.testGateway(campus),
-    onSuccess: (r) => toast({ title: "Connection works", message: r.message }),
-    onError: (e) => toast({ tone: "danger", title: "Connection failed", message: errorText(e) }),
+    // Nothing is contacted while sending is switched off: the answer says so (ok false).
+    onSuccess: async (r) => {
+      toast(r.ok ? { title: "Check passed", message: r.message } : { tone: "info", title: "Sending is switched off", message: r.message });
+      await queryClient.invalidateQueries({ queryKey: smsQueries.settings(ctx).queryKey });
+    },
+    onError: (e) => toast({ tone: "danger", title: "Check failed", message: errorText(e) }),
   });
 
   return (
     <MessagesShell title="SMS companies and limits">
       <p className="m-0 max-w-3xl text-small text-ink-muted">
-        Each campus sends through its own SMS company account. Passwords and keys are kept in a secure vault on the server: nobody, including admins, can read them on screen, and they are never stored with school data. If the main company doesn't accept a message, the backup company sends it.
+        Sending is switched off in this system: no SMS company account is connected and no message leaves the server. Messages are written and held in the outbox. The settings below (company, sender name, price, limits and quiet hours) are kept for each campus and used to count SMS parts, estimate costs and decide which sends need approval.
       </p>
       {q.error && !q.data ? (
         <LoadError what="SMS settings" error={q.error} onRetry={() => void q.refetch()} />
@@ -42,7 +47,7 @@ export function SettingsPage() {
           <Skeleton height={300} />
         </div>
       ) : !q.data?.length ? (
-        <EmptyState icon="settings" title="No SMS company set up" description="Ask the admin to connect an SMS company for this campus." />
+        <EmptyState icon="settings" title="No SMS company set up" description="No SMS settings are recorded for this campus." />
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
           {q.data.map((s, i) => (
@@ -55,8 +60,8 @@ export function SettingsPage() {
               actions={
                 canAdmin && !readOnly ? (
                   <div className="flex gap-2">
-                    <Button size="sm" icon="refresh" loading={test.isPending && test.variables === s.campus} loadingLabel="Testing…" onClick={() => test.mutate(s.campus)}>
-                      Test
+                    <Button size="sm" icon="refresh" loading={test.isPending && test.variables === s.campus} loadingLabel="Checking…" onClick={() => test.mutate(s.campus)}>
+                      Check
                     </Button>
                     <Button size="sm" icon="edit" onClick={() => setEditing(s)}>
                       Change
@@ -67,15 +72,15 @@ export function SettingsPage() {
             >
               <KeyValue
                 items={[
-                  ["Account", s.credentials === "VERIFIED" ? <StatusBadge key="v" status="success">Connected · details in the vault</StatusBadge> : <StatusBadge key="v" status="danger">Not set up</StatusBadge>],
-                  ["Last checked", s.lastCheckedAt ? formatDateTime(s.lastCheckedAt) : "Never"],
+                  ["Account", s.credentials === "VERIFIED" ? <StatusBadge key="v" status="success">Connected</StatusBadge> : <StatusBadge key="v" status="neutral">Sending is switched off in this system</StatusBadge>],
+                  ["Last checked", s.lastCheckedAt ? formatDateTime(s.lastCheckedAt) : "—"],
                   ["Price", `${formatRs(s.ratePer100)} per 100 SMS parts`],
                   ["Monthly budget", formatRs(s.monthlyBudget)],
                   ["Daily limit", `${formatCount(s.dailyCap)} SMS parts; the rest wait for the next day`],
                   ["Principal approves", `Sends to ${formatCount(s.approvalThreshold)} or more people`],
                   ["Quiet hours", `No SMS from ${time12(s.quietFrom)} to ${time12(s.quietTo)}`],
-                  ["Delivery reports", s.deliveryReports ? "Yes — each SMS shows delivered or failed" : "Not offered by this company — SMS show “sent” only"],
-                  ["Last changed", `${s.updatedBy}, ${formatDateTime(s.updatedAt)}`],
+                  ["Delivery reports", s.deliveryReports ? "Yes — each SMS shows delivered or failed" : "None — nothing is sent from this system; old messages show “sent” or “failed” only"],
+                  ["Last changed", s.updatedAt ? `${s.updatedBy || "—"}, ${formatDateTime(s.updatedAt)}` : "—"],
                 ]}
               />
             </Panel>
@@ -136,7 +141,7 @@ function SettingsEditor({ settings, onClose }: { settings: SmsGatewaySettings | 
       open={settings !== null}
       onClose={onClose}
       title={settings ? `SMS settings · ${settings.campusName}` : "SMS settings"}
-      description="Changes apply to new messages. Account passwords are changed in the vault, not here."
+      description="Changes apply to new messages. No account details are entered here: sending is switched off in this system."
       footer={
         <>
           <Button onClick={onClose}>Cancel</Button>

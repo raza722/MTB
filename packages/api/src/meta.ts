@@ -27,6 +27,13 @@ export interface ClassInfo {
   sections: string[];
   /** Groups (streams) offered in this class, e.g. "Science (Biology)". Missing when the class has none. */
   groups?: string[];
+  /**
+   * Board exam part sat at the end of this class: "I" (Class 9, First year), "II" (Class 10, Second year), null for
+   * other classes (acad.Class.BoardExamPart, spec 01_students D8). Board roll numbers and board documents are for
+   * these classes only. The server sends it for every class (null = not a board class); optional only so
+   * fictional mocks may leave it out.
+   */
+  boardExamPart?: "I" | "II" | null;
 }
 
 export const metaApi = {

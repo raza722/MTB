@@ -1,4 +1,5 @@
 import {
+  SETUP_SECTION_NAME_MAX,
   SETUP_SECTION_NAME_RULE,
   setupApi,
   setupQueries,
@@ -126,12 +127,21 @@ function ClassEditor({ cls, onClose }: { cls: SetupClass | null; onClose: () => 
 
 /* ------------------------------------------------------------------ Section editor */
 
-const sectionSchema = z.object({
-  classId: z.string().min(1, { error: "Choose a class." }),
-  name: z.string().refine(setupSectionNameOk, { error: SETUP_SECTION_NAME_RULE }),
-  seats: z.number({ error: "Enter the number of seats." }).int().min(1, { error: "Enter the number of seats, from 1 to 200." }).max(200, { error: "Enter the number of seats, from 1 to 200." }),
-  room: z.string().trim().max(30, { error: "Keep the room name under 30 characters." }),
-});
+const sectionNameSchema = z.string().refine(setupSectionNameOk, { error: SETUP_SECTION_NAME_RULE });
+const sectionSeatsSchema = z.number({ error: "Enter the number of seats." }).int().min(1, { error: "Enter the number of seats, from 1 to 200." }).max(200, { error: "Enter the number of seats, from 1 to 200." });
+
+/**
+ * Like the server, the name and seats rules apply to a new section and to a value that changed: sections brought
+ * over from the old system keep names and seat counts that the current rules would not accept until someone edits them.
+ */
+function sectionSchema(section: SetupSection | null, name: string, seats: number) {
+  return z.object({
+    classId: z.string().min(1, { error: "Choose a class." }),
+    name: section && name === section.name ? z.string() : sectionNameSchema,
+    seats: section && seats === section.seats ? z.number() : sectionSeatsSchema,
+    room: z.string().trim().max(30, { error: "Keep the room name under 30 characters." }),
+  });
+}
 
 function SectionEditor({ section, classes, levels, onClose }: { section: SetupSection | null; classes: SetupClass[]; levels: SetupClassLevel[]; onClose: () => void }) {
   const ctx = useCtx();
@@ -172,7 +182,7 @@ function SectionEditor({ section, classes, levels, onClose }: { section: SetupSe
   });
   const submit = () => {
     setFailure(null);
-    const r = sectionSchema.safeParse({ ...form, name });
+    const r = sectionSchema(section, name, form.seats).safeParse({ ...form, name });
     const next = r.success ? {} : zodErrors(r.error);
     if (classGroups.length && !form.groupId) next.groupId = `${cls?.name} has groups. Choose the group this section studies.`;
     if (section && form.seats < section.strength) next.seats = `${section.strength} students are already in ${section.label}. Seats can't be fewer than that.`;
@@ -223,11 +233,11 @@ function SectionEditor({ section, classes, levels, onClose }: { section: SetupSe
         <Input
           label={kind === "BATCH" ? "Batch name" : "Section name"}
           required
-          maxLength={40}
+          maxLength={SETUP_SECTION_NAME_MAX}
           value={form.name}
           onChange={(e) => set("name", e.target.value)}
           placeholder={kind === "BATCH" ? "Batch 2026" : "D or Khadija"}
-          {...(errors.name ? { error: errors.name } : { help: <>Shows as <b className="text-ink">{label}</b>. A letter, a word or a batch name; up to 40 characters.</> })}
+          {...(errors.name ? { error: errors.name } : { help: <>Shows as <b className="text-ink">{label}</b>. A letter, a word or a batch name; up to {SETUP_SECTION_NAME_MAX} characters.</> })}
         />
         {classGroups.length > 0 && <Select label="Group" required value={form.groupId ?? ""} onChange={(e) => set("groupId", e.target.value || null)} options={[{ value: "", label: "Choose…" }, ...classGroups.map((g) => ({ value: g.id, label: g.name }))]} {...err(errors, "groupId")} />}
         <div className="grid gap-4 sm:grid-cols-2">

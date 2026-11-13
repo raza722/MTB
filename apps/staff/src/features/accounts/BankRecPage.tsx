@@ -1,11 +1,11 @@
-import { accountsApi, accountsQueries, type AccountsBankRec, type AccountsBookLine, type AccountsStatementLine } from "@mtb/api";
+import { accountsApi, accountsHasStatement, accountsQueries, CURRENT_SESSION, type AccountsBankRec, type AccountsBookLine, type AccountsStatementLine } from "@mtb/api";
 import { formatCount, formatDate, formatDateTime, formatRs } from "@mtb/domain";
 import { AnimatedNumber, Banner, Button, ConfirmDialog, DataTable, EmptyState, Icon, Panel, Segmented, Select, SidePanel, Skeleton, StatCard, StatusBadge, useToast, type Column } from "@mtb/ui";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { campusLabel } from "../../app/shell/campus";
-import { AccountsShell, DocFoot, DocHead, errorText, LoadError, monthEnd, monthName, slide, useGo } from "./shared";
+import { accToday, AccountsShell, DocFoot, DocHead, errorText, LoadError, monthEnd, monthName, sessionMonths, slide, useChart, useGo } from "./shared";
 import { VoucherPeek } from "./VoucherPeek";
 
 export interface BankSearch {
@@ -19,7 +19,12 @@ export function BankRecPage({ search, setSearch }: { search: BankSearch; setSear
   const banks = useQuery(accountsQueries.bankAccounts(ctx));
   const list = banks.data ?? [];
   const account = search.account && list.some((b) => b.code === search.account) ? search.account : (list.find((b) => b.unmatched > 0)?.code ?? list[0]?.code ?? "");
-  const sessionMonth = ctx.session === 2026 ? "2026-10" : `${ctx.session + 1}-03`;
+  // The current month in the current session (kept inside the session), the session's last month otherwise.
+  const months = sessionMonths(ctx.session);
+  const first = months[0] ?? "";
+  const last = months.at(-1) ?? "";
+  const thisMonth = accToday().slice(0, 7);
+  const sessionMonth = ctx.session === CURRENT_SESSION ? (thisMonth < first ? first : thisMonth > last ? last : thisMonth) : last;
   const month = search.month ?? sessionMonth;
   const q = useQuery({ ...accountsQueries.bankRec(account, month), placeholderData: keepPreviousData });
 
@@ -32,14 +37,14 @@ export function BankRecPage({ search, setSearch }: { search: BankSearch; setSear
             value={account}
             onChange={(e) => setSearch({ ...search, account: e.target.value })}
             disabled={banks.isLoading}
-            options={banks.isLoading ? [{ value: "", label: "Loading…" }] : list.map((b) => ({ value: b.code, label: `${b.name} · ${b.bank.accountNoMasked}${b.unmatched ? ` · ${b.unmatched} to match` : ""}` }))}
+            options={banks.isLoading ? [{ value: "", label: "Loading…" }] : list.map((b) => ({ value: b.code, label: [b.name, b.bank.accountNoMasked, b.unmatched ? `${b.unmatched} to match` : "", accountsHasStatement(b) ? "" : "no statement yet"].filter(Boolean).join(" · ") }))}
           />
         </div>
         <div className="w-48">
           <Select label="Statement month" value={month} onChange={(e) => setSearch({ ...search, month: e.target.value })} options={[...(q.data?.months ?? [month])].reverse().map((m) => ({ value: m, label: monthName(m) }))} />
         </div>
         <p className="m-0 ms-auto max-w-md text-small text-ink-muted">
-          Statements are imported from each bank's file. Lines match when the amount is the same; the dates can differ by a few days while a cheque clears.
+          Statement lines match book lines when the amount is the same; the dates can differ by a few days while a cheque clears.
         </p>
       </section>
       {banks.error ? (
@@ -75,6 +80,16 @@ function Reconciliation({ rec }: { rec: AccountsBankRec }) {
   const [peek, setPeek] = useState<string | null>(null);
   const [signing, setSigning] = useState(false);
   const s = rec.summary;
+  // No statement imported for this account yet (bringing statements in isn't built yet: contract change C4).
+  const imported = accountsHasStatement(rec.account) && rec.statementTo !== "";
+  const rs = (v: number | null) => (imported && v !== null ? formatRs(v) : "—");
+  const { byCode } = useChart();
+  // The seeded account (4201 Bank profit, 5304 Bank charges), else an active account with that name, else none.
+  const codeNamed = (code: string, name: string) => {
+    const seeded = byCode.get(code);
+    if (seeded?.postable && seeded.active) return code;
+    return [...byCode.values()].find((a) => a.postable && a.active && a.name === name)?.code ?? "";
+  };
   const bookByKey = useMemo(() => new Map(rec.book.map((b) => [b.key, b])), [rec.book]);
   const setRec = (r: AccountsBankRec) => {
     queryClient.setQueryData(accountsQueries.bankRec(rec.account.code, rec.month).queryKey, r);
@@ -134,7 +149,7 @@ function Reconciliation({ rec }: { rec: AccountsBankRec }) {
         account: rec.account.code,
         reference: l.reference,
         ...(inflow ? { inflow: 1 } : {}),
-        contra: profit ? "4201" : charge ? "5304" : "",
+        contra: profit ? codeNamed("4201", "Bank profit") : charge ? codeNamed("5304", "Bank charges") : "",
         narration: profit ? `Profit for ${monthName(rec.month)} credited by ${rec.account.bank.bankName}` : `${sentence}, as per ${rec.account.bank.bankName} statement`,
       },
       { voucherId: "new" },
@@ -232,16 +247,22 @@ function Reconciliation({ rec }: { rec: AccountsBankRec }) {
     <>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          { label: "Bank statement balance", value: rec.statementClosing, foot: `At ${formatDate(rec.statementTo)}` },
-          { label: "Balance in our books", value: rec.bookClosing, foot: `At ${formatDate(monthEnd(rec.month) < rec.statementTo ? monthEnd(rec.month) : rec.statementTo)}` },
-          { label: "Statement lines to match", value: s.unmatchedStatement, foot: s.suggestions ? `${s.suggestions} with a likely match` : "None with an obvious match", count: true, tone: s.unmatchedStatement ? ("warning" as const) : undefined },
-          { label: "Unexplained difference", value: Math.abs(s.difference), foot: s.difference === 0 ? "Every rupee is explained" : "Check the matches", tone: s.difference !== 0 ? ("danger" as const) : undefined },
+          { label: "Bank statement balance", value: imported ? rec.statementClosing : null, foot: imported ? `At ${formatDate(rec.statementTo)}` : "No statement imported yet" },
+          { label: "Balance in our books", value: rec.bookClosing, foot: `At ${formatDate(imported && rec.statementTo < monthEnd(rec.month) ? rec.statementTo : monthEnd(rec.month))}` },
+          { label: "Statement lines to match", value: imported ? s.unmatchedStatement : null, foot: !imported ? "Nothing to match without a statement" : s.suggestions ? `${s.suggestions} with a likely match` : "None with an obvious match", count: true, tone: imported && s.unmatchedStatement ? ("warning" as const) : undefined },
+          { label: "Unexplained difference", value: imported ? Math.abs(s.difference) : null, foot: !imported ? "Needs the bank statement" : s.difference === 0 ? "Every rupee is explained" : "Check the matches", tone: imported && s.difference !== 0 ? ("danger" as const) : undefined },
         ].map((c, i) => (
           <div key={c.label} className="mtb-rise" style={slide(i)}>
-            <StatCard label={c.label} {...(c.tone ? { tone: c.tone } : {})} value={<AnimatedNumber value={c.value} format={c.count ? formatCount : formatRs} />} foot={c.foot} />
+            <StatCard label={c.label} {...(c.tone ? { tone: c.tone } : {})} value={c.value === null ? "—" : <AnimatedNumber value={c.value} format={c.count ? formatCount : formatRs} />} foot={c.foot} />
           </div>
         ))}
       </div>
+
+      {!imported && (
+        <Banner tone="neutral" icon="info" title={`No bank statement imported for ${rec.account.name} yet.`}>
+          Bringing a bank's statement into the system isn't available yet, so there is nothing to match. Until it is, the month close's bank check passes with "no statement imported yet".
+        </Banner>
+      )}
 
       {rec.signedOff ? (
         <Banner tone="success" icon="checkCircle" title={`${monthName(rec.month)} is reconciled.`}>
@@ -269,7 +290,7 @@ function Reconciliation({ rec }: { rec: AccountsBankRec }) {
           id="bank-statement"
           rise={4}
           title={`Bank statement, ${monthName(rec.month)}`}
-          description={`${rec.account.bank.bankName}, ${rec.account.bank.branch} · ${rec.account.bank.accountNoMasked}`}
+          description={[`${rec.account.bank.bankName}${rec.account.bank.branch ? `, ${rec.account.bank.branch}` : ""}`, rec.account.bank.accountNoMasked].filter(Boolean).join(" · ")}
           actions={
             <>
               <Segmented aria-label="Show statement lines" value={stFilter} onChange={setStFilter} options={[{ value: "open", label: `To match · ${s.unmatchedStatement}` }, { value: "all", label: `All · ${rec.statement.length}` }]} />
@@ -290,7 +311,13 @@ function Reconciliation({ rec }: { rec: AccountsBankRec }) {
             density="dense"
             maxHeight={460}
             rowClassName={() => "mtb-slide-in"}
-            empty={<EmptyState icon="checkCircle" title="Every statement line is matched" description="Switch to All to see the matched lines." />}
+            empty={
+              imported ? (
+                <EmptyState icon="checkCircle" title="Every statement line is matched" description="Switch to All to see the matched lines." />
+              ) : (
+                <EmptyState icon="file" title="No statement lines" description="No bank statement has been imported for this account." />
+              )
+            }
           />
         </Panel>
 
@@ -299,7 +326,7 @@ function Reconciliation({ rec }: { rec: AccountsBankRec }) {
             <tbody>
               <tr>
                 <td>Balance as per bank statement</td>
-                <td className="num">{formatRs(rec.statementClosing)}</td>
+                <td className="num">{rs(rec.statementClosing)}</td>
               </tr>
               <tr className="sub">
                 <td>Add: deposits not yet on the statement</td>
@@ -319,7 +346,7 @@ function Reconciliation({ rec }: { rec: AccountsBankRec }) {
               </tr>
               <tr className="tot">
                 <td>Adjusted bank balance</td>
-                <td className="num">{formatRs(s.adjustedStatement)}</td>
+                <td className="num">{rs(s.adjustedStatement)}</td>
               </tr>
               <tr>
                 <td>Balance as per our books</td>
@@ -328,10 +355,10 @@ function Reconciliation({ rec }: { rec: AccountsBankRec }) {
               <tr className="grand">
                 <td>
                   <span className="inline-flex items-center gap-1.5">
-                    {s.difference === 0 && <Icon name="checkCircle" size={16} className="text-success-ink" />} Difference
+                    {imported && s.difference === 0 && <Icon name="checkCircle" size={16} className="text-success-ink" />} Difference
                   </span>
                 </td>
-                <td className="num">{formatRs(s.difference)}</td>
+                <td className="num">{rs(s.difference)}</td>
               </tr>
             </tbody>
           </table>
@@ -415,9 +442,9 @@ function Reconciliation({ rec }: { rec: AccountsBankRec }) {
         message="The month's matches are locked and the month-close check for this bank is ticked."
         details={[
           ["Bank account", rec.account.name],
-          ["Statement balance", formatRs(rec.statementClosing)],
+          ["Statement balance", rs(rec.statementClosing)],
           ["Book balance", formatRs(rec.bookClosing)],
-          ["Difference", formatRs(s.difference)],
+          ["Difference", rs(s.difference)],
         ]}
         confirmLabel="Mark reconciled"
         loading={signOff.isPending}
@@ -427,12 +454,12 @@ function Reconciliation({ rec }: { rec: AccountsBankRec }) {
 
       <div className="acc-print-only mtb-print-area" aria-hidden="true">
         <article className="acc-doc">
-          <DocHead title="Bank reconciliation statement" subtitle={`${rec.account.name} (${rec.account.bank.accountNoMasked}) · ${monthName(rec.month)}`} />
+          <DocHead title="Bank reconciliation statement" subtitle={`${rec.account.name}${rec.account.bank.accountNoMasked ? ` (${rec.account.bank.accountNoMasked})` : ""} · ${monthName(rec.month)}`} />
           <table>
             <tbody>
               <tr>
                 <td>Balance as per bank statement</td>
-                <td className="num">{formatRs(rec.statementClosing)}</td>
+                <td className="num">{rs(rec.statementClosing)}</td>
               </tr>
               <tr>
                 <td>Add: deposits not yet on the statement</td>
@@ -460,7 +487,7 @@ function Reconciliation({ rec }: { rec: AccountsBankRec }) {
               </tr>
               <tr>
                 <td>Difference</td>
-                <td className="num">{formatRs(s.difference)}</td>
+                <td className="num">{rs(s.difference)}</td>
               </tr>
             </tbody>
           </table>

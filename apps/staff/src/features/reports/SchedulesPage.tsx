@@ -23,7 +23,7 @@ export function whenRuns(s: Pick<ReportSchedule, "frequency" | "weekday" | "dayO
   return `On the ${ordinal(s.dayOfMonth ?? 1)} of every month at ${t}`;
 }
 
-/** /reports/scheduled — reports that go out by themselves (in the app and by email) on a timetable. */
+/** /reports/scheduled — reports that go out by themselves (under the bell in the app; email is kept on hold) on a timetable. */
 export function SchedulesPage() {
   const ctx = useCtx();
   const toast = useToast();
@@ -41,6 +41,7 @@ export function SchedulesPage() {
       await refresh();
       toast({ title: s.active ? `Resumed · ${s.reportName}` : `Paused · ${s.reportName}`, message: s.active ? `Next: ${timeText(s.nextRunAt)}.` : "It won't run until you resume it." });
     },
+    onError: (e) => toast({ tone: "danger", title: "Not changed", message: errorText(e) }),
   });
   const runNow = useMutation({
     mutationFn: (s: ReportSchedule) => reportsApi.runScheduleNow(s.id),
@@ -110,7 +111,7 @@ export function SchedulesPage() {
       }
     >
       <p className="m-0 max-w-3xl text-small text-ink-muted">
-        Scheduled reports are prepared on time by themselves and sent to the people on the list: in the app (under the bell) and by email. For example, the day's collection to the principal every evening, or the defaulter list on the 15th.
+        Scheduled reports are prepared on time by themselves and sent to the people on the list, under the bell in the app. Email is kept on hold (not sent). For example, the day's collection to the principal every evening, or the defaulter list on the 15th.
       </p>
       {list.error && !list.data ? (
         <LoadError what="Scheduled reports" error={list.error} onRetry={() => void list.refetch()} />
@@ -240,7 +241,7 @@ function EditorBody({ onClose, schedule, preset }: { onClose: () => void; schedu
           <Select label="At" value={time} onChange={(e) => setTime(e.target.value)} options={TIMES} />
           <Select label="As" value={format} onChange={(e) => setFormat(e.target.value as ReportFormat)} options={(def?.formats ?? ["PDF", "EXCEL"]).map((f) => ({ value: f, label: f === "EXCEL" ? "Excel spreadsheet" : "PDF" }))} />
         </div>
-        <Field label="Send to" help="They get it under the bell in the app and by email." {...(errors.recipients ? { error: errors.recipients } : {})}>
+        <Field label="Send to" help="They get it under the bell in the app. Email is kept on hold (not sent)." {...(errors.recipients ? { error: errors.recipients } : {})}>
           {() => (
             <div className="grid gap-1.5">
               {(people.data ?? []).map((p) => (

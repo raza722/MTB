@@ -437,7 +437,7 @@ function BooksByAuthor({ titles, author, campus }: { titles: LibraryTitle[]; aut
                       {t.volume ? `, vol. ${t.volume}` : ""}
                       {t.titleUr && <span className="ops-doc-urdu">{t.title ? " · " : ""}{t.titleUr}</span>}
                     </td>
-                    <td>{t.category}</td>
+                    <td>{t.category || "—"}</td>
                     <td>{t.shelves.join(", ") || "Not shelved"}</td>
                     <td className="n">{t.copies}</td>
                     <td className="n">{t.available}</td>

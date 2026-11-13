@@ -9,7 +9,9 @@ import { clearOutbox } from "../../app/sync/outbox";
 
 /**
  * Presenter's switches, mock mode only (not part of the product): turn today into a holiday, take the phone offline,
- * make the next sync fail, play the principal approving change requests, reset the demo.
+ * reset the demo. The holiday switch acts on the screens that are still mocked (Today); registers (Attendance) and
+ * marks (Exams) are real, so a failed sync now comes only from the real server (or from going offline here), and
+ * register changes are decided by the principal on the staff dashboard.
  */
 export default function DemoPanel() {
   const queryClient = useQueryClient();
@@ -26,13 +28,6 @@ export default function DemoPanel() {
       void refresh();
     },
   });
-  const decide = useMutation({
-    mutationFn: (approve: boolean) => teacherDemoApi.decideChanges(approve),
-    onSuccess: (r, approve) => {
-      void refresh();
-      toast({ title: r.decided ? `${r.decided} ${r.decided === 1 ? "change" : "changes"} ${approve ? "approved" : "rejected"}` : "No changes were waiting", message: r.decided ? "As Mrs Sadia Rehman would from the staff dashboard." : undefined });
-    },
-  });
 
   const reset = async () => {
     resetDemoData();
@@ -40,8 +35,9 @@ export default function DemoPanel() {
     await clearOutbox();
     await clearPersisted();
     queryClient.clear();
-    toast({ title: "Demo data reset", message: "Sign in again as Ms Hina Javed." });
-    await navigate({ to: "/login" });
+    // Sign-in is real now and survives a reset of the fictional data: the teacher stays signed in.
+    toast({ title: "Demo data reset", message: "Screens from modules not built yet start again from the demo data." });
+    await navigate({ to: "/today" });
   };
 
   return (
@@ -54,24 +50,6 @@ export default function DemoPanel() {
           onChange={(e) => set.mutate({ holiday: e.target.checked })}
         />
         <Switch label="Go offline (the phone loses its signal)" checked={offline} onChange={(e) => setSimulatedOffline(e.target.checked)} />
-        <Switch
-          label="The next sync fails (server error)"
-          checked={demo.data?.failNextSync ?? false}
-          disabled={!demo.data || set.isPending}
-          onChange={(e) => set.mutate({ failNextSync: e.target.checked })}
-        />
-        <div className="grid gap-2">
-          <span className="mtb-label">Change requests</span>
-          <div className="flex gap-2 [&>*]:flex-1">
-            <Button size="touch" icon="check" loading={decide.isPending && decide.variables === true} onClick={() => decide.mutate(true)}>
-              Approve all
-            </Button>
-            <Button size="touch" icon="x" loading={decide.isPending && decide.variables === false} onClick={() => decide.mutate(false)}>
-              Reject all
-            </Button>
-          </div>
-          <p className="m-0 text-small text-ink-muted">Plays the principal deciding from the staff dashboard.</p>
-        </div>
         <Button size="touch" variant="danger-quiet" icon="refresh" onClick={() => void reset()}>
           Reset demo data
         </Button>

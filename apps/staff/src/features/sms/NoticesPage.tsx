@@ -1,9 +1,9 @@
-import { metaQueries, NOTICE_AUDIENCE_LABEL, NOTICE_CATEGORY_LABEL, noticesApi, noticesQueries, smsStatusQueries, type CampusCode, type Notice, type NoticeAudience, type NoticeCategory, type NoticeInput } from "@mtb/api";
-import { formatCount, formatDate, formatDateTime, type IsoDate } from "@mtb/domain";
+import { metaQueries, newIdempotencyKey, NOTICE_AUDIENCE_LABEL, NOTICE_CATEGORY_LABEL, noticesApi, noticesQueries, smsStatusQueries, type CampusCode, type Notice, type NoticeAudience, type NoticeCategory, type NoticeInput } from "@mtb/api";
+import { formatCount, formatDate, formatDateTime, pakistanToday, type IsoDate } from "@mtb/domain";
 import { Banner, Button, Checkbox, ConfirmDialog, DatePicker, EmptyState, Field, Icon, Input, Segmented, Select, SidePanel, Skeleton, StatusBadge, Tabs, TabPanel, Textarea, Urdu, useToast } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { campusLabel } from "../../app/shell/campus";
@@ -17,13 +17,12 @@ export interface NoticesSearch {
   show?: "PUBLISHED" | "DRAFT" | "ALL";
 }
 
-const TODAY: IsoDate = "2026-11-04";
 const CATEGORIES: NoticeCategory[] = ["GENERAL", "HOLIDAY", "FEES", "EXAMS", "EVENT", "MEETING"];
 
 const isTakenDown = (n: Notice) => n.status === "DRAFT" && Boolean(n.unpublishedAt);
 
 function NoticeStatus({ n }: { n: Notice }) {
-  if (n.status === "PUBLISHED") return n.expiresOn && n.expiresOn < TODAY ? <StatusBadge status="neutral">Expired</StatusBadge> : <StatusBadge status="success">Published</StatusBadge>;
+  if (n.status === "PUBLISHED") return n.expiresOn && n.expiresOn < pakistanToday() ? <StatusBadge status="neutral">Expired</StatusBadge> : <StatusBadge status="success">Published</StatusBadge>;
   if (isTakenDown(n)) return <StatusBadge status="danger">Taken down</StatusBadge>;
   return <StatusBadge status="draft" />;
 }
@@ -46,16 +45,20 @@ export function NoticesPage({ search, setSearch }: { search: NoticesSearch; setS
 
   const all = list.data ?? [];
   const q = query.trim().toLowerCase();
-  const rows = all.filter((n) => (show === "ALL" || n.status === show) && (!audience || n.audience === audience) && (!q || `${n.title} ${n.body} ${n.publishedBy}`.toLowerCase().includes(q)));
+  const rows = all.filter((n) => (show === "ALL" || n.status === show) && (!audience || n.audience === audience) && (!q || `${n.title} ${n.body} ${n.publishedBy ?? ""}`.toLowerCase().includes(q)));
   const counts = { PUBLISHED: all.filter((n) => n.status === "PUBLISHED").length, DRAFT: all.filter((n) => n.status === "DRAFT").length };
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["notices"] });
+  // One key per notice until its publish succeeds, so a retry after a lost reply can't publish (or send) twice.
+  const publishKeys = useRef<Record<string, string>>({});
+  const publishKeyOf = (id: string) => (publishKeys.current[id] ??= newIdempotencyKey());
   const publish = useMutation({
-    mutationFn: (id: string) => noticesApi.publish(id),
+    mutationFn: (id: string) => noticesApi.publish(id, publishKeyOf(id)),
     onSuccess: async (n) => {
+      delete publishKeys.current[n.id];
       await refresh();
       await queryClient.invalidateQueries({ queryKey: ["sms"] });
-      toast({ title: `Published · ${n.title}`, message: `Families see it in the portal${n.batchId ? " and get a notification" : ""}.` });
+      toast({ title: `Published · ${n.title}`, message: `Families see it in the portal${n.batchId ? ". Its SMS are held in the outbox: nothing is sent from this system" : ""}.` });
     },
     onError: (e) => toast({ tone: "danger", title: "Not published", message: errorText(e) }),
   });
@@ -161,13 +164,17 @@ export function NoticesPage({ search, setSearch }: { search: NoticesSearch; setS
                   </span>
                 )}
               </div>
-              {n.status === "PUBLISHED" && n.audienceCount ? (
+              {n.status === "PUBLISHED" && n.audienceCount && n.readCount === undefined ? (
+                <span className="text-small text-ink-muted">
+                  For <span className="mtb-num text-ink">{formatCount(n.audienceCount)}</span> {n.audience === "STAFF" ? "staff" : "families"} · opened by — · published by {n.publishedBy || "—"}{n.publishedAt ? `, ${formatDateTime(n.publishedAt)}` : ""}
+                </span>
+              ) : n.status === "PUBLISHED" && n.audienceCount ? (
                 <div className="grid gap-1">
                   <div className="mtb-meter" role="progressbar" aria-valuenow={Math.round(((n.readCount ?? 0) / n.audienceCount) * 100)} aria-valuemin={0} aria-valuemax={100} aria-label={`${formatCount(n.readCount ?? 0)} of ${formatCount(n.audienceCount)} opened it`}>
                     <span style={{ width: `${Math.min(100, ((n.readCount ?? 0) / n.audienceCount) * 100)}%` }} />
                   </div>
                   <span className="text-small text-ink-muted">
-                    Opened by <span className="mtb-num text-ink">{formatCount(n.readCount ?? 0)}</span> of {formatCount(n.audienceCount)} {n.audience === "STAFF" ? "staff" : "families"} · published by {n.publishedBy}, {formatDateTime(n.publishedAt)}
+                    Opened by <span className="mtb-num text-ink">{formatCount(n.readCount ?? 0)}</span> of {formatCount(n.audienceCount)} {n.audience === "STAFF" ? "staff" : "families"} · published by {n.publishedBy || "—"}{n.publishedAt ? `, ${formatDateTime(n.publishedAt)}` : ""}
                   </span>
                 </div>
               ) : isTakenDown(n) ? (
@@ -176,7 +183,7 @@ export function NoticesPage({ search, setSearch }: { search: NoticesSearch; setS
                   {n.unpublishReason ? ` — ${n.unpublishReason}` : ""}
                 </p>
               ) : (
-                <p className="m-0 text-small text-ink-muted">Draft by {n.createdBy ?? n.publishedBy}{n.updatedAt ? `, last changed ${formatDateTime(n.updatedAt)}` : ""}. Families can't see it yet.</p>
+                <p className="m-0 text-small text-ink-muted">Draft by {n.createdBy || n.publishedBy || "—"}{n.updatedAt ? `, last changed ${formatDateTime(n.updatedAt)}` : ""}. Families can't see it yet.</p>
               )}
               {canEdit && (
                 <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-3">
@@ -216,7 +223,7 @@ export function NoticesPage({ search, setSearch }: { search: NoticesSearch; setS
         tone="warning"
         icon="eyeOff"
         title="Take this notice down?"
-        message="Families stop seeing it in the portal and app straight away. App notifications and SMS already sent can't be called back."
+        message="Families stop seeing it in the portal and app straight away. SMS written for it stay in the outbox as they are."
         confirmLabel="Take down"
         loading={unpublish.isPending}
         loadingLabel="Taking down…"
@@ -258,7 +265,7 @@ const noticeSchema = z
   .superRefine((v, ctx) => {
     if (!v.date) ctx.addIssue({ code: "custom", path: ["date"], message: "Choose the date the notice is about." });
     if (v.audience === "CLASS" && v.classSections.length === 0) ctx.addIssue({ code: "custom", path: ["classSections"], message: "Choose at least one class." });
-    if (v.expiresOn && v.expiresOn < TODAY) ctx.addIssue({ code: "custom", path: ["expiresOn"], message: "Choose today or a later day, or leave it empty." });
+    if (v.expiresOn && v.expiresOn < pakistanToday()) ctx.addIssue({ code: "custom", path: ["expiresOn"], message: "Choose today or a later day, or leave it empty." });
   });
 
 function NoticeEditor({ open, notice, onClose }: { open: boolean; notice: Notice | null; onClose: () => void }) {
@@ -282,6 +289,9 @@ function NoticeEditor({ open, notice, onClose }: { open: boolean; notice: Notice
   const [sendSms, setSendSms] = useState(Boolean(notice?.sendSms));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [confirm, setConfirm] = useState(false);
+  // Kept until a create or publish succeeds, so a retry after a lost reply can't add or publish the notice twice.
+  const [key, setKey] = useState(newIdempotencyKey);
+  const today = pakistanToday();
   const published = notice?.status === "PUBLISHED";
   const alreadySent = Boolean(notice?.batchId || notice?.unpublishedAt);
 
@@ -306,12 +316,13 @@ function NoticeEditor({ open, notice, onClose }: { open: boolean; notice: Notice
   const done = async (n: Notice, verb: string) => {
     await queryClient.invalidateQueries({ queryKey: ["notices"] });
     if (n.batchId) await queryClient.invalidateQueries({ queryKey: ["sms"] });
+    setKey(newIdempotencyKey());
     setConfirm(false);
     onClose();
-    toast({ title: `${verb} · ${n.title}`, message: n.status === "PUBLISHED" ? `Families see it in the portal${n.batchId ? " and get a notification" : ""}.` : "Saved as a draft. Families can't see it yet." });
+    toast({ title: `${verb} · ${n.title}`, message: n.status === "PUBLISHED" ? `Families see it in the portal${n.batchId ? ". Its SMS are held in the outbox: nothing is sent from this system" : ""}.` : "Saved as a draft. Families can't see it yet." });
   };
   const save = useMutation({
-    mutationFn: (publish: boolean) => (notice ? noticesApi.update(notice.id, input()) : noticesApi.create({ ...input(), publish })),
+    mutationFn: (publish: boolean) => (notice ? noticesApi.update(notice.id, input()) : noticesApi.create({ ...input(), publish }, key)),
     onSuccess: (n, publish) => done(n, notice ? (published ? "Corrected" : "Saved") : publish ? "Published" : "Draft saved"),
     onError: (e) => {
       setConfirm(false);
@@ -322,7 +333,7 @@ function NoticeEditor({ open, notice, onClose }: { open: boolean; notice: Notice
   const publishNow = useMutation({
     mutationFn: async () => {
       const saved = await noticesApi.update(notice!.id, input());
-      return noticesApi.publish(saved.id);
+      return noticesApi.publish(saved.id, key);
     },
     onSuccess: (n) => done(n, "Published"),
     onError: () => setConfirm(false),
@@ -390,9 +401,9 @@ function NoticeEditor({ open, notice, onClose }: { open: boolean; notice: Notice
               <Textarea label="Notice (English)" required rows={4} value={body} onChange={(e) => setBody(e.target.value)} help={`${body.length} of 1,000 characters`} {...(errors.body ? { error: errors.body } : {})} />
               <Textarea label="Notice (Urdu)" required urdu rows={3} value={bodyUr} onChange={(e) => setBodyUr(e.target.value)} help="Write dates and amounts in English digits, e.g. 10-Nov-2026 and Rs 8,500; they display left to right." {...(errors.bodyUr ? { error: errors.bodyUr } : {})} />
               <div className="grid gap-3 sm:grid-cols-3">
-                <DatePicker label="About the date" required value={date} onValueChange={setDate} today={TODAY} {...(errors.date ? { error: errors.date } : {})} />
+                <DatePicker label="About the date" required value={date} onValueChange={setDate} today={today} {...(errors.date ? { error: errors.date } : {})} />
                 <Select label="Kind" value={category} onChange={(e) => setCategory(e.target.value as NoticeCategory)} options={CATEGORIES.map((c) => ({ value: c, label: NOTICE_CATEGORY_LABEL[c] }))} />
-                <DatePicker label="Hide after (optional)" value={expiresOn} onValueChange={setExpiresOn} today={TODAY} minDate={TODAY} {...(errors.expiresOn ? { error: errors.expiresOn } : {})} />
+                <DatePicker label="Hide after (optional)" value={expiresOn} onValueChange={setExpiresOn} today={today} minDate={today} {...(errors.expiresOn ? { error: errors.expiresOn } : {})} />
               </div>
               <div className="grid gap-2">
                 <span className="mtb-label">For</span>
@@ -437,7 +448,7 @@ function NoticeEditor({ open, notice, onClose }: { open: boolean; notice: Notice
                 <span className="mtb-label">When it is published</span>
                 <Checkbox label="Pin it to the top of the portal home page" checked={pinned} onChange={(e) => setPinned(e.target.checked)} />
                 <Checkbox label="Send an app notification (free)" checked={sendApp} disabled={alreadySent} onChange={(e) => setSendApp(e.target.checked)} />
-                <Checkbox label="Also send it by SMS to families without the app (costs per SMS)" checked={sendSms} disabled={alreadySent} onChange={(e) => setSendSms(e.target.checked)} />
+                <Checkbox label="Also write it as an SMS for families without the app (held in the outbox: nothing is sent from this system)" checked={sendSms} disabled={alreadySent} onChange={(e) => setSendSms(e.target.checked)} />
                 {alreadySent && <p className="m-0 text-small text-ink-muted">Notifications for this notice were already sent once; they are not sent again.</p>}
                 {sendSms && status.data?.paused && <Banner tone="warning">All SMS are paused. Untick SMS to publish now with the app notification only.</Banner>}
               </div>
@@ -474,7 +485,7 @@ function NoticeEditor({ open, notice, onClose }: { open: boolean; notice: Notice
         onConfirm={() => (notice ? publishNow.mutate() : save.mutate(true))}
         icon="send"
         title={`Publish “${title}”?`}
-        message={`${audience === "STAFF" ? "Staff" : "Families"} see it straight away${sendApp || sendSms ? `, and get ${[sendApp && "an app notification", sendSms && "an SMS if they don't have the app"].filter(Boolean).join(" or ")}` : ""}. You can take it down later, but notifications can't be called back.`}
+        message={`${audience === "STAFF" ? "Staff" : "Families"} see it straight away${sendApp || sendSms ? `, and get ${[sendApp && "an app notification", sendSms && "an SMS (held in the outbox: nothing is sent from this system)"].filter(Boolean).join(" or ")}` : ""}. You can take it down later.`}
         details={[
           ["For", audience === "CLASS" ? `${sections.length} sections` : NOTICE_AUDIENCE_LABEL[audience]],
           ["About", date ? formatDate(date) : "—"],

@@ -1,6 +1,8 @@
 import {
   ApiError,
+  attendanceQueries,
   clockTime,
+  countLessons,
   findTimetableClashes,
   isFriday,
   maxPeriodsOf,
@@ -18,7 +20,7 @@ import {
   type TimetableSlot,
   type TimetableTeacher,
 } from "@mtb/api";
-import { formatDate, formatSession } from "@mtb/domain";
+import { formatDate, formatSession, pakistanToday, type IsoDate } from "@mtb/domain";
 import { Banner, Button, Icon, Select } from "@mtb/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Fragment, useMemo, type CSSProperties, type ReactNode } from "react";
@@ -28,9 +30,32 @@ import { SubNav, type SubNavItem } from "../../app/shell/SubNav";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
 import "./timetable.css";
 
-export const TODAY = "2026-11-04";
-/** Wednesday, the demo's today. */
-export const TODAY_DAY: TimetableDay = 3;
+/** Today in Pakistan (the backend's "today" too: cover and teacher texts are for today or later). */
+export function useToday(): IsoDate {
+  return pakistanToday();
+}
+
+/** The timetable weekday of a date (1 = Monday … 6 = Saturday); null on Sunday, the weekly holiday. */
+export function weekdayOfDate(date: IsoDate): TimetableDay | null {
+  const d = new Date(`${date}T00:00:00Z`).getUTCDay();
+  return d === 0 ? null : (d as TimetableDay);
+}
+
+/** Today's timetable weekday; null on Sunday. */
+export function useTodayDay(): TimetableDay | null {
+  return weekdayOfDate(useToday());
+}
+
+/**
+ * The session's first and last day, from the campus calendar (Attendance) when the user may read it. Without it the
+ * date pickers are not limited: the server still refuses a day outside the session.
+ */
+export function useSessionDays(): { starts?: IsoDate; ends?: IsoDate } {
+  const ctx = useCtx();
+  const canCalendar = useCan("attendance.view");
+  const cal = useQuery({ ...attendanceQueries.calendar(ctx), enabled: canCalendar && ctx.campus !== "ALL" });
+  return cal.data ? { starts: cal.data.starts, ends: cal.data.ends } : {};
+}
 
 const NAV: SubNavItem[] = [
   { to: "/timetable", label: "Class timetables", icon: "layers", exact: true },
@@ -189,6 +214,7 @@ export function TimetableGrid({
   /** Is this period split between the groups? */
   split?: (day: TimetableDay, period: number) => boolean;
 }) {
+  const todayDay = useTodayDay();
   const max = periodCount ?? Math.max(schedule.normal.periods, schedule.friday.periods);
   const periods = Array.from({ length: max }, (_, i) => i + 1);
   const breakAfter = schedule.normal.breakAfter;
@@ -258,9 +284,9 @@ export function TimetableGrid({
               return (
                 <tr key={`${day}-${gi}`} className={streams.length && gi === rowsPerDay - 1 ? "tt-day-end" : undefined}>
                   {first && (
-                    <th scope="row" rowSpan={rowsPerDay} className={`tt-day ${highlightToday && day === TODAY_DAY ? "is-today" : ""}`}>
+                    <th scope="row" rowSpan={rowsPerDay} className={`tt-day ${highlightToday && day === todayDay ? "is-today" : ""}`}>
                       <b>{long}</b>
-                      {isFriday(day) ? `Closes ${clockTime(days.friday.offTime)}` : day === TODAY_DAY && highlightToday ? "Today" : ""}
+                      {isFriday(day) ? `Closes ${clockTime(days.friday.offTime)}` : day === todayDay && highlightToday ? "Today" : ""}
                     </th>
                   )}
                   {streams.length > 0 && (
@@ -308,6 +334,7 @@ export function LessonCell({ title, line, sub, flag }: { title: string; line?: s
 
 /** The heading on every printed timetable page. */
 export function PrintHead({ board, title, scope, right }: { board: TimetableBoard; title: string; scope: ReactNode; right?: ReactNode }) {
+  const today = useToday();
   return (
     <header className="tt-print-head">
       <div>
@@ -317,7 +344,7 @@ export function PrintHead({ board, title, scope, right }: { board: TimetableBoar
       </div>
       <div style={{ fontSize: "9pt", textAlign: "right" }}>
         {right && <div style={{ fontWeight: 600 }}>{right}</div>}
-        Session {formatSession(board.session)} · {SEASON_LABEL[board.schedule.season]} · Printed {formatDate(TODAY)}
+        Session {formatSession(board.session)} · {SEASON_LABEL[board.schedule.season]} · Printed {formatDate(today)}
       </div>
     </header>
   );
@@ -510,7 +537,7 @@ export function freeTeachers(board: TimetableBoard, day: TimetableDay, period: n
   return board.teachers
     .filter((t) => !away.has(t.id) && !board.slots.some((s) => s.teacherId === t.id && s.day === day && overlaps(s.classSection, s.period)) && !covers.some((c) => c.substituteId === t.id && overlaps(c.classSection, c.period)))
     .map((t) => {
-      const lessons = board.slots.filter((s) => s.teacherId === t.id && s.day === day).length;
+      const lessons = countLessons(board.slots.filter((s) => s.teacherId === t.id && s.day === day));
       const covering = covers.filter((c) => c.substituteId === t.id).length;
       return { teacher: t, today: lessons + covering, covering, qualified: opts.subjectId ? t.subjectIds.includes(opts.subjectId) : false, full: lessons + covering >= t.maxPerDay };
     })

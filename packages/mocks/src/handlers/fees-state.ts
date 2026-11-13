@@ -1,4 +1,4 @@
-import type { CampusCode, Cancellation, Charge, FeeStatusCode, PaymentMethod, Receipt, ReceiptLine } from "@mtb/api";
+import type { CampusCode, Cancellation, Charge, PaymentMethod, Receipt, ReceiptLine } from "@mtb/api";
 import { amountInWords, calculateLateFine, DEFAULT_LATE_FINE_POLICY, formatReceiptNo, type IsoDate, type IsoDateTime } from "@mtb/domain";
 import { DEMO_TODAY } from "../clock";
 import { createStore } from "../db";
@@ -190,18 +190,4 @@ export function chargesOf(grNo: string): Charge[] {
     receipts: { ...st.receipts, ...Object.fromEntries(receipts.map((r) => [r.receiptNo, r])) },
   }));
   return list;
-}
-
-/** Balance and status, always calculated from the charges. */
-export function financeOf(grNo: string): { balance: number; feeStatus: FeeStatusCode } {
-  const list = chargesOf(grNo);
-  const open = list.filter((c) => c.status === "OPEN");
-  const balance = open.reduce((a, c) => a + c.amount - c.settledAmount, 0);
-  const overdue = open.some((c) => c.dueDate < DEMO_TODAY);
-  return { balance, feeStatus: balance === 0 ? "paid" : overdue ? "overdue" : "unpaid" };
-}
-
-export function receiptsOf(grNo: string): Receipt[] {
-  chargesOf(grNo);
-  return Object.values(feesStore.get().receipts).filter((r) => r.grNo === grNo);
 }

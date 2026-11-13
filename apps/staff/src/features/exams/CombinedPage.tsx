@@ -7,7 +7,7 @@ import { z } from "zod";
 import { campusLabel } from "../../app/shell/campus";
 import { Page, PageHeader } from "../../app/shell/page";
 import { useCtx } from "../../app/session";
-import { DocHead, PRINTED_ON } from "./print/docs";
+import { DocHead, printedOn } from "./print/docs";
 import { PrintSheet, printNow } from "./print/PrintSheet";
 import { ExamsNav, LoadError, ordinal, ResultBadge } from "./shared";
 
@@ -381,9 +381,9 @@ function CombinedDoc({ data, rows: given, section, gender, failedOnly, campus, s
                 </td>
               ))}
               <td className="n">{marksText(r)}</td>
-              <td className="n">{r.percent === null ? "" : r.percent.toFixed(1)}</td>
-              <td className="c">{r.grade ?? ""}</td>
-              <td className="n">{(section === "ALL" ? r.classPosition : r.position) ?? ""}</td>
+              <td className="n">{r.percent === null ? "—" : r.percent.toFixed(1)}</td>
+              <td className="c">{r.grade ?? "—"}</td>
+              <td className="n">{(section === "ALL" ? r.classPosition : r.position) ?? "—"}</td>
               <td className={r.result === "FAIL" ? "fail" : undefined}>{r.result === "PASS" ? "Pass" : r.result === "FAIL" ? "Fail" : "Incomplete"}</td>
             </tr>
           ))}
@@ -429,7 +429,7 @@ function CombinedCard({ data, row, strength, campus, session }: { data: ExamsCom
   return (
     <article className="exams-doc exams-doc-a4" aria-label={`${tests ? "Class test report" : "Consolidated result sheet"}, ${row.name}`}>
       {data.parts.some((p) => p.status !== "DECLARED") && <span className="exams-doc-mark">PROVISIONAL</span>}
-      <DocHead campus={campus} title={tests ? "Class test report" : "Consolidated result sheet"} sub={`Session ${formatSession(session)} · ${tests && months.length ? months.map(monthLabel).join(", ") : `Printed ${PRINTED_ON}`}`} />
+      <DocHead campus={campus} title={tests ? "Class test report" : "Consolidated result sheet"} sub={`Session ${formatSession(session)} · ${tests && months.length ? months.map(monthLabel).join(", ") : `Printed ${printedOn()}`}`} />
       <dl className="exams-doc-info">
         <div>
           <dt>Student</dt>
@@ -453,7 +453,7 @@ function CombinedCard({ data, row, strength, campus, session }: { data: ExamsCom
         </div>
         <div>
           <dt>{row.group ? "Group" : "Date"}</dt>
-          <dd>{row.group ?? PRINTED_ON}</dd>
+          <dd>{row.group ?? printedOn()}</dd>
         </div>
       </dl>
       <table>
@@ -592,7 +592,7 @@ function CombinedPositions({ data, rows, top, gender, campus, session }: { data:
                   <td>{r.name}</td>
                   {grouped && <td>{examsGroupShort(r.group)}</td>}
                   <td className="n">{marksText(r)}</td>
-                  <td className="n">{r.percent === null ? "" : formatPercent(r.percent)}</td>
+                  <td className="n">{r.percent === null ? "—" : formatPercent(r.percent)}</td>
                 </tr>
               ))}
             </tbody>
@@ -646,10 +646,10 @@ function CombinedFailed({ data, rows, gender, campus, session }: { data: ExamsCo
                     <td className="mtb-mono">{r.id}</td>
                     <td>{r.name}</td>
                     {grouped && <td>{examsGroupShort(r.group)}</td>}
-                    <td className="n">{r.obtained ?? 0}</td>
-                    <td className="n">{r.max ?? 0}</td>
+                    <td className="n">{r.max ? (r.obtained ?? 0) : "—"}</td>
+                    <td className="n">{r.max ? r.max : "—"}</td>
                     <td className="n">{r.percent === null ? "—" : formatPercent(r.percent)}</td>
-                    <td className="c">{r.grade ?? ""}</td>
+                    <td className="c">{r.grade ?? "—"}</td>
                   </tr>
                 )),
             ])}

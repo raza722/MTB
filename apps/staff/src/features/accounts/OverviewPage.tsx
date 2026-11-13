@@ -45,8 +45,8 @@ export function OverviewPage() {
       todos.push({
         key: "open-batches",
         icon: "fees",
-        title: `Today's fee collection: ${formatRs(a.openFeeBatches.reduce((s, b) => s + b.amount, 0))} so far`,
-        desc: `${formatCount(a.openFeeBatches.reduce((s, b) => s + b.receipts, 0))} receipts at ${a.openFeeBatches.length === 1 ? a.openFeeBatches[0]!.campusName : `${a.openFeeBatches.length} campuses`}. Posts by itself when the counter closes.`,
+        title: `Fee collection not posted yet: ${formatRs(a.openFeeBatches.reduce((s, b) => s + b.amount, 0))}`,
+        desc: `${formatCount(a.openFeeBatches.reduce((s, b) => s + b.receipts, 0))} receipts at ${a.openFeeBatches.length === 1 ? a.openFeeBatches[0]!.campusName : `${a.openFeeBatches.length} campuses`}. Today's posts by itself when the counter closes.`,
         onClick: () => go("/accounts/fee-posting"),
       });
     if (a.cashToDeposit > 0) todos.push({ key: "deposit", icon: "building", title: `${formatRs(a.cashToDeposit)} cash to deposit`, desc: "Yesterday's counter cash, above the overnight float. Deposited with a journal voucher.", onClick: () => go("/accounts/ledger", { account: "1101" }) });
@@ -78,7 +78,7 @@ export function OverviewPage() {
               <StatCard label={`Income, ${d ? monthName(d.month.month) : "this month"}`} icon="trendUp" loading={!d} value={d ? <AnimatedNumber value={d.month.income} format={formatRs} /> : ""} foot="Fees and other income, month to date" {...(d ? { onClick: () => go("/accounts/statements", { view: "ie", from: `${d.month.month}-01` }) } : {})} />
             </div>
             <div className="mtb-rise" style={slide(2)}>
-              <StatCard label={`Spent, ${d ? monthName(d.month.month) : "this month"}`} icon="trendDown" loading={!d} value={d ? <AnimatedNumber value={d.month.expenses} format={formatRs} /> : ""} foot="Salaries are booked at month end" {...(d ? { onClick: () => go("/accounts/statements", { view: "ie", from: `${d.month.month}-01` }) } : {})} />
+              <StatCard label={`Spent, ${d ? monthName(d.month.month) : "this month"}`} icon="trendDown" loading={!d} value={d ? <AnimatedNumber value={d.month.expenses} format={formatRs} /> : ""} foot="Salaries are booked when payroll pays them" {...(d ? { onClick: () => go("/accounts/statements", { view: "ie", from: `${d.month.month}-01` }) } : {})} />
             </div>
             <div className="mtb-rise" style={slide(3)}>
               <StatCard
@@ -159,6 +159,8 @@ export function OverviewPage() {
             <Panel id="acc-banks" rise={6} title="Cash and bank accounts" description="Each account's balance today, with its last 30 days. Click one for its ledger.">
               {!d ? (
                 <Skeleton height={200} />
+              ) : d.cashBank.accounts.length === 0 ? (
+                <EmptyState icon="building" title="No cash or bank accounts" description="Add them in the chart of accounts under 11 Cash and bank." />
               ) : (
                 <ul className="acc-banks">
                   {d.cashBank.accounts.map((acc, i) => (

@@ -5,6 +5,7 @@ import {
   ACTIVITIES_FEE_HEADS,
   ACTIVITIES_SCHEME_KIND_LABEL,
   ACTIVITIES_SCHEME_KINDS,
+  metaQueries,
   type ActivitiesBasis,
   type ActivitiesFeeHead,
   type ActivitiesMeritBand,
@@ -23,7 +24,6 @@ import { useCtx, useReadOnly } from "../../app/session";
 import { ActivitiesNav, errorField, errorText, LoadError, useCanEditSchemes, useRefresh } from "./shared";
 
 /** Classes a merit band can be limited to. */
-const BAND_CLASSES = ["Prep", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
 
 const renewalText = (s: ActivitiesScheme) => {
   const parts = [s.renewal.minResultPercent !== null ? `result ${s.renewal.minResultPercent}%+` : null, s.renewal.minAttendancePercent !== null ? `attendance ${s.renewal.minAttendancePercent}%+` : null].filter(Boolean);
@@ -146,6 +146,13 @@ function SchemePanel({ scheme, readOnly, onClose }: { scheme: ActivitiesScheme |
   const [tried, setTried] = useState(false);
   const set = (patch: Partial<typeof f>) => setF((x) => ({ ...x, ...patch }));
   const fixed = f.basis === "FIXED";
+  // Fees holds a concession as a percentage only, so the server refuses fixed-rupee schemes for now (spec 09 D4, C1):
+  // the choice is offered only for a scheme that already is one.
+  const offerFixed = scheme?.basis === "FIXED";
+  // Merit bands can be limited to any class the campus (or, with "All campuses", any campus) teaches.
+  const classes = useQuery(metaQueries.classes(ctx.campus));
+  const bandClasses = [...new Set([...(classes.data ?? []).map((c) => c.short), ...f.bands.map((b) => b.cls).filter(Boolean)])];
+  const classLabel = (short: string) => classes.data?.find((c) => c.short === short)?.name ?? (/^\d+$/.test(short) ? `Class ${short}` : short);
   const check = schemeSchema.safeParse({ name: f.name, value: f.value === "" ? undefined : Number(f.value), criteria: f.criteria, feeHeads: fixed ? ["TUITION"] : f.feeHeads });
   const errs: Record<string, string> = check.success ? {} : Object.fromEntries(check.error.issues.map((i) => [String(i.path[0]), i.message]));
   const v = Number(f.value);
@@ -214,8 +221,9 @@ function SchemePanel({ scheme, readOnly, onClose }: { scheme: ActivitiesScheme |
           <Input label="Name" required value={f.name} onChange={(e) => set({ name: e.target.value })} error={err("name")} />
           <Input label="Name in Urdu" urdu value={f.nameUrdu} onChange={(e) => set({ nameUrdu: e.target.value })} help="Printed on Urdu award letters." />
         </div>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className={offerFixed ? "grid gap-4 sm:grid-cols-2" : "grid gap-4"}>
           <Select label="Kind" value={f.kind} onChange={(e) => set({ kind: e.target.value as ActivitiesSchemeKind, needsTest: e.target.value === "MERIT" ? true : f.needsTest })} options={ACTIVITIES_SCHEME_KINDS.map((k) => ({ value: k, label: ACTIVITIES_SCHEME_KIND_LABEL[k] }))} />
+          {offerFixed && (
           <div className="grid gap-1">
             <span className="mtb-label">Relief is</span>
             <Segmented
@@ -228,6 +236,7 @@ function SchemePanel({ scheme, readOnly, onClose }: { scheme: ActivitiesScheme |
               ]}
             />
           </div>
+          )}
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <Input label={fixed ? "Off the tuition each month" : "Usual percentage off"} required amount inputMode="numeric" prefix={fixed ? "Rs" : undefined} suffix={fixed ? undefined : "%"} value={f.value} onChange={(e) => set({ value: e.target.value.replace(/\D/g, "") })} error={err("value")} help="Each award can differ; this is the starting figure." />
@@ -258,7 +267,7 @@ function SchemePanel({ scheme, readOnly, onClose }: { scheme: ActivitiesScheme |
             {f.bands.length === 0 && <p className="m-0 text-small text-ink-muted">No bands: every qualifier gets the usual percentage.</p>}
             {f.bands.map((b, i) => (
               <div key={i} className="grid grid-cols-[1.2fr_1fr_1fr_1fr_auto] items-end gap-2">
-                <Select label={i === 0 ? "Class" : undefined} aria-label="Class" value={b.cls} disabled={readOnly} onChange={(e) => set({ bands: f.bands.map((x, j) => (j === i ? { ...x, cls: e.target.value } : x)) })} options={[{ value: "", label: "Every class" }, ...BAND_CLASSES.map((c) => ({ value: c, label: c === "Prep" ? "Prep" : `Class ${c}` }))]} />
+                <Select label={i === 0 ? "Class" : undefined} aria-label="Class" value={b.cls} disabled={readOnly} onChange={(e) => set({ bands: f.bands.map((x, j) => (j === i ? { ...x, cls: e.target.value } : x)) })} options={[{ value: "", label: "Every class" }, ...bandClasses.map((c) => ({ value: c, label: classLabel(c) }))]} />
                 <Input label={i === 0 ? "Marks from" : undefined} aria-label="Marks from" suffix="%" inputMode="decimal" value={b.from} onChange={(e) => set({ bands: f.bands.map((x, j) => (j === i ? { ...x, from: e.target.value } : x)) })} />
                 <Input label={i === 0 ? "to" : undefined} aria-label="Marks to" suffix="%" inputMode="decimal" value={b.to} onChange={(e) => set({ bands: f.bands.map((x, j) => (j === i ? { ...x, to: e.target.value } : x)) })} />
                 <Input label={i === 0 ? "% off" : undefined} aria-label="Percentage off" suffix="%" inputMode="numeric" value={b.value} onChange={(e) => set({ bands: f.bands.map((x, j) => (j === i ? { ...x, value: e.target.value.replace(/\D/g, "") } : x)) })} />

@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { z } from "zod";
 import { useCtx } from "../../../app/session";
-import { addDaysIso, errorField, errorText, TODAY } from "../shared";
+import { addDaysIso, errorField, errorText, feeToday } from "../shared";
 
 /** "2026-11-10" + n months, keeping the day (capped at the month's end), as the server does. */
 function addMonthsIso(d: string, n: number): string {
@@ -37,18 +37,19 @@ export function AddChargePanel({ student, onClose, initialHead }: { student: Cha
   const classAmount = (code: string) => structure.data?.classes.find((c) => c.classShort === cls)?.lines.find((l) => l.head === code)?.amount ?? 0;
   const [head, setHead] = useState(initialHead ?? "");
   const [amount, setAmount] = useState<number | null>(null);
-  const [due, setDue] = useState<string | null>(addDaysIso(TODAY, 7));
+  const [due, setDue] = useState<string | null>(addDaysIso(feeToday(), 7));
   const [note, setNote] = useState("");
   const [parts, setParts] = useState("1");
   const [tried, setTried] = useState(false);
-  const sessionEnd = `${ctx.session + 1}-03-31`;
+  // The session's last day from Setup (through the structure loaded above); April–March until it loads.
+  const sessionEnd = structure.data?.sessionEnd ?? `${ctx.session + 1}-03-31`;
   const n = Number(parts);
 
   const schema = z
     .object({
       head: z.string().min(1, "Choose the fee head."),
       amount: z.number({ error: "Enter the amount." }).int("Whole rupees only.").min(1, "Enter the amount.").max(500000, "That is more than Rs 500,000. Check the figure."),
-      due: z.string({ error: "Enter the due date." }).min(1, "Enter the due date.").refine((d) => d >= TODAY, "The due date can't be in the past."),
+      due: z.string({ error: "Enter the due date." }).min(1, "Enter the due date.").refine((d) => d >= feeToday(), "The due date can't be in the past."),
       note: z.string().trim().min(5, "Say why it is charged, in a few words; it shows on the ledger.").max(120, "Keep the reason to 120 characters."),
       parts: z.number().int().min(1).max(12),
     })
@@ -118,7 +119,7 @@ export function AddChargePanel({ student, onClose, initialHead }: { student: Cha
         )}
         <div className="grid gap-4 sm:grid-cols-2">
           <AmountInput label="Amount" required value={amount} onValueChange={setAmount} error={err("amount")} />
-          <DatePicker label={n > 1 ? "First part due" : "Due date"} required value={due} onValueChange={setDue} today={TODAY} minDate={TODAY} maxDate={sessionEnd} error={err("due") ?? err("dueDate")} />
+          <DatePicker label={n > 1 ? "First part due" : "Due date"} required value={due} onValueChange={setDue} today={feeToday()} minDate={feeToday()} maxDate={sessionEnd} error={err("due") ?? err("dueDate")} />
         </div>
         <Select
           label="Pay in"

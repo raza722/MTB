@@ -1,6 +1,6 @@
-import { ApiError, notificationsApi, notificationsQueries, REPORT_MODULE_LABEL, reportsQueries, type ReportCell, type ReportColumnKind, type ReportJob, type ReportModule } from "@mtb/api";
-import { formatCount, formatDate, formatPercent, formatRs, formatTime } from "@mtb/domain";
-import { Banner, Button, Icon, MenuItem, MenuLabel, StatusBadge, useToast, type IconName } from "@mtb/ui";
+import { ApiError, notificationsQueries, REPORT_MODULE_LABEL, reportsQueries, type ReportCell, type ReportColumnKind, type ReportJob, type ReportModule } from "@mtb/api";
+import { formatCount, formatDate, formatPercent, formatRs, formatTime, pakistanToday } from "@mtb/domain";
+import { Banner, Button, Icon, StatusBadge, useToast, type IconName } from "@mtb/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
@@ -49,7 +49,7 @@ export function ReportsShell({ title, context, actions, meta, children }: { titl
 
 /**
  * Tells the user when a background report finishes (a toast with a link), and refreshes the bell.
- * The staff shell can mount it on every page; the report centre mounts it on its own pages.
+ * The report centre mounts it on its own pages; the bell (bell.tsx) lists the same jobs' notifications everywhere.
  */
 export function ReportJobsWatcher({ jobs }: { jobs: ReportJob[] | undefined }) {
   const toast = useToast();
@@ -81,40 +81,6 @@ export function ReportJobsWatcher({ jobs }: { jobs: ReportJob[] | undefined }) {
     }
   }, [jobs, toast, navigate, queryClient]);
   return null;
-}
-
-/**
- * Bell items for the staff shell: "Your report is ready". Drop into the shell's Notifications menu;
- * `useReportNotificationCount()` gives the unread number for the badge.
- */
-export function ReportNotificationItems() {
-  const q = useQuery(notificationsQueries.list());
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const list = (q.data ?? []).slice(0, 5);
-  if (!list.length) return null;
-  return (
-    <>
-      <MenuLabel>Reports</MenuLabel>
-      {list.map((n) => (
-        <MenuItem
-          key={n.id}
-          icon={n.kind === "REPORT_FAILED" ? "alertCircle" : "download"}
-          onSelect={() => {
-            void notificationsApi.markRead(n.id).then(() => queryClient.invalidateQueries({ queryKey: notificationsQueries.list().queryKey }));
-            if (n.link) void navigate({ to: n.link } as never);
-          }}
-        >
-          {n.read ? n.title : <b>{n.title}</b>}
-        </MenuItem>
-      ))}
-    </>
-  );
-}
-
-export function useReportNotificationCount(): number {
-  const q = useQuery(notificationsQueries.list());
-  return (q.data ?? []).filter((n) => !n.read).length;
 }
 
 export const slide = (i: number) => ({ "--i": Math.min(i, 12) }) as CSSProperties;
@@ -179,4 +145,5 @@ export function JobStatus({ job }: { job: ReportJob }) {
 
 export const formatLabel = (f: ReportJob["format"]) => (f === "EXCEL" ? "Excel" : f === "PDF" ? "PDF" : "On screen");
 export const FormatIcon = ({ f }: { f: ReportJob["format"] }) => <Icon name={f === "EXCEL" ? "listChecks" : f === "PDF" ? "printer" : "eye"} size={14} />;
-export const timeText = (iso: string) => (iso.startsWith("2026-11-04") ? `Today ${formatTime(iso)}` : `${formatDate(iso)} ${formatTime(iso)}`);
+/** "Today 06:00 PM" for a moment on today's date in Pakistan, else "11-Nov-2026 06:00 PM" (server times are UTC). */
+export const timeText = (iso: string) => (pakistanToday(new Date(iso)) === pakistanToday() ? `Today ${formatTime(iso)}` : `${formatDate(iso)} ${formatTime(iso)}`);

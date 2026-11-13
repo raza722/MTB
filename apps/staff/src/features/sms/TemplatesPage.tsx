@@ -94,7 +94,7 @@ function TemplateEditor({ template, canEdit }: { template: SmsTemplate; canEdit:
             {SMS_CATEGORY_LABEL[template.category]} · {categoryNote(template)}
           </p>
           <p className="m-0 text-small text-ink-muted">
-            Last changed by {template.updatedBy}, <span className="mtb-num">{formatDateTime(template.updatedAt)}</span>
+            Last changed by {template.updatedBy || "—"}, <span className="mtb-num">{formatDateTime(template.updatedAt)}</span>
             {template.uses ? ` · used ${formatCount(template.uses)} times this session` : ""}
           </p>
         </div>
@@ -128,7 +128,7 @@ function TemplateEditor({ template, canEdit }: { template: SmsTemplate; canEdit:
       </div>
       {saveError && <Banner tone="danger">{saveError}</Banner>}
       <p className="m-0 text-small text-ink-muted">
-        Counts use the sample values (Ayesha Khan, 7-B, Rs 8,500). Longer names or amounts can add a part. 160 characters per English SMS (153 per part when longer); 70 per Urdu SMS (67 per part) because Urdu uses Unicode. App notifications have no such limit and are free.
+        Counts use placeholder values (“Student name”, 7-B, 2,500). Longer names or amounts can add a part. 160 characters per English SMS (153 per part when longer); 70 per Urdu SMS (67 per part) because Urdu uses Unicode. App notifications have no such limit and are free.
       </p>
       <div className="grid gap-6 lg:grid-cols-2">
         {column("en")}

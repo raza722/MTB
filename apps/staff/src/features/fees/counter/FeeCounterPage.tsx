@@ -1,6 +1,6 @@
 import { ApiError, feesApi, feesQueries, PAYMENT_METHOD_LABEL, type Receipt } from "@mtb/api";
 import { formatDate, formatRs, RECEIPT_NUMBER_PLACEHOLDER } from "@mtb/domain";
-import { Button, ConfirmDialog, EmptyState, Modal, ShortcutHints, Skeleton, useToast } from "@mtb/ui";
+import { Banner, Button, ConfirmDialog, EmptyState, Modal, ShortcutHints, Skeleton, useToast } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Navigate, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
@@ -144,6 +144,11 @@ function CounterBody({ grNo, setGr }: { grNo: string; setGr: (gr: string | undef
               <EmptyState icon="alertCircle" title={data.error.status === 403 ? "This student belongs to another campus" : "Couldn't load this student"} description={data.error.message} action={<Button onClick={() => setGr(undefined)}>Find another student</Button>} />
             </div>
           )}
+          {data.data?.otherCampusDues ? (
+            <Banner tone="info" title={`${formatRs(data.data.otherCampusDues)} is also owed at another campus.`}>
+              Those dues are collected at the campus that charged them; the fee ledger lists them.
+            </Banner>
+          ) : null}
           {data.data?.left && <LeftStudentBanner on={formatDate(data.data.left.on)} reason={data.data.left.reason} {...(data.data.left.status ? { status: data.data.left.status } : {})} />}
           {data.data && data.data.charges.length === 0 && (
             <div className="mtb-card">

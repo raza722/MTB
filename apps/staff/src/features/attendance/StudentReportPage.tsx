@@ -6,7 +6,7 @@ import { Link } from "@tanstack/react-router";
 import { useState, type CSSProperties } from "react";
 import { RequireSingleCampus } from "../../app/shell/page";
 import { useCtx } from "../../app/session";
-import { AttendanceShell, CodeBadge, monthLabel, pctText, PrintSheet, QueryError, TODAY, useSections, useSessionSpan, type SessionSpan } from "./shared";
+import { AttendanceShell, CodeBadge, monthLabel, pctText, PrintSheet, QueryError, teacherText, useSections, useSessionSpan, type SessionSpan } from "./shared";
 
 export interface StudentReportSearch {
   view?: "student" | "class";
@@ -40,10 +40,10 @@ function rangesFor(span: SessionSpan): Ranges {
   };
 }
 
-/** The class in the URL, else 7-B where it exists, else the campus's first class. */
+/** The class in the URL, else the campus's first class. */
 function defaultClass(cls: string | undefined, sections: Array<{ classSection: string }> | undefined): string | undefined {
   if (cls && (!sections || sections.some((s) => s.classSection === cls))) return cls;
-  return sections?.some((s) => s.classSection === "7-B") ? "7-B" : sections?.[0]?.classSection;
+  return sections?.[0]?.classSection;
 }
 
 /** The period in the URL, or the whole session when it is missing or belongs to another session. */
@@ -80,10 +80,10 @@ function RangePicker({ search, setSearch }: { search: StudentReportSearch; setSe
       {custom && (
         <>
           <div className="w-44">
-            <DatePicker label="From" value={r.from} today={TODAY} minDate={span.starts} maxDate={span.last} onValueChange={(d) => d && setSearch({ ...search, from: d })} />
+            <DatePicker label="From" value={r.from} today={span.today} minDate={span.starts} maxDate={span.last} onValueChange={(d) => d && setSearch({ ...search, from: d })} />
           </div>
           <div className="w-44">
-            <DatePicker label="To" value={r.to} today={TODAY} minDate={r.from} maxDate={span.last} onValueChange={(d) => d && setSearch({ ...search, to: d })} />
+            <DatePicker label="To" value={r.to} today={span.today} minDate={r.from} maxDate={span.last} onValueChange={(d) => d && setSearch({ ...search, to: d })} />
           </div>
         </>
       )}
@@ -91,7 +91,7 @@ function RangePicker({ search, setSearch }: { search: StudentReportSearch; setSe
   );
 }
 
-function StudentReport({ report }: { report: AttendanceStudentReport }) {
+function StudentReport({ report, today }: { report: AttendanceStudentReport; today: string }) {
   const [allMonths, setAllMonths] = useState(false);
   const months = [...report.months].reverse();
   const shown = allMonths ? months : months.slice(0, 2);
@@ -129,7 +129,7 @@ function StudentReport({ report }: { report: AttendanceStudentReport }) {
           <div className="att-months">
             {shown.map((m) => {
               const [y, mo] = m.month.split("-").map(Number) as [number, number];
-              return <AttendanceCalendar key={m.month} year={y} month={mo - 1} days={m.days} holidayNames={m.holidayNames} today={TODAY} hideLegend />;
+              return <AttendanceCalendar key={m.month} year={y} month={mo - 1} days={m.days} holidayNames={m.holidayNames} today={today} hideLegend />;
             })}
           </div>
           <div className="mt-4">
@@ -158,7 +158,7 @@ function StudentReport({ report }: { report: AttendanceStudentReport }) {
           <dt>Student's name</dt>
           <dd>{report.name}</dd>
           <dt>Father's name</dt>
-          <dd>{report.father}</dd>
+          <dd>{report.father || "—"}</dd>
           <dt>Class / section</dt>
           <dd>{report.classSection}</dd>
           <dt>School days</dt>
@@ -201,12 +201,13 @@ function StudentReport({ report }: { report: AttendanceStudentReport }) {
 function OneStudent({ search, setSearch }: { search: StudentReportSearch; setSearch: (s: StudentReportSearch) => void }) {
   const ctx = useCtx();
   const sections = useSections();
-  const r = rangeOf(search, useSessionSpan());
+  const span = useSessionSpan();
+  const r = rangeOf(search, span);
   const cls = defaultClass(search.cls, sections.data);
-  const roster = useQuery({ ...attendanceQueries.classReport(ctx, cls ?? "", r.from, r.to), enabled: ctx.campus !== "ALL" && !!cls });
+  const roster = useQuery({ ...attendanceQueries.classReport(ctx, cls ?? "", r.from, r.to), enabled: ctx.campus !== "ALL" && !!cls && span.ready });
   const [typed, setTyped] = useState("");
   const grNo = search.grNo;
-  const q = useQuery({ ...attendanceQueries.student(ctx, grNo ?? "", r.from, r.to), enabled: !!grNo, placeholderData: (p) => (p && p.grNo === grNo ? p : undefined) });
+  const q = useQuery({ ...attendanceQueries.student(ctx, grNo ?? "", r.from, r.to), enabled: !!grNo && span.ready, placeholderData: (p) => (p && p.grNo === grNo ? p : undefined) });
   const rep = q.data;
   return (
     <>
@@ -221,7 +222,7 @@ function OneStudent({ search, setSearch }: { search: StudentReportSearch; setSea
                 label="Student"
                 value={grNo ?? ""}
                 onChange={(e) => setSearch({ ...search, grNo: e.target.value || undefined })}
-                options={[{ value: "", label: roster.isLoading ? "Loading…" : "Choose a student" }, ...(roster.data?.rows ?? []).map((s) => ({ value: s.grNo, label: `${s.rollNo}. ${s.name}` }))]}
+                options={[{ value: "", label: roster.isLoading ? "Loading…" : "Choose a student" }, ...(roster.data?.rows ?? []).map((s) => ({ value: s.grNo, label: s.rollNo ? `${s.rollNo}. ${s.name}` : s.name }))]}
               />
             </div>
           </>
@@ -234,7 +235,7 @@ function OneStudent({ search, setSearch }: { search: StudentReportSearch; setSea
           }}
         >
           <div className="w-40">
-            <Input label="Or G.R. no." placeholder="KC-14823" value={typed} onChange={(e) => setTyped(e.target.value)} />
+            <Input label="Or G.R. no." placeholder={`${ctx.campus === "ALL" ? "KC" : ctx.campus}-12345`} value={typed} onChange={(e) => setTyped(e.target.value)} />
           </div>
           <Button type="submit" icon="search">
             Find
@@ -262,11 +263,9 @@ function OneStudent({ search, setSearch }: { search: StudentReportSearch; setSea
             description={`${rep.classSection} · ${rep.campusName}`}
             actions={
               <div className="flex gap-2">
-                {rep.hasProfile && (
-                  <Link to="/students/$grNo" params={{ grNo: rep.grNo }} className={buttonClassName({ size: "sm", variant: "quiet" })}>
-                    Open profile
-                  </Link>
-                )}
+                <Link to="/students/$grNo" params={{ grNo: rep.grNo }} className={buttonClassName({ size: "sm", variant: "quiet" })}>
+                  Open profile
+                </Link>
                 <Button size="sm" icon="printer" onClick={() => window.print()}>
                   Print report
                 </Button>
@@ -276,12 +275,12 @@ function OneStudent({ search, setSearch }: { search: StudentReportSearch; setSea
             <KeyValue
               items={[
                 ["G.R. no.", <span className="mtb-num">{rep.grNo}</span>],
-                ["Father", rep.father],
+                ["Father", rep.father || "—"],
                 ["Period", `${formatDate(rep.from)} to ${formatDate(rep.to)}`],
               ]}
             />
           </Panel>
-          <StudentReport report={rep} />
+          <StudentReport report={rep} today={span.today} />
         </>
       )}
     </>
@@ -291,25 +290,26 @@ function OneStudent({ search, setSearch }: { search: StudentReportSearch; setSea
 function ClassReport({ search, setSearch }: { search: StudentReportSearch; setSearch: (s: StudentReportSearch) => void }) {
   const ctx = useCtx();
   const sections = useSections();
-  const r = rangeOf(search, useSessionSpan());
+  const span = useSessionSpan();
+  const r = rangeOf(search, span);
   const cls = defaultClass(search.cls, sections.data);
   const below = search.below ?? 75;
   const [onlyBelow, setOnlyBelow] = useState(true);
-  const q = useQuery({ ...attendanceQueries.classReport(ctx, cls ?? "", r.from, r.to), enabled: !!cls, placeholderData: (p) => p });
+  const q = useQuery({ ...attendanceQueries.classReport(ctx, cls ?? "", r.from, r.to), enabled: !!cls && span.ready, placeholderData: (p) => p });
   const all = [...(q.data?.rows ?? [])].sort((a, b) => (a.totals.percent ?? 101) - (b.totals.percent ?? 101) || a.rollNo - b.rollNo);
   const low = all.filter((x) => x.totals.percent !== null && x.totals.percent < below);
   const rows = onlyBelow ? low : all;
   const columns: Array<Column<AttendanceClassReportRow>> = [
-    { key: "rollNo", header: "Roll", width: 60, align: "right", render: (x) => <span className="mtb-num">{x.rollNo}</span> },
+    { key: "rollNo", header: "Roll", width: 60, align: "right", render: (x) => <span className="mtb-num">{x.rollNo || "—"}</span> },
     {
       key: "name",
       header: "Student",
       render: (x) => (
         <span className="grid">
           <span className="mtb-cell-primary">{x.name}</span>
-          <span className="mtb-cell-secondary">{x.father}</span>
+          {x.father && <span className="mtb-cell-secondary">{x.father}</span>}
           <span className="mtb-cell-secondary mtb-num">
-            {x.grNo} · {formatMobile(x.mobile)}
+            {x.grNo} · {x.mobile ? formatMobile(x.mobile) : "no mobile"}
           </span>
         </span>
       ),
@@ -353,7 +353,7 @@ function ClassReport({ search, setSearch }: { search: StudentReportSearch; setSe
         rise={0}
         flush
         title={`${cls ?? "Class"}: ${low.length} ${low.length === 1 ? "student" : "students"} below ${below}%`}
-        description={q.data ? `${formatDate(q.data.from)} to ${formatDate(q.data.to)} · ${q.data.schoolDays} school days · class teacher ${q.data.classTeacher}. Lowest first.` : undefined}
+        description={q.data ? `${formatDate(q.data.from)} to ${formatDate(q.data.to)} · ${q.data.schoolDays} school days · class teacher ${teacherText(q.data.classTeacher)}. Lowest first.` : undefined}
         actions={
           <Button size="sm" icon="printer" disabled={!q.data} onClick={() => window.print()}>
             Print list
@@ -373,7 +373,7 @@ function ClassReport({ search, setSearch }: { search: StudentReportSearch; setSe
         />
       </Panel>
       {q.data && (
-        <PrintSheet title={`Attendance below ${below}% · ${cls ?? ""}`} scope={`${formatDate(q.data.from)} to ${formatDate(q.data.to)} · ${q.data.schoolDays} school days · Class teacher ${q.data.classTeacher}`}>
+        <PrintSheet title={`Attendance below ${below}% · ${cls ?? ""}`} scope={`${formatDate(q.data.from)} to ${formatDate(q.data.to)} · ${q.data.schoolDays} school days · Class teacher ${teacherText(q.data.classTeacher)}`}>
           <table>
             <thead>
               <tr>
@@ -392,11 +392,11 @@ function ClassReport({ search, setSearch }: { search: StudentReportSearch; setSe
             <tbody>
               {rows.map((x) => (
                 <tr key={x.grNo}>
-                  <td>{x.rollNo}</td>
+                  <td>{x.rollNo || ""}</td>
                   <td className="l">{x.grNo}</td>
                   <td className="l">{x.name}</td>
                   <td className="l">{x.father}</td>
-                  <td className="l">{formatMobile(x.mobile)}</td>
+                  <td className="l">{x.mobile ? formatMobile(x.mobile) : ""}</td>
                   <td>{x.totals.present}</td>
                   <td>{x.totals.absent}</td>
                   <td>{x.totals.leave}</td>
@@ -436,7 +436,7 @@ export function StudentReportPage({ search, setSearch }: { search: StudentReport
       )}
       <p className="m-0 text-small text-ink-muted">
         Months available: {monthLabel(span.starts.slice(0, 7))} to {monthLabel(span.last.slice(0, 7))}
-        {span.readOnly ? ", read-only (carried over from the old software)" : ""}. The old monthly report counted days by hand and could not be run for a date range or a percentage line.
+        {span.readOnly ? ", read-only" : ""}. The old monthly report counted days by hand and could not be run for a date range or a percentage line.
       </p>
     </AttendanceShell>
   );

@@ -56,14 +56,14 @@ export interface Notice {
   expiresOn?: IsoDate;
   /** Shown first on the portal home page. */
   pinned?: boolean;
-  /** Also sent as an app notification and/or SMS when published. */
+  /** Also sent as an app notification and/or SMS when published (an SMS is held in the outbox: nothing is sent from this system). */
   sendApp?: boolean;
   sendSms?: boolean;
   /** The message batch created when it was published with app/SMS. */
   batchId?: string;
   /** Families or staff the notice reaches. */
   audienceCount?: number;
-  /** Families who opened it in the app. */
+  /** Families who opened it in the app (omitted until the app exists: show "—"). */
   readCount?: number;
 }
 
@@ -87,9 +87,9 @@ export type NoticeFilter = "PUBLISHED" | "DRAFT" | "ALL";
 
 export const noticesApi = {
   list: (ctx: Ctx) => apiFetch<Notice[]>("/notices", { query: ctxQuery(ctx) }),
-  create: (body: NoticeInput & { publish: boolean }) => apiFetch<Notice>("/notices", { method: "POST", body }),
+  create: (body: NoticeInput & { publish: boolean }, idempotencyKey?: string) => apiFetch<Notice>("/notices", { method: "POST", body, ...(idempotencyKey ? { idempotencyKey } : {}) }),
   update: (id: string, body: NoticeInput) => apiFetch<Notice>(`/notices/${encodeURIComponent(id)}`, { method: "PUT", body }),
-  publish: (id: string) => apiFetch<Notice>(`/notices/${encodeURIComponent(id)}/publish`, { method: "POST" }),
+  publish: (id: string, idempotencyKey?: string) => apiFetch<Notice>(`/notices/${encodeURIComponent(id)}/publish`, { method: "POST", ...(idempotencyKey ? { idempotencyKey } : {}) }),
   unpublish: (id: string, reason: string) => apiFetch<Notice>(`/notices/${encodeURIComponent(id)}/unpublish`, { method: "POST", body: { reason } }),
   remove: (id: string) => apiFetch<{ status: "ok" }>(`/notices/${encodeURIComponent(id)}`, { method: "DELETE" }),
 };

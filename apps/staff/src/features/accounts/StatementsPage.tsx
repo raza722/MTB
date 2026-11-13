@@ -5,7 +5,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Fragment, useState } from "react";
 import { useCtx } from "../../app/session";
 import { campusLabel } from "../../app/shell/campus";
-import { AccLink, AccountsShell, addDays, asOfFor, DocFoot, DocHead, lakhTick, LoadError, monthName, monthShort, sessionStartOf, slide, TODAY } from "./shared";
+import { AccLink, AccountsShell, accToday, addDays, asOfFor, DocFoot, DocHead, lakhTick, LoadError, monthName, monthShort, sessionStartOf, slide } from "./shared";
 
 export interface StatementsSearch {
   view?: "ie" | "bs";
@@ -91,10 +91,10 @@ function IncomeExpenditure({ search, setSearch }: { search: StatementsSearch; se
     <>
       <section className="mtb-card mtb-rise flex flex-wrap items-end gap-4 p-5" aria-label="Dates">
         <div className="w-44">
-          <DatePicker label="From" value={from} onValueChange={(v) => setSearch({ ...search, from: v ?? undefined })} today={TODAY} minDate={start} maxDate={end} />
+          <DatePicker label="From" value={from} onValueChange={(v) => setSearch({ ...search, from: v ?? undefined })} today={accToday()} minDate={start} maxDate={end} />
         </div>
         <div className="w-44">
-          <DatePicker label="To" value={to} onValueChange={(v) => setSearch({ ...search, to: v ?? undefined })} today={TODAY} minDate={start} maxDate={end} />
+          <DatePicker label="To" value={to} onValueChange={(v) => setSearch({ ...search, to: v ?? undefined })} today={accToday()} minDate={start} maxDate={end} />
         </div>
         <Segmented
           aria-label="Period"
@@ -146,7 +146,7 @@ function IncomeExpenditure({ search, setSearch }: { search: StatementsSearch; se
                 formatAxis={lakhTick}
                 valueLabel="Income"
                 targetLabel="Expenditure"
-                partial={(m) => m.month === TODAY.slice(0, 7)}
+                partial={(m) => m.month === accToday().slice(0, 7)}
                 partialLabel="Month in progress"
                 tooltip={(m) => (
                   <>
@@ -195,7 +195,7 @@ function IncomeExpenditure({ search, setSearch }: { search: StatementsSearch; se
                   { key: "income", header: "Income", align: "right", render: (c) => <Money value={c.income} /> },
                   { key: "expenses", header: "Expenditure", align: "right", render: (c) => <Money value={c.expenses} /> },
                   { key: "surplus", header: "Surplus", align: "right", render: (c) => <Money value={c.surplus} /> },
-                  { key: "share", header: "Share of income", align: "right", render: (c) => `${d.totalIncome ? Math.round((c.income / d.totalIncome) * 100) : 0}%` },
+                  { key: "share", header: "Share of income", align: "right", render: (c) => (d.totalIncome > 0 ? `${Math.round((c.income / d.totalIncome) * 100)}%` : "—") },
                 ]}
                 footer={{ campus: "All campuses", income: <Money value={d.totalIncome} />, expenses: <Money value={d.totalExpenses} />, surplus: <Money value={d.surplus} /> }}
               />
@@ -293,7 +293,7 @@ function BalanceSheet({ search, setSearch }: { search: StatementsSearch; setSear
     <>
       <section className="mtb-card mtb-rise flex flex-wrap items-end gap-4 p-5" aria-label="Date">
         <div className="w-44">
-          <DatePicker label="As of" value={asOf} onValueChange={(v) => setSearch({ ...search, asOf: v ?? undefined })} today={TODAY} minDate={sessionStartOf(ctx.session)} maxDate={asOfFor(ctx.session)} />
+          <DatePicker label="As of" value={asOf} onValueChange={(v) => setSearch({ ...search, asOf: v ?? undefined })} today={accToday()} minDate={sessionStartOf(ctx.session)} maxDate={asOfFor(ctx.session)} />
         </div>
         <p className="m-0 ms-auto max-w-md text-small text-ink-muted">{campusLabel(ctx.campus)}. A summary of what the trust owns and owes; the surplus so far this session is shown under the trust's funds.</p>
       </section>

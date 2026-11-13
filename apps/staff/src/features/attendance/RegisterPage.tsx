@@ -4,7 +4,6 @@ import {
   attendanceQueries,
   newIdempotencyKey,
   REGISTER_CODE_LABEL,
-  smsStatusQueries,
   type AttendanceRegister,
   type AttendanceRegisterStudent,
   type CampusCode,
@@ -18,7 +17,7 @@ import { useMemo, useState, type CSSProperties } from "react";
 import { z } from "zod";
 import { RequireSingleCampus, useContextLine } from "../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
-import { AttendanceShell, CodeBadge, errorText, lastWeekday, MARK_ORDER, PrintSheet, QueryError, SESSION_START, TODAY, useCanMark, useSections, useSessionSpan } from "./shared";
+import { AttendanceShell, CodeBadge, errorText, lastOpenDay, MARK_ORDER, PrintSheet, QueryError, teacherText, useCanMark, useSections, useSessionSpan } from "./shared";
 
 const MARK_HINT: Record<RegisterCode, string> = { P: "Present", A: "Absent", L: "On leave", LT: "Late (counts as attended)" };
 
@@ -73,7 +72,11 @@ const correctionSchema = z
   .object({
     from: z.enum(["P", "A", "L", "LT"]),
     to: z.enum(["P", "A", "L", "LT"], { error: "Choose the correct mark." }),
-    reason: z.string().trim().min(10, { error: "Write the reason in a few words (at least 10 letters), so the principal can decide." }),
+    reason: z
+      .string()
+      .trim()
+      .min(10, { error: "Write the reason in a few words (at least 10 letters), so the principal can decide." })
+      .max(300, { error: "Keep the reason under 300 letters." }),
   })
   .refine((v) => v.to !== v.from, { path: ["to"], error: "Choose a different mark from the one in the register." });
 
@@ -177,13 +180,13 @@ export function RegisterPage({ classSection, date, onDate }: RegisterPageProps) 
   const navigate = useNavigate();
   const contextLine = useContextLine();
   const span = useSessionSpan();
-  // An ended session opens on its last school week's register; the current one on today.
-  const defaultDay = readOnly ? lastWeekday(span.last) : TODAY;
+  const today = span.today;
+  // An ended session opens on its last day with registers (not a weekly day off); the current one on today.
+  const defaultDay = readOnly ? lastOpenDay(span.last, span.weeklyOff) : today;
   const day = date ?? defaultDay;
   const single = ctx.campus !== "ALL";
-  const q = useQuery({ ...attendanceQueries.register(ctx, classSection, day), enabled: single });
+  const q = useQuery({ ...attendanceQueries.register(ctx, classSection, day), enabled: single && (span.ready || !readOnly || !!date) });
   const sections = useSections();
-  const sms = useQuery(smsStatusQueries.status());
   const [draft, setDraft] = useState<Record<string, RegisterCode> | null>(null);
   const [search, setSearch] = useState("");
   const [confirm, setConfirm] = useState(false);
@@ -191,13 +194,12 @@ export function RegisterPage({ classSection, date, onDate }: RegisterPageProps) 
   const [key, setKey] = useState(newIdempotencyKey);
 
   const reg = q.data;
-  const marking = !!reg && !reg.closed && reg.status === "NOT_MARKED" && day === TODAY && canMark && !readOnly;
+  const marking = !!reg && !reg.closed && reg.status === "NOT_MARKED" && day === today && canMark && !readOnly;
   const canRequest = canMark && !readOnly;
   const marks: Record<string, RegisterCode> = useMemo(() => draft ?? Object.fromEntries((reg?.students ?? []).map((s) => [s.grNo, "P" as RegisterCode])), [draft, reg]);
   const codes = reg ? reg.students.map((s) => (marking ? marks[s.grNo] : s.code)) : [];
   const counts = countsOf(codes);
   const absentees = reg ? reg.students.filter((s) => marks[s.grNo] === "A") : [];
-  const paused = sms.data?.paused ?? false;
 
   const submit = useMutation({
     mutationFn: () => attendanceApi.saveRegister(classSection, { campus: ctx.campus as CampusCode, session: ctx.session, date: day, marks: reg!.students.map((s) => ({ grNo: s.grNo, code: marks[s.grNo] ?? "P" })) }, key),
@@ -210,7 +212,11 @@ export function RegisterPage({ classSection, date, onDate }: RegisterPageProps) 
       void qc.invalidateQueries({ queryKey: ["dashboard"] });
       toast({
         title: `${classSection} register submitted`,
-        message: r.smsHeld ? "SMS are paused, so parents of absent students were not messaged. Send from Absentees once SMS resume." : r.smsQueued ? `${r.smsQueued} ${r.smsQueued === 1 ? "parent gets" : "parents get"} an SMS about today's absence.` : "Nobody is absent today.",
+        message: r.smsHeld
+          ? `“Absent today” messages for ${r.smsQueued} ${r.smsQueued === 1 ? "family are" : "families are"} held: SMS sending starts with the Messages module.`
+          : absentees.length
+            ? "No absence message was written (no parent mobile on record, or automatic absence messages are off)."
+            : "Nobody is absent today.",
       });
     },
   });
@@ -227,7 +233,7 @@ export function RegisterPage({ classSection, date, onDate }: RegisterPageProps) 
       <Button size="sm" variant="quiet" icon="chevronLeft" disabled={at <= 0} onClick={() => goto(list[at - 1]!.classSection)} aria-label="Previous class" />
       <Button size="sm" variant="quiet" icon="chevronRight" disabled={at < 0 || at >= list.length - 1} onClick={() => goto(list[at + 1]!.classSection)} aria-label="Next class" />
       <div className="w-44">
-        <DatePicker aria-label="Day" value={day} today={TODAY} minDate={readOnly ? span.starts : SESSION_START} maxDate={span.last} onValueChange={(d) => onDate(d && d !== defaultDay ? d : undefined)} />
+        <DatePicker aria-label="Day" value={day} today={today} minDate={span.starts} maxDate={span.last} onValueChange={(d) => onDate(d && d !== defaultDay ? d : undefined)} />
       </div>
       <Button size="sm" icon="printer" disabled={!reg || !!reg.closed || (reg.status === "NOT_MARKED" && !marking)} onClick={() => window.print()}>
         Print
@@ -238,7 +244,7 @@ export function RegisterPage({ classSection, date, onDate }: RegisterPageProps) 
   return (
     <AttendanceShell
       title={title}
-      context={`${contextLine} · ${formatLongDate(day)}${reg ? ` · Class teacher ${reg.classTeacher}` : ""}`}
+      context={`${contextLine} · ${formatLongDate(day)}${reg?.classTeacher ? ` · Class teacher ${reg.classTeacher}` : ""}`}
       actions={actions}
       meta={
         readOnly ? (
@@ -246,7 +252,7 @@ export function RegisterPage({ classSection, date, onDate }: RegisterPageProps) 
             ← Monthly sheet for {classSection}
           </Link>
         ) : (
-          <Link to="/attendance" search={(p: Record<string, unknown>) => ({ ...p, date: day === TODAY ? undefined : day })} className="text-small font-medium text-brand-ink underline-offset-2 hover:underline">
+          <Link to="/attendance" search={(p: Record<string, unknown>) => ({ ...p, date: day === today ? undefined : day })} className="text-small font-medium text-brand-ink underline-offset-2 hover:underline">
             ← All registers for {formatDate(day)}
           </Link>
         )
@@ -269,15 +275,19 @@ export function RegisterPage({ classSection, date, onDate }: RegisterPageProps) 
           <>
             {readOnly ? (
               <Banner tone="neutral" icon="lock" title={`Session ${formatSession(ctx.session)} has ended: this register is read-only.`}>
-                {reg.status === "NOT_MARKED" ? "This register was never submitted." : `Carried over from the old software (${reg.students.length} students). It can be read and printed; marks can no longer be changed.`}
+                {reg.status === "NOT_MARKED"
+                  ? "This register was never submitted."
+                  : `${reg.source === "Office" ? "Marked by the office" : reg.source ? "Submitted in the teacher app" : "Carried over from the old software"} (${reg.students.length} students). It can be read and printed; marks can no longer be changed.`}
               </Banner>
             ) : marking ? (
-              <Banner tone="info" title={`${reg.classTeacher} hasn't marked this register yet.`}>
+              <Banner tone="info" title={reg.classTeacher ? `${reg.classTeacher} hasn't marked this register yet.` : "This register hasn't been marked yet."}>
                 You can mark it for them. Everyone starts as present: change only the students who are absent, on leave or late, then submit. The register locks once it is submitted.
               </Banner>
             ) : reg.status === "NOT_MARKED" ? (
               <Banner tone="warning" title="Not marked yet.">
-                {day === TODAY ? `${reg.classTeacher} marks it in the teacher app. ${canMark ? "" : "Office staff can mark it for a teacher who is away."}` : "This register was never submitted."}
+                {day === today
+                  ? `${reg.classTeacher ? `${reg.classTeacher} marks it` : "The class teacher marks it"} in the teacher app. ${canMark ? "" : "Office staff can mark it for a teacher who is away."}`
+                  : "This register was never submitted."}
               </Banner>
             ) : (
               <Banner
@@ -292,7 +302,9 @@ export function RegisterPage({ classSection, date, onDate }: RegisterPageProps) 
                   ) : undefined
                 }
               >
-                {reg.submittedAt ? `${reg.source === "Office" ? "Marked by the office" : "Submitted in the teacher app"} by ${reg.submittedBy} at ${formatTime(reg.submittedAt)}. ` : ""}
+                {reg.submittedAt
+                  ? `${reg.source === "Office" ? "Marked by the office" : reg.source ? "Submitted in the teacher app" : "Carried over from the old software"}${reg.submittedBy ? ` by ${reg.submittedBy}` : ""} on ${formatDate(reg.submittedAt)} at ${formatTime(reg.submittedAt)}. `
+                  : ""}
                 {canMark ? "To correct a mark, use “Request change” on the student." : "Changes are requested by the teacher or the office."}
               </Banner>
             )}
@@ -320,16 +332,12 @@ export function RegisterPage({ classSection, date, onDate }: RegisterPageProps) 
                     const code = marking ? (marks[s.grNo] ?? "P") : s.code;
                     return (
                       <li key={s.grNo} className={`mtb-slide-in ${code === "A" ? "is-absent" : ""} ${s.pending ? "is-pending" : ""}`} style={{ "--i": Math.min(i, 18) } as CSSProperties}>
-                        <span className="att-roll">{s.rollNo}</span>
+                        <span className="att-roll">{s.rollNo || "—"}</span>
                         <Avatar name={s.name} size="sm" />
                         <span className="att-name">
-                          {s.hasProfile ? (
-                            <Link to="/students/$grNo" params={{ grNo: s.grNo }}>
-                              {s.name}
-                            </Link>
-                          ) : (
-                            <b>{s.name}</b>
-                          )}
+                          <Link to="/students/$grNo" params={{ grNo: s.grNo }}>
+                            {s.name}
+                          </Link>
                           <small className="mtb-num">G.R. {s.grNo}</small>
                         </span>
                         <span className="att-row-actions">
@@ -393,7 +401,7 @@ export function RegisterPage({ classSection, date, onDate }: RegisterPageProps) 
               </Panel>
             )}
 
-            <PrintSheet title={`Attendance register · ${classSection}`} scope={`${formatLongDate(day)} · Class teacher ${reg.classTeacher} · ${counts.P} present, ${counts.A} absent, ${counts.L} leave, ${counts.LT} late`}>
+            <PrintSheet title={`Attendance register · ${classSection}`} scope={`${formatLongDate(day)} · Class teacher ${teacherText(reg.classTeacher)} · ${counts.P} present, ${counts.A} absent, ${counts.L} leave, ${counts.LT} late`}>
               <table>
                 <thead>
                   <tr>
@@ -406,7 +414,7 @@ export function RegisterPage({ classSection, date, onDate }: RegisterPageProps) 
                 <tbody>
                   {reg.students.map((s) => (
                     <tr key={s.grNo}>
-                      <td>{s.rollNo}</td>
+                      <td>{s.rollNo || ""}</td>
                       <td className="l">{s.grNo}</td>
                       <td className="l">{s.name}</td>
                       <td>{(marking ? marks[s.grNo] : s.code) ?? ""}</td>
@@ -435,9 +443,7 @@ export function RegisterPage({ classSection, date, onDate }: RegisterPageProps) 
               warning={
                 absentees.length === 0
                   ? undefined
-                  : paused
-                    ? `All SMS are paused. Parents of ${absentees.map((s) => s.name).join(", ")} won't get a message until an admin resumes SMS.`
-                    : `${absentees.map((s) => s.name).join(", ")} ${absentees.length === 1 ? "is" : "are"} absent. Their parents get an SMS.`
+                  : `${absentees.map((s) => s.name).join(", ")} ${absentees.length === 1 ? "is" : "are"} absent. An “Absent today” message for the parents is written and held: SMS sending starts with the Messages module.`
               }
               error={submit.isError ? errorText(submit.error) : undefined}
             />

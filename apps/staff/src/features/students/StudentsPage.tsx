@@ -45,7 +45,6 @@ export interface StudentsSearch {
 /** Headline figures: enrolled, new admissions, leavers and families. */
 function StrengthCards({ s }: { s: StudentStrength | undefined }) {
   const navigate = useNavigate();
-  const canAdmissions = useCan("admissions.view");
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <div className="mtb-rise" style={stagger(1)}>
@@ -59,8 +58,7 @@ function StrengthCards({ s }: { s: StudentStrength | undefined }) {
           loading={!s}
           value={s ? <AnimatedNumber value={s.newThisSession} format={formatCount} /> : undefined}
           {...(s && s.newThisWeek ? { delta: s.newThisWeek, deltaLabel: `+${s.newThisWeek} this week` } : {})}
-          foot="admitted since 01-Apr"
-          {...(canAdmissions ? { onClick: () => void navigate({ to: "/admissions/offers" }) } : {})}
+          foot="joined in this session's intake, every route"
         />
       </div>
       <div className="mtb-rise" style={stagger(3)}>
@@ -209,7 +207,7 @@ function downloadCsv(rows: StudentSummary[], detail: Map<string, StudentListDeta
       r.name,
       r.relation,
       r.father,
-      d ? formatDate(d.dob) : "",
+      d?.dob ? formatDate(d.dob) : "",
       r.gender === "F" ? "Female" : "Male",
       d?.bForm ? formatCnic(d.bForm) : "",
       r.classSection,
@@ -482,6 +480,12 @@ export function StudentsPage({ search, setSearch }: { search: StudentsSearch; se
           }
           pagination={rows.length > 25 ? <Pagination page={page} pageSize={25} total={rows.length} onPageChange={setPage} /> : undefined}
         />
+        {/* The server sends at most 2,000 rows (no paging in the contract yet, spec 01_students D2 / C4). */}
+        {list.data && list.data.total > list.data.items.length && (
+          <p className="m-0 text-small text-ink-muted" role="status">
+            Showing the first {formatCount(list.data.items.length)} of {formatCount(list.data.total)} students. Search or choose a class to narrow the list.
+          </p>
+        )}
         <AddressLabelsPanel open={labels !== null} onClose={() => setLabels(null)} query={{ grNos: labels?.grNos ?? [] }} title={labels?.title ?? ""} />
       </Page>
     </RequirePermission>

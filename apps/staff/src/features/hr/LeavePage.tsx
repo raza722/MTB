@@ -9,7 +9,7 @@ import { RequirePermission } from "../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { ReportDoc } from "./print";
 import { issues, useHrSettings } from "./StaffPanels";
-import { campusHeading, DesignationSelect, errorField, errorText, filterNote, HrShell, LeaveBadge, LoadError, slide, staffOptions, TODAY, useDesignationTitle, usePrint } from "./shared";
+import { campusHeading, DesignationSelect, errorField, errorText, filterNote, HrShell, LeaveBadge, LoadError, slide, staffOptions, today, useDesignationTitle, usePrint } from "./shared";
 
 /* ---------------------------------------------------------------- Record leave */
 
@@ -22,8 +22,8 @@ function NewLeavePanel({ campus, types, onClose }: { campus: CampusCode; types: 
   const canDecide = useCan("approvals.decide");
   const [staffId, setStaffId] = useState<string | null>(null);
   const [typeId, setTypeId] = useState(types[0]?.id ?? "");
-  const [from, setFrom] = useState<string | null>(TODAY);
-  const [to, setTo] = useState<string | null>(TODAY);
+  const [from, setFrom] = useState<string | null>(today());
+  const [to, setTo] = useState<string | null>(today());
   const [half, setHalf] = useState(false);
   const [reason, setReason] = useState("");
   const [approved, setApproved] = useState(false);
@@ -161,8 +161,8 @@ function NewLeavePanel({ campus, types, onClose }: { campus: CampusCode; types: 
         )}
         <Select label="Kind of leave" value={typeId} onChange={(e) => setTypeId(e.target.value)} options={types.filter((t) => t.active).map((t) => ({ value: t.id, label: `${t.name}${t.daysPerYear !== null ? ` (${t.daysPerYear} days a year)` : ""}` }))} error={err("typeId")} />
         <div className="grid gap-4 sm:grid-cols-2">
-          <DatePicker label="First day" required value={from} onValueChange={(d) => { setFrom(d); if (d && (!to || to < d)) setTo(d); }} today={TODAY} error={err("from")} />
-          <DatePicker label="Last day" required value={to} onValueChange={setTo} today={TODAY} error={err("to")} />
+          <DatePicker label="First day" required value={from} onValueChange={(d) => { setFrom(d); if (d && (!to || to < d)) setTo(d); }} today={today()} error={err("from")} />
+          <DatePicker label="Last day" required value={to} onValueChange={setTo} today={today()} error={err("to")} />
         </div>
         <Checkbox label="Half day only" checked={half} onChange={(e) => setHalf(e.target.checked)} />
         <Textarea label="Reason" required rows={3} value={reason} onChange={(e) => setReason(e.target.value)} error={err("reason")} placeholder="Family wedding in Bahawalpur" />
@@ -219,7 +219,7 @@ function LeavePanel({ r, onClose }: { r: HrLeaveRequest; onClose: () => void }) 
               </Button>
             </>
           )
-        ) : (r.status === "PENDING" || (r.status === "APPROVED" && r.from > TODAY)) && canManage && !readOnly ? (
+        ) : (r.status === "PENDING" || (r.status === "APPROVED" && r.from > today())) && canManage && !readOnly ? (
           mode === "cancel" ? (
             <>
               <Button onClick={() => setMode("view")}>Back</Button>
@@ -297,7 +297,10 @@ export function LeavePage() {
   const inRange = (r: HrLeaveRequest) => rangeError !== undefined || ((!from || r.to >= from) && (!to || r.from <= to));
   const rows = (d?.requests ?? []).filter((r) => (!status || r.status === status) && (!type || r.typeId === type) && (!des || r.designationId === des) && inRange(r) && (!query || `${r.staffName} ${r.employeeNo}`.toLowerCase().includes(query.toLowerCase())));
   const open = d?.requests.find((r) => r.id === openId);
-  const mainTypes = (d?.types ?? []).filter((t) => t.active && t.daysPerYear !== null && t.daysPerYear <= 14);
+  // Balance columns: every leave type offered with a yearly allowance; unpaid types (no allowance) add up in one column.
+  const mainTypes = (d?.types ?? []).filter((t) => t.active && t.daysPerYear !== null);
+  const unpaidIds = new Set((d?.types ?? []).filter((t) => !t.paid).map((t) => t.id));
+  const unpaidTaken = (b: HrLeaveBalanceRow) => b.balances.filter((x) => unpaidIds.has(x.typeId)).reduce((a, x) => a + x.taken, 0);
   const filtered = Boolean(status || type || query || des || from || to);
   const rangeText = from || to ? `${from ? formatDate(from) : "start of session"} to ${to ? formatDate(to) : "end of session"}` : `Session ${formatSession(ctx.session)}`;
   const statusLabel = (s: HrLeaveStatus) => ({ PENDING: "Waiting", APPROVED: "Approved", REJECTED: "Rejected", CANCELLED: "Cancelled" })[s];
@@ -333,7 +336,7 @@ export function LeavePage() {
             const x = b.balances.find((y) => y.typeId === t.id);
             return x && x.entitled !== null ? `${x.taken} / ${x.entitled}` : "—";
           }),
-          b.balances.find((x) => x.typeId === "lt-unpaid")?.taken ?? 0,
+          unpaidTaken(b),
         ])}
         signatures={["Office", "Principal"]}
       />,
@@ -365,7 +368,7 @@ export function LeavePage() {
         );
       },
     })),
-    { key: "unpaid", header: "Unpaid taken", align: "right", render: (b) => <span className="mtb-num">{b.balances.find((x) => x.typeId === "lt-unpaid")?.taken ?? 0}</span> },
+    { key: "unpaid", header: "Unpaid taken", align: "right", render: (b) => <span className="mtb-num">{unpaidTaken(b)}</span> },
   ];
 
   return (
@@ -415,7 +418,7 @@ export function LeavePage() {
               {d.summary.onLeaveToday.map((x, i) => (
                 <li key={x.staffId} className="mtb-slide-in rounded-md bg-surface-sunken px-3 py-2 text-small" style={slide(i)}>
                   <span className="font-medium">{x.name}</span> · {x.typeName}
-                  {x.until !== TODAY ? ` until ${formatDate(x.until)}` : " · back tomorrow"}
+                  {x.until !== today() ? ` until ${formatDate(x.until)}` : " · back tomorrow"}
                 </li>
               ))}
             </ul>
@@ -443,10 +446,10 @@ export function LeavePage() {
                 </div>
                 <DesignationSelect value={des} onChange={setDes} />
                 <div className="w-40">
-                  <DatePicker aria-label="From" placeholder="From" value={from} onValueChange={setFrom} today={TODAY} />
+                  <DatePicker aria-label="From" placeholder="From" value={from} onValueChange={setFrom} today={today()} />
                 </div>
                 <div className="w-40">
-                  <DatePicker aria-label="To" placeholder="To" value={to} onValueChange={setTo} today={TODAY} {...(from ? { minDate: from } : {})} error={rangeError} />
+                  <DatePicker aria-label="To" placeholder="To" value={to} onValueChange={setTo} today={today()} {...(from ? { minDate: from } : {})} error={rangeError} />
                 </div>
                 {filtered && (
                   <Button

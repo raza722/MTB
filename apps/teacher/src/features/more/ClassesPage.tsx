@@ -54,7 +54,7 @@ function ClassLink({ c }: { c: TeacherClass }) {
           {c.subjects.length > 0 && <span className="text-small font-medium text-ink">{c.subjects.join(", ")}</span>}
         </span>
         <span className="mt-1 block text-small text-ink-muted">
-          {c.enrolled} students{c.periodsPerWeek ? ` · ${c.periodsPerWeek} ${c.periodsPerWeek === 1 ? "period" : "periods"} a week` : ""} · {c.room}
+          {c.enrolled} students{c.periodsPerWeek ? ` · ${c.periodsPerWeek} ${c.periodsPerWeek === 1 ? "period" : "periods"} a week` : ""}{c.room ? ` · ${c.room}` : ""}
         </span>
         {pct !== null && (
           <span className="mt-2 flex items-center gap-2">

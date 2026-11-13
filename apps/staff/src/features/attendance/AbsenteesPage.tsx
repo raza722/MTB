@@ -1,5 +1,5 @@
-import { ApiError, attendanceApi, attendanceQueries, newIdempotencyKey, smsRender, smsStatusQueries, type AttendanceAbsentee, type CampusCode, type RegisterCode } from "@mtb/api";
-import { formatCount, formatDateTime, formatLongDate, formatMobile, formatTime } from "@mtb/domain";
+import { attendanceApi, attendanceQueries, newIdempotencyKey, smsRender, type AttendanceAbsentee, type CampusCode, type RegisterCode } from "@mtb/api";
+import { formatCount, formatLongDate, formatMobile, formatTime } from "@mtb/domain";
 import { AnimatedNumber, Banner, Button, DataTable, EmptyState, Input, Modal, Panel, Segmented, Select, StatCard, StatusBadge, Urdu, useToast, type Column } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -7,7 +7,7 @@ import { useState, type CSSProperties, type ReactNode } from "react";
 import { campusLabel } from "../../app/shell/campus";
 import { RequireSingleCampus } from "../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
-import { AttendanceShell, CodeBadge, errorText, PastSessionNote, PrintSheet, QueryError, TODAY } from "./shared";
+import { AttendanceShell, CodeBadge, errorText, PastSessionNote, PrintSheet, QueryError, teacherText, useToday } from "./shared";
 
 function SmsCell({ a }: { a: AttendanceAbsentee }) {
   const s = a.sms;
@@ -36,11 +36,13 @@ function SmsCell({ a }: { a: AttendanceAbsentee }) {
       return (
         <span className="grid justify-items-start gap-0.5" title={s.error}>
           <StatusBadge status="pending">Held</StatusBadge>
-          <span className="mtb-cell-secondary">{a.changePending ? "Change pending" : "SMS paused"}</span>
+          <span className="mtb-cell-secondary">
+            {a.changePending ? "Change pending" : `${s.by === "Automatic" ? "Automatic" : (s.by ?? "Held")}${when}`}
+          </span>
         </span>
       );
     default:
-      return <span className="text-small text-ink-muted">{a.code === "A" ? "Not sent" : "No SMS for this mark"}</span>;
+      return <span className="text-small text-ink-muted">{a.code !== "A" ? "No SMS for this mark" : a.mobile ? "Not written" : "No mobile on record"}</span>;
   }
 }
 
@@ -58,9 +60,14 @@ function urduWithValues(template: string, values: Record<string, string>): React
   });
 }
 
-const sendable = (a: AttendanceAbsentee) => !a.changePending && a.sms.status !== "SENT" && a.sms.status !== "QUEUED";
+/** Only Absent marks get the "Absent today" message, once, with a mobile on record and no change waiting. */
+const sendable = (a: AttendanceAbsentee) => a.code === "A" && !!a.mobile && !a.changePending && a.sms.status === "NOT_SENT";
+const messaged = (a: AttendanceAbsentee) => a.sms.status === "HELD" || a.sms.status === "SENT" || a.sms.status === "QUEUED";
 
-/** Today's absent, on-leave and late students with their parents, and the absence SMS (respecting the SMS pause). */
+/**
+ * Today's absent, on-leave and late students with their parents, and the "Absent today" messages. SMS sending starts
+ * with the Messages module: until then every message is written and held, never sent.
+ */
 export function AbsenteesPage() {
   const ctx = useCtx();
   const readOnly = useReadOnly();
@@ -74,25 +81,20 @@ export function AbsenteesPage() {
   const [compose, setCompose] = useState(false);
   const [language, setLanguage] = useState<"en" | "ur">("en");
   const [key, setKey] = useState(newIdempotencyKey);
-  const q = useQuery({
-    ...attendanceQueries.absentees(ctx),
-    enabled: !readOnly && ctx.campus !== "ALL",
-    refetchInterval: (query) => (query.state.data?.rows.some((r) => r.sms.status === "QUEUED") ? 2500 : false),
-  });
-  const sms = useQuery(smsStatusQueries.status());
-  const paused = sms.data?.paused ?? false;
+  const today = useToday();
+  const q = useQuery({ ...attendanceQueries.absentees(ctx), enabled: !readOnly && ctx.campus !== "ALL" });
 
   const send = useMutation({
-    mutationFn: (grNos: string[]) => attendanceApi.smsAbsentees({ campus: ctx.campus as CampusCode, session: ctx.session, date: TODAY, grNos, language }, key),
+    mutationFn: (grNos: string[]) => attendanceApi.smsAbsentees({ campus: ctx.campus as CampusCode, session: ctx.session, date: q.data?.date ?? today, grNos, language }, key),
     onSuccess: (r) => {
       setCompose(false);
       setSelected(new Set());
       setKey(newIdempotencyKey());
       void qc.invalidateQueries({ queryKey: ["attendance"] });
-      toast({ title: `${r.queued} ${r.queued === 1 ? "message" : "messages"} queued`, message: r.skipped ? `${r.skipped} skipped: already messaged today or a change is pending.` : "Delivery reports appear in the list within a few seconds." });
-    },
-    onError: (e) => {
-      if (e instanceof ApiError && e.code === "SMS_PAUSED") void qc.invalidateQueries({ queryKey: ["sms", "status"] });
+      toast({
+        title: `${r.queued} ${r.queued === 1 ? "message" : "messages"} held`,
+        message: `${r.skipped ? `${r.skipped} skipped: not absent, already held today, a change pending, or no mobile. ` : ""}SMS sending starts with the Messages module.`,
+      });
     },
   });
 
@@ -111,8 +113,9 @@ export function AbsenteesPage() {
       (!cls || r.classSection === cls) &&
       (!search.trim() || `${r.name} ${r.grNo} ${r.guardian} ${r.mobile}`.toLowerCase().includes(search.trim().toLowerCase())),
   );
+  const day = data?.date ?? today;
   const absent = (data?.rows ?? []).filter((r) => r.code === "A");
-  const sent = absent.filter((r) => r.sms.status === "SENT" || r.sms.status === "QUEUED").length;
+  const sent = absent.filter(messaged).length;
   const streak = absent.filter((r) => r.daysInRow >= 3);
   const picked = rows.filter((r) => selected.has(r.grNo) && sendable(r));
   const first = picked[0];
@@ -127,13 +130,9 @@ export function AbsenteesPage() {
       header: "Student",
       render: (r) => (
         <span className="grid">
-          {r.hasProfile ? (
-            <Link to="/students/$grNo" params={{ grNo: r.grNo }} className="mtb-cell-primary text-ink no-underline hover:underline">
-              {r.name}
-            </Link>
-          ) : (
-            <span className="mtb-cell-primary">{r.name}</span>
-          )}
+          <Link to="/students/$grNo" params={{ grNo: r.grNo }} className="mtb-cell-primary text-ink no-underline hover:underline">
+            {r.name}
+          </Link>
           <span className="mtb-cell-secondary mtb-num">{r.grNo}</span>
         </span>
       ),
@@ -147,7 +146,7 @@ export function AbsenteesPage() {
           <Link to="/attendance/register/$classSection" params={{ classSection: r.classSection }} className="mtb-cell-primary text-brand-ink no-underline hover:underline">
             {r.classSection}
           </Link>
-          <span className="mtb-cell-secondary">{r.classTeacher}</span>
+          <span className="mtb-cell-secondary">{teacherText(r.classTeacher)}</span>
         </span>
       ),
     },
@@ -180,10 +179,14 @@ export function AbsenteesPage() {
       header: "Parent",
       render: (r) => (
         <span className="grid">
-          <span>{r.guardian}</span>
-          <a href={`tel:${r.mobile}`} className="mtb-cell-secondary mtb-num text-ink-muted">
-            {formatMobile(r.mobile)}
-          </a>
+          <span>{r.guardian || "—"}</span>
+          {r.mobile ? (
+            <a href={`tel:${r.mobile}`} className="mtb-cell-secondary mtb-num text-ink-muted">
+              {formatMobile(r.mobile)}
+            </a>
+          ) : (
+            <span className="mtb-cell-secondary text-ink-muted">No mobile</span>
+          )}
         </span>
       ),
     },
@@ -193,7 +196,7 @@ export function AbsenteesPage() {
   return (
     <AttendanceShell
       title="Absent today"
-      meta={<span className="text-small text-ink-muted">{formatLongDate(TODAY)} · from today's submitted registers</span>}
+      meta={<span className="text-small text-ink-muted">{formatLongDate(day)} · from today's submitted registers</span>}
       actions={
         <Button icon="printer" disabled={!data || rows.length === 0} onClick={() => window.print()}>
           Print list
@@ -202,13 +205,15 @@ export function AbsenteesPage() {
     >
       <RequireSingleCampus action="the absentee list">
         {q.isError && <QueryError what="Today's absentees" error={q.error} onRetry={() => void q.refetch()} />}
-        {paused && (
-          <Banner tone="warning" icon="pause" title="All SMS are paused.">
-            {sms.data?.pausedBy ? `${sms.data.pausedBy} paused SMS${sms.data.pausedAt ? ` at ${formatDateTime(sms.data.pausedAt)}` : ""}. ` : ""}
-            Parents of students absent today are not being messaged. Messages can be sent again once an admin resumes SMS.
+        <Banner tone="info" icon="message" title="SMS sending starts with the Messages module.">
+          “Absent today” messages are written for absent students' parents and held until then; none is sent yet.
+        </Banner>
+        {data?.closed && data.rows.length > 0 && (
+          <Banner tone="info" icon="calendar" title={`${data.closed.name}: registers are closed on this day`}>
+            These absences come from registers taken that day.
           </Banner>
         )}
-        {data?.closed ? (
+        {data?.closed && data.rows.length === 0 ? (
           <div className="mtb-card">
             <EmptyState icon="calendar" title={`No school today — ${data.closed.name}`} description="Registers are closed, so nobody is marked absent." />
           </div>
@@ -223,13 +228,19 @@ export function AbsenteesPage() {
                     <StatCard label="Absent today" icon="alertCircle" tone="danger" value={<AnimatedNumber value={absent.length} format={formatCount} />} foot={`${(data.rows.length - absent.length).toString()} more on leave or late`} />
                   </div>
                   <div style={{ "--i": 1 } as CSSProperties}>
-                    <StatCard label="Parents messaged" icon="message" value={<AnimatedNumber value={sent} format={formatCount} />} meter={absent.length ? (sent / absent.length) * 100 : 100} meterLabel="Parents messaged" foot={`${absent.length - sent} still to message`} />
+                    <StatCard
+                      label="Messages held"
+                      icon="message"
+                      value={<AnimatedNumber value={sent} format={formatCount} />}
+                      {...(absent.length ? { meter: (sent / absent.length) * 100, meterLabel: "Absent students with a message held" } : {})}
+                      foot={absent.length ? `${absent.length - sent} absent without a message` : "Nobody absent"}
+                    />
                   </div>
                   <div style={{ "--i": 2 } as CSSProperties}>
                     <StatCard label="Absent 3+ days running" icon="alert" tone="warning" value={<AnimatedNumber value={streak.length} format={formatCount} />} foot={streak.length ? streak.map((s) => s.name).join(", ") : "None today"} />
                   </div>
                   <div style={{ "--i": 3 } as CSSProperties}>
-                    <StatCard label="Changes pending" icon="clock" tone="info" value={formatCount(data.rows.filter((r) => r.changePending).length)} foot="Their SMS waits for the principal" />
+                    <StatCard label="Changes pending" icon="clock" tone="info" value={formatCount(data.rows.filter((r) => r.changePending).length)} foot="Their message waits for the principal" />
                   </div>
                 </>
               )}
@@ -240,11 +251,11 @@ export function AbsenteesPage() {
               rise={1}
               flush
               title={`${rows.length} ${rows.length === 1 ? "student" : "students"}`}
-              description="Tick students whose parents haven't been messaged, then send. Late and leave marks don't send an SMS unless you choose to."
+              description="Tick absent students whose parents have no message yet, then write it; it is held until SMS sending starts. Late and leave marks get no message."
               actions={
                 canSms ? (
-                  <Button variant="primary" icon="send" disabled={paused || picked.length === 0} onClick={() => setCompose(true)}>
-                    SMS parents{picked.length ? ` (${picked.length})` : ""}
+                  <Button variant="primary" icon="send" disabled={picked.length === 0} onClick={() => setCompose(true)}>
+                    Write parent SMS{picked.length ? ` (${picked.length})` : ""}
                   </Button>
                 ) : undefined
               }
@@ -278,7 +289,7 @@ export function AbsenteesPage() {
                 rowKey="grNo"
                 loading={q.isLoading}
                 maxHeight={560}
-                selectable={canSms && !paused}
+                selectable={canSms}
                 selected={selected}
                 onSelectedChange={setSelected}
                 isRowSelectable={sendable}
@@ -293,14 +304,14 @@ export function AbsenteesPage() {
           open={compose}
           onClose={() => !send.isPending && setCompose(false)}
           title={`Message ${picked.length} ${picked.length === 1 ? "parent" : "parents"}`}
-          description="The school's “Absent today” message, filled in for each student."
+          description="The school's “Absent today” message, filled in for each student. It is held until SMS sending starts with the Messages module."
           footer={
             <>
               <Button variant="quiet" onClick={() => setCompose(false)} disabled={send.isPending}>
                 Cancel
               </Button>
-              <Button variant="primary" icon="send" loading={send.isPending} loadingLabel="Sending…" onClick={() => send.mutate(picked.map((p) => p.grNo))}>
-                Send {picked.length} SMS
+              <Button variant="primary" icon="send" loading={send.isPending} loadingLabel="Saving…" onClick={() => send.mutate(picked.map((p) => p.grNo))}>
+                Hold {picked.length} {picked.length === 1 ? "message" : "messages"}
               </Button>
             </>
           }
@@ -310,7 +321,7 @@ export function AbsenteesPage() {
             {first && (
               <div className="grid gap-1">
                 <span className="text-small text-ink-muted">
-                  Preview for {first.guardian} ({formatMobile(first.mobile)}):
+                  Preview for {first.guardian || "the parent"} ({formatMobile(first.mobile)}):
                 </span>
                 {language === "ur" ? (
                   <Urdu as="p" className="att-sms m-0">
@@ -323,7 +334,7 @@ export function AbsenteesPage() {
             )}
             <p className="m-0 text-small text-ink-muted">Attendance messages are sent even to parents who opted out of notices, because they are about their own child.</p>
             {send.isError && (
-              <Banner tone="danger" title="Nothing was sent.">
+              <Banner tone="danger" title="No message was written.">
                 {errorText(send.error)}
               </Banner>
             )}
@@ -331,7 +342,7 @@ export function AbsenteesPage() {
         </Modal>
 
         {data && (
-          <PrintSheet title="Students absent today" scope={`${formatLongDate(TODAY)} · ${rows.length} students`} signatures={["Prepared by", "Principal"]}>
+          <PrintSheet title="Students absent today" scope={`${formatLongDate(day)} · ${rows.length} students`} signatures={["Prepared by", "Principal"]}>
             <table>
               <thead>
                 <tr>
@@ -354,7 +365,7 @@ export function AbsenteesPage() {
                     <td>{r.code}</td>
                     <td>{r.code === "A" ? r.daysInRow : ""}</td>
                     <td className="l">{r.guardian}</td>
-                    <td className="l">{formatMobile(r.mobile)}</td>
+                    <td className="l">{r.mobile ? formatMobile(r.mobile) : ""}</td>
                     <td className="l">{r.sms.status === "SENT" ? "Sent" : r.sms.status === "NOT_SENT" ? "" : r.sms.status.toLowerCase()}</td>
                   </tr>
                 ))}

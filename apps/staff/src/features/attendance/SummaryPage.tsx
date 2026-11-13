@@ -1,18 +1,28 @@
 import { attendanceQueries, type AttendanceGroupRow, type AttendanceOverview } from "@mtb/api";
 import { formatCount, formatDate, formatLongDate, formatPercent } from "@mtb/domain";
-import { AnimatedNumber, AreaChart, DataTable, DeviationChart, EmptyState, Panel, Segmented, Skeleton, Sparkline, StatCard, type Column } from "@mtb/ui";
+import { AreaChart, DataTable, DeviationChart, EmptyState, Panel, Segmented, Skeleton, Sparkline, StatCard, type Column } from "@mtb/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState, type CSSProperties } from "react";
 import { campusLabel } from "../../app/shell/campus";
 import { useCtx, useReadOnly } from "../../app/session";
-import { AttendanceShell, monthLabel, pctText, QueryError } from "./shared";
+import { AttendanceShell, monthLabel, pctText, PctValue, QueryError } from "./shared";
 
 const short = (d: string) => formatDate(d).slice(0, 6);
+const round1 = (v: number) => Math.round(v * 10) / 10;
+/** Lowest first; groups with nothing marked (no percentage) last. */
+const byPercent = (a: AttendanceGroupRow, b: AttendanceGroupRow) => (a.percent ?? 101) - (b.percent ?? 101);
+type MarkedGroup = AttendanceGroupRow & { percent: number };
+const marked = (g: AttendanceGroupRow): g is MarkedGroup => g.percent !== null;
 
-function Trend({ s, ended }: { s: AttendanceOverview; ended: boolean }) {
+/** "the last 14 school days", or each campus's own last 14 (All campuses; spec 04 §11 F2). */
+const daysText = (n: number, all: boolean, ended: boolean) =>
+  all ? `each campus's last ${n} school days` : `${ended ? "the session's last" : "the last"} ${n} school days`;
+
+function Trend({ s, all, ended }: { s: AttendanceOverview; all: boolean; ended: boolean }) {
   const [view, setView] = useState("chart");
-  const rows = s.trend.map((d) => ({ ...d, away: Math.round((100 - d.percent) * 10) / 10 }));
+  // Days with nothing marked have no percentage: they are left out of the chart.
+  const rows = s.trend.flatMap((d) => (d.percent === null ? [] : [{ date: d.date, percent: d.percent, away: round1(100 - d.percent) }]));
   const lastLabel = ended ? "Last day" : "Today";
   return (
     <Panel
@@ -20,14 +30,14 @@ function Trend({ s, ended }: { s: AttendanceOverview; ended: boolean }) {
       rise={1}
       flush={view === "table"}
       title="Students not in school, day by day"
-      description={`Absent or on leave, as a share of students marked, over the ${ended ? "session's last" : "last"} ${s.trend.length} school days. Lower is better. ${lastLabel} ${pctText(Math.round((100 - s.today.percent) * 10) / 10)}.`}
+      description={`Absent or on leave, as a share of students marked, over ${daysText(all ? 14 : s.trend.length, all, ended)}. Lower is better. ${lastLabel} ${pctText(s.today.percent === null ? null : round1(100 - s.today.percent))}.`}
       actions={<Segmented aria-label="Show trend as" value={view} onChange={setView} options={[{ value: "chart", label: "Chart" }, { value: "table", label: "Table" }]} />}
     >
       {view === "chart" ? (
         <AreaChart
           data={rows}
           value={(d) => d.away}
-          axisLabel={(d, i) => (i === rows.length - 1 && !ended ? "Today" : short(d.date))}
+          axisLabel={(d) => (d.date === s.date && !ended ? "Today" : short(d.date))}
           formatAxis={(v) => `${v}%`}
           tooltip={(d) => (
             <>
@@ -40,7 +50,7 @@ function Trend({ s, ended }: { s: AttendanceOverview; ended: boolean }) {
             </>
           )}
           describe={(d) => `${formatLongDate(d.date)}: ${formatPercent(d.percent)} attended, ${formatPercent(d.away)} not in school`}
-          label={`Share of students not in school over the ${ended ? "session's last" : "last"} ${rows.length} school days`}
+          label={`Share of students not in school over ${daysText(all ? 14 : rows.length, all, ended)}`}
           peakLabel={(d) => `${formatPercent(d.away)}`}
           height={260}
         />
@@ -63,8 +73,8 @@ function Trend({ s, ended }: { s: AttendanceOverview; ended: boolean }) {
 
 function Groups({ s, all, ended }: { s: AttendanceOverview; all: boolean; ended: boolean }) {
   const [view, setView] = useState("chart");
-  const sorted = [...s.groups].sort((a, b) => a.percent - b.percent);
-  const lowest = sorted[0];
+  const sorted = [...s.groups].sort(byPercent);
+  const lowest = sorted.find(marked);
   const columns: Array<Column<AttendanceGroupRow>> = [
     { key: "label", header: all ? "Campus" : "Class", render: (g) => <span className="mtb-cell-primary">{g.label}</span> },
     { key: "attended", header: "Attended", align: "right", render: (g) => <span className="mtb-num">{formatCount(g.attended)}</span> },
@@ -76,10 +86,12 @@ function Groups({ s, all, ended }: { s: AttendanceOverview; all: boolean; ended:
       width: 170,
       render: (g) => (
         <span className="inline-flex items-center justify-end gap-2">
-          <span className="mtb-num">{formatPercent(g.percent)}</span>
-          <span className="mtb-meter w-16" role="img" aria-label={`${formatPercent(g.percent)}`}>
-            <span style={{ width: `${g.percent}%` }} />
-          </span>
+          <span className="mtb-num">{pctText(g.percent)}</span>
+          {g.percent !== null && (
+            <span className="mtb-meter w-16" role="img" aria-label={pctText(g.percent)}>
+              <span style={{ width: `${g.percent}%` }} />
+            </span>
+          )}
         </span>
       ),
     },
@@ -90,12 +102,12 @@ function Groups({ s, all, ended }: { s: AttendanceOverview; all: boolean; ended:
       rise={2}
       flush={view === "table"}
       title={all ? "Campuses compared" : "Classes compared"}
-      description={`${all ? `${ended ? "The session's last" : "The last"} 14 school days` : `${ended ? "The session's last" : "Last"} 26 school days`}, against ${all ? "all campuses" : "the campus"} at ${formatPercent(s.groupsPercent)}.${lowest ? ` Lowest: ${lowest.label} at ${formatPercent(lowest.percent)}.` : ""}`}
+      description={`${all ? "Each campus's last" : ended ? "The session's last" : "The last"} 26 school days, against ${all ? "all campuses" : "the campus"} at ${pctText(s.groupsPercent)}.${lowest ? ` Lowest: ${lowest.label} at ${formatPercent(lowest.percent)}.` : ""}`}
       actions={<Segmented aria-label="Show as" value={view} onChange={setView} options={[{ value: "chart", label: "Chart" }, { value: "table", label: "Table" }]} />}
     >
-      {view === "chart" ? (
+      {view === "chart" && s.groupsPercent !== null ? (
         <DeviationChart
-          data={s.groups}
+          data={s.groups.filter(marked)}
           value={(g) => g.percent}
           axisLabel={(g) => g.label.replace(" Campus", "")}
           reference={s.groupsPercent}
@@ -115,7 +127,7 @@ function Groups({ s, all, ended }: { s: AttendanceOverview; all: boolean; ended:
             </>
           )}
           describe={(g) => `${g.label}: ${formatPercent(g.percent)}`}
-          label={`Attendance by ${all ? "campus" : "class"} compared with ${formatPercent(s.groupsPercent)}`}
+          label={`Attendance by ${all ? "campus" : "class"} compared with ${pctText(s.groupsPercent)}`}
           height={260}
         />
       ) : (
@@ -132,6 +144,8 @@ export function SummaryPage() {
   const all = ctx.campus === "ALL";
   const q = useQuery(attendanceQueries.summary(ctx));
   const s = q.data;
+  const trendValues = (s?.trend ?? []).flatMap((d) => (d.percent === null ? [] : [d.percent]));
+  const weekDelta = s && s.weekPercent !== null && s.fortnightPercent !== null ? round1(s.weekPercent - s.fortnightPercent) : null;
 
   return (
     <AttendanceShell
@@ -149,15 +163,21 @@ export function SummaryPage() {
         ) : (
           <>
             <div style={{ "--i": 0 } as CSSProperties}>
-              <StatCard label={ended ? "Last school day" : "Today"} icon="attendance" value={<AnimatedNumber value={s.today.percent} decimals={1} format={(v) => formatPercent(v)} />} foot={`${formatCount(s.today.attended)} of ${formatCount(s.today.marked)} marked`}>
-                <Sparkline values={s.trend.map((d) => d.percent)} label={`Last ${s.trend.length} school days: ${formatPercent(s.trend[0]!.percent)} to ${formatPercent(s.today.percent)}`} />
+              <StatCard label={ended ? "Last school day" : "Today"} icon="attendance" value={<PctValue value={s.today.percent} />} foot={s.today.marked ? `${formatCount(s.today.attended)} of ${formatCount(s.today.marked)} marked` : "No register submitted yet"}>
+                {trendValues.length > 1 && <Sparkline values={trendValues} label={`${all ? "Each campus's last 14" : `Last ${s.trend.length}`} school days: ${formatPercent(trendValues[0]!)} to ${formatPercent(trendValues.at(-1)!)}`} />}
               </StatCard>
             </div>
             <div style={{ "--i": 1 } as CSSProperties}>
-              <StatCard label="Last 5 school days" icon="calendar" value={<AnimatedNumber value={s.weekPercent} decimals={1} format={(v) => formatPercent(v)} />} delta={Math.round((s.weekPercent - s.fortnightPercent) * 10) / 10} deltaLabel={`${s.weekPercent >= s.fortnightPercent ? "+" : ""}${(Math.round((s.weekPercent - s.fortnightPercent) * 10) / 10).toFixed(1)} pts`} foot="against the fortnight" />
+              <StatCard
+                label="Last 5 school days"
+                icon="calendar"
+                value={<PctValue value={s.weekPercent} />}
+                {...(weekDelta !== null ? { delta: weekDelta, deltaLabel: `${weekDelta >= 0 ? "+" : ""}${weekDelta.toFixed(1)} pts` } : {})}
+                foot={weekDelta !== null ? "against the fortnight" : "Nothing marked to compare"}
+              />
             </div>
             <div style={{ "--i": 2 } as CSSProperties}>
-              <StatCard label="Last 14 school days" icon="trendUp" tone="info" value={<AnimatedNumber value={s.fortnightPercent} decimals={1} format={(v) => formatPercent(v)} />} foot="Average attended" />
+              <StatCard label="Last 14 school days" icon="trendUp" tone="info" value={<PctValue value={s.fortnightPercent} />} foot="Attended out of students marked" />
             </div>
             <div style={{ "--i": 3 } as CSSProperties}>
               <StatCard
@@ -165,8 +185,7 @@ export function SummaryPage() {
                 icon="clock"
                 tone={s.onTime.byNine < s.onTime.submitted ? "warning" : "neutral"}
                 value={`${s.onTime.byNine} of ${s.onTime.submitted}`}
-                meter={s.onTime.submitted ? (s.onTime.byNine / s.onTime.submitted) * 100 : 0}
-                meterLabel="Registers on time"
+                {...(s.onTime.submitted ? { meter: (s.onTime.byNine / s.onTime.submitted) * 100, meterLabel: "Registers on time" } : {})}
                 foot={ended ? `On ${formatDate(s.date)}` : `${s.today.notMarked} not marked yet`}
               />
             </div>
@@ -182,11 +201,11 @@ export function SummaryPage() {
       ) : (
         <>
           <div className="att-grid-2">
-            <Trend s={s} ended={ended} />
+            <Trend s={s} all={all} ended={ended} />
             <Groups s={s} all={all} ended={ended} />
           </div>
           <div className="att-grid-2">
-            <Panel id="att-months" rise={3} flush title="Month by month" description="Share of students attended in each month of the session. Vacation months have no school days.">
+            <Panel id="att-months" rise={3} flush title="Month by month" description={`Share of students attended in each month of the session. Vacation months have no school days.${all ? " School days follow the all-campuses calendar; a campus's own closures are not taken off." : ""}`}>
               <DataTable
                 caption="Attendance by month"
                 density="dense"
@@ -219,12 +238,12 @@ export function SummaryPage() {
               {all ? (
                 <ul className="att-list">
                   {[...s.groups]
-                    .sort((a, b) => a.percent - b.percent)
+                    .sort(byPercent)
                     .slice(0, 3)
                     .map((g) => (
                       <li key={g.label}>
                         <span className="font-medium text-ink">{g.label}</span>
-                        <span className="ml-auto mtb-num">{formatPercent(g.percent)}</span>
+                        <span className="ml-auto mtb-num">{pctText(g.percent)}</span>
                       </li>
                     ))}
                 </ul>

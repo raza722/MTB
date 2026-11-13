@@ -70,8 +70,9 @@ export interface HrPosting {
   campusName: string;
   designationId: string;
   designation: string;
-  departmentId: string;
-  department: string;
+  /** null = no department yet (postings migrated from the old system had none). */
+  departmentId: string | null;
+  department: string | null;
   category: HrCategory;
   employmentType: HrEmploymentType;
   /** "0" or null = no pay scale. */
@@ -96,8 +97,9 @@ export interface HrStaffSummary {
   gender: HrGender;
   designationId: string;
   designation: string;
-  departmentId: string;
-  department: string;
+  /** null = no department yet (migrated staff). */
+  departmentId: string | null;
+  department: string | null;
   category: HrCategory;
   employmentType: HrEmploymentType;
   /** The posting shown for the campus being viewed (the primary posting with "All campuses"). */
@@ -110,30 +112,34 @@ export interface HrStaffSummary {
   leavingDate: IsoDate | null;
   /** Years of service at MTB plus earlier MTB service, one decimal. */
   serviceYears: number;
+  /** "" when not on file (migrated staff); shown as "—". */
   mobile: string;
+  /** "" when not on file (migrated staff); shown as "—". */
   cnic: string;
   payScale: string | null;
   subjects: string[];
   classTeacherOf: string | null;
   onLeaveToday: boolean;
   missingDocuments: number;
-  /** Monthly basic pay — only for roles that may see pay. */
+  /** Monthly basic pay — only for roles that may see pay. 0 = no salary set yet (shown as "—", not "Rs 0"). */
   basic?: Rupees;
   /** Bio-data for the printed staff list. */
   relation: HrRelation;
   guardianName: string;
-  dob: IsoDate;
+  /** null when not on file (migrated staff). */
+  dob: IsoDate | null;
   /** "M.A. (English)": the most recent degree on file. */
   highestQualification: string | null;
   teachingLevels: string[];
 }
 
+/** Qualifications migrated from the old system are free text: the degree only, subject/institution/result "" and year null. */
 export interface HrQualification {
   id: string;
   degree: string;
   subject: string;
   institution: string;
-  year: number;
+  year: number | null;
   result: string;
 }
 
@@ -210,6 +216,7 @@ export interface HrStaffChild {
 }
 
 export interface HrPayDetails {
+  /** 0 = no salary set yet (shown as "—"; gross and net are then shown as "—" too). */
   basic: Rupees;
   payScale: string | null;
   allowances: HrPayItem[];
@@ -242,15 +249,17 @@ export interface HrEmergencyContact {
 export interface HrStaffProfile extends HrStaffSummary {
   relation: HrRelation;
   guardianName: string;
-  dob: IsoDate;
+  dob: IsoDate | null;
   bloodGroup: string;
-  maritalStatus: HrMaritalStatus;
+  /** null when not on file (the old system did not record it); editing the record asks for it. */
+  maritalStatus: HrMaritalStatus | null;
   religion: string;
   mobile2: string | null;
   email: string | null;
   address: string;
   city: string;
-  emergency: HrEmergencyContact;
+  /** null when not on file (most migrated staff); editing the record asks for it. */
+  emergency: HrEmergencyContact | null;
   /** Who recommended the candidate. */
   reference: string | null;
   caste: string | null;
@@ -281,6 +290,8 @@ export interface HrStaffProfile extends HrStaffSummary {
   rowVer: number;
   /** Reason the staff member left, when status is LEFT. */
   leavingReason: string | null;
+  /** Signs the appointment letter: the Principal posted at the primary campus; left out when there is none ("Principal"). */
+  principalName?: string;
 }
 
 export interface HrPersonalInput {
@@ -326,7 +337,7 @@ export interface HrNewStaffInput extends HrPersonalInput {
   probationMonths: number | null;
   teachingLevels: string[];
   subjectIds: string[];
-  qualification: Omit<HrQualification, "id"> | null;
+  qualification: (Omit<HrQualification, "id" | "year"> & { year: number }) | null;
   /** Only roles that run payroll can set pay; others leave it for the accountant. */
   pay: { basic: Rupees; specialAllowance: Rupees; paymentMethod: HrPaymentMethod; bank: HrBankInput | null; eobi: boolean; providentFund: boolean } | null;
 }
@@ -777,7 +788,7 @@ export interface HrIncrementRun extends HrIncrementRunSummary {
   experienceAsOf: IsoDate;
   filter: HrIncrementFilter;
   lines: HrIncrementLine[];
-  totals: { currentBasic: Rupees; newBasic: Rupees; monthlyIncrease: Rupees; yearlyCost: Rupees; averagePercent: number; excluded: number };
+  totals: { currentBasic: Rupees; newBasic: Rupees; monthlyIncrease: Rupees; yearlyCost: Rupees; averagePercent: number | null; excluded: number };
   decisionNote: string | null;
   history: HrAuditEntry[];
 }
@@ -835,6 +846,8 @@ export interface HrPayslip {
   leaveDays: number;
   unpaidDays: number;
   lateCount: number;
+  /** Working days in the month with no attendance marked (paid as present). */
+  notMarkedDays?: number;
   earnings: HrPayLine[];
   deductions: HrPayLine[];
   gross: Rupees;
@@ -1116,7 +1129,10 @@ export interface HrCampusSettings {
 }
 
 export interface HrPayDefaults {
+  /** House rent as % of basic for postings with a pay scale. */
   houseRentPct: number;
+  /** House rent as % of basic for postings without a pay scale (support staff). */
+  houseRentPctNoScale: number;
   conveyance: Rupees;
   medical: Rupees;
   eobi: Rupees;
@@ -1132,6 +1148,7 @@ export interface HrSettings {
   payDefaults: HrPayDefaults;
   campuses: HrCampusSettings[];
   payScales: string[];
+  /** Academic level names (acad.Level: Montessori, Primary, … Masters); staff teaching levels and increment filters use these labels. */
   teachingLevels: string[];
   subjects: Array<{ id: string; name: string }>;
   banks: string[];
@@ -1154,6 +1171,8 @@ export const hrApi = {
   create: (body: HrNewStaffInput, idempotencyKey: string) => apiFetch<HrStaffProfile>("/hr/staff", { method: "POST", body, idempotencyKey }),
   updatePersonal: (id: string, body: HrPersonalInput & { rowVer: number }) => apiFetch<HrStaffProfile>(`/hr/staff/${id}/personal`, { method: "PUT", body }),
   addPosting: (id: string, body: HrPostingInput) => apiFetch<HrStaffProfile>(`/hr/staff/${id}/postings`, { method: "POST", body }),
+  /** Brings back someone who has left, on the same record: a new main (salary) posting at `campus`. 409 NOT_LEFT while they still work here. */
+  rejoin: (id: string, body: HrPostingInput) => apiFetch<HrStaffProfile>(`/hr/staff/${id}/rejoin`, { method: "POST", body }),
   endPosting: (id: string, postingId: string, body: { endDate: IsoDate; reason: string }) => apiFetch<HrStaffProfile>(`/hr/staff/${id}/postings/${postingId}/end`, { method: "POST", body }),
   setQualifications: (id: string, body: { qualifications: HrQualification[]; experience: HrExperience[] }) => apiFetch<HrStaffProfile>(`/hr/staff/${id}/qualifications`, { method: "PUT", body }),
   setTeaching: (id: string, body: { teachingLevels: string[]; subjectIds: string[] }) => apiFetch<HrStaffProfile>(`/hr/staff/${id}/teaching`, { method: "PUT", body }),
@@ -1166,7 +1185,6 @@ export const hrApi = {
   saveAttendance: (body: { campus: CampusCode; date: IsoDate; entries: HrDayEntryInput[]; reason: string }) => apiFetch<HrAttendanceDay>("/hr/attendance/day", { method: "PUT", body }),
   attendanceMonth: (campus: CampusCode, month: HrMonth) => apiFetch<HrAttendanceMonth>("/hr/attendance/month", { query: { campus, month } }),
   attendanceRange: (campus: CampusCode, p: HrAttendanceRangeParams) => apiFetch<HrAttendanceRange>("/hr/attendance/range", { query: { campus, from: p.from, to: p.to, designationId: p.designationId, staffId: p.staffId } }),
-  deviceFile: (campus: CampusCode) => apiFetch<{ fileName: string; text: string }>("/hr/attendance/device-file", { query: { campus } }),
   importPreview: (body: { campus: CampusCode; fileName: string; text: string }) => apiFetch<HrImportPreview>("/hr/attendance/import/preview", { method: "POST", body }),
   importCommit: (body: HrImportCommitInput, idempotencyKey: string) => apiFetch<HrImportResult>("/hr/attendance/import/commit", { method: "POST", body, idempotencyKey }),
   imports: (campus: CampusCode) => apiFetch<HrImportBatch[]>("/hr/attendance/imports", { query: { campus } }),
@@ -1176,6 +1194,7 @@ export const hrApi = {
   requestLeave: (body: HrLeaveInput, idempotencyKey: string) => apiFetch<HrLeaveRequest>("/hr/leave", { method: "POST", body, idempotencyKey }),
   decideLeave: (id: string, body: { approve: boolean; note: string }) => apiFetch<HrLeaveRequest>(`/hr/leave/${id}/decide`, { method: "POST", body }),
   cancelLeave: (id: string, body: { reason: string }) => apiFetch<HrLeaveRequest>(`/hr/leave/${id}/cancel`, { method: "POST", body }),
+  /** The signed-in person's own leave. 404 NOT_LINKED without a staff record. */
   myLeave: () => apiFetch<HrMyLeave>("/hr/leave/mine"),
   /** The signed-in person's own attendance for a month (this month when left out). 404 NOT_LINKED without a staff record. */
   myAttendance: (month?: string) => apiFetch<HrMyAttendance>("/hr/attendance/mine", { query: { month } }),
@@ -1238,7 +1257,7 @@ export const hrQueries = {
   imports: (ctx: Ctx) => queryOptions({ queryKey: ["hr", ...ctxKey(ctx), "attendance", "imports"], queryFn: () => hrApi.imports(ctx.campus as CampusCode), enabled: ctx.campus !== "ALL" }),
   leave: (ctx: Ctx) => queryOptions({ queryKey: ["hr", ...ctxKey(ctx), "leave"], queryFn: () => hrApi.leave(ctx) }),
   leaveBalances: (ctx: Ctx) => queryOptions({ queryKey: ["hr", ...ctxKey(ctx), "leave", "balances"], queryFn: () => hrApi.leaveBalances(ctx) }),
-  myLeave: () => queryOptions({ queryKey: ["hr", "my-leave"], queryFn: hrApi.myLeave }),
+  myLeave: () => queryOptions({ queryKey: ["hr", "my-leave"], queryFn: hrApi.myLeave, retry: false }),
   myAttendance: (month?: string) => queryOptions({ queryKey: ["hr", "my-attendance", month ?? "this"], queryFn: () => hrApi.myAttendance(month), retry: false }),
   increments: (ctx: Ctx) => queryOptions({ queryKey: ["hr", ...ctxKey(ctx), "increments"], queryFn: () => hrApi.increments(ctx) }),
   increment: (id: string) => queryOptions({ queryKey: ["hr", "increment", id], queryFn: () => hrApi.increment(id), enabled: id !== "" }),

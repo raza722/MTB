@@ -1,11 +1,10 @@
-import { PAYMENT_METHOD_LABEL, type PaymentMethod } from "@mtb/api";
+import { COUNTER_PAYMENT_METHODS, PAYMENT_METHOD_LABEL } from "@mtb/api";
 import { formatRs } from "@mtb/domain";
 import { AmountInput, Button, DatePicker, Input, Radio, Select, StatusBadge, Switch } from "@mtb/ui";
 import type { RefObject } from "react";
 import { BANKS } from "../schemas";
 import { allocate, type FeeCounterState } from "./useFeeCounter";
 
-const METHODS: Array<PaymentMethod["method"]> = ["CASH", "BANK", "CHEQUE", "ONLINE"];
 
 /** Sticky payment summary: totals, the payment method and only that method's fields (all required). */
 export function PaymentPanel({ state, today, onReview, readOnly, firstFieldRef }: { state: FeeCounterState; today: string; onReview: () => void; readOnly: boolean; firstFieldRef: RefObject<HTMLInputElement | null> }) {
@@ -61,7 +60,7 @@ export function PaymentPanel({ state, today, onReview, readOnly, firstFieldRef }
       <fieldset className="m-0 grid gap-2 border-0 p-0" disabled={readOnly}>
         <legend className="mtb-label mb-2">Payment method</legend>
         <div className="grid grid-cols-2 gap-2">
-          {METHODS.map((m) => (
+          {COUNTER_PAYMENT_METHODS.map((m) => (
             <Radio key={m} name="method" value={m} label={PAYMENT_METHOD_LABEL[m]} checked={p.method === m} onChange={() => set({ method: m })} />
           ))}
         </div>

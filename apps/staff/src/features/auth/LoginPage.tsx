@@ -2,10 +2,8 @@ import { ApiError, authApi, authQueries } from "@mtb/api";
 import { Banner, Button, IconButton, Input } from "@mtb/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { lazy, Suspense, useState, type KeyboardEvent } from "react";
+import { useState, type KeyboardEvent } from "react";
 import { AuthLayout } from "./AuthLayout";
-
-const DemoAccounts = lazy(() => import("./DemoAccounts"));
 
 export function LoginPage({ redirectTo }: { redirectTo?: string }) {
   const navigate = useNavigate();
@@ -36,22 +34,7 @@ export function LoginPage({ redirectTo }: { redirectTo?: string }) {
   const error = login.error instanceof ApiError ? login.error : null;
 
   return (
-    <AuthLayout
-      title="Sign in"
-      subtitle="Use the username and password your campus admin gave you."
-      aside={
-        import.meta.env.VITE_USE_MOCKS !== "false" ? (
-          <Suspense fallback={null}>
-            <DemoAccounts
-              onPick={(u, p) => {
-                setUsername(u);
-                setPassword(p);
-              }}
-            />
-          </Suspense>
-        ) : undefined
-      }
-    >
+    <AuthLayout title="Sign in" subtitle="Use the username and password your campus admin gave you.">
       <form
         className="grid gap-4"
         noValidate

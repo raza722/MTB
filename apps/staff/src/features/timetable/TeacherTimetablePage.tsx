@@ -1,4 +1,4 @@
-import { ApiError, clockTime, periodsInWeek, periodTime, scheduleOf, timetableApi, timetableQueries, TIMETABLE_DAYS, toMinutes, type CampusCode, type TimetableBoard, type TimetableClashDetails, type TimetableDay, type TimetableSlot, type TimetableTeacher } from "@mtb/api";
+import { ApiError, countLessons, clockTime, periodsInWeek, periodTime, scheduleOf, timetableApi, timetableQueries, TIMETABLE_DAYS, toMinutes, type CampusCode, type TimetableBoard, type TimetableClashDetails, type TimetableDay, type TimetableSlot, type TimetableTeacher } from "@mtb/api";
 import { formatCount } from "@mtb/domain";
 import { AnimatedNumber, Banner, Button, Checkbox, Combobox, EmptyState, Modal, Panel, Segmented, Select, Skeleton, StatCard, Switch, Textarea, useToast } from "@mtb/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -24,11 +24,11 @@ import {
   teacherShort,
   TimetableGrid,
   TimetableShell,
-  TODAY,
-  TODAY_DAY,
   useBoard,
   useBoardIndex,
   useCanEdit,
+  useToday,
+  weekdayOfDate,
   type BoardIndex,
   type StaffFilter,
 } from "./shared";
@@ -100,7 +100,7 @@ function HandOver({ board, idx, fromId, onClose }: { board: TimetableBoard; idx:
     .filter((t) => t.id !== fromId)
     .map((t) => {
       const c = mine.filter((s) => picked.has(s.id) && busyAt(t.id, s)).length;
-      const load = board.slots.filter((s) => s.teacherId === t.id).length;
+      const load = countLessons(board.slots.filter((s) => s.teacherId === t.id));
       return { t, c, load, hint: c ? `${c} clash${c === 1 ? "" : "es"}` : `${load} a week now` };
     })
     .sort((a, b) => a.c - b.c || a.load - b.load)
@@ -241,13 +241,17 @@ export function TeacherTimetablePage({ search, setSearch }: { search: TeacherTim
   const [compact, setCompact] = useState(false);
   const [shift, setShift] = useState<StaffFilter["shift"]>("");
   const view = search.view ?? "teacher";
-  const day = (search.day && search.day >= 1 && search.day <= 6 ? search.day : TODAY_DAY) as TimetableDay;
+  const today = useToday();
+  const todayDay = weekdayOfDate(today);
+  const day = (search.day && search.day >= 1 && search.day <= 6 ? search.day : (todayDay ?? 1)) as TimetableDay;
   const filter: StaffFilter = { level: search.level ?? "", gender: search.gender ?? "", shift };
   const filtered = board ? filterTeachers(board, filter) : [];
   const filtering = Boolean(filter.level || filter.gender || filter.shift);
-  const teacher = board?.teachers.find((t) => t.id === search.teacher) ?? board?.teachers.find((t) => t.name === "Ms Hina Javed") ?? board?.teachers[0];
+  const teacher = board?.teachers.find((t) => t.id === search.teacher) ?? board?.teachers[0];
   const mine = board && teacher ? board.slots.filter((s) => s.teacherId === teacher.id) : [];
-  const perDay = TIMETABLE_DAYS.map((d) => ({ ...d, n: mine.filter((s) => s.day === d.day).length }));
+  /** Periods a week: lessons (a combined class counts once). */
+  const load = countLessons(mine);
+  const perDay = TIMETABLE_DAYS.map((d) => ({ ...d, n: countLessons(mine.filter((s) => s.day === d.day)) }));
   const busiest = [...perDay].sort((a, b) => b.n - a.n)[0];
   const classes = [...new Set(mine.map((s) => s.classSection))];
   const totalPeriods = board ? periodsInWeek(board.schedule) : 0;
@@ -337,7 +341,7 @@ export function TeacherTimetablePage({ search, setSearch }: { search: TeacherTim
                     rows={filtered.map((t) => {
                       const list = board.slots.filter((s) => s.teacherId === t.id && s.day === day);
                       const cells = teacherDayCells(board, idx, t.id, day, dayCols);
-                      return { t, cells, total: list.length, over: list.length > t.maxPerDay, clash: (k: number) => list.filter((s) => s.period === k + 1).some((s) => idx.clashOf(s.id).some((c) => c.kind === "TEACHER_DOUBLE_BOOKED" && c.severity === "BLOCK")) };
+                      return { t, cells, total: countLessons(list), over: countLessons(list) > t.maxPerDay, clash: (k: number) => list.filter((s) => s.period === k + 1).some((s) => idx.clashOf(s.id).some((c) => c.kind === "TEACHER_DOUBLE_BOOKED" && c.severity === "BLOCK")) };
                     })}
                   />
                 )}
@@ -357,7 +361,7 @@ export function TeacherTimetablePage({ search, setSearch }: { search: TeacherTim
                     caption="Every teacher's week"
                     columns={weekColumns}
                     rows={filtered.map((t) => {
-                      const n = board.slots.filter((s) => s.teacherId === t.id).length;
+                      const n = countLessons(board.slots.filter((s) => s.teacherId === t.id));
                       return { t, cells: teacherWeekCells(board, idx, t.id, weekCols), total: n, over: n > t.maxPerWeek };
                     })}
                   />
@@ -371,7 +375,7 @@ export function TeacherTimetablePage({ search, setSearch }: { search: TeacherTim
                       label="Teacher"
                       value={teacher.id}
                       onValueChange={(v) => setSearch({ ...search, teacher: v })}
-                      options={(filtering && filtered.length ? filtered : board.teachers).map((t) => ({ value: t.id, label: t.name, hint: `${board.slots.filter((s) => s.teacherId === t.id).length} a week`, keywords: [teacherShort(t.name)] }))}
+                      options={(filtering && filtered.length ? filtered : board.teachers).map((t) => ({ value: t.id, label: t.name, hint: `${countLessons(board.slots.filter((s) => s.teacherId === t.id))} a week`, keywords: [teacherShort(t.name)] }))}
                     />
                   </div>
                   {canEdit && mine.length > 0 && (
@@ -385,16 +389,16 @@ export function TeacherTimetablePage({ search, setSearch }: { search: TeacherTim
                     <StatCard
                       label="Periods a week"
                       icon="clock"
-                      tone={mine.length > teacher.maxPerWeek ? "danger" : undefined}
-                      value={<AnimatedNumber value={mine.length} format={formatCount} />}
-                      meter={Math.min(100, (mine.length / teacher.maxPerWeek) * 100)}
-                      {...(mine.length > teacher.maxPerWeek ? { meterTone: "danger" as const } : mine.length > teacher.maxPerWeek - 4 ? { meterTone: "warning" as const } : {})}
-                      meterLabel={`${mine.length} of ${teacher.maxPerWeek}`}
+                      tone={load > teacher.maxPerWeek ? "danger" : undefined}
+                      value={<AnimatedNumber value={load} format={formatCount} />}
+                      meter={Math.min(100, (load / teacher.maxPerWeek) * 100)}
+                      {...(load > teacher.maxPerWeek ? { meterTone: "danger" as const } : load > teacher.maxPerWeek - 4 ? { meterTone: "warning" as const } : {})}
+                      meterLabel={`${load} of ${teacher.maxPerWeek}`}
                       foot={`Maximum ${teacher.maxPerWeek}${teacher.partTime ? " (part-time)" : ""}`}
                     />
                   </div>
                   <div style={{ "--i": 1 } as CSSProperties}>
-                    <StatCard label="Free periods" icon="calendar" value={<AnimatedNumber value={Math.max(0, totalPeriods - mine.length)} format={formatCount} />} foot={`of ${totalPeriods} in the school day's week`} />
+                    <StatCard label="Free periods" icon="calendar" value={<AnimatedNumber value={Math.max(0, totalPeriods - load)} format={formatCount} />} foot={`of ${totalPeriods} in the school day's week`} />
                   </div>
                   <div style={{ "--i": 2 } as CSSProperties}>
                     <StatCard label="Busiest day" icon="trendUp" tone="info" value={busiest ? busiest.long : "—"} foot={busiest ? `${busiest.n} periods` : ""} />
@@ -422,7 +426,7 @@ export function TeacherTimetablePage({ search, setSearch }: { search: TeacherTim
                         const s = here[0]!;
                         const subj = idx.subject(s.subjectId);
                         const at = ownTime(board, s);
-                        const sev = here.length > 1 || here.some((x) => idx.clashOf(x.id).some((c) => c.severity === "BLOCK")) ? "BLOCK" : undefined;
+                        const sev = countLessons(here) > 1 || here.some((x) => idx.clashOf(x.id).some((c) => c.severity === "BLOCK")) ? "BLOCK" : undefined;
                         return {
                           className: `tt-c${subj.tint} ${sev ? "is-clash" : ""}`,
                           label: `${dayLong(d)}, period ${p}: ${here.map((x) => `${lessonClass(x)} ${idx.subject(x.subjectId).name}`).join(" and ")}${at ? ` at ${clockTime(at)}` : ""}`,
@@ -438,7 +442,7 @@ export function TeacherTimetablePage({ search, setSearch }: { search: TeacherTim
             )}
           </>
         )}
-        {texting && <TeacherTextsDialog date={TODAY} onClose={() => setTexting(false)} />}
+        {texting && <TeacherTextsDialog date={today} onClose={() => setTexting(false)} />}
         {board && idx && (
           <PrintArea>
             {printWhat === "view" && view === "day" ? (
@@ -472,11 +476,11 @@ export function TeacherTimetablePage({ search, setSearch }: { search: TeacherTim
                   board={board}
                   periods={idx.maxPeriods}
                   title={`Teacher timetable · ${t.name}`}
-                  scope={`${board.slots.filter((s) => s.teacherId === t.id).length} periods a week${t.classTeacherOf ? ` · Class teacher of ${t.classTeacherOf}` : ""}`}
+                  scope={`${countLessons(board.slots.filter((s) => s.teacherId === t.id))} periods a week${t.classTeacherOf ? ` · Class teacher of ${t.classTeacherOf}` : ""}`}
                   cell={(d, p) => {
                     const here = board.slots.filter((s) => s.teacherId === t.id && s.day === d && s.period === p);
                     const at = here[0] ? ownTime(board, here[0]) : undefined;
-                    return here.length ? { title: here.map(lessonClass).join(" + "), line: `${idx.subject(here[0]!.subjectId).short} · ${here[0]!.room}`, ...(at ? { time: clockTime(at).slice(0, 5) } : {}) } : null;
+                    return here.length ? { title: here.map(lessonClass).join(" + "), line: `${idx.subject(here[0]!.subjectId).short}${here[0]!.room ? ` · ${here[0]!.room}` : ""}`, ...(at ? { time: clockTime(at).slice(0, 5) } : {}) } : null;
                   }}
                 />
               ))
@@ -507,7 +511,7 @@ function CompactSlips({ board, idx, teachers, scope }: { board: TimetableBoard; 
                 <div key={t.id} className="tt-print-slip">
                   <h2>
                     {t.name}
-                    {t.classTeacherOf ? ` · class teacher of ${t.classTeacherOf}` : ""} · {board.slots.filter((s) => s.teacherId === t.id).length} periods a week
+                    {t.classTeacherOf ? ` · class teacher of ${t.classTeacherOf}` : ""} · {countLessons(board.slots.filter((s) => s.teacherId === t.id))} periods a week
                   </h2>
                   <table className="tt-print-matrix">
                     <thead>

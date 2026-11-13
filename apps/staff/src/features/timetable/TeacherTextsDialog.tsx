@@ -1,13 +1,10 @@
-import { ApiError, newIdempotencyKey, smsParts, smsStatusQueries, timetableApi, timetableQueries, type CampusCode, type TeacherDayText } from "@mtb/api";
+import { newIdempotencyKey, smsParts, timetableApi, timetableQueries, type CampusCode, type TeacherDayText } from "@mtb/api";
 import { formatCount, formatDateTime, formatLongDate, formatMobile, formatTime, type IsoDate } from "@mtb/domain";
 import { Banner, Button, DataTable, DatePicker, EmptyState, Modal, Skeleton, StatusBadge, useToast, type Column } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useCtx } from "../../app/session";
-import { errorText, QueryError, TODAY } from "./shared";
-
-/** The current session's last day: teachers can be texted for any school day up to it. */
-const SESSION_LAST_DAY: IsoDate = "2027-03-31";
+import { errorText, QueryError, useSessionDays, useToday } from "./shared";
 
 const sendable = (r: TeacherDayText) => !r.away && r.lessons.length > 0 && (r.sms.status === "NOT_SENT" || r.sms.status === "CHANGED");
 
@@ -16,7 +13,15 @@ function StatusCell({ r }: { r: TeacherDayText }) {
   if (r.lessons.length === 0) return <span className="text-small text-ink-muted">Free all day</span>;
   switch (r.sms.status) {
     case "QUEUED":
-      return <StatusBadge status="queued" />;
+      return (
+        <span className="grid justify-items-start gap-0.5" title="SMS sending starts with the Messages module; until then messages are held.">
+          <StatusBadge status="queued" />
+          <span className="mtb-cell-secondary">
+            Held{r.sms.by ? ` · ${r.sms.by}` : ""}
+            {r.sms.at ? ` · ${formatTime(r.sms.at)}` : ""}
+          </span>
+        </span>
+      );
     case "SENT":
       return (
         <span className="grid justify-items-start gap-0.5">
@@ -49,23 +54,20 @@ export interface TeacherTextsDialogProps {
 
 /**
  * "Text teachers their day" (the old SMS Staff Lectures screen, which never worked): each teacher gets their own
- * periods for a day, with any cover. Respects the SMS pause, previews the exact message, and shows who was texted.
+ * periods for a day, with any cover. Previews the exact message and shows who was texted. The SMS are queued and held
+ * until the Messages module sends SMS, so a texted teacher stays "Queued" (nothing polls for delivery).
  */
 export function TeacherTextsDialog({ date: initialDate, preselect, onClose }: TeacherTextsDialogProps) {
   const ctx = useCtx();
   const toast = useToast();
   const qc = useQueryClient();
-  const [date, setDate] = useState<IsoDate>(initialDate < TODAY ? TODAY : initialDate);
+  const today = useToday();
+  const { ends } = useSessionDays();
+  const [date, setDate] = useState<IsoDate>(initialDate < today ? today : initialDate);
   const [selected, setSelected] = useState<Set<unknown>>(new Set());
   const [initFor, setInitFor] = useState<string | null>(null);
   const [key, setKey] = useState(newIdempotencyKey);
-  const q = useQuery({
-    ...timetableQueries.teacherTexts(ctx, date),
-    enabled: ctx.campus !== "ALL",
-    refetchInterval: (query) => (query.state.data?.rows.some((r) => r.sms.status === "QUEUED") ? 2000 : false),
-  });
-  const sms = useQuery(smsStatusQueries.status());
-  const paused = sms.data?.paused ?? false;
+  const q = useQuery({ ...timetableQueries.teacherTexts(ctx, date), enabled: ctx.campus !== "ALL" });
   const data = q.data;
 
   // Tick the first time a day loads: the given teachers when they can be texted, else everyone not texted yet.
@@ -84,11 +86,8 @@ export function TeacherTextsDialog({ date: initialDate, preselect, onClose }: Te
       void qc.invalidateQueries({ queryKey: timetableQueries.teacherTexts(ctx, date).queryKey });
       toast({
         title: `${r.queued} ${r.queued === 1 ? "teacher" : "teachers"} texted`,
-        message: `Each gets their periods for ${formatLongDate(date)}.${r.skipped ? ` ${r.skipped} skipped: away, free all day, or already texted.` : " Delivery shows in the list within a few seconds."}`,
+        message: `Each gets their periods for ${formatLongDate(date)}. The SMS are held until SMS sending starts.${r.skipped ? ` ${r.skipped} skipped: away, free all day, or already texted.` : ""}`,
       });
-    },
-    onError: (e) => {
-      if (e instanceof ApiError && e.code === "SMS_PAUSED") void qc.invalidateQueries({ queryKey: ["sms", "status"] });
     },
   });
 
@@ -106,7 +105,7 @@ export function TeacherTextsDialog({ date: initialDate, preselect, onClose }: Te
       render: (r) => (
         <span className="grid">
           <span className="mtb-cell-primary">{r.name}</span>
-          <span className="mtb-cell-secondary mtb-num">{formatMobile(r.mobile)}</span>
+          <span className="mtb-cell-secondary mtb-num">{r.mobile ? formatMobile(r.mobile) : "—"}</span>
         </span>
       ),
     },
@@ -141,7 +140,7 @@ export function TeacherTextsDialog({ date: initialDate, preselect, onClose }: Te
           <Button variant="quiet" onClick={onClose} disabled={send.isPending}>
             Close
           </Button>
-          <Button variant="primary" icon="send" disabled={paused || picked.length === 0 || !!data?.closed} loading={send.isPending} loadingLabel="Sending…" onClick={() => send.mutate(picked.map((r) => r.teacherId))}>
+          <Button variant="primary" icon="send" disabled={picked.length === 0 || !!data?.closed} loading={send.isPending} loadingLabel="Sending…" onClick={() => send.mutate(picked.map((r) => r.teacherId))}>
             {picked.length ? `Send ${picked.length} SMS` : "Send SMS"}
           </Button>
         </>
@@ -150,7 +149,7 @@ export function TeacherTextsDialog({ date: initialDate, preselect, onClose }: Te
       <div className="grid gap-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="w-48">
-            <DatePicker label="Day" value={date} today={TODAY} minDate={TODAY} maxDate={SESSION_LAST_DAY} onValueChange={(d) => d && d !== date && setDate(d)} />
+            <DatePicker label="Day" value={date} today={today} minDate={today} {...(ends ? { maxDate: ends } : {})} onValueChange={(d) => d && d !== date && setDate(d)} />
           </div>
           {data && !data.closed && (
             <span className="text-small text-ink-muted">
@@ -159,12 +158,9 @@ export function TeacherTextsDialog({ date: initialDate, preselect, onClose }: Te
           )}
         </div>
 
-        {paused && (
-          <Banner tone="warning" icon="pause" title="All SMS are paused.">
-            {sms.data?.pausedBy ? `${sms.data.pausedBy} paused SMS${sms.data.pausedAt ? ` at ${formatDateTime(sms.data.pausedAt)}` : ""}. ` : ""}
-            Teachers can't be texted until an admin resumes SMS. Their periods still show in the teacher app.
-          </Banner>
-        )}
+        <Banner tone="info" icon="message" title="SMS sending starts with the Messages module; messages are held.">
+          Texts you send now are queued and kept until then. Teachers' periods still show in their teacher app.
+        </Banner>
         {q.isError && <QueryError what="Teachers' periods" error={q.error} onRetry={() => void q.refetch()} />}
 
         {!data && !q.isError ? (
@@ -180,7 +176,7 @@ export function TeacherTextsDialog({ date: initialDate, preselect, onClose }: Te
               rows={rows}
               rowKey="teacherId"
               maxHeight={300}
-              selectable={!paused}
+              selectable
               selected={selected}
               onSelectedChange={setSelected}
               isRowSelectable={sendable}
@@ -189,7 +185,7 @@ export function TeacherTextsDialog({ date: initialDate, preselect, onClose }: Te
             {preview && preview.message && (
               <div className="grid gap-1">
                 <span className="text-small text-ink-muted">
-                  Preview for {preview.name} ({formatMobile(preview.mobile)}) · {preview.message.length} letters, {smsParts(preview.message)} SMS {smsParts(preview.message) === 1 ? "part" : "parts"}:
+                  Preview for {preview.name} ({preview.mobile ? formatMobile(preview.mobile) : "—"}) · {preview.message.length} letters, {smsParts(preview.message)} SMS {smsParts(preview.message) === 1 ? "part" : "parts"}:
                 </span>
                 <p className="tt-sms">{preview.message}</p>
               </div>

@@ -1,4 +1,4 @@
-import type { CampusCode, TeacherChangeRequest, TeacherClosedDay, TeacherNotification } from "@mtb/api";
+import type { TeacherChangeRequest, TeacherClosedDay, TeacherNotification } from "@mtb/api";
 
 /**
  * Teacher app fixtures (fictional). The teacher app reads rosters, marks, timetables and the school calendar from
@@ -9,18 +9,15 @@ import type { CampusCode, TeacherChangeRequest, TeacherClosedDay, TeacherNotific
 /** The holiday the demo switch turns today into (brief §7.7: "No attendance today — Quaid-e-Azam Day"). */
 export const TEACHER_DEMO_HOLIDAY: TeacherClosedDay = { name: "Quaid-e-Azam Day", nameUr: "یومِ قائدِ اعظم", kind: "HOLIDAY" };
 
-/** The principal who decides change requests at each campus (the staff dashboard's approver). */
-export const CAMPUS_PRINCIPAL: Partial<Record<CampusCode, string>> = { KC: "Mrs Sadia Rehman" };
-
 /**
- * Change requests Ms Hina Javed sent on earlier days that are still waiting. They use the same ids and figures as
- * the staff app's attendance corrections (handlers/attendance.ts seedCorrections att-2 and att-6), so approving one
- * here also updates the shared attendance record.
+ * Fictional change requests Ms Hina Javed sent on earlier days that are still waiting. Only the teacher app's Today
+ * mock reads them (its register cards count pending changes); the real requests and their "att-{n}" ids belong to
+ * the backend (Attendance), so these carry "demo-" ids that can never be confused with real ones.
  */
 export function seedTeacherChanges(): TeacherChangeRequest[] {
   return [
     {
-      id: "att-2",
+      id: "demo-2",
       campus: "KC",
       classSection: "7-B",
       date: "2026-11-03",
@@ -34,7 +31,7 @@ export function seedTeacherChanges(): TeacherChangeRequest[] {
       requestedAt: "2026-11-03T13:02:00+05:00",
     },
     {
-      id: "att-6",
+      id: "demo-6",
       campus: "KC",
       classSection: "7-B",
       date: "2026-11-02",

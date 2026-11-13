@@ -49,6 +49,7 @@ export const ur: Record<MessageKey, string> = {
   "common.table": "جدول",
   "common.view": "دیکھنے کا انداز",
   "common.new": "نیا",
+  "common.none": "—",
   "error.title": "یہ صفحہ لوڈ نہیں ہو سکا۔",
   "error.network": "اسکول کے سرور سے رابطہ نہیں ہو پا رہا۔ اپنا انٹرنیٹ چیک کر کے دوبارہ کوشش کریں۔",
   "error.generic": "کچھ غلط ہو گیا۔ دوبارہ کوشش کریں۔",
@@ -72,15 +73,16 @@ export const ur: Record<MessageKey, string> = {
   "signin.sending": "بھیجا جا رہا ہے…",
   "signin.errMobile": "03 سے شروع ہونے والا 11 ہندسوں کا موبائل نمبر لکھیں۔",
   "signin.errGr": "جی آر نمبر اسکول کارڈ کے مطابق لکھیں، مثلاً {example}۔",
-  "signin.err.NOT_REGISTERED": "یہ نمبر اسکول کے ریکارڈ میں موجود نہیں۔ داخلے کے وقت دیا گیا نمبر استعمال کریں، یا نمبر تبدیل کروانے کے لیے کیمپس آفس سے رابطہ کریں۔",
-  "signin.err.GR_NOT_FOUND": "یہ جی آر نمبر نہیں ملا۔ اسکول کارڈ یا فیس رسید پر نمبر دوبارہ دیکھیں۔",
-  "signin.err.PORTAL_NOT_ENABLED": "اس طالب علم کے لیے پورٹل ابھی شروع نہیں کیا گیا۔ کیمپس آفس سے رابطہ کریں۔",
+  "signin.err.TOO_SOON": "نیا کوڈ منگوانے سے پہلے {sec} سیکنڈ انتظار کریں۔",
   "signin.trouble": "سائن اِن میں مشکل ہو تو اپنے کیمپس آفس سے رابطہ کریں۔",
   "signin.privacy": "صرف اسکول میں رجسٹرڈ خاندان سائن اِن کر سکتے ہیں۔ اسکول کبھی فون پر آپ سے یہ کوڈ نہیں مانگے گا۔",
 
   // ---- One-time code ----
   "verify.title": "کوڈ درج کریں",
-  "verify.subtitle": "ہم نے {phone} پر 6 ہندسوں کا کوڈ SMS کیا ہے۔ یہ 5 منٹ تک کام کرے گا۔",
+  "verify.subtitle": "اگر یہ نمبر اسکول کے ریکارڈ میں ہے تو ہم نے {phone} پر 6 ہندسوں کا کوڈ SMS کیا ہے۔ یہ 5 منٹ تک کام کرے گا۔",
+  "verify.subtitleStudent": "اگر یہ جی آر نمبر اسکول کے ریکارڈ میں ہے تو ہم نے آپ کے والدین کے موبائل {phone} پر 6 ہندسوں کا کوڈ SMS کیا ہے۔ یہ 5 منٹ تک کام کرے گا۔",
+  "verify.noCode": "کوڈ نہیں آیا؟ داخلے کے وقت دیا گیا نمبر استعمال کریں، یا کیمپس آفس سے رابطہ کریں۔",
+  "verify.noCodeStudent": "کوڈ نہیں آیا؟ اسکول کارڈ پر جی آر نمبر دیکھیں، یا کیمپس آفس سے پوچھیں۔",
   "verify.label": "تصدیقی کوڈ",
   "verify.digit": "ہندسہ {n} از 6",
   "verify.submit": "تصدیق کر کے سائن اِن کریں",
@@ -101,11 +103,6 @@ export const ur: Record<MessageKey, string> = {
   "verify.welcome": "سائن اِن ہو گیا۔ خوش آمدید، {name}۔",
 
   // ---- Demo hint (mock mode only) ----
-  "demo.title": "ڈیمو اکاؤنٹس",
-  "demo.code": "کوڈ {code}",
-  "demo.parents": "والدین",
-  "demo.students": "طلبہ",
-  "demo.note": "فرضی افراد اور فرضی ڈیٹا۔ فارم بھرنے کے لیے کسی اکاؤنٹ پر ٹیپ کریں۔",
 
   // ---- Shell ----
   "shell.switchChild": "بچہ تبدیل کریں",
@@ -162,7 +159,7 @@ export const ur: Record<MessageKey, string> = {
   "fees.desc": "واجب الادا رقم، فیس واؤچر اور تمام رسیدیں",
   "fees.toPay": "ادائیگی باقی",
   "fees.totalDue": "کل واجب الادا",
-  "fees.fineRule": "آخری تاریخ کے اگلے دن سے روزانہ 10 روپے جرمانہ لگتا ہے۔",
+  "fees.fineRule": "آخری تاریخ کے اگلے دن سے روزانہ {amount} جرمانہ لگتا ہے۔",
   "fees.fineSoFar": "اب تک کا {amount} جرمانہ شامل ہے",
   "fees.colCharge": "مد",
   "fees.colDue": "آخری تاریخ",
@@ -172,6 +169,7 @@ export const ur: Record<MessageKey, string> = {
   "fees.daysOverdue": "{n} دن تاخیر",
   "fees.voucher": "فیس واؤچر ڈاؤن لوڈ کریں",
   "fees.voucherHint": "{bank} کی کسی بھی برانچ یا اسکول کے فیس کاؤنٹر پر جمع کروائیں۔",
+  "fees.voucherHintCounter": "اسکول کے فیس کاؤنٹر پر جمع کروائیں۔",
   "fees.cleared": "تمام واجبات ادا ہو چکے",
   "fees.clearedDesc": "اس وقت {child} کی کوئی فیس باقی نہیں۔ ادا شدہ فیس کی تمام رسیدیں نیچے موجود ہیں۔",
   "fees.sessionTitle": "اس سیشن میں",
@@ -192,6 +190,8 @@ export const ur: Record<MessageKey, string> = {
   "fees.method.BANK": "بینک میں جمع",
   "fees.method.CHEQUE": "چیک",
   "fees.method.ONLINE": "آن لائن ٹرانسفر",
+  "fees.method.SALARY": "تنخواہ سے کٹوتی",
+  "fees.method.LEGACY": "پرانا نظام",
   "fees.receiptReview": "زیرِ جائزہ",
   "fees.receiptCancelled": "منسوخ",
   "fees.receiptToday": "آج ادا ہوئی",
@@ -215,6 +215,9 @@ export const ur: Record<MessageKey, string> = {
   "doc.ifLate": "تاخیر سے جمع کروانے پر",
   "doc.noVoucher": "ڈاؤن لوڈ کے لیے کوئی واؤچر نہیں",
   "doc.noVoucherDesc": "{child} کے تمام واجبات ادا ہو چکے ہیں۔",
+  "doc.noVoucherYet": "اس مہینے کا واؤچر ابھی جاری نہیں ہوا",
+  "doc.noVoucherYetDesc": "اس مہینے کا فیس واؤچر ابھی جاری نہیں ہوا۔ کیمپس آفس میں فیس جمع کروائیں، یا دفتر سے واؤچر جاری کرنے کو کہیں۔",
+  "doc.noVoucherYetCall": "دفتر کا فون: {phone}",
   "doc.preview": "پیش منظر",
 
   // ---- Attendance ----

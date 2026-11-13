@@ -21,7 +21,7 @@ import {
   type SmsStaffGroup,
   type SmsVariable,
 } from "@mtb/api";
-import { formatCount, formatDate, formatRs, formatSession, normalizeMobile, type IsoDate } from "@mtb/domain";
+import { formatCount, formatDate, formatRs, formatSession, normalizeMobile, pakistanToday, type IsoDate } from "@mtb/domain";
 import { AmountInput, Banner, Button, ConfirmDialog, DataTable, DatePicker, EmptyState, Field, Icon, Input, Panel, Segmented, Select, Skeleton, StatusBadge, Textarea, useToast, type Column } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -29,7 +29,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { z } from "zod";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { RequireSingleCampus } from "../../app/shell/page";
-import { demoNowIso, errorText, isoAt, MessagesShell, TIME_SLOTS, whenText } from "./shell";
+import { errorText, isLaterThanNow, isoAt, MessagesShell, TIME_SLOTS, whenText } from "./shell";
 import { insertAtCursor, NonGsmWarning, PhonePreview, renderPreview, SmsCount, toStandardCharacters, usesVariable, VariableChips } from "./sms-text";
 
 export interface ComposeSearch {
@@ -43,7 +43,6 @@ export interface ComposeSearch {
 
 type Kind = NonNullable<ComposeSearch["to"]>;
 
-const TODAY: IsoDate = "2026-11-04";
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const monthLabel = (m: string) => `${MONTH_NAMES[Number(m.slice(5, 7)) - 1]} ${m.slice(0, 4)}`;
 const lastDayOf = (m: string): IsoDate => {
@@ -58,12 +57,12 @@ const mondayOf = (d: IsoDate): IsoDate => {
   return x.toISOString().slice(0, 10);
 };
 /** Months of a session up to today: "2026-04" … "2026-11". */
-function sessionMonths(session: number): string[] {
+function sessionMonths(session: number, today: IsoDate): string[] {
   const out: string[] = [];
   for (let i = 0; i < 12; i++) {
     const d = new Date(Date.UTC(session, 3 + i, 1));
     const m = d.toISOString().slice(0, 7);
-    if (m > TODAY.slice(0, 7)) break;
+    if (m > today.slice(0, 7)) break;
     out.push(m);
   }
   return out;
@@ -95,6 +94,8 @@ const composeSchema = z
     later: z.boolean(),
     date: z.string().nullable(),
     time: z.string(),
+    today: z.string(),
+    sessionEnd: z.string(),
   })
   .superRefine((v, ctx) => {
     if (v.source === "template" && !v.templateId) ctx.addIssue({ code: "custom", path: ["templateId"], message: "Choose a template, or write your own message." });
@@ -113,8 +114,8 @@ const composeSchema = z
     if (v.usesApp && v.title.trim().length > 60) ctx.addIssue({ code: "custom", path: ["title"], message: "Keep the title under 60 characters so it fits on a phone." });
     if (v.later) {
       if (!v.date) ctx.addIssue({ code: "custom", path: ["date"], message: "Choose the day to send." });
-      else if (v.date < TODAY) ctx.addIssue({ code: "custom", path: ["date"], message: "Choose today or a later day." });
-      else if (v.date > "2027-03-31") ctx.addIssue({ code: "custom", path: ["date"], message: "Schedule within this session (until 31-Mar-2027)." });
+      else if (v.date < v.today) ctx.addIssue({ code: "custom", path: ["date"], message: "Choose today or a later day." });
+      else if (v.date > v.sessionEnd) ctx.addIssue({ code: "custom", path: ["date"], message: `Schedule within this session (until ${formatDate(v.sessionEnd)}).` });
     }
   });
 
@@ -197,6 +198,9 @@ const defaultTemplate = (to?: Kind) => (to === "DEFAULTERS" ? "tpl-fee-overdue" 
 
 function ComposeForm({ search }: { search: ComposeSearch }) {
   const ctx = useCtx();
+  const today = pakistanToday();
+  // A session runs April to March: schedules stay inside the one in context.
+  const sessionEnd: IsoDate = `${ctx.session + 1}-03-31`;
   const canSend = useCan("sms.send");
   const canSeeExams = useCan("exams.view");
   const readOnly = useReadOnly();
@@ -208,7 +212,8 @@ function ComposeForm({ search }: { search: ComposeSearch }) {
   const sessions = useQuery(metaQueries.sessions());
   const status = useQuery(smsStatusQueries.status());
   const settings = useQuery(smsQueries.settings(ctx));
-  const exams = useQuery({ ...examsQueries.list(ctx), enabled: canSeeExams });
+  // the newest 200 declared exams (the server pages the exam list, contract change C9)
+  const exams = useQuery({ ...examsQueries.list(ctx, { status: "DECLARED", pageSize: 200 }), enabled: canSeeExams });
   const sender = settings.data?.[0]?.senderName ?? "MTB";
 
   const [source, setSource] = useState<"template" | "custom">(search.template === "custom" ? "custom" : "template");
@@ -238,15 +243,15 @@ function ComposeForm({ search }: { search: ComposeSearch }) {
   const [leftSession, setLeftSession] = useState(ctx.session);
   const [channel, setChannel] = useState<SmsChannel>(search.to === "NUMBERS" || search.to === "CANDIDATES" ? "SMS" : "APP_FIRST");
   const [title, setTitle] = useState("");
-  const [eventDate, setEventDate] = useState<IsoDate | null>("2026-11-09");
+  const [eventDate, setEventDate] = useState<IsoDate | null>(null);
   const [examId, setExamId] = useState(search.exam ?? "");
   const [periodMode, setPeriodMode] = useState<"month" | "week" | "dates">("month");
   const [month, setMonth] = useState("");
-  const [from, setFrom] = useState<IsoDate | null>(`${TODAY.slice(0, 7)}-01`);
-  const [to, setTo] = useState<IsoDate | null>(TODAY);
+  const [from, setFrom] = useState<IsoDate | null>(`${today.slice(0, 7)}-01`);
+  const [to, setTo] = useState<IsoDate | null>(today);
   const [excluded, setExcluded] = useState<string[]>([]);
   const [later, setLater] = useState(false);
-  const [date, setDate] = useState<IsoDate | null>("2026-11-05");
+  const [date, setDate] = useState<IsoDate | null>(null);
   const [time, setTime] = useState("08:00");
   const [errors, setErrors] = useState<Errors>({});
   const [tried, setTried] = useState(false);
@@ -269,20 +274,20 @@ function ComposeForm({ search }: { search: ComposeSearch }) {
   const effectiveTitle = title || (source === "template" ? (template?.name ?? "") : "");
 
   // Declared exams of this campus and session (entrance and programme tests are messaged from Admissions).
-  const declared = useMemo(() => (exams.data ?? []).filter((e) => e.status === "DECLARED" && e.category !== "ENTRANCE" && !e.programmeId && e.session === ctx.session), [exams.data, ctx.session]);
+  const declared = useMemo(() => (exams.data?.items ?? []).filter((e) => e.status === "DECLARED" && e.category !== "ENTRANCE" && !e.programmeId && e.session === ctx.session), [exams.data, ctx.session]);
   const exam = declared.find((e) => e.id === examId);
-  const months = useMemo(() => sessionMonths(ctx.session), [ctx.session]);
+  const months = useMemo(() => sessionMonths(ctx.session, today), [ctx.session, today]);
   // Default month: the latest month with a declared class test.
   useEffect(() => {
     if (month || (canSeeExams && exams.isPending)) return;
     const tests = declared.filter((e) => e.category === "TEST").map((e) => e.startDate.slice(0, 7)).sort();
-    setMonth(tests[tests.length - 1] ?? months[months.length - 1] ?? TODAY.slice(0, 7));
-  }, [declared, months, month, canSeeExams, exams.isPending]);
+    setMonth(tests[tests.length - 1] ?? months[months.length - 1] ?? today.slice(0, 7));
+  }, [declared, months, month, canSeeExams, exams.isPending, today]);
   useEffect(() => {
     if (!examId && declared[0]) setExamId(declared[0].id);
   }, [declared, examId]);
   const period: { from: IsoDate; to: IsoDate } | null =
-    periodMode === "month" ? (month ? { from: `${month}-01`, to: lastDayOf(month) } : null) : periodMode === "week" ? { from: mondayOf(TODAY), to: TODAY } : from && to ? { from, to } : null;
+    periodMode === "month" ? (month ? { from: `${month}-01`, to: lastDayOf(month) } : null) : periodMode === "week" ? { from: mondayOf(today), to: today } : from && to ? { from, to } : null;
 
   // When the template changes, the app title follows it until someone types their own.
   useEffect(() => setTitle(""), [templateId, source]);
@@ -392,12 +397,14 @@ function ComposeForm({ search }: { search: ComposeSearch }) {
     later,
     date,
     time,
+    today,
+    sessionEnd,
   };
   const check = (): boolean => {
     const r = composeSchema.safeParse(formValues);
     const next: Errors = {};
     if (!r.success) for (const issue of r.error.issues) next[String(issue.path[0])] ??= issue.message;
-    if (later && date && isoAt(date, time) <= demoNowIso()) next.time ??= "Choose a time later than now.";
+    if (later && date && !isLaterThanNow(isoAt(date, time))) next.time ??= "Choose a time later than now.";
     setErrors(next);
     return Object.keys(next).length === 0;
   };
@@ -414,9 +421,9 @@ function ComposeForm({ search }: { search: ComposeSearch }) {
       await queryClient.invalidateQueries({ queryKey: ["sms"] });
       if (request?.audience.kind === "EXAM" || request?.values?.exam_id) void queryClient.invalidateQueries({ queryKey: ["exams"] });
       const what = source === "template" ? (template?.name ?? "Message") : effectiveTitle || "Your message";
-      if (res.status === "AWAITING_APPROVAL") toast({ tone: "info", title: `Sent for approval · ${formatCount(res.queued)} recipients`, message: `${what} goes out once the principal approves it. You'll find it in the Outbox.` });
+      if (res.status === "AWAITING_APPROVAL") toast({ tone: "info", title: `Sent for approval · ${formatCount(res.queued)} recipients`, message: `${what} waits for the principal's approval in the Outbox. Nothing is sent from this system.` });
       else if (res.status === "SCHEDULED") toast({ title: `Scheduled · ${whenText(res.scheduledFor!)}`, message: `${what} to ${formatCount(res.queued)} recipients. Change or cancel it in the Outbox until then.` });
-      else toast({ title: `Sending · ${formatCount(res.queued)} recipients`, message: `${what}: ${formatCount(res.appQueued ?? 0)} by app, ${formatCount(res.queued - (res.appQueued ?? 0))} by SMS · about ${formatRs(res.estCost ?? 0)}.` });
+      else toast({ title: `Held in the outbox · ${formatCount(res.queued)} recipients`, message: `${what}: ${formatCount(res.appQueued ?? 0)} by app, ${formatCount(res.queued - (res.appQueued ?? 0))} by SMS · about ${formatRs(res.estCost ?? 0)}. Nothing is sent from this system.` });
       void navigate({ to: "/sms/outbox", search: { batch: res.batchId } as never });
     },
   });
@@ -545,7 +552,7 @@ function ComposeForm({ search }: { search: ComposeSearch }) {
             )}
             {(needsEventDate || needsExamPick) && (
               <div className="grid gap-3 sm:grid-cols-2">
-                {needsEventDate && <DatePicker label="Date in the message" value={eventDate} onValueChange={setEventDate} today={TODAY} {...(errors.eventDate ? { error: errors.eventDate } : {})} />}
+                {needsEventDate && <DatePicker label="Date in the message" value={eventDate} onValueChange={setEventDate} today={today} {...(errors.eventDate ? { error: errors.eventDate } : {})} />}
                 {needsExamPick &&
                   (!canSeeExams ? (
                     <p className="m-0 self-end text-small text-ink-muted">Marks come from each student's latest declared result this session.</p>
@@ -587,11 +594,11 @@ function ComposeForm({ search }: { search: ComposeSearch }) {
                     <Select label="Tests in" value={month} onChange={(e) => setMonth(e.target.value)} options={months.map((m) => ({ value: m, label: monthLabel(m) }))} help="Every class test declared that month is added up." />
                   </div>
                 )}
-                {periodMode === "week" && <p className="m-0 text-small text-ink-muted">Tests from Monday {formatDate(mondayOf(TODAY))} to today.</p>}
+                {periodMode === "week" && <p className="m-0 text-small text-ink-muted">Tests from Monday {formatDate(mondayOf(today))} to today.</p>}
                 {periodMode === "dates" && (
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <DatePicker label="From" value={from} onValueChange={setFrom} today={TODAY} maxDate={TODAY} />
-                    <DatePicker label="To" value={to} onValueChange={setTo} today={TODAY} maxDate={TODAY} {...(errors.periodTo ? { error: errors.periodTo } : {})} />
+                    <DatePicker label="From" value={from} onValueChange={setFrom} today={today} maxDate={today} />
+                    <DatePicker label="To" value={to} onValueChange={setTo} today={today} maxDate={today} {...(errors.periodTo ? { error: errors.periodTo } : {})} />
                   </div>
                 )}
               </div>
@@ -629,9 +636,9 @@ function ComposeForm({ search }: { search: ComposeSearch }) {
                     { value: "UNPAID", label: "Not paid" },
                   ]}
                 />
-                <DatePicker label="Applied from" value={regFrom} onValueChange={setRegFrom} today={TODAY} maxDate={TODAY} />
-                <DatePicker label="Applied to" value={regTo} onValueChange={setRegTo} today={TODAY} maxDate={TODAY} {...(errors.regTo ? { error: errors.regTo } : {})} />
-                <DatePicker label="Entry test on" value={testDate} onValueChange={setTestDate} today={TODAY} help="Leave empty for every test date." />
+                <DatePicker label="Applied from" value={regFrom} onValueChange={setRegFrom} today={today} maxDate={today} />
+                <DatePicker label="Applied to" value={regTo} onValueChange={setRegTo} today={today} maxDate={today} {...(errors.regTo ? { error: errors.regTo } : {})} />
+                <DatePicker label="Entry test on" value={testDate} onValueChange={setTestDate} today={today} help="Leave empty for every test date." />
               </div>
             )}
             {kind === "CLASS" && <ClassPicker classes={classList} loading={classes.isPending} value={sections} onChange={setSections} label="Classes and sections" help="Click a class to choose all its sections." {...(errors.sections ? { error: errors.sections } : {})} />}
@@ -786,7 +793,7 @@ function ComposeForm({ search }: { search: ComposeSearch }) {
               />
               {later && (
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <DatePicker label="Day" value={date} onValueChange={setDate} today={TODAY} minDate={TODAY} maxDate="2027-03-31" {...(errors.date ? { error: errors.date } : {})} />
+                  <DatePicker label="Day" value={date} onValueChange={setDate} today={today} minDate={today} maxDate={sessionEnd} {...(errors.date ? { error: errors.date } : {})} />
                   <Select label="Time" value={time} onChange={(e) => setTime(e.target.value)} options={TIME_SLOTS} help="SMS go out between 7:00 AM and 9:00 PM only." {...(errors.time ? { error: errors.time } : {})} />
                 </div>
               )}
@@ -845,11 +852,12 @@ function ComposeForm({ search }: { search: ComposeSearch }) {
                   <Figure label="By app (free)" value={formatCount(p.appRecipients ?? 0)} {...(p.costIfAllSms && p.costIfAllSms > (p.estCost ?? 0) ? { note: `saves ${formatRs(p.costIfAllSms - (p.estCost ?? 0))}`, good: true } : {})} />
                   <Figure label="By SMS" value={formatCount(p.smsRecipients ?? p.sendable)} note={language === "ur" ? "Urdu: 70 characters per SMS" : "English: 160 characters per SMS"} />
                 </div>
-                {(p.excludedOptOut > 0 || p.excludedNothingDue > 0 || (p.duplicates ?? 0) > 0 || (p.excludedNoApp ?? 0) > 0 || p.optedOutIncluded > 0 || (p.invalidNumbers?.length ?? 0) > 0 || (p.excludedNoResult ?? 0) > 0 || (p.excludedByYou ?? 0) > 0) && (
+                {(p.excludedOptOut > 0 || p.excludedNothingDue > 0 || (p.excludedNoMobile ?? 0) > 0 || (p.duplicates ?? 0) > 0 || (p.excludedNoApp ?? 0) > 0 || p.optedOutIncluded > 0 || (p.invalidNumbers?.length ?? 0) > 0 || (p.excludedNoResult ?? 0) > 0 || (p.excludedByYou ?? 0) > 0) && (
                   <ul className="m-0 grid list-none gap-1 p-0 text-small text-ink-muted">
                     {p.excludedOptOut > 0 && <li>· {formatCount(p.excludedOptOut)} opted out of notices — skipped</li>}
                     {p.optedOutIncluded > 0 && <li>· {formatCount(p.optedOutIncluded)} opted out of notices but still get this, because it is about their own child</li>}
                     {p.excludedNothingDue > 0 && <li>· {formatCount(p.excludedNothingDue)} with nothing due — skipped</li>}
+                    {(p.excludedNoMobile ?? 0) > 0 && <li>· {formatCount(p.excludedNoMobile ?? 0)} have no valid mobile number — skipped</li>}
                     {(p.excludedNoResult ?? 0) > 0 && <li>· {formatCount(p.excludedNoResult ?? 0)} have no result to send (not in the exam, result withheld, or no tests in these dates) — skipped</li>}
                     {(p.duplicates ?? 0) > 0 && <li>· {formatCount(p.duplicates ?? 0)} brothers and sisters share a phone — the family gets one message</li>}
                     {(p.excludedNoApp ?? 0) > 0 && <li>· {formatCount(p.excludedNoApp ?? 0)} don't have the app — not reached by an app-only message</li>}
@@ -906,7 +914,7 @@ function ComposeForm({ search }: { search: ComposeSearch }) {
         onConfirm={() => send.mutate()}
         icon={later ? "clock" : "send"}
         title={p?.needsApproval ? "Send this message for approval?" : later && date ? `Schedule this message for ${whenText(isoAt(date, time))}?` : `Send this message to ${formatCount(p?.sendable ?? 0)} recipients now?`}
-        message={p?.needsApproval ? "The principal approves it in the Outbox; it goes out straight after (or at the scheduled time)." : later ? "You can change the time or cancel it in the Outbox until it goes out." : "Messages are queued straight away and can't be called back once the network accepts them."}
+        message={p?.needsApproval ? "The principal approves it in the Outbox. The messages are held there; nothing is sent from this system." : later ? "You can change the time or cancel it in the Outbox. The messages are held there; nothing is sent from this system." : "The messages are held in the outbox; nothing is sent from this system."}
         details={[
           ["Message", source === "template" ? (template?.name ?? "—") : effectiveTitle || "Written for this send"],
           ["Language", language === "ur" ? "Urdu" : "English"],

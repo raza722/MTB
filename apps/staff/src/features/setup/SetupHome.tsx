@@ -269,10 +269,9 @@ export function SetupHome() {
           )}
         </Panel>
         <div className="grid content-start gap-6">
-          <Panel id="setup-backup" title="Backups" description="Automatic, for every campus, in one central place." rise={8}>
-            {!o ? (
-              <Skeleton height={100} />
-            ) : (
+          {/* Shown only once the server reports central backups; today it sends backup: null (spec 00_setup C2). */}
+          {o?.backup && (
+            <Panel id="setup-backup" title="Backups" description="Automatic, for every campus, in one central place." rise={8}>
               <div className="grid gap-3">
                 <div className="flex items-center gap-2">
                   <StatusBadge status="success">Backed up</StatusBadge>
@@ -294,8 +293,8 @@ export function SetupHome() {
                 </ul>
                 <p className="m-0 text-small text-ink-muted">Replaces the Backup button on each campus computer. Nobody has to remember to press it.</p>
               </div>
-            )}
-          </Panel>
+            </Panel>
+          )}
           <Panel id="setup-elsewhere" title="Set up in their own modules" description="Rules that belong to one module live next to the work." rise={9}>
             <ul className="setup-list">
               {ELSEWHERE.map((e) => (

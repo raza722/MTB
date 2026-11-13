@@ -19,6 +19,7 @@ import {
   type StudentMovementChange,
   type StudentProfile,
   type StudentQualification,
+  type StudentUpdate,
 } from "@mtb/api";
 import { formatCnic, formatDate, formatDateTime, formatMobile, formatPercent, formatRs, formatSession, formatTime, isValidCnic, normalizeMobile } from "@mtb/domain";
 import {
@@ -66,7 +67,7 @@ import { AddressLabelsPanel } from "./documents/AddressLabelsPanel";
 import { AdmissionFormModal } from "./documents/AdmissionFormModal";
 import { IssueDocumentPanel } from "./documents/IssueDocumentPanel";
 import { StatusChangePanel } from "./movements/StatusChangePanel";
-import { apiMessage, EnrolmentBadge, fieldError, LoadError, stagger, TODAY } from "./shared";
+import { apiMessage, classShortOf, EnrolmentBadge, fieldError, isBoardClass, LoadError, sectionOf, stagger, today } from "./shared";
 
 export type ProfileTab = "enrolment" | "attendance" | "results" | "ledger" | "sms" | "family" | "documents";
 
@@ -181,8 +182,19 @@ function ClassHistoryTab({ p }: { p: StudentProfile }) {
 
 /* ---------------------------------------------------------------- Attendance, results, SMS (unchanged behaviour) */
 
+/** This month and the two before it, newest last: "2026-09", "2026-10", "2026-11". */
+function recentMonths(): Array<{ value: string; label: string }> {
+  const [y, m] = today().split("-").map(Number) as [number, number];
+  return [2, 1, 0].map((back) => {
+    const d = new Date(Date.UTC(y, m - 1 - back, 1));
+    const value = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+    return { value, label: formatDate(`${value}-01`).slice(3).replace("-", " ") };
+  });
+}
+
 function AttendanceTab({ grNo }: { grNo: string }) {
-  const [month, setMonth] = useState("2026-10");
+  const [months] = useState(recentMonths);
+  const [month, setMonth] = useState(() => months[months.length - 1]!.value);
   const data = useQuery(studentsQueries.attendance(grNo, month));
   const [y, m] = month.split("-").map(Number) as [number, number];
   return (
@@ -191,21 +203,17 @@ function AttendanceTab({ grNo }: { grNo: string }) {
         aria-label="Month"
         value={month}
         onChange={setMonth}
-        options={[
-          { value: "2026-09", label: "Sep 2026" },
-          { value: "2026-10", label: "Oct 2026" },
-          { value: "2026-11", label: "Nov 2026" },
-        ]}
+        options={months}
       />
       {data.isError && <LoadError what="attendance" error={data.error} onRetry={() => void data.refetch()} />}
-      {data.isLoading || !data.data ? <TabSkeleton /> : <AttendanceCalendar year={y} month={m - 1} days={data.data.days} holidayNames={data.data.holidayNames} today={TODAY} />}
+      {data.isLoading || !data.data ? <TabSkeleton /> : <AttendanceCalendar year={y} month={m - 1} days={data.data.days} holidayNames={data.data.holidayNames} today={today()} />}
     </div>
   );
 }
 
 /* ---------------------------------------------------------------- Board exams (earlier qualifications) */
 
-const THIS_YEAR = Number(TODAY.slice(0, 4));
+const THIS_YEAR = Number(today().slice(0, 4));
 const num = (v: string) => (v.trim() === "" ? Number.NaN : Number(v));
 
 const qualSchema = z
@@ -220,10 +228,19 @@ const qualSchema = z
   .refine((v) => v.obtained <= v.total, { path: ["obtained"], error: "Marks obtained can't be more than the total." });
 
 type QualForm = { exam: string; board: string; year: string; rollNo: string; obtained: string; total: string; group: string };
+/** A missing number on a migrated entry (C3) opens as an empty box to fill in. */
+const numText = (v: number | null) => (v === null ? "" : String(v));
 const qualForm = (q: StudentQualification | null, p: StudentProfile): QualForm =>
   q
-    ? { exam: q.exam, board: q.board, year: String(q.year), rollNo: q.rollNo, obtained: String(q.obtained), total: String(q.total), group: q.group ?? "" }
-    : { exam: "", board: p.campus === "HC" ? "BISE Lahore" : "BISE Bahawalpur", year: String(THIS_YEAR), rollNo: "", obtained: "", total: "", group: p.stream ?? "" };
+    ? { exam: q.exam, board: q.board, year: q.year ? String(q.year) : "", rollNo: q.rollNo, obtained: numText(q.obtained), total: q.total ? String(q.total) : "", group: q.group ?? "" }
+    : // A new entry starts from the board of the latest one on the record (the same board as a rule).
+      { exam: "", board: [...(p.qualifications ?? [])].reverse().find((x) => x.board)?.board ?? "", year: String(THIS_YEAR), rollNo: "", obtained: "", total: "", group: p.stream ?? "" };
+
+/** "512 / 600 · 85.3%", or what is known of it on a migrated entry. */
+function marksText(q: StudentQualification): string {
+  if (q.obtained === null || !q.total) return q.total ? `— / ${q.total}` : "Not recorded";
+  return `${q.obtained} / ${q.total} · ${formatPercent((q.obtained / q.total) * 100)}`;
+}
 
 /** "Changed by … Reload": a correction refused because someone else saved the entry first (409 CONCURRENCY). */
 function StaleBanner({ error, onReload, reloading }: { error: unknown; onReload: () => void; reloading: boolean }) {
@@ -249,7 +266,8 @@ function QualificationPanel({ p, row, open, onClose }: { p: StudentProfile; row:
   const queryClient = useQueryClient();
   const ctx = useCtx();
   const classes = useQuery(metaQueries.classes(ctx.campus));
-  const groups = classes.data?.find((c) => c.short === "9")?.groups ?? [];
+  // Any group offered in Setup (a board exam may be from another school or an earlier class); the server accepts any.
+  const groups = [...new Set((classes.data ?? []).flatMap((c) => c.groups ?? []))].sort((a, b) => a.localeCompare(b));
   const [form, setForm] = useState<QualForm>(() => qualForm(row, p));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [key, setKey] = useState(newIdempotencyKey);
@@ -357,9 +375,9 @@ function QualificationsCard({ p }: { p: StudentProfile }) {
         empty={<EmptyState icon="award" title="No board exams on record" description="Add the student's earlier board results, for example Class 8 or Matric Part-I." />}
         columns={[
           { key: "exam", header: "Exam", render: (q) => <span className="grid"><span className="mtb-cell-primary">{q.exam}</span><span className="mtb-cell-secondary">{q.board}</span></span> },
-          { key: "year", header: "Year", width: 70, render: (q) => <span className="tabular-nums">{q.year}</span> },
-          { key: "rollNo", header: "Roll no.", width: 120, render: (q) => <span className="mtb-mono">{q.rollNo}</span> },
-          { key: "marks", header: "Marks", width: 150, align: "right", render: (q) => <span className="tabular-nums">{q.obtained} / {q.total} · {formatPercent((q.obtained / q.total) * 100)}</span> },
+          { key: "year", header: "Year", width: 70, render: (q) => (q.year ? <span className="tabular-nums">{q.year}</span> : <span className="text-ink-subtle">—</span>) },
+          { key: "rollNo", header: "Roll no.", width: 120, render: (q) => (q.rollNo ? <span className="mtb-mono">{q.rollNo}</span> : <span className="text-ink-subtle">—</span>) },
+          { key: "marks", header: "Marks", width: 150, align: "right", render: (q) => <span className="tabular-nums">{marksText(q)}</span> },
           { key: "group", header: "Group", width: 150, render: (q) => q.group ?? <span className="text-ink-subtle">—</span> },
           ...(editable
             ? [
@@ -568,6 +586,9 @@ function FamilyTab({ p }: { p: StudentProfile }) {
 
 function DocumentsTab({ p, onIssue }: { p: StudentProfile; onIssue: (t: StudentDocType) => void }) {
   const docs = useQuery(studentDocsQueries.forStudent(p.grNo));
+  const classes = useQuery(metaQueries.classes(p.campus));
+  // Board documents only for board-exam classes; while Setup doesn't say which those are, the server's blocks explain.
+  const boardClass = isBoardClass(classes.data, classShortOf(p.classSection));
   const canEdit = useCan("students.edit");
   const readOnly = useReadOnly();
   if (docs.isLoading) return <TabSkeleton />;
@@ -577,7 +598,7 @@ function DocumentsTab({ p, onIssue }: { p: StudentProfile; onIssue: (t: StudentD
     <div className="grid gap-5 pt-5">
       {canEdit && !readOnly && (
         <div className="flex flex-wrap gap-2" role="group" aria-label="Issue a document">
-          {STUDENT_DOC_TYPES.filter((t) => !isHandoverDoc(t) || /^(9|10)-/.test(p.classSection)).map((t) => {
+          {STUDENT_DOC_TYPES.filter((t) => !isHandoverDoc(t) || boardClass !== false).map((t) => {
             const block = d.blocks[t];
             const btn = (
               <Button key={t} size="sm" icon={t === "ID_CARD" ? "idCard" : t === "APPRECIATION_LETTER" ? "star" : isHandoverDoc(t) ? "checkCircle" : "file"} disabled={Boolean(block)} onClick={() => onIssue(t)}>
@@ -759,8 +780,10 @@ function EditPanel({ p, open, onClose }: { p: StudentProfile; open: boolean; onC
     boardRollPartI: p.boardRollNo?.partI ?? "",
     boardRollPartII: p.boardRollNo?.partII ?? "",
   });
-  // Board roll numbers belong to Class 9 and 10 (the board exam classes).
-  const boardClass = /^(9|10)-/.test(p.classSection);
+  // Board roll numbers belong to the board exam classes (Setup's boardExamPart). While the server doesn't say which
+  // those are, the fields show and the server refuses them for other classes.
+  const classes = useQuery(metaQueries.classes(p.campus));
+  const boardClass = isBoardClass(classes.data, classShortOf(p.classSection)) ?? true;
   const [form, setForm] = useState(initial);
   // The rest of the admission form: religion, contact, parents' work and education, emergency contact, hostel.
   const [extras, setExtras] = useState<ExtrasForm>(() => extrasFrom(p));
@@ -776,22 +799,40 @@ function EditPanel({ p, open, onClose }: { p: StudentProfile; open: boolean; onC
       setKey(newIdempotencyKey());
     }
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Only what the user changed is sent (and checked). Migrated records often lack a valid mobile or a full address, and
+  // the family-level fields (address, mobile, occupation, emergency contact) live once per family (spec 01_students
+  // D6/D20): resending untouched values would trip checks the user never asked for.
+  const changes = (): { body: StudentUpdate; keys: Set<string> } => {
+    const start = initial();
+    const startExtras = extrasFrom(p);
+    const body: StudentUpdate = {};
+    const keys = new Set<string>();
+    for (const k of ["mobile", "address", "occupation", "nameUr", "mother", "fatherCnic", "bloodGroup", "bForm"] as const) {
+      if (form[k].trim() !== start[k].trim()) {
+        body[k] = form[k].trim();
+        keys.add(k);
+      }
+    }
+    for (const k of ["religion", "disability", "identificationMark", "birthCertificateNo", "email", "homePhone", "city", "tempAddress", "fatherQualification", "fatherOccupation", "motherQualification", "motherOccupation", "admissionReference"] as const) {
+      if (extras[k].trim() !== startExtras[k].trim()) {
+        body[k] = extras[k].trim();
+        keys.add(k);
+      }
+    }
+    const ec = { name: extras.emergencyName.trim(), mobile1: extras.emergencyMobile1.trim(), mobile2: extras.emergencyMobile2.trim() };
+    if (ec.name !== startExtras.emergencyName.trim() || ec.mobile1 !== startExtras.emergencyMobile1.trim() || ec.mobile2 !== startExtras.emergencyMobile2.trim()) {
+      body.emergencyContact = ec.name || ec.mobile1 ? { name: ec.name, mobile1: ec.mobile1, ...(ec.mobile2 ? { mobile2: ec.mobile2 } : {}) } : null;
+      for (const k of ["emergencyName", "emergencyMobile1", "emergencyMobile2"]) keys.add(k);
+    }
+    if (hostel !== Boolean(p.hostel)) body.hostel = hostel;
+    if (boardClass && (form.boardRollPartI.trim() !== start.boardRollPartI || form.boardRollPartII.trim() !== start.boardRollPartII)) {
+      body.boardRollNo = { partI: form.boardRollPartI.trim(), partII: form.boardRollPartII.trim() };
+      keys.add("boardRollPartI").add("boardRollPartII");
+    }
+    return { body, keys };
+  };
   const save = useMutation({
-    mutationFn: () => {
-      const { boardRollPartI, boardRollPartII, ...rest } = form;
-      const { emergencyName, emergencyMobile1, emergencyMobile2, ...more } = extras;
-      return studentsApi.update(
-        p.grNo,
-        {
-          ...rest,
-          ...more,
-          hostel,
-          emergencyContact: emergencyName.trim() || emergencyMobile1.trim() ? { name: emergencyName.trim(), mobile1: emergencyMobile1.trim(), ...(emergencyMobile2.trim() ? { mobile2: emergencyMobile2.trim() } : {}) } : null,
-          ...(boardClass ? { boardRollNo: { partI: boardRollPartI.trim(), partII: boardRollPartII.trim() } } : {}),
-        },
-        key,
-      );
-    },
+    mutationFn: (body: StudentUpdate) => studentsApi.update(p.grNo, body, key),
     onSuccess: (next) => {
       queryClient.setQueryData(studentsQueries.profile(p.grNo).queryKey, next);
       void queryClient.invalidateQueries({ queryKey: studentsQueries.all() });
@@ -801,14 +842,19 @@ function EditPanel({ p, open, onClose }: { p: StudentProfile; open: boolean; onC
     },
   });
   const submit = () => {
+    const { body, keys } = changes();
+    if (!keys.size && body.hostel === undefined) {
+      onClose();
+      return;
+    }
     const found: Record<string, string> = {};
-    for (const r of [editSchema.safeParse(form), childExtrasSchema.safeParse(extras), familyExtrasSchema.safeParse(extras)]) if (!r.success) for (const i of r.error.issues) found[String(i.path[0])] ??= i.message;
+    for (const r of [editSchema.safeParse(form), childExtrasSchema.safeParse(extras), familyExtrasSchema.safeParse(extras)]) if (!r.success) for (const i of r.error.issues) if (keys.has(String(i.path[0]))) found[String(i.path[0])] ??= i.message;
     if (Object.keys(found).length) {
       setErrors(found);
       return;
     }
     setErrors({});
-    save.mutate();
+    save.mutate(body);
   };
   const err = (f: string) => errors[f] ?? fieldError(save.error, f);
   const set = (patch: Partial<ReturnType<typeof initial>>) => setForm((f) => ({ ...f, ...patch }));
@@ -838,8 +884,8 @@ function EditPanel({ p, open, onClose }: { p: StudentProfile; open: boolean; onC
         <CnicInput label="Child's B-form number" value={form.bForm} onValueChange={(v) => set({ bForm: v })} error={err("bForm")} />
         {boardClass && (
           <div className="grid gap-4 sm:grid-cols-2">
-            <Input label="Board roll no. Part-I" inputMode="numeric" mono value={form.boardRollPartI} error={err("boardRollPartI")} onChange={(e) => set({ boardRollPartI: e.target.value.replace(/\D/g, "") })} help="Class 9 board exam" />
-            <Input label="Board roll no. Part-II" inputMode="numeric" mono value={form.boardRollPartII} error={err("boardRollPartII")} onChange={(e) => set({ boardRollPartII: e.target.value.replace(/\D/g, "") })} help="Class 10 board exam" />
+            <Input label="Board roll no. Part-I" inputMode="numeric" mono value={form.boardRollPartI} error={err("boardRollPartI")} onChange={(e) => set({ boardRollPartI: e.target.value.replace(/\D/g, "") })} help="First board exam (Class 9 or First year)" />
+            <Input label="Board roll no. Part-II" inputMode="numeric" mono value={form.boardRollPartII} error={err("boardRollPartII")} onChange={(e) => set({ boardRollPartII: e.target.value.replace(/\D/g, "") })} help="Second board exam (Class 10 or Second year)" />
           </div>
         )}
         <Select label="Blood group" value={form.bloodGroup} onChange={(e) => set({ bloodGroup: e.target.value })} options={BLOOD.map((b) => ({ value: b, label: b || "Not known" }))} />
@@ -865,10 +911,11 @@ function ChangeSectionModal({ p, open, onClose }: { p: StudentProfile; open: boo
   const toast = useToast();
   const queryClient = useQueryClient();
   const classes = useQuery(metaQueries.classes(p.campus));
-  const [short, current] = p.classSection.split("-") as [string, string];
+  const short = classShortOf(p.classSection);
+  const current = sectionOf(p.classSection);
   const sections = (classes.data?.find((c) => c.short === short)?.sections ?? []).filter((s) => s !== current);
   const [toSection, setToSection] = useState("");
-  const [date, setDate] = useState<string | null>(TODAY);
+  const [date, setDate] = useState<string | null>(today());
   const [reason, setReason] = useState("");
   const [tried, setTried] = useState(false);
   const [key, setKey] = useState(newIdempotencyKey);
@@ -876,13 +923,13 @@ function ChangeSectionModal({ p, open, onClose }: { p: StudentProfile; open: boo
     if (open) {
       setToSection("");
       setReason("");
-      setDate(TODAY);
+      setDate(today());
       setTried(false);
       setKey(newIdempotencyKey());
     }
   }, [open]);
   const move = useMutation({
-    mutationFn: () => sectionAllotmentApi.move({ campus: p.campus, session: ctx.session }, { grNos: [p.grNo], toSection, effectiveDate: date ?? TODAY, reason }, key),
+    mutationFn: () => sectionAllotmentApi.move({ campus: p.campus, session: ctx.session }, { grNos: [p.grNo], toSection, effectiveDate: date ?? today(), reason }, key),
     onSuccess: (r) => {
       void queryClient.invalidateQueries({ queryKey: studentsQueries.all() });
       void queryClient.invalidateQueries({ queryKey: sectionAllotmentQueries.all() });
@@ -945,6 +992,8 @@ export function StudentProfilePage({ grNo, tab, setTab }: { grNo: string; tab: P
   const [labelOpen, setLabelOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const p = profile.data;
+  const classes = useQuery({ ...metaQueries.classes(p?.campus ?? ctx.campus), enabled: Boolean(p) });
+  const boardClass = p ? isBoardClass(classes.data, classShortOf(p.classSection)) : undefined;
   const allowed = p ? studentMovementsAllowed(p.status) : [];
   const editable = canEdit && !readOnly;
 
@@ -1032,7 +1081,7 @@ export function StudentProfilePage({ grNo, tab, setTab }: { grNo: string; tab: P
                     )}
                     <MenuSeparator />
                     <MenuLabel>Documents</MenuLabel>
-                    {STUDENT_DOC_TYPES.filter((t) => !isHandoverDoc(t) || /^(9|10)-/.test(p.classSection)).map((t) => (
+                    {STUDENT_DOC_TYPES.filter((t) => !isHandoverDoc(t) || boardClass !== false).map((t) => (
                       <MenuItem key={t} icon={t === "ID_CARD" ? "idCard" : "file"} onSelect={() => setIssueType(t)}>
                         {isHandoverDoc(t) ? `Hand over: ${STUDENT_DOC_LABEL[t].toLowerCase()}` : STUDENT_DOC_LABEL[t]}
                       </MenuItem>
@@ -1075,12 +1124,12 @@ export function StudentProfilePage({ grNo, tab, setTab }: { grNo: string; tab: P
                   </span>
                 )}
                 <span>Session {formatSession(p.session)}</span>
-                <span>Roll no. {p.rollNo}</span>
+                <span>Roll no. {p.rollNo || "—"}</span>
                 {p.house && <span>{p.house}</span>}
                 <EnrolmentBadge status={p.status} />
               </div>
               <span className="text-small text-ink-muted">
-                {p.relation} {p.father} · born <bdi dir="ltr">{formatDate(p.dob)}</bdi> · admitted <bdi dir="ltr">{formatDate(p.admissionDate)}</bdi>
+                {p.relation} {p.father} · {p.dob ? <>born <bdi dir="ltr">{formatDate(p.dob)}</bdi></> : "date of birth not on record"} · admitted <bdi dir="ltr">{formatDate(p.admissionDate)}</bdi>
                 {p.admittedInClass ? ` in ${p.admittedInClass}` : ""}
                 {p.bloodGroup ? ` · blood group ${p.bloodGroup}` : ""}
               </span>

@@ -124,12 +124,15 @@ export interface StudentQualification {
   id: string;
   /** "SSC Part-I (Class 9) Annual 2026" */
   exam: string;
-  /** "BISE Bahawalpur" */
+  /** "BISE Bahawalpur"; "" on migrated rows the old system kept without a board (spec 01_students C3). */
   board: string;
-  year: number;
+  /** null on migrated rows without a year (C3). */
+  year: number | null;
+  /** "" when the old system has none (C3). */
   rollNo: string;
-  obtained: number;
-  total: number;
+  /** null on migrated rows without marks (C3). */
+  obtained: number | null;
+  total: number | null;
   /** "Science (Biology)" */
   group?: string;
   rowVer: number;
@@ -137,10 +140,20 @@ export interface StudentQualification {
   updatedAt?: IsoDateTime;
 }
 
-export type StudentQualificationInput = Pick<StudentQualification, "exam" | "board" | "year" | "rollNo" | "obtained" | "total" | "group">;
+/** What the office enters. Every field is required, so correcting a migrated row means completing it (C3). */
+export interface StudentQualificationInput {
+  exam: string;
+  board: string;
+  year: number;
+  rollNo: string;
+  obtained: number;
+  total: number;
+  group?: string;
+}
 
 export interface StudentProfile extends StudentSummary, StudentPersonalExtras {
-  dob: IsoDate;
+  /** null when the record has no date of birth (many migrated students; spec 01_students C1). */
+  dob: IsoDate | null;
   admissionDate: IsoDate;
   rollNo: number;
   house?: string;
@@ -189,7 +202,8 @@ export interface StudentListQuery {
 
 /** Extra columns for the downloaded student list (GET /students?detail=1). */
 export interface StudentListDetail {
-  dob: IsoDate;
+  /** null when not on record (C1). */
+  dob: IsoDate | null;
   bForm?: string;
   previousSchool?: string;
   guardianMobile: string;
@@ -313,7 +327,7 @@ export interface StudentStrength {
   enrolled: number;
   girls: number;
   boys: number;
-  /** Admitted in this session. */
+  /** Joined MTB in this session's intake (admitted or readmitted into it), by any route: through Admissions or not, migrated included. Not "admitted through Admissions" (that is the admissions pipeline's ADMITTED count). */
   newThisSession: number;
   newThisWeek: number;
   /** Left, struck off or expelled in this session. */

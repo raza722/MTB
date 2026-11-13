@@ -1,4 +1,4 @@
-import { teacherCountsLine, teacherQueries, type TeacherRegisterDay, type TeacherRegisterOverview } from "@mtb/api";
+import { teacherCountsLine, teacherQueries, type TeacherCounts, type TeacherRegisterDay, type TeacherRegisterOverview } from "@mtb/api";
 import { formatDate, formatPercent, formatTime, formatWeekday } from "@mtb/domain";
 import { AreaChart, EmptyState, Icon, Panel, Segmented, Skeleton, StatusBadge } from "@mtb/ui";
 import { useQuery } from "@tanstack/react-query";
@@ -11,6 +11,11 @@ import { MARK_LABEL, RegisterStatusBadge } from "./marks";
 import { RegisterCard } from "./RegisterCard";
 
 const VIEW_KEY = "mtb.teacher.registerView";
+
+/** A past day whose register was taken, with its counts and percentage. */
+type TakenDay = TeacherRegisterDay & { counts: TeacherCounts; percent: number };
+const taken = (d: TeacherRegisterDay): d is TakenDay => d.status !== "NOT_MARKED" && d.counts !== null && d.percent !== null;
+const pctOrDash = (v: number | null) => (v === null ? "—" : formatPercent(v));
 
 function savedView(): "chart" | "table" {
   try {
@@ -58,8 +63,10 @@ export function RegistersPage() {
 
 function Overview({ o }: { o: TeacherRegisterOverview }) {
   const [view, setView] = useState<"chart" | "table">(savedView);
-  const days = [...o.days].reverse();
-  const avg = o.days.length ? o.days.reduce((a, d) => a + d.percent, 0) / o.days.length : null;
+  // The chart shows the days the register was taken; the average is attended ÷ marked over those days (not an average of percentages).
+  const days = [...o.days].reverse().filter(taken);
+  const sums = days.reduce((a, d) => ({ attended: a.attended + d.counts.present + d.counts.late, marked: a.marked + d.counts.present + d.counts.absent + d.counts.leave + d.counts.late }), { attended: 0, marked: 0 });
+  const avg = sums.marked ? Math.round((sums.attended / sums.marked) * 1000) / 10 : null;
   const pending = o.changes.filter((c) => c.status === "PENDING");
 
   return (
@@ -70,7 +77,7 @@ function Overview({ o }: { o: TeacherRegisterOverview }) {
         id={`days-${o.classSection}`}
         rise={1}
         title="Last 10 school days"
-        description={avg !== null ? `Present and late as a share of ${o.classSection} · average ${formatPercent(avg)}` : undefined}
+        description={avg !== null ? `Present and late as a share of the students marked in ${o.classSection} · ${formatPercent(avg)} over these days` : "No register was taken on these days."}
         actions={
           <Segmented
             aria-label="Show as"
@@ -93,9 +100,12 @@ function Overview({ o }: { o: TeacherRegisterOverview }) {
         flush={view === "table"}
       >
         {view === "chart" ? (
+          days.length === 0 ? (
+            <EmptyState icon="listChecks" title="No registers to chart" description="The registers of the last school days were not taken." />
+          ) : (
           <AreaChart
             data={days}
-            value={(d: TeacherRegisterDay) => d.percent}
+            value={(d: TakenDay) => d.percent}
             axisLabel={(d) => formatDate(d.date).slice(0, 6)}
             formatAxis={(v) => `${Math.round(v)}%`}
             tooltip={(d) => (
@@ -111,6 +121,7 @@ function Overview({ o }: { o: TeacherRegisterOverview }) {
             label={`${o.classSection} attendance over the last ${days.length} school days`}
             height={190}
           />
+          )
         ) : (
           <ul className="m-0 grid list-none p-0">
             {o.days.map((d, i) => (
@@ -128,14 +139,14 @@ function Overview({ o }: { o: TeacherRegisterOverview }) {
                     </span>
                   </span>
                   <span className="min-w-0 flex-1 text-small tabular-nums text-ink">
-                    {teacherCountsLine(d.counts)}
+                    {taken(d) ? teacherCountsLine(d.counts) : <span className="text-ink-muted">Not taken</span>}
                     {d.pending > 0 && (
                       <span className="mt-1 block">
                         <RegisterStatusBadge status="CHANGE_PENDING" />
                       </span>
                     )}
                   </span>
-                  <span className="text-body-strong tabular-nums text-ink">{formatPercent(d.percent)}</span>
+                  <span className="text-body-strong tabular-nums text-ink">{taken(d) ? formatPercent(d.percent) : pctOrDash(null)}</span>
                   <Icon name="chevronRight" size={18} className="text-ink-muted" />
                 </Link>
               </li>

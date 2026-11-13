@@ -4,7 +4,7 @@ import { RecordsPage } from "../../../features/activities";
 
 /** /activities/records — a student's co-curricular record; ?student=<G.R. number>. */
 export const Route = createFileRoute("/_app/activities/records")({
-  validateSearch: (s: Record<string, unknown>): { student?: string } => (typeof s.student === "string" && s.student ? { student: s.student.toUpperCase() } : {}),
+  validateSearch: (s: Record<string, unknown>): { student?: string } => (typeof s.student === "string" && s.student ? { student: s.student.toUpperCase() } : typeof s.student === "number" ? { student: String(s.student) } : {}),
   component: function RecordsRoute() {
     const { student } = Route.useSearch();
     const navigate = Route.useNavigate();

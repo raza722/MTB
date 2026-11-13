@@ -35,6 +35,11 @@ export function TodayPage() {
 }
 
 function TodayBody({ t }: { t: TeacherToday }) {
+  const ctx = useCtx();
+  // Marks are real (Exams): the open papers come from the papers list, the same one the Marks tab shows, until Today
+  // itself is served by the backend (module 8 reads the same exam view). Today's own `papers` are still fictional.
+  const papersQ = useQuery(teacherQueries.papers(ctx));
+  const papers = (papersQ.data ?? []).filter((p) => !p.locked);
   const now = pkMinutesNow();
   const nextIndex = t.periods.findIndex((p) => toMins(p.start) > now);
   return (
@@ -84,10 +89,10 @@ function TodayBody({ t }: { t: TeacherToday }) {
         </Section>
       )}
 
-      {t.papers.length > 0 && (
+      {papers.length > 0 && (
         <Section title="Marks to enter" rise={3} action={<Link to="/marks" className="text-small font-medium text-brand-ink no-underline">All papers</Link>}>
           <ul className="m-0 grid list-none gap-2 p-0">
-            {t.papers.map((p) => (
+            {papers.map((p) => (
               <li key={`${p.examId}-${p.classSection}-${p.subjectId}`}>
                 <PaperLink p={p} />
               </li>
@@ -130,7 +135,7 @@ function PeriodCard({ p, i, isNext }: { p: TeacherPeriod; i: number; isNext: boo
           {p.cover && <StatusBadge status="info">Cover</StatusBadge>}
         </p>
         <p className="m-0 text-small text-ink-muted">
-          {p.room} · until {clock(p.end)}
+          {p.room ? `${p.room} · ` : ""}until {clock(p.end)}
         </p>
         {p.register && (
           <div className="mt-2 flex flex-wrap items-center gap-2">

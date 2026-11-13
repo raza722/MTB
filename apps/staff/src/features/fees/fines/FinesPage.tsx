@@ -47,7 +47,7 @@ import { z } from "zod";
 import { campusLabel } from "../../../app/shell/campus";
 import { Page, PageHeader, RequirePermission } from "../../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../../app/session";
-import { addDaysIso, CLASS_SHORTS, className, sectionsOf, DecisionBadge, errorField, errorText, FeesNav, LoadError, monthEndIso, slide, TODAY, useCanAny } from "../shared";
+import { addDaysIso, DecisionBadge, errorField, errorText, feeToday, FeesNav, LoadError, monthEndIso, slide, useCanAny, useFeeClasses, useFeeSessionDates } from "../shared";
 
 const scopeText = (s: FeeFineScope) => (s === "ALL" ? "Every fee head" : "Tuition only");
 const ruleLine = (r: Pick<FeeFineRule, "ratePerDay" | "graceDays" | "maxFine" | "appliesTo">) =>
@@ -62,13 +62,13 @@ function RulePanel({ rule, onClose }: { rule: FeeFineRule; onClose: () => void }
   const [grace, setGrace] = useState(String(rule.graceDays));
   const [max, setMax] = useState<number | null>(rule.maxFine);
   const [scope, setScope] = useState<FeeFineScope>(rule.appliesTo);
-  const [from, setFrom] = useState<string | null>(addDaysIso(monthEndIso(TODAY.slice(0, 7)), 1));
+  const [from, setFrom] = useState<string | null>(addDaysIso(monthEndIso(feeToday().slice(0, 7)), 1));
   const [tried, setTried] = useState(false);
   const schema = z.object({
     rate: z.number({ error: "Enter the fine per day." }).int().min(1, "Enter at least Rs 1 a day.").max(500, "More than Rs 500 a day looks wrong."),
     grace: z.number({ error: "Enter 0 or more grace days." }).int("Use whole days.").min(0, "Enter 0 or more.").max(30, "At most 30 grace days."),
     max: z.number().int().nullable(),
-    from: z.string({ error: "Enter the start date." }).min(1, "Enter the start date.").refine((d) => d >= TODAY, "A new rule starts today or later; posted receipts never change."),
+    from: z.string({ error: "Enter the start date." }).min(1, "Enter the start date.").refine((d) => d >= feeToday(), "A new rule starts today or later; posted receipts never change."),
   });
   const parsed = schema.safeParse({ rate: rate ?? undefined, grace: grace === "" ? undefined : Number(grace), max, from: from ?? "" });
   const errors: Record<string, string> = {};
@@ -85,7 +85,9 @@ function RulePanel({ rule, onClose }: { rule: FeeFineRule; onClose: () => void }
   });
   const serverField = errorField(save.error);
   const err = (f: string, server = f) => (tried ? (errors[f] ?? (serverField === server ? errorText(save.error) : undefined)) : undefined);
-  const sample = calculateLateFine("2026-09-15", "2026-11-04", { ratePerDay: rate ?? 0, graceDays: Number(grace) || 0, maxFine: max });
+  // A worked example on real dates: a charge that fell due 50 days ago, paid today.
+  const sampleDue = addDaysIso(feeToday(), -50);
+  const sample = calculateLateFine(sampleDue, feeToday(), { ratePerDay: rate ?? 0, graceDays: Number(grace) || 0, maxFine: max });
   return (
     <SidePanel
       open
@@ -117,11 +119,11 @@ function RulePanel({ rule, onClose }: { rule: FeeFineRule; onClose: () => void }
           <span className="text-small font-medium">Fine runs on</span>
           <Segmented aria-label="Fine runs on" value={scope} onChange={(v) => setScope(v as FeeFineScope)} options={[{ value: "ALL", label: "Every fee head" }, { value: "TUITION", label: "Tuition only" }]} />
         </div>
-        <DatePicker label="Starts on" required value={from} onValueChange={setFrom} today={TODAY} minDate={TODAY} error={err("from", "effectiveFrom")} help="Until then the current rule stays. Receipts already posted never change." />
+        <DatePicker label="Starts on" required value={from} onValueChange={setFrom} today={feeToday()} minDate={feeToday()} error={err("from", "effectiveFrom")} help="Until then the current rule stays. Receipts already posted never change." />
         <div className="rounded-md border border-border bg-surface-sunken p-4 text-small">
           <p className="m-0 mb-1 font-medium">Example</p>
           <p className="m-0 text-ink-muted">
-            A charge due 15-Sep-2026 paid on 04-Nov-2026 ({sample.daysOverdue} days late): {sample.chargeableDays > 0 ? sample.explanation : "no fine"} ={" "}
+            A charge due {formatDate(sampleDue)} paid on {formatDate(feeToday())} ({sample.daysOverdue} days late): {sample.chargeableDays > 0 ? sample.explanation : "no fine"} ={" "}
             <span className="font-semibold text-ink">{formatRs(sample.fine)}</span>.
           </p>
         </div>
@@ -134,15 +136,17 @@ function RulePanel({ rule, onClose }: { rule: FeeFineRule; onClose: () => void }
 /* ---------------------------------------------------------------- Open decisions (labelled variants) */
 
 const VARIANTS: Array<{ id: string; title: string; note: string; policy: LateFinePolicy }> = [
-  { id: "A", title: "A · Rule in use now", note: "Rs 10 a day from the day after the due date, no maximum.", policy: { ratePerDay: 10, graceDays: 0, maxFine: null } },
+  { id: "A", title: "A · No grace days, no maximum", note: "Rs 10 a day from the day after the due date, no maximum.", policy: { ratePerDay: 10, graceDays: 0, maxFine: null } },
   { id: "B", title: "B · With 5 grace days", note: "Families paid by salary on the 10th aren't fined for the first few days.", policy: { ratePerDay: 10, graceDays: 5, maxFine: null } },
   { id: "C", title: "C · With a maximum", note: "The fine stops growing at Rs 300 per charge.", policy: { ratePerDay: 10, graceDays: 0, maxFine: 300 } },
   { id: "D", title: "D · Grace days and a maximum", note: "5 grace days, then up to Rs 300 per charge.", policy: { ratePerDay: 10, graceDays: 5, maxFine: 300 } },
 ];
 
-function DecisionsPanel() {
-  const [due, setDue] = useState<string | null>("2026-09-15");
-  const [paid, setPaid] = useState<string | null>(TODAY);
+/** A variant is "In use" when a campus in view runs exactly that rule today (from the server's rules). */
+function DecisionsPanel({ rules }: { rules: FeeFineRule[] }) {
+  const inUse = (p: LateFinePolicy) => rules.some((r) => r.ratePerDay === p.ratePerDay && r.graceDays === p.graceDays && r.maxFine === p.maxFine);
+  const [due, setDue] = useState<string | null>(() => addDaysIso(feeToday(), -50));
+  const [paid, setPaid] = useState<string | null>(feeToday());
   const [fee, setFee] = useState<number | null>(3000);
   const ok = due && paid && paid >= due;
   return (
@@ -150,8 +154,8 @@ function DecisionsPanel() {
       <div className="grid gap-5">
         <div className="grid gap-4 sm:grid-cols-3">
           <AmountInput label="Charge" value={fee} onValueChange={setFee} />
-          <DatePicker label="Due date" value={due} onValueChange={setDue} today={TODAY} />
-          <DatePicker label="Paid on" value={paid} onValueChange={setPaid} today={TODAY} error={due && paid && paid < due ? "Paid on must be on or after the due date." : undefined} />
+          <DatePicker label="Due date" value={due} onValueChange={setDue} today={feeToday()} />
+          <DatePicker label="Paid on" value={paid} onValueChange={setPaid} today={feeToday()} error={due && paid && paid < due ? "Paid on must be on or after the due date." : undefined} />
         </div>
         <div className="grid gap-3 md:grid-cols-2">
           {VARIANTS.map((v, i) => {
@@ -160,7 +164,7 @@ function DecisionsPanel() {
               <div key={v.id} className="mtb-slide-in grid gap-1 rounded-md border border-border p-3" style={slide(i)}>
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-medium">{v.title}</span>
-                  {v.id === "A" ? <StatusBadge status="success" dot={false}>In use</StatusBadge> : <StatusBadge status="warning" dot={false}>Not decided</StatusBadge>}
+                  {inUse(v.policy) ? <StatusBadge status="success" dot={false}>In use</StatusBadge> : <StatusBadge status="warning" dot={false}>Not decided</StatusBadge>}
                 </div>
                 <span className="text-small text-ink-muted">{v.note}</span>
                 <span className="mt-1 text-title-3 tabular-nums">{f ? formatRs(f.fine) : "—"}</span>
@@ -207,7 +211,7 @@ function NewWaiverPanel({ onClose }: { onClose: () => void }) {
   if (kind === "EXTEND" && picked) {
     if (!newDue) errors.newDue = "Choose the new due date.";
     else if (newDue <= picked.c.dueDate) errors.newDue = `Choose a date after ${formatDate(picked.c.dueDate)}.`;
-    else if (newDue < TODAY) errors.newDue = "The new due date can't be in the past.";
+    else if (newDue < feeToday()) errors.newDue = "The new due date can't be in the past.";
   }
   if (reason.trim().length < 10) errors.reason = "Say why in a sentence; the principal reads this when deciding.";
   const key = useMemo(() => newIdempotencyKey(), [grNo, chargeId, kind, amount, newDue, reason]);
@@ -290,7 +294,7 @@ function NewWaiverPanel({ onClose }: { onClose: () => void }) {
             {kind === "WAIVE" ? (
               <AmountInput label="Fine to waive" required value={amount} onValueChange={setAmount} error={err("amount")} help={`Fine so far ${formatRs(picked.f.fine)} (${picked.f.explanation}).`} action={picked.f.fine > 0 ? <Button size="sm" variant="quiet" onClick={() => setAmount(picked.f.fine)}>All of it</Button> : undefined} />
             ) : (
-              <DatePicker label="New due date" required value={newDue} onValueChange={setNewDue} today={TODAY} minDate={TODAY} error={err("newDue", "newDueDate")} help="No fine until this date; after it the fine starts again." />
+              <DatePicker label="New due date" required value={newDue} onValueChange={setNewDue} today={feeToday()} minDate={feeToday()} error={err("newDue", "newDueDate")} help="No fine until this date; after it the fine starts again." />
             )}
           </>
         )}
@@ -483,7 +487,7 @@ export function FinesPage() {
   const [waiveNote, setWaiveNote] = useState("");
   const [fineCls, setFineCls] = useState("");
   const [fineSection, setFineSection] = useState("");
-  const [fineDue, setFineDue] = useState<string | null>(addDaysIso(TODAY, 7));
+  const [fineDue, setFineDue] = useState<string | null>(addDaysIso(feeToday(), 7));
   const [chargeTried, setChargeTried] = useState(false);
   const d = q.data;
   const single = ctx.campus !== "ALL";
@@ -495,12 +499,13 @@ export function FinesPage() {
   // Class and section filters (legacy Student Fine Calculation).
   const fineRows = (d?.fines ?? []).filter((f) => (!fineCls || f.classSection.split("-")[0] === fineCls) && (!fineSection || f.classSection.split("-")[1] === fineSection));
   const shownPending = fineRows.filter((f) => f.status === "PENDING");
-  const sectionsOfFines = fineCls ? sectionsOf(fineCls) : [];
-  const sessionEnd = `${ctx.session + 1}-03-31`;
+  const classList = useFeeClasses(ctx.campus);
+  const sectionsOfFines = classList.sectionsOf(fineCls);
+  const sessionEnd = useFeeSessionDates(ctx.campus, ctx.session).end;
   const dueSchema = z
     .string({ error: "Enter the due date." })
     .min(1, "Enter the due date.")
-    .refine((v) => v >= TODAY, "The due date can't be in the past.")
+    .refine((v) => v >= feeToday(), "The due date can't be in the past.")
     .refine((v) => v <= sessionEnd, `Choose a date inside the session (up to ${formatDate(sessionEnd)}).`);
   const dueCheck = dueSchema.safeParse(fineDue ?? "");
   const dueError = dueCheck.success ? undefined : dueCheck.error.issues[0]?.message;
@@ -637,7 +642,7 @@ export function FinesPage() {
                   />
                 </Panel>
               </div>
-              <DecisionsPanel />
+              <DecisionsPanel rules={d.rules} />
             </div>
           )}
         </TabPanel>
@@ -675,7 +680,7 @@ export function FinesPage() {
                         setFineCls(e.target.value);
                         setFineSection("");
                       }}
-                      options={[{ value: "", label: "Every class" }, ...CLASS_SHORTS.map((c) => ({ value: c, label: className(c) }))]}
+                      options={[{ value: "", label: "Every class" }, ...classList.options]}
                     />
                   </div>
                   <div className="w-36">
@@ -722,7 +727,7 @@ export function FinesPage() {
           warning="Once on the ledger, a fine can only be reduced with a waiver approved by the principal."
           {...(charge.error ? { error: errorText(charge.error) } : {})}
         >
-          <DatePicker label="Due date" required value={fineDue} onValueChange={setFineDue} today={TODAY} minDate={TODAY} maxDate={sessionEnd} error={chargeTried ? dueError : undefined} help="The late fine starts the day after it." />
+          <DatePicker label="Due date" required value={fineDue} onValueChange={setFineDue} today={feeToday()} minDate={feeToday()} maxDate={sessionEnd} error={chargeTried ? dueError : undefined} help="The late fine starts the day after it." />
         </ConfirmDialog>
         <ConfirmDialog
           open={Boolean(waiving)}

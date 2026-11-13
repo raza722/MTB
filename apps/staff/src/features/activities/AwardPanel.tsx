@@ -7,7 +7,7 @@ import { useState, type ReactNode } from "react";
 import { campusLabel } from "../../app/shell/campus";
 import { useCan, useCtx, useReadOnly, useSessionUser } from "../../app/session";
 import { AwardLetter } from "./print";
-import { AwardBadge, errorText, PrintLayer, RenewalBadge, useRefresh } from "./shared";
+import { AwardBadge, dateLimits, errorText, monthStart, PrintLayer, RenewalBadge, useRefresh, useToday } from "./shared";
 
 /** One award: who, what it does to fees, why, and the approval. Approve, reject, end or print the award letter. */
 export function AwardPanel({ id, onClose }: { id: string; onClose: () => void }) {
@@ -79,6 +79,13 @@ function AwardBody({ award: a }: { award: ActivitiesAward }) {
               </tr>
             </thead>
             <tbody>
+              {fx.lines.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="text-ink-muted">
+                    —
+                  </td>
+                </tr>
+              )}
               {fx.lines.map((l) => (
                 <tr key={l.head}>
                   <td>{l.label}</td>
@@ -97,16 +104,16 @@ function AwardBody({ award: a }: { award: ActivitiesAward }) {
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="rounded-md bg-surface-sunken p-3">
             <div className="text-small text-ink-muted">Off each monthly voucher</div>
-            <div className="text-title-2 font-semibold tabular-nums">{formatRs(fx.monthly)}</div>
+            <div className="text-title-2 font-semibold tabular-nums">{fx.lines.length ? formatRs(fx.monthly) : "—"}</div>
           </div>
           <div className="rounded-md bg-surface-sunken p-3">
-            <div className="text-small text-ink-muted">This session ({fx.months} {fx.months === 1 ? "voucher" : "vouchers"})</div>
-            <div className="text-title-2 font-semibold tabular-nums">{formatRs(fx.session)}</div>
+            <div className="text-small text-ink-muted">This session ({fx.months} {fx.months === 1 ? "month" : "months"})</div>
+            <div className="text-title-2 font-semibold tabular-nums">{fx.lines.length ? formatRs(fx.session) : "—"}</div>
           </div>
         </div>
         <p className="m-0 flex gap-2 text-small text-ink-muted">
           <Icon name="info" size={16} className="mt-0.5 shrink-0" />
-          {fx.note} This page only shows the figure; the fees office applies it to vouchers.
+          {fx.note} The relief reaches vouchers as the award's concession in Fees.
         </p>
       </section>
 
@@ -213,6 +220,7 @@ function AwardActions({ award: a, onClose }: { award: ActivitiesAward; onClose: 
   const [confirm, setConfirm] = useState<"approve" | "reject" | "end" | null>(null);
   const [note, setNote] = useState("");
   const [endOn, setEndOn] = useState<string | null>(null);
+  const today = useToday();
   const [tried, setTried] = useState(false);
   const [letter, setLetter] = useState<ActivitiesCertificate | null>(null);
 
@@ -222,7 +230,7 @@ function AwardActions({ award: a, onClose }: { award: ActivitiesAward; onClose: 
       qc();
       setConfirm(null);
       setNote("");
-      toast({ tone: x.status === "APPROVED" ? "success" : "info", title: x.status === "APPROVED" ? "Scholarship approved" : "Scholarship rejected", message: x.status === "APPROVED" ? `${x.studentName}: ${formatRs(x.feeEffect.monthly)} off each voucher from ${x.feeEffect.firstVoucher}. The fees office has been told.` : `${x.studentName} · ${x.awardNo}` });
+      toast({ tone: x.status === "APPROVED" ? "success" : "info", title: x.status === "APPROVED" ? "Scholarship approved" : "Scholarship rejected", message: x.status !== "APPROVED" ? `${x.studentName} · ${x.awardNo}` : x.isApplicant ? `${x.studentName} · ${x.awardNo}: ${x.feeEffect.note}` : `${x.studentName}: ${formatRs(x.feeEffect.monthly)} a month off tuition from the ${x.feeEffect.firstVoucher} voucher. Fees › Concessions shows it under ${x.awardNo}.` });
     },
   });
   const end = useMutation({
@@ -299,12 +307,12 @@ function AwardActions({ award: a, onClose }: { award: ActivitiesAward; onClose: 
         onClose={() => setConfirm(null)}
         onConfirm={() => decide.mutate("APPROVE")}
         title="Approve this scholarship?"
-        message="The fees office applies it from the first voucher shown. You can end it later if circumstances change."
+        message={a.isApplicant ? "It reaches the fees once the applicant is admitted. You can end it later if circumstances change." : "It becomes the student's concession in Fees from the first voucher shown. You can end it later if circumstances change."}
         details={[
           ["Student", `${a.studentName} · ${a.classSection}`],
           ["Scholarship", `${a.schemeName}: ${a.valueText}`],
-          ["Off each voucher", formatRs(a.feeEffect.monthly)],
-          ["This session", `${formatRs(a.feeEffect.session)} from ${a.feeEffect.firstVoucher}`],
+          ["Off tuition a month", a.feeEffect.lines.length ? formatRs(a.feeEffect.monthly) : "—"],
+          ["This session", a.feeEffect.lines.length ? `${formatRs(a.feeEffect.session)} from ${a.feeEffect.firstVoucher}` : "—"],
         ]}
         confirmLabel="Approve scholarship"
         loading={decide.isPending}
@@ -361,7 +369,7 @@ function AwardActions({ award: a, onClose }: { award: ActivitiesAward; onClose: 
         }
       >
         <div className="grid gap-3">
-          <DatePicker label="Last day of relief" required value={endOn} onValueChange={setEndOn} minDate="2026-11-01" maxDate={a.effectiveTo} today="2026-11-04" error={tried && !endOn ? "Choose the last day the award applies." : undefined} />
+          <DatePicker label="Last day of relief" required value={endOn} onValueChange={setEndOn} {...dateLimits(monthStart(today), a.effectiveTo)} today={today} error={tried && !endOn ? "Choose the last day the award applies." : undefined} />
           <Textarea label="Reason" required rows={3} value={note} onChange={(e) => setNote(e.target.value)} error={tried && note.trim().length < 5 ? "Say why the award ends." : undefined} />
           {end.isError && <Banner tone="danger">{errorText(end.error)}</Banner>}
         </div>

@@ -60,6 +60,7 @@ export function VoucherPeek({ id, onClose }: { id: string | null; onClose: () =>
               ["Date", formatDate(v.date)],
               ["Campus", v.campusName],
               ...(v.party ? [[v.type === "CR" || v.type === "BR" ? "Received from" : "Paid to", v.party] as [string, string]] : []),
+              ...(v.reference ? [["Reference", v.reference] as [string, string]] : []),
               ...(v.cheque ? [["Cheque / reference", `${v.cheque.number} · ${formatDate(v.cheque.date)}`] as [string, string]] : []),
               ...(v.postedBy ? [["Posted", `${v.postedBy}, ${formatDateTime(v.postedAt ?? v.updatedAt)}`] as [string, string]] : []),
               ...(v.reversal ? [["Reversed by", `${v.reversal.voucherNo}: ${v.reversal.reason}`] as [string, string]] : []),

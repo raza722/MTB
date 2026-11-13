@@ -27,21 +27,22 @@ interface FunnelStep {
   note: string;
 }
 
-function funnelOf(d: AdmissionsPipeline): FunnelStep[] {
-  const live = d.applicants.filter((a) => a.stage !== "WITHDRAWN");
-  const tested = d.applicants.filter((a) => a.testScore !== null || a.directAdmission).filter((a) => a.stage !== "APPLIED" && a.stage !== "TEST").length;
-  const offered = d.applicants.filter((a) => a.stage === "OFFERED" || (a.stage === "ADMITTED" && a.offeredOn)).length;
-  const converted = d.applicants.filter((a) => a.enquiryNo).length;
+/** Every step from the stage counts of the whole session, counted in applications (a child entered twice, or
+ * withdrawn and applying again, has two), so each step holds the ones after it: offered includes those admitted
+ * since. The number of children comes from the server (`children`, one person counted once). */
+function funnelOf(d: AdmissionsPipeline, enquiries: number): FunnelStep[] {
+  const c = d.counts;
+  const applications = c.APPLIED + c.TEST + c.MERIT + c.OFFERED + c.ADMITTED + c.WITHDRAWN;
   return [
-    { key: "enq", label: "Enquiries", value: d.openEnquiries + converted, note: `${d.openEnquiries} still open` },
-    { key: "app", label: "Applications", value: live.length + d.counts.WITHDRAWN, note: `${d.counts.WITHDRAWN} withdrawn` },
-    { key: "test", label: "Tested or interviewed", value: tested, note: `${d.counts.TEST} booked for a test` },
-    { key: "offer", label: "Offered a seat", value: offered, note: `${d.counts.OFFERED} waiting to complete` },
-    { key: "adm", label: "Admitted", value: d.counts.ADMITTED, note: `${d.admittedThisWeek} this week` },
+    { key: "enq", label: "Enquiries", value: enquiries, note: `${d.openEnquiries} still open` },
+    { key: "app", label: "Applications", value: applications, note: `${formatCount(d.children)} ${d.children === 1 ? "child" : "children"} · ${formatCount(c.WITHDRAWN)} withdrawn` },
+    { key: "test", label: "Tested or interviewed", value: c.MERIT + c.OFFERED + c.ADMITTED, note: `${c.TEST} booked for a test` },
+    { key: "offer", label: "Offered a seat", value: c.OFFERED + c.ADMITTED, note: `${c.OFFERED} waiting to complete` },
+    { key: "adm", label: "Admitted", value: c.ADMITTED, note: `through Admissions · ${d.admittedThisWeek} this week` },
   ];
 }
 
-/** Share of the step before that reached this step. None when the step also counts families who skipped the one before (most applications are walk-ins, not enquiries), since a rate above 100% would mean nothing. */
+/** Share of the step before that reached this step. None when the step also counts applications that skipped the one before (most applications are walk-ins, not enquiries), since a rate above 100% would mean nothing. */
 function rateOf(steps: FunnelStep[], i: number): number | null {
   const prev = steps[i - 1];
   const s = steps[i]!;
@@ -49,17 +50,17 @@ function rateOf(steps: FunnelStep[], i: number): number | null {
   return Math.round((s.value / prev.value) * 100);
 }
 
-/** Enquiry to admission as one funnel: how many families reach each step. */
-function Funnel({ d }: { d: AdmissionsPipeline | undefined }) {
+/** Enquiry to admission as one funnel: how many applications reach each step. */
+function Funnel({ d, enquiries }: { d: AdmissionsPipeline | undefined; enquiries: number | undefined }) {
   const [view, setView] = useState<"chart" | "table">("chart");
-  const steps = d ? funnelOf(d) : [];
+  const steps = d && enquiries !== undefined ? funnelOf(d, enquiries) : [];
   const max = Math.max(1, ...steps.map((s) => s.value));
   return (
     <Panel
       id="funnel"
       rise={5}
       title="From enquiry to admission"
-      description={d ? `Session ${formatSession(d.session)}: how many families reach each step` : "How many families reach each step"}
+      description={d ? `Session ${formatSession(d.session)}: how many applications reach each step` : "How many applications reach each step"}
       actions={
         <Segmented
           aria-label="Show as"
@@ -72,7 +73,7 @@ function Funnel({ d }: { d: AdmissionsPipeline | undefined }) {
         />
       }
     >
-      {!d ? (
+      {!d || enquiries === undefined ? (
         <div className="grid gap-3">
           {[0, 1, 2, 3, 4].map((i) => (
             <Skeleton key={i} height={28} />
@@ -107,7 +108,7 @@ function Funnel({ d }: { d: AdmissionsPipeline | undefined }) {
           density="dense"
           columns={[
             { key: "label", header: "Step" },
-            { key: "value", header: "Families", align: "right", render: (s) => <b className="tabular-nums">{formatCount(s.value)}</b> },
+            { key: "value", header: "Applications", align: "right", render: (s) => <b className="tabular-nums">{formatCount(s.value)}</b> },
             { key: "conv", header: "From the step before", align: "right" },
             { key: "note", header: "Note" },
           ]}
@@ -123,11 +124,13 @@ export function AdmissionsPage({ view, applicant, onChange }: AdmissionsPageProp
   const navigate = useNavigate();
   const canManage = useCan("admissions.manage");
   const readOnly = useReadOnly();
-  const pipeline = useQuery(admissionsQueries.pipeline(ctx));
+  // The header figures only (counts are over the whole session; the board and table page their own rows).
+  const pipeline = useQuery(admissionsQueries.pipeline(ctx, { pageSize: 1 }));
+  const enquiries = useQuery(admissionsQueries.enquiries(ctx));
   const [admitting, setAdmitting] = useState<AdmissionsApplicant | null>(null);
   const d = pipeline.data;
-  const total = d ? d.applicants.length : undefined;
-  const marking = d ? d.applicants.filter((a) => a.stage === "TEST").length : 0;
+  const total = d ? Object.values(d.counts).reduce((a, b) => a + b, 0) : undefined;
+  const marking = d ? d.counts.TEST : 0;
 
   return (
     <Page>
@@ -157,15 +160,15 @@ export function AdmissionsPage({ view, applicant, onChange }: AdmissionsPageProp
           <StatCard label="Booked for a test" icon="edit" tone="info" loading={!d} value={d ? <AnimatedNumber value={marking} format={formatCount} /> : undefined} foot="tests and marks to enter" onClick={() => void navigate({ to: "/admissions/tests" })} />
         </div>
         <div className="mtb-rise" style={stagger(3)}>
-          <StatCard label="Offers waiting" icon="send" tone="warning" loading={!d} value={d ? <AnimatedNumber value={d.counts.OFFERED} format={formatCount} /> : undefined} foot="families still to complete admission" onClick={() => void navigate({ to: "/admissions/offers" })} />
+          <StatCard label="Offers waiting" icon="send" tone="warning" loading={!d} value={d ? <AnimatedNumber value={d.counts.OFFERED} format={formatCount} /> : undefined} foot="applicants still to complete admission" onClick={() => void navigate({ to: "/admissions/offers" })} />
         </div>
         <div className="mtb-rise" style={stagger(4)}>
-          <StatCard label="Admitted" icon="checkCircle" loading={!d} value={d ? <AnimatedNumber value={d.counts.ADMITTED} format={formatCount} /> : undefined} {...(d && d.admittedThisWeek ? { delta: d.admittedThisWeek, deltaLabel: `+${d.admittedThisWeek} this week` } : {})} foot="this session" />
+          <StatCard label="Admitted" icon="checkCircle" loading={!d} value={d ? <AnimatedNumber value={d.counts.ADMITTED} format={formatCount} /> : undefined} {...(d && d.admittedThisWeek ? { delta: d.admittedThisWeek, deltaLabel: `+${d.admittedThisWeek} this week` } : {})} foot="through Admissions this session" />
         </div>
       </div>
-      <Funnel d={d} />
+      <Funnel d={d} enquiries={enquiries.data?.length} />
       <Panel id="pipeline" rise={6} title="Pipeline" description="Every application by stage. Open one to record the fee, book the test, offer a seat or admit.">
-        <PipelineView data={d} loading={pipeline.isLoading} view={view} onViewChange={(v) => onChange({ view: v })} showCampus={ctx.campus === "ALL"} onOpen={(id) => onChange({ applicant: id })} />
+        <PipelineView counts={d?.counts} view={view} onViewChange={(v) => onChange({ view: v })} showCampus={ctx.campus === "ALL"} onOpen={(id) => onChange({ applicant: id })} />
       </Panel>
       <ApplicantPanel
         id={applicant || null}

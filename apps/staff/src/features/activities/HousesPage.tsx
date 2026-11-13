@@ -47,7 +47,7 @@ import { campusLabel } from "../../app/shell/campus";
 import { Page, PageHeader, RequireSingleCampus } from "../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { SportsListDoc } from "./print";
-import { ActivitiesNav, BarList, DocPreview, errorField, errorText, HouseTag, houseColor, LoadError, plural, PrintLayer, stagger, useRefresh, ViewToggle } from "./shared";
+import { ActivitiesNav, BarList, dateLimits, DocPreview, errorField, errorText, HouseTag, houseColor, LoadError, plural, PrintLayer, stagger, useRefresh, useSessionDays, useToday, ViewToggle } from "./shared";
 
 export type HousesTab = "standings" | "members";
 const CATEGORIES = Object.keys(ACTIVITIES_POINTS_CATEGORY_LABEL) as ActivitiesPointsCategory[];
@@ -131,14 +131,14 @@ export function HousesPage({ tab, onTab }: { tab: HousesTab; onTab: (t: HousesTa
                 <dl className="m-0 grid gap-0.5 text-small">
                   <div className="flex justify-between gap-2">
                     <dt className="text-ink-muted">House master</dt>
-                    <dd className="m-0 text-right">{h.houseMaster}</dd>
+                    <dd className="m-0 text-right">{h.houseMaster || "—"}</dd>
                   </div>
                   <div className="flex justify-between gap-2">
                     <dt className="text-ink-muted">Captain</dt>
                     <dd className="m-0 truncate text-right">{h.captain ? `${h.captain.name} (${h.captain.classSection})` : "—"}</dd>
                   </div>
                 </dl>
-                <p className="m-0 text-small italic text-ink-muted">“{h.motto}”</p>
+                {h.motto && <p className="m-0 text-small italic text-ink-muted">“{h.motto}”</p>}
                 {canManage && (
                   <Button size="sm" variant="quiet" icon="edit" onClick={() => setEditing(h)}>
                     Edit house
@@ -282,9 +282,11 @@ const pointsSchema = z.object({
 
 function PointsPanel({ houses, onClose }: { houses: ActivitiesHouse[]; onClose: () => void }) {
   const ctx = useCtx();
+  const today = useToday();
+  const { starts } = useSessionDays();
   const toast = useToast();
   const refresh = useRefresh();
-  const [f, setF] = useState({ houseId: houses[0]?.id ?? "", points: "", deduct: false, category: "CONDUCT" as ActivitiesPointsCategory, reason: "", date: "2026-11-04" as string | null });
+  const [f, setF] = useState({ houseId: houses[0]?.id ?? "", points: "", deduct: false, category: "CONDUCT" as ActivitiesPointsCategory, reason: "", date: today as string | null });
   const [tried, setTried] = useState(false);
   const signed = f.points === "" ? undefined : (f.deduct ? -1 : 1) * Number(f.points);
   const check = pointsSchema.safeParse({ houseId: f.houseId, points: signed, reason: f.reason, date: f.date ?? "" });
@@ -337,7 +339,7 @@ function PointsPanel({ houses, onClose }: { houses: ActivitiesHouse[]; onClose: 
         />
         <div className="grid gap-4 sm:grid-cols-2">
           <Input label="Points" required inputMode="numeric" amount value={f.points} onChange={(e) => setF({ ...f, points: e.target.value.replace(/\D/g, "") })} error={err("points")} />
-          <DatePicker label="Date" required value={f.date} onValueChange={(d) => setF({ ...f, date: d })} minDate="2026-04-01" maxDate="2026-11-04" today="2026-11-04" error={err("date")} />
+          <DatePicker label="Date" required value={f.date} onValueChange={(d) => setF({ ...f, date: d })} {...dateLimits(starts, today)} today={today} error={err("date")} />
         </div>
         <Select label="Kind" value={f.category} onChange={(e) => setF({ ...f, category: e.target.value as ActivitiesPointsCategory })} options={CATEGORIES.filter((c) => c !== "EVENT").map((c) => ({ value: c, label: ACTIVITIES_POINTS_CATEGORY_LABEL[c] }))} />
         <Textarea label="What for" required rows={2} value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })} error={err("reason")} placeholder={f.deduct ? "For example: late arrivals at assembly, week of 2-Nov." : "For example: cleanest classrooms, October."} />
@@ -369,7 +371,8 @@ function HousePanel({ house, taken, onClose }: { house: ActivitiesHouse | null; 
     nameUrdu: house?.nameUrdu ?? "",
     tone: (house?.tone ?? 1) as ActivitiesHouseTone,
     active: house?.active !== false,
-    houseMaster: house?.houseMaster ?? "",
+    // Migrated houses have no house master ("—"): one is named when the house is first edited.
+    houseMaster: house && house.houseMaster !== "—" ? house.houseMaster : "",
     assistantMaster: house?.assistantMaster ?? "",
     captainId: house?.captain?.id ?? "",
     viceCaptainId: house?.viceCaptain?.id ?? "",
@@ -468,6 +471,8 @@ function HousePanel({ house, taken, onClose }: { house: ActivitiesHouse | null; 
 
 function Members({ houses, unassigned, canManage }: { houses: ActivitiesHouse[]; unassigned: number; canManage: boolean }) {
   const ctx = useCtx();
+  const today = useToday();
+  const { starts } = useSessionDays();
   const toast = useToast();
   const refresh = useRefresh();
   const [house, setHouse] = useState("");
@@ -581,11 +586,11 @@ function Members({ houses, unassigned, canManage }: { houses: ActivitiesHouse[];
                 <>
                   <Button icon="x" disabled={selected.size === 0} onClick={() => {
                       setRemoveTried(false);
-                      setRemoving({ leftOn: "2026-11-04", reason: "" });
+                      setRemoving({ leftOn: today, reason: "" });
                     }}>
                     Remove from house
                   </Button>
-                  <Button icon="arrowRight" disabled={selected.size === 0 || houses.length === 0} onClick={() => setMove({ to: houses[0]?.id ?? "", reason: "", since: "2026-11-04" })}>
+                  <Button icon="arrowRight" disabled={selected.size === 0 || houses.length === 0} onClick={() => setMove({ to: houses[0]?.id ?? "", reason: "", since: today })}>
                     Move {selected.size || ""} to a house
                   </Button>
                 </>
@@ -608,7 +613,7 @@ function Members({ houses, unassigned, canManage }: { houses: ActivitiesHouse[];
       >
         <div className="grid gap-3">
           <Select label="To house" value={move?.to ?? ""} onChange={(e) => setMove((m) => (m ? { ...m, to: e.target.value } : m))} options={houses.map((h) => ({ value: h.id, label: h.name }))} />
-          <DatePicker label="From" value={move?.since ?? null} onValueChange={(d) => setMove((m) => (m ? { ...m, since: d } : m))} minDate="2026-04-01" maxDate="2026-11-04" today="2026-11-04" help="The day the move counts from. Not before the session started." />
+          <DatePicker label="From" value={move?.since ?? null} onValueChange={(d) => setMove((m) => (m ? { ...m, since: d } : m))} {...dateLimits(starts, today)} today={today} help="The day the move counts from. Not before the session started." />
           <Input label="Reason" value={move?.reason ?? ""} onChange={(e) => setMove((m) => (m ? { ...m, reason: e.target.value } : m))} placeholder="Optional: section change, sibling in the same house…" />
         </div>
       </ConfirmDialog>
@@ -627,7 +632,7 @@ function Members({ houses, unassigned, canManage }: { houses: ActivitiesHouse[];
         error={removeMut.isError ? errorText(removeMut.error) : undefined}
       >
         <div className="grid gap-3">
-          <DatePicker label="Left the house on" value={removing?.leftOn ?? null} onValueChange={(d) => setRemoving((r) => (r ? { ...r, leftOn: d } : r))} minDate="2026-04-01" maxDate="2026-11-04" today="2026-11-04" {...(removeTried && removing && !removing.leftOn ? { error: "Choose the date they left the house." } : {})} />
+          <DatePicker label="Left the house on" value={removing?.leftOn ?? null} onValueChange={(d) => setRemoving((r) => (r ? { ...r, leftOn: d } : r))} {...dateLimits(starts, today)} today={today} {...(removeTried && removing && !removing.leftOn ? { error: "Choose the date they left the house." } : {})} />
           <Input label="Reason" required value={removing?.reason ?? ""} onChange={(e) => setRemoving((r) => (r ? { ...r, reason: e.target.value } : r))} placeholder="For example: left the school, medical exemption" {...(removeTried && removing && removing.reason.trim().length < 3 ? { error: "Say why, in a few words." } : {})} />
         </div>
       </ConfirmDialog>

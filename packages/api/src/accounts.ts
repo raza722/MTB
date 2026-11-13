@@ -33,7 +33,7 @@ export const ACCOUNTS_CONTROL_LABEL: Record<AccountsControl, string> = {
 export interface AccountsBankInfo {
   bankName: string;
   branch: string;
-  /** Only the last four digits are ever shown: "•••• 4417". */
+  /** Only the last four digits are ever shown: "•••• 4417". "" when the last digits are unknown (the migrated bank account). */
   accountNoMasked: string;
 }
 
@@ -194,7 +194,11 @@ export interface AccountsVoucher {
   reversal?: { voucherId: string; voucherNo: string; reason: string; by: string; at: IsoDateTime };
   /** On a reversing voucher: the voucher it reverses. */
   reverses?: { voucherId: string; voucherNo: string };
-  /** Posted by the system (fee office, opening balances): read-only. */
+  /**
+   * Posted by the system (fee office, receipt cancellations, opening balances, payroll journals, vouchers migrated from
+   * the old system): read-only, never reversed by hand. A payroll journal is a JV with `system` true and no `source`
+   * until contract change C2.
+   */
   system: boolean;
   source?: AccountsVoucherSource;
   history: AccountsVoucherEvent[];
@@ -401,16 +405,27 @@ export interface AccountsFeeBatch {
   vouchers: Array<{ id: string; voucherNo: string; amount: Rupees; supplement: boolean }>;
   postedAt?: IsoDateTime;
   postedBy?: string;
-  cash: Rupees;
-  bank: Rupees;
+  /**
+   * What the day's FEE vouchers debited to cash and to the bank. Null on a day of the old system (it kept no payment
+   * method; 07_accounts.md §10 F4).
+   */
+  cash: Rupees | null;
+  bank: Rupees | null;
   /** Receipt cancellations for receipts of this day. */
   cancellations: { pending: number; pendingAmount: Rupees; approved: number; approvedAmount: Rupees };
   note?: string;
 }
 
+/** How the fee office was paid: the counter methods, and SALARY (staff children's fees deducted by payroll). */
+export type AccountsFeeMethod = "CASH" | "BANK" | "ONLINE" | "CHEQUE" | "SALARY";
+
 export interface AccountsFeeBatchDetail extends AccountsFeeBatch {
   heads: Array<{ head: string; title: string; accountCode: string; accountName: string; amount: Rupees }>;
-  methods: Array<{ method: "CASH" | "BANK" | "ONLINE" | "CHEQUE"; label: string; amount: Rupees; accountCode: string; accountName: string }>;
+  /**
+   * Empty on a day of the old system (it did not record how a parent paid). `accountCode` is "" (and `accountName`
+   * "No bank account set up") for bank methods at a campus without a bank account in Accounts.
+   */
+  methods: Array<{ method: AccountsFeeMethod; label: string; amount: Rupees; accountCode: string; accountName: string }>;
   cancellationList: Array<{ receiptNo: string; cnNo: string; studentName: string; amount: Rupees; status: "PENDING" | "APPROVED"; voucherNo?: string }>;
 }
 
@@ -438,9 +453,13 @@ export interface AccountsBankAccount {
   campusName: string;
   bank: AccountsBankInfo;
   bookBalance: Rupees;
-  /** Statement balance at the last imported statement line. */
-  statementBalance: Rupees;
-  statementTo: IsoDate;
+  /**
+   * Statement balance at the last imported statement line; null when no statement has been imported (07_accounts.md
+   * §10 F1).
+   */
+  statementBalance: Rupees | null;
+  /** Last day of the latest imported statement; null when none has been imported. */
+  statementTo: IsoDate | null;
   unmatched: number;
   /** Latest month signed off as reconciled, "2026-09". */
   lastSignedOff: string | null;
@@ -480,9 +499,11 @@ export interface AccountsBankRec {
   account: AccountsBankAccount;
   month: string;
   months: string[];
+  /** "" when the account has no imported statement. */
   statementTo: IsoDate;
-  statementOpening: Rupees;
-  statementClosing: Rupees;
+  /** Null when the account has no imported statement. */
+  statementOpening: Rupees | null;
+  statementClosing: Rupees | null;
   bookClosing: Rupees;
   statement: AccountsStatementLine[];
   book: AccountsBookLine[];
@@ -501,6 +522,11 @@ export interface AccountsBankRec {
   };
   signedOff?: { by: string; at: IsoDateTime };
   canSignOff: boolean;
+}
+
+/** True when a bank statement has been imported for the account (`statementTo` is null until one is). */
+export function accountsHasStatement(a: Pick<AccountsBankAccount, "statementTo">): boolean {
+  return Boolean(a.statementTo);
 }
 
 /* ================================================================== Periods */

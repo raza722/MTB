@@ -166,8 +166,11 @@ export interface FeeStructure {
   heads: FeeHead[];
   classes: FeeClassStructure[];
   plans: FeeInstallmentPlan[];
-  /** Transport is charged by route; the range shows what families pay. */
-  transport: { routes: number; from: Rupees; to: Rupees };
+  /** Transport is charged by route; the range shows what families pay. null when the campus has no route in use with a vehicle. */
+  transport: { routes: number; from: Rupees; to: Rupees } | null;
+  /** First and last day of the session at this campus (Setup → Sessions). Omitted by older servers: April–March then. */
+  sessionStart?: IsoDate;
+  sessionEnd?: IsoDate;
   /** The previous session has a structure to copy from. */
   canCopyFrom: number | null;
   history: FeeAuditEntry[];
@@ -238,7 +241,12 @@ export type FeeConcessionType =
   | "PERIPHERY"
   | "KINSHIP"
   | "HARDSHIP"
-  | "SPECIAL";
+  | "SPECIAL"
+  /* Types the old system used (Khalid Campus); migrated as SPECIAL until the server sends these codes. */
+  | "MARTYR_CHILD"
+  | "CENTRE_HOLDER"
+  | "DM_CENTRE_HOLDER"
+  | "COVID";
 
 export interface FeeConcessionTypeInfo {
   code: FeeConcessionType;
@@ -303,13 +311,33 @@ export interface FeeConcessionSuggestion {
   reason: string;
 }
 
+/** Filters and the page of the concession list (C12: paged on the server; waiting ones first, then the newest). */
+export interface FeeConcessionsQuery {
+  /** Part of the student's name, G.R. number or father's name. */
+  q?: string;
+  type?: FeeConcessionType | "";
+  status?: FeeConcession["status"] | "";
+  /** The class of the concession's session ("7"), with `section` ("B"). */
+  classShort?: string;
+  section?: string;
+  /** From 1; past the last page the last page is sent. */
+  page?: number;
+  /** 1 to 500; default 50. */
+  pageSize?: number;
+}
+
 export interface FeeConcessionsData {
   campus: CampusScope;
   session: number;
   types: FeeConcessionTypeInfo[];
   /** Heads a concession can reduce (tuition, annual charges …), in order. */
   heads: Array<{ code: string; title: string }>;
+  /** The page of concessions matching the filters. */
   concessions: FeeConcession[];
+  /** Concessions matching the filters (every page). */
+  total: number;
+  page: number;
+  pageSize: number;
   suggestions: FeeConcessionSuggestion[];
   summary: { active: number; pending: number; monthlyValue: Rupees; byType: Array<{ type: FeeConcessionType; count: number; monthlyValue: Rupees }> };
 }
@@ -349,8 +377,8 @@ export interface FeeConcessionClassRow {
   billed: Rupees;
   discount: Rupees;
   remaining: Rupees;
-  /** Discount as a share of billed, one decimal. */
-  pct: number;
+  /** Discount as a share of billed, one decimal. null when nothing was billed. */
+  pct: number | null;
 }
 
 export interface FeeConcessionStudentRow {
@@ -380,8 +408,9 @@ export interface FeeConcessionSummary {
   /** Class × kind: how many students have each kind of concession. */
   byClassKind: {
     kinds: FeeConcessionType[];
-    rows: Array<{ classShort: string; className: string; strength: number; counts: Partial<Record<FeeConcessionType, number>>; total: number; pct: number }>;
-    totals: { strength: number; counts: Partial<Record<FeeConcessionType, number>>; total: number; pct: number };
+    /** pct: students with a concession as a share of strength; null when the class has no students. */
+    rows: Array<{ classShort: string; className: string; strength: number; counts: Partial<Record<FeeConcessionType, number>>; total: number; pct: number | null }>;
+    totals: { strength: number; counts: Partial<Record<FeeConcessionType, number>>; total: number; pct: number | null };
   };
   students: FeeConcessionStudentRow[];
 }
@@ -694,6 +723,12 @@ export interface FeeDefaultersQuery {
   /** Only charges falling due in this window. */
   dueFrom?: IsoDate;
   dueTo?: IsoDate;
+  /** C8 (defaulters only): part of the student's name, G.R. number or father's name. */
+  q?: string;
+  /** C8 (defaulters only): from 1; past the last page the last page is sent. Rows are ordered by total, largest first. */
+  page?: number;
+  /** C8 (defaulters only): 1 to 500; default 100. */
+  pageSize?: number;
 }
 
 /** Arrears against what was billed, per class and section (Class Wise Arrear). */
@@ -709,8 +744,8 @@ export interface FeeClassArrearsRow {
   billed: Rupees;
   paid: Rupees;
   arrears: Rupees;
-  /** Arrears as a share of billed, one decimal. */
-  pct: number;
+  /** Arrears as a share of billed, one decimal. null when nothing was billed. */
+  pct: number | null;
 }
 
 export interface FeeClassArrears {
@@ -725,8 +760,16 @@ export interface FeeDefaultersData {
   campus: CampusScope;
   session: number;
   today: IsoDate;
+  /** The page of defaulters (C8), largest total first. */
   rows: FeeDefaulter[];
-  summary: { students: number; outstanding: Rupees; fine: Rupees; threePlus: number };
+  /** Defaulters matching the filters (every page; = summary.students). */
+  total: number;
+  page: number;
+  pageSize: number;
+  /** Over every defaulter matching the filters, not only the page. */
+  summary: { students: number; outstanding: Rupees; fine: Rupees; threePlus: number; previousSessionArrears?: Rupees };
+  /** Every matching defaulter added up by class (the class of the latest placement; "" when none), in class order. */
+  byClass: Array<{ classShort: string; students: number; outstanding: Rupees; fine: Rupees; total: Rupees; threePlus: number }>;
   /** Heads that can be filtered on (fee heads in use, and student fines). */
   heads: Array<{ code: string; title: string }>;
   smsPaused: boolean;
@@ -978,7 +1021,7 @@ export const feeSetupApi = {
   setHeadActive: (campus: CampusCode, code: string, body: { active: boolean; rowVer: number }, idempotencyKey: string) =>
     apiFetch<FeeHead>(`${base}/structure/heads/${encodeURIComponent(code)}/active`, { method: "POST", query: { campus }, body, idempotencyKey }),
 
-  concessions: (ctx: Ctx) => apiFetch<FeeConcessionsData>(`${base}/concessions`, { query: ctxQuery(ctx) }),
+  concessions: (ctx: Ctx, q: FeeConcessionsQuery = {}) => apiFetch<FeeConcessionsData>(`${base}/concessions`, { query: { ...ctxQuery(ctx), ...q } }),
   concessionSummary: (ctx: Ctx, q: FeeConcessionSummaryQuery) => apiFetch<FeeConcessionSummary>(`${base}/reports/concessions`, { query: { ...ctxQuery(ctx), ...q } }),
   requestConcession: (body: FeeConcessionInput, idempotencyKey: string) => apiFetch<FeeConcession>(`${base}/concessions`, { method: "POST", body, idempotencyKey }),
   decideConcession: (id: string, body: { approve: boolean; note: string }, idempotencyKey: string) =>
@@ -1026,7 +1069,7 @@ export const feeSetupQueries = {
   structure: (campus: CampusCode, session: number) =>
     queryOptions({ queryKey: ["fees", "setup", campus, session, "structure"], queryFn: () => feeSetupApi.structure(campus, session) }),
   comparison: (session: number) => queryOptions({ queryKey: ["fees", "setup", "ALL", session, "comparison"], queryFn: () => feeSetupApi.comparison(session) }),
-  concessions: (ctx: Ctx) => queryOptions({ queryKey: ["fees", "setup", ...ctxKey(ctx), "concessions"], queryFn: () => feeSetupApi.concessions(ctx) }),
+  concessions: (ctx: Ctx, q: FeeConcessionsQuery = {}) => queryOptions({ queryKey: ["fees", "setup", ...ctxKey(ctx), "concessions", q], queryFn: () => feeSetupApi.concessions(ctx, q) }),
   vouchers: (ctx: Ctx, q: FeeVoucherQuery) => queryOptions({ queryKey: ["fees", "setup", ...ctxKey(ctx), "vouchers", q], queryFn: () => feeSetupApi.vouchers(ctx, q) }),
   voucher: (voucherNo: string) => queryOptions({ queryKey: ["fees", "setup", "voucher", voucherNo], queryFn: () => feeSetupApi.voucher(voucherNo), enabled: voucherNo !== "" }),
   printRun: (runId: string) => queryOptions({ queryKey: ["fees", "setup", "run", runId], queryFn: () => feeSetupApi.printRun(runId), enabled: runId !== "" }),

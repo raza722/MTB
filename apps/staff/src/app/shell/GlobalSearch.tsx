@@ -114,7 +114,7 @@ export function GlobalSearch({ open, onOpenChange }: { open: boolean; onOpenChan
             <Command.List className="max-h-[60vh] overflow-y-auto p-2">
               {debounced.trim().length < 2 && (
                 <p className="m-0 px-3 py-6 text-center text-small text-ink-muted">
-                  Try <b className="text-ink">Ayesha</b>, <span className="mtb-mono text-ink">KC-14823</span>, <span className="mtb-mono text-ink">36302-4567890-1</span> or <span className="mtb-mono text-ink">KC-2627-004790</span>.
+                  Type a name, G.R. number, father's CNIC or receipt number.
                 </p>
               )}
               {empty && <Command.Empty className="px-3 py-6 text-center text-small text-ink-muted">No students, families, applicants or receipts match "{debounced}". Check the spelling or try the G.R. number.</Command.Empty>}

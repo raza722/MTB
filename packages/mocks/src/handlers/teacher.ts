@@ -1,16 +1,18 @@
-// Teacher app: today's classes, registers, offline sync, marks entry.
-// The phone's outbox replays writes with the same Idempotency-Key, so every write here answers a replay with the
-// response it gave the first time. Marks go into the shared exams store (handlers/exams.ts); timetables, rosters and
-// the school calendar come from the timetable and attendance modules.
+// Teacher app: today's classes, timetable, classes and notifications.
+// The registers (/api/teacher/registers*) and the papers and marks (/api/teacher/papers*) are real now: they fall
+// through to the backend (Attendance, backend/docs/modules/04_attendance.md; Exams, backend/docs/modules/05_exams.md).
+// Today's register cards and papers, the periods' register badges and the classes' attendance figures below stay
+// fictional (fixture rosters, the fictional exams of handlers/exams-model.ts, the demo's fixed date) until module 8
+// reads the real attendance and exam views, so the Today card and the Registers / Marks tabs can disagree meanwhile.
+// The teacher's own week (/api/teacher/timetable) is real now (Timetable, backend/docs/modules/08_timetable.md T01).
+// Today's periods and the classes list stay fictional (spec 08 Q1: T02–T04 not built yet): they read the fictional
+// timetable of handlers/timetable-model.ts, so they can disagree with the real Timetable tab meanwhile. Rosters and
+// the school calendar come from handlers/attendance-model.ts.
 import {
-  bellDay,
-  examsSits,
   teacherCountMarks,
   type CampusCode,
-  type ExamsMark,
   type RegisterCode,
   type SessionUser,
-  type TeacherChangeInput,
   type TeacherChangeRequest,
   type TeacherClass,
   type TeacherClassDetail,
@@ -20,72 +22,44 @@ import {
   type TeacherDemoState,
   type TeacherNotification,
   type TeacherPaper,
-  type TeacherPaperSheet,
   type TeacherPeriod,
-  type TeacherRegister,
   type TeacherRegisterCard,
-  type TeacherRegisterDay,
-  type TeacherRegisterOverview,
   type TeacherRegisterStatus,
-  type TeacherRegisterSubmit,
   type TeacherStudentContact,
   type TeacherToday,
-  type TeacherWeek,
-  type TeacherWeekDay,
 } from "@mtb/api";
-import { formatDate, formatTime, summariseAttendance, type AttendanceCode, type IsoDate, type IsoDateTime } from "@mtb/domain";
+import { formatDate, formatTime, summariseAttendance, type AttendanceCode, type IsoDate } from "@mtb/domain";
 import { http, type HttpHandler } from "msw";
-import { CURRENT_SESSION, DEMO_TODAY, demoNow } from "../clock";
+import { CURRENT_SESSION, DEMO_TODAY } from "../clock";
 import { createStore } from "../db";
-import { addDays, pastMark, pastSubmission, registersFor, rosterFor, SESSION_DATES, weekdayOf, type RosterEntry } from "../fixtures/attendance";
+import { addDays, pastMark, registersFor, rosterFor, SESSION_DATES, weekdayOf, type RosterEntry } from "../fixtures/attendance";
 import { campusName } from "../fixtures/campuses";
 import type { ExamRecord } from "../fixtures/exams";
-import { CAMPUS_PRINCIPAL, seedTeacherChanges, seedTeacherNotifications, TEACHER_DEMO_HOLIDAY } from "../fixtures/teacher";
-import { scheduleSeed } from "../fixtures/timetable";
+import { seedTeacherChanges, seedTeacherNotifications, TEACHER_DEMO_HOLIDAY } from "../fixtures/teacher";
 import { ctxFrom, fail, HttpResponse, latency, requirePermission, requireUser } from "../util";
-import { attendanceDayFor, closedOn, decideAttendanceCorrection } from "./attendance";
-import { examPapersForTeacher, examsStore, saveExamMarks, setExamPaperStatus } from "./exams";
-import { teacherDay } from "./timetable";
+import { attendanceDayFor, closedOn } from "./attendance-model";
+import { examPapersForTeacher, examsStore } from "./exams-model";
+import { teacherDay } from "./timetable-model";
 
 /* ------------------------------------------------------------------ State */
 
-interface StoredRegister {
-  marks: Record<string, RegisterCode>;
-  submittedAt: IsoDateTime;
-  submittedBy: string;
-  takenOffline: boolean;
-  smsSent: number;
-}
-
 interface TeacherState {
-  /** Registers taken in the teacher app, by `campus|classSection|date`. */
-  registers: Record<string, StoredRegister>;
+  /** The fictional change requests today's cards count (the real ones are the backend's). */
   changes: TeacherChangeRequest[];
   /** Notifications per teacher name (seeded on first read). */
   notifications: Record<string, TeacherNotification[]>;
   demo: TeacherDemoState;
-  idem: Record<string, { status: number; body: unknown }>;
   seq: number;
 }
 
-/**
- * The teacher app keeps its own register store. In the staff fixtures (fixtures/attendance.ts registersFor) 7-B's
- * register is already submitted this morning with a change pending, which is what the principal's dashboard shows.
- * Here 7-B starts Not marked so the teacher-attendance flow (brief §9 flow 3) can be walked from the beginning:
- * Today → 7-B register → mark → Submit → offline → synced → Request change.
- */
+/** Today's (fictional) registers start Not marked: submitting happens in the real backend, which this mock never sees. */
 const store = createStore<TeacherState>("teacher", () => ({
-  registers: {},
   changes: seedTeacherChanges(),
   notifications: {},
-  demo: { holiday: false, failNextSync: false },
-  idem: {},
+  demo: { holiday: false },
   seq: 100,
 }));
 
-const regKey = (campus: CampusCode, cs: string, date: IsoDate) => `${campus}|${cs}|${date}`;
-const CODES: RegisterCode[] = ["P", "A", "L", "LT"];
-const CODE_WORD: Record<RegisterCode, string> = { P: "Present", A: "Absent", L: "Leave", LT: "Late" };
 
 /* ------------------------------------------------------------------ Request helpers */
 
@@ -97,36 +71,6 @@ function context(request: Request): Ok | Response {
   const user = requirePermission("teacher.app", ctx.campus);
   if (user instanceof Response) return user;
   return { user, campus: ctx.campus, session: ctx.session };
-}
-
-function readOnly(session: number): Response | null {
-  return session !== CURRENT_SESSION ? fail(409, "SESSION_READ_ONLY", "That session is closed. Marks and registers can only change in the current session.") : null;
-}
-
-/** A replayed write gets the first answer back. */
-function replay(key: string | null): Response | null {
-  if (!key) return null;
-  const hit = store.get().idem[key];
-  return hit ? HttpResponse.json(hit.body as object, { status: hit.status }) : null;
-}
-
-function answer(key: string | null, status: number, body: unknown): Response {
-  if (key) store.set((s) => ({ ...s, idem: { ...s.idem, [key]: { status, body } } }));
-  return HttpResponse.json(body as object, { status });
-}
-
-/** Demo switch: the next write fails before anything is saved (shows "Sync failed — Retry"). */
-function demoFailure(): Response | null {
-  if (!store.get().demo.failNextSync) return null;
-  store.set((s) => ({ ...s, demo: { ...s.demo, failNextSync: false } }));
-  return fail(503, "UNAVAILABLE", "The school server didn't answer. Nothing was lost: your work is still on this phone. Try again in a moment.");
-}
-
-function notify(teacher: string, item: Omit<TeacherNotification, "id" | "read" | "at">) {
-  store.set((s) => {
-    const list = s.notifications[teacher] ?? seedTeacherNotifications(teacher);
-    return { ...s, seq: s.seq + 1, notifications: { ...s.notifications, [teacher]: [{ ...item, id: `tn-${s.seq + 1}`, at: demoNow(), read: false }, ...list] } };
-  });
 }
 
 function notificationsOf(teacher: string): TeacherNotification[] {
@@ -166,9 +110,9 @@ function changeFor(campus: CampusCode, cs: string, date: IsoDate, grNo: string, 
   return store.get().changes.find((c) => c.campus === campus && c.classSection === cs && c.date === date && c.grNo === grNo && statuses.includes(c.status));
 }
 
-/** A student's mark on a date: today from this app's store, earlier days from the attendance record. */
+/** A student's (fictional) mark on a date: none yet today, earlier days from the attendance fixtures. */
 function markOf(campus: CampusCode, cs: string, e: RosterEntry, date: IsoDate): RegisterCode | null {
-  if (date === DEMO_TODAY) return store.get().registers[regKey(campus, cs, date)]?.marks[e.grNo] ?? null;
+  if (date === DEMO_TODAY) return null;
   // The register keeps the original mark until the principal approves a change.
   const approved = changeFor(campus, cs, date, e.grNo, ["APPROVED"]);
   if (approved) return approved.to;
@@ -182,7 +126,7 @@ function pendingOn(campus: CampusCode, cs: string, date: IsoDate): TeacherChange
 }
 
 function statusOn(campus: CampusCode, cs: string, date: IsoDate): TeacherRegisterStatus {
-  if (date === DEMO_TODAY && !store.get().registers[regKey(campus, cs, date)]) return "NOT_MARKED";
+  if (date === DEMO_TODAY) return "NOT_MARKED";
   return pendingOn(campus, cs, date).length ? "CHANGE_PENDING" : "SUBMITTED";
 }
 
@@ -193,7 +137,6 @@ function countsOn(campus: CampusCode, cs: string, date: IsoDate): TeacherCounts 
 }
 
 function card(campus: CampusCode, cs: string, date: IsoDate): TeacherRegisterCard {
-  const stored = date === DEMO_TODAY ? store.get().registers[regKey(campus, cs, date)] : undefined;
   const closed = closedDay(campus, date);
   return {
     ...(closed ? { closed } : {}),
@@ -202,60 +145,8 @@ function card(campus: CampusCode, cs: string, date: IsoDate): TeacherRegisterCar
     status: statusOn(campus, cs, date),
     enrolled: rosterFor(campus, cs).length,
     counts: countsOn(campus, cs, date),
-    ...(stored ? { submittedAt: stored.submittedAt } : {}),
     pendingChanges: pendingOn(campus, cs, date).length,
   };
-}
-
-function buildRegister(campus: CampusCode, cs: string, date: IsoDate, session: number): TeacherRegister {
-  const roster = rosterFor(campus, cs);
-  const closed = closedDay(campus, date);
-  const stored = date === DEMO_TODAY ? store.get().registers[regKey(campus, cs, date)] : undefined;
-  const status = closed ? "NOT_MARKED" : statusOn(campus, cs, date);
-  const pending = pendingOn(campus, cs, date);
-  const students = roster.map((e) => {
-    const mark = closed ? "P" : (markOf(campus, cs, e, date) ?? "P");
-    const p = pending.find((c) => c.grNo === e.grNo);
-    return { grNo: e.grNo, rollNo: e.rollNo, name: e.name, father: e.father, mark, ...(p ? { pending: { id: p.id, to: p.to } } : {}) };
-  });
-  const counts = closed || status === "NOT_MARKED" ? null : teacherCountMarks(students.map((s) => s.mark));
-  const past = date !== DEMO_TODAY ? pastSubmission(campus, cs, date) : null;
-  const submittedAt = stored?.submittedAt ?? past?.at;
-  const submittedBy = stored?.submittedBy ?? past?.by;
-  let lockedReason: string | undefined;
-  if (session !== CURRENT_SESSION) lockedReason = "That session is closed. Registers can't change.";
-  else if (closed) lockedReason = `No attendance today — ${closed.name}.`;
-  else if (status !== "NOT_MARKED") lockedReason = `Submitted${submittedAt ? ` at ${formatTime(submittedAt)}` : ""}. To correct a mark, request a change.`;
-  return {
-    campus,
-    campusName: campusName(campus),
-    classSection: cs,
-    date,
-    status,
-    closed,
-    enrolled: roster.length,
-    students,
-    counts,
-    ...(submittedAt && status !== "NOT_MARKED" ? { submittedAt } : {}),
-    ...(submittedBy && status !== "NOT_MARKED" ? { submittedBy } : {}),
-    ...(status !== "NOT_MARKED" ? { source: stored ? ("Teacher app" as const) : (past?.source ?? "Teacher app") } : {}),
-    ...(stored ? { takenOffline: stored.takenOffline, smsSent: stored.smsSent } : {}),
-    changes: store
-      .get()
-      .changes.filter((c) => c.campus === campus && c.classSection === cs && c.date === date)
-      .sort((a, b) => b.requestedAt.localeCompare(a.requestedAt)),
-    canMark: lockedReason === undefined,
-    ...(lockedReason ? { lockedReason } : {}),
-  };
-}
-
-/** The last `count` school days before today, newest first. */
-function schoolDaysBefore(campus: CampusCode, count: number): IsoDate[] {
-  const out: IsoDate[] = [];
-  for (let d = addDays(DEMO_TODAY, -1); out.length < count && d >= SESSION_DATES[CURRENT_SESSION]!.starts; d = addDays(d, -1)) {
-    if (!closedOn(campus, d)) out.push(d);
-  }
-  return out;
 }
 
 const sessionDaysCache = new Map<CampusCode, IsoDate[]>();
@@ -270,7 +161,7 @@ function sessionSchoolDays(campus: CampusCode): IsoDate[] {
   return out;
 }
 
-/* ------------------------------------------------------------------ Periods and the week */
+/* ------------------------------------------------------------------ Periods and this week's classes */
 
 function periodsOf(campus: CampusCode, teacher: string, date: IsoDate, withRegister: boolean): TeacherPeriod[] {
   if (closedDay(campus, date)) return [];
@@ -292,31 +183,17 @@ function periodsOf(campus: CampusCode, teacher: string, date: IsoDate, withRegis
   });
 }
 
-const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-
-function week(campus: CampusCode, teacher: string): TeacherWeek {
+/** The (fictional) periods of each school day this week, Monday to Saturday. */
+function weekPeriods(campus: CampusCode, teacher: string): TeacherPeriod[][] {
   const monday = addDays(DEMO_TODAY, -((weekdayOf(DEMO_TODAY) + 6) % 7));
-  const days: TeacherWeekDay[] = [0, 1, 2, 3, 4, 5].map((i) => {
-    const date = addDays(monday, i);
-    return { date, day: i + 1, dayName: DAY_NAMES[weekdayOf(date)] ?? "", closed: closedDay(campus, date), periods: periodsOf(campus, teacher, date, date === DEMO_TODAY) };
-  });
-  const sched = scheduleSeed().find((s) => s.campus === campus && s.active) ?? scheduleSeed()[0]!;
-  return {
-    weekOf: monday,
-    today: DEMO_TODAY,
-    days,
-    normal: bellDay(sched, sched.normal),
-    friday: bellDay(sched, sched.friday),
-    periodsThisWeek: days.reduce((a, d) => a + d.periods.length, 0),
-  };
+  return [0, 1, 2, 3, 4, 5].map((i) => periodsOf(campus, teacher, addDays(monday, i), false));
 }
 
 /** Sections the teacher teaches this week or takes the register for, with subjects and periods. */
 function myClasses(campus: CampusCode, teacher: string): TeacherClass[] {
-  const w = week(campus, teacher);
   const map = new Map<string, { subjects: Set<string>; periods: number; rooms: Map<string, number> }>();
-  for (const d of w.days)
-    for (const p of d.periods) {
+  for (const day of weekPeriods(campus, teacher))
+    for (const p of day) {
       if (p.cover) continue;
       const x = map.get(p.classSection) ?? { subjects: new Set<string>(), periods: 0, rooms: new Map<string, number>() };
       x.subjects.add(p.subject);
@@ -347,7 +224,11 @@ function classPercent(campus: CampusCode, cs: string): number | null {
   return summariseAttendance(all).percent;
 }
 
-/* ------------------------------------------------------------------ Papers */
+/* ------------------------------------------------------------------ Papers (Today only) */
+
+// The Papers tab and marks entry are real (/api/teacher/papers*). Today's "papers" list stays fictional until module 8
+// assembles Today from exam.vw_TeacherPaper: its exam ids are the fictional store's, so tapping one opens a paper the
+// backend does not know ("This exam no longer exists").
 
 function examOf(id: string): ExamRecord | undefined {
   return examsStore.get().find((e) => e.id === id);
@@ -388,20 +269,6 @@ function teacherPapers(campus: CampusCode, teacher: string): TeacherPaper[] {
     .sort((a, b) => rank(a) - rank(b) || (b.paperDate ?? "").localeCompare(a.paperDate ?? ""));
 }
 
-function sheetOf(campus: CampusCode, teacher: string, examId: string, cs: string, subjectId: string): TeacherPaperSheet | Response {
-  const paper = teacherPapers(campus, teacher).find((p) => p.examId === examId && p.classSection === cs && p.subjectId === subjectId);
-  const exam = examOf(examId);
-  if (!exam) return fail(404, "NOT_FOUND", "This exam no longer exists. Go back and pick it again.");
-  if (!paper) return fail(403, "NOT_YOUR_PAPER", "This paper is marked by another teacher. You can enter marks only for your own classes and subjects.");
-  // Only the students whose group sits this paper (Biology or Computer Science in classes 9–10).
-  const subject = exam.subjects.find((s) => s.id === subjectId);
-  const students = exam.roster
-    .filter((p) => p.classSection === cs && (!subject || examsSits(subject, p.group)))
-    .sort((a, b) => a.rollNo - b.rollNo)
-    .map((p) => ({ id: p.id, rollNo: p.rollNo, name: p.name, mark: (exam.marks[p.id]?.[subjectId] ?? null) as ExamsMark }));
-  return { ...paper, students };
-}
-
 /* ------------------------------------------------------------------ Handlers */
 
 const params = (p: Record<string, string | readonly string[] | undefined>, k: string) => decodeURIComponent(String(p[k] ?? ""));
@@ -436,191 +303,7 @@ export const teacherHandlers: HttpHandler[] = [
     return HttpResponse.json(body);
   }),
 
-  /* ---------------- Registers */
-  http.get("/api/teacher/registers", async ({ request }) => {
-    await latency();
-    const c = context(request);
-    if (c instanceof Response) return c;
-    const { campus, user } = c;
-    const out: TeacherRegisterOverview[] = mySections(campus, user.name).map((cs) => {
-      const roster = rosterFor(campus, cs);
-      const days: TeacherRegisterDay[] = schoolDaysBefore(campus, 10).map((date) => {
-        const counts = countsOn(campus, cs, date) ?? { present: roster.length, absent: 0, leave: 0, late: 0 };
-        const sub = pastSubmission(campus, cs, date);
-        return {
-          date,
-          status: statusOn(campus, cs, date),
-          counts,
-          percent: Math.round(((counts.present + counts.late) / Math.max(1, roster.length)) * 1000) / 10,
-          submittedAt: sub.at,
-          by: sub.by,
-          pending: pendingOn(campus, cs, date).length,
-        };
-      });
-      return {
-        classSection: cs,
-        enrolled: roster.length,
-        today: card(campus, cs, DEMO_TODAY),
-        days,
-        changes: store
-          .get()
-          .changes.filter((x) => x.campus === campus && x.classSection === cs)
-          .sort((a, b) => b.requestedAt.localeCompare(a.requestedAt)),
-      };
-    });
-    return HttpResponse.json(out);
-  }),
-
-  http.get("/api/teacher/registers/:cs", async ({ request, params: p }) => {
-    await latency();
-    const c = context(request);
-    if (c instanceof Response) return c;
-    const cs = params(p, "cs");
-    const date = new URL(request.url).searchParams.get("date") || DEMO_TODAY;
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return fail(422, "VALIDATION", "That isn't a date.", { field: "date" });
-    if (date > DEMO_TODAY) return fail(422, "FUTURE_DATE", "A register can't be opened for a day that hasn't come yet.", { field: "date" });
-    if (!classTeachers(c.campus).has(cs)) return fail(404, "NOT_FOUND", `There is no class ${cs} at ${campusName(c.campus)}.`);
-    if (!mySections(c.campus, c.user.name).includes(cs)) {
-      return fail(403, "NOT_CLASS_TEACHER", `${classTeachers(c.campus).get(cs)} takes the ${cs} register. If you're covering for them today, ask the office to add you.`);
-    }
-    return HttpResponse.json(buildRegister(c.campus, cs, date, c.session));
-  }),
-
-  http.post("/api/teacher/registers/:cs/submit", async ({ request, params: p }) => {
-    await latency();
-    const key = request.headers.get("Idempotency-Key");
-    const again = replay(key);
-    if (again) return again;
-    const c = context(request);
-    if (c instanceof Response) return c;
-    const ro = readOnly(c.session);
-    if (ro) return ro;
-    const down = demoFailure();
-    if (down) return down;
-    const cs = params(p, "cs");
-    if (!mySections(c.campus, c.user.name).includes(cs)) return fail(403, "NOT_CLASS_TEACHER", `Only the class teacher submits the ${cs} register.`);
-    const body = (await request.json()) as TeacherRegisterSubmit;
-    if (body.date !== DEMO_TODAY) return fail(409, "NOT_TODAY", `Registers are submitted on the day. For ${formatDate(body.date)}, ask the office to enter the register.`);
-    const closed = closedDay(c.campus, body.date);
-    if (closed) return fail(409, "REGISTER_CLOSED", `No attendance today — ${closed.name}. Nothing was saved.`);
-    const existing = store.get().registers[regKey(c.campus, cs, body.date)];
-    if (existing) return fail(409, "ALREADY_SUBMITTED", `The ${cs} register was already submitted at ${formatTime(existing.submittedAt)}. To correct a mark, request a change.`);
-    const roster = rosterFor(c.campus, cs);
-    const marks: Record<string, RegisterCode> = {};
-    for (const e of roster) {
-      const m = body.marks?.[e.grNo] ?? "P";
-      if (!CODES.includes(m)) return fail(422, "VALIDATION", `${e.name}: choose Present, Absent, Leave or Late.`, { field: e.grNo });
-      marks[e.grNo] = m;
-    }
-    const unknown = Object.keys(body.marks ?? {}).find((g) => !roster.some((e) => e.grNo === g));
-    if (unknown) return fail(422, "VALIDATION", `${unknown} isn't in ${cs}. Refresh the register and try again.`);
-    const absent = Object.values(marks).filter((m) => m === "A").length;
-    store.set((s) => ({
-      ...s,
-      registers: { ...s.registers, [regKey(c.campus, cs, body.date)]: { marks, submittedAt: demoNow(), submittedBy: c.user.name, takenOffline: Boolean(body.savedOffline), smsSent: absent } },
-    }));
-    return answer(key, 200, buildRegister(c.campus, cs, body.date, c.session));
-  }),
-
-  http.post("/api/teacher/registers/:cs/changes", async ({ request, params: p }) => {
-    await latency();
-    const key = request.headers.get("Idempotency-Key");
-    const again = replay(key);
-    if (again) return again;
-    const c = context(request);
-    if (c instanceof Response) return c;
-    const ro = readOnly(c.session);
-    if (ro) return ro;
-    const down = demoFailure();
-    if (down) return down;
-    const cs = params(p, "cs");
-    if (!mySections(c.campus, c.user.name).includes(cs)) return fail(403, "NOT_CLASS_TEACHER", `Only the class teacher can ask to change the ${cs} register.`);
-    const body = (await request.json()) as TeacherChangeInput;
-    const e = rosterFor(c.campus, cs).find((x) => x.grNo === body.grNo);
-    if (!e) return fail(422, "VALIDATION", "Choose a student from the list.", { field: "grNo" });
-    if (!CODES.includes(body.to)) return fail(422, "VALIDATION", "Choose the new status.", { field: "to" });
-    if ((body.reason ?? "").trim().length < 5) return fail(422, "VALIDATION", "Say why the mark should change, in a few words.", { field: "reason" });
-    if (statusOn(c.campus, cs, body.date) === "NOT_MARKED" && body.date === DEMO_TODAY) return fail(409, "NOT_SUBMITTED", "This register isn't submitted yet. Change the mark in the register itself.");
-    const current = markOf(c.campus, cs, e, body.date);
-    if (current === body.to) return fail(422, "VALIDATION", `${e.name} is already marked ${CODE_WORD[body.to]}. Choose a different status.`, { field: "to" });
-    if (changeFor(c.campus, cs, body.date, e.grNo, ["PENDING"])) return fail(409, "ALREADY_PENDING", `A change for ${e.name} on ${formatDate(body.date)} is already waiting for approval.`);
-    const seq = store.get().seq + 1;
-    const req: TeacherChangeRequest = {
-      id: `tc-${seq}`,
-      campus: c.campus,
-      classSection: cs,
-      date: body.date,
-      grNo: e.grNo,
-      studentName: e.name,
-      from: current ?? "P",
-      to: body.to,
-      reason: body.reason.trim(),
-      status: "PENDING",
-      requestedBy: c.user.name,
-      requestedAt: demoNow(),
-    };
-    store.set((s) => ({ ...s, seq, changes: [req, ...s.changes] }));
-    return answer(key, 201, req);
-  }),
-
-  /* ---------------- Marks */
-  http.get("/api/teacher/papers", async ({ request }) => {
-    await latency();
-    const c = context(request);
-    if (c instanceof Response) return c;
-    return HttpResponse.json(c.session === CURRENT_SESSION ? teacherPapers(c.campus, c.user.name) : []);
-  }),
-
-  http.get("/api/teacher/papers/:examId/:cs/:subjectId", async ({ request, params: p }) => {
-    await latency();
-    const c = context(request);
-    if (c instanceof Response) return c;
-    const sheet = sheetOf(c.campus, c.user.name, params(p, "examId"), params(p, "cs"), params(p, "subjectId"));
-    return sheet instanceof Response ? sheet : HttpResponse.json(sheet);
-  }),
-
-  ...(["save", "submit"] as const).map((mode) =>
-    (mode === "save" ? http.put : http.post)(mode === "save" ? "/api/teacher/papers/:examId/:cs/:subjectId" : "/api/teacher/papers/:examId/:cs/:subjectId/submit", async ({ request, params: p }) => {
-      await latency();
-      const key = request.headers.get("Idempotency-Key");
-      const again = replay(key);
-      if (again) return again;
-      const c = context(request);
-      if (c instanceof Response) return c;
-      const ro = readOnly(c.session);
-      if (ro) return ro;
-      const down = demoFailure();
-      if (down) return down;
-      const examId = params(p, "examId");
-      const cs = params(p, "cs");
-      const subjectId = params(p, "subjectId");
-      const before = sheetOf(c.campus, c.user.name, examId, cs, subjectId);
-      if (before instanceof Response) return before;
-      if (before.locked) return fail(409, "LOCKED", before.lockedReason ?? "These marks are locked.");
-      const { marks } = (await request.json()) as { marks: Record<string, ExamsMark> };
-      const changed = Object.fromEntries(Object.entries(marks ?? {}).filter(([id, v]) => before.students.find((s) => s.id === id)?.mark !== v));
-      if (Object.keys(changed).length) {
-        const saved = saveExamMarks(examId, cs, subjectId, changed, c.user.name);
-        if (!saved.ok) return fail(saved.status, saved.code, saved.message, saved.details !== undefined ? { details: saved.details } : {});
-      }
-      if (mode === "submit") {
-        const done = setExamPaperStatus(examId, cs, subjectId, "SUBMIT", c.user.name);
-        if (!done.ok) return fail(done.status, done.code, done.message, done.details !== undefined ? { details: done.details } : {});
-      }
-      const after = sheetOf(c.campus, c.user.name, examId, cs, subjectId);
-      if (after instanceof Response) return after;
-      return answer(key, 200, after);
-    }),
-  ),
-
-  /* ---------------- Timetable, classes, contacts */
-  http.get("/api/teacher/timetable", async ({ request }) => {
-    await latency();
-    const c = context(request);
-    if (c instanceof Response) return c;
-    return HttpResponse.json(week(c.campus, c.user.name));
-  }),
-
+  /* ---------------- Classes, contacts (the timetable, /api/teacher/timetable, is real) */
   http.get("/api/teacher/classes", async ({ request }) => {
     await latency();
     const c = context(request);
@@ -649,7 +332,7 @@ export const teacherHandlers: HttpHandler[] = [
       subjects: cls.subjects,
       enrolled: students.length,
       since: SESSION_DATES[CURRENT_SESSION]!.starts,
-      schoolDays: sessionSchoolDays(c.campus).length + (closedToday || !store.get().registers[regKey(c.campus, cs, DEMO_TODAY)] ? 0 : 1),
+      schoolDays: sessionSchoolDays(c.campus).length,
       students,
     };
     return HttpResponse.json(body);
@@ -690,40 +373,8 @@ export const teacherHandlers: HttpHandler[] = [
       ...s,
       demo: {
         holiday: typeof body.holiday === "boolean" ? body.holiday : s.demo.holiday,
-        failNextSync: typeof body.failNextSync === "boolean" ? body.failNextSync : s.demo.failNextSync,
       },
     }));
     return HttpResponse.json(store.get().demo);
-  }),
-
-  http.post("/api/teacher/demo/decide-changes", async ({ request }) => {
-    await latency();
-    const user = requireUser();
-    if (user instanceof Response) return user;
-    const { approve } = (await request.json()) as { approve: boolean };
-    const pending = store.get().changes.filter((x) => x.status === "PENDING");
-    for (const ch of pending) {
-      const by = CAMPUS_PRINCIPAL[ch.campus] ?? "The principal";
-      const decided: TeacherChangeRequest = { ...ch, status: approve ? "APPROVED" : "REJECTED", decidedBy: by, decidedAt: demoNow() };
-      store.set((s) => {
-        const key = regKey(ch.campus, ch.classSection, ch.date);
-        const reg = s.registers[key];
-        return {
-          ...s,
-          changes: s.changes.map((x) => (x.id === ch.id ? decided : x)),
-          // An approved change is written into today's register; earlier days read it from the request.
-          registers: approve && reg ? { ...s.registers, [key]: { ...reg, marks: { ...reg.marks, [ch.grNo]: ch.to } } } : s.registers,
-        };
-      });
-      // Requests that are also in the staff app's attendance queue are decided there too.
-      if (ch.id.startsWith("att-")) decideAttendanceCorrection(ch.id, approve, by);
-      notify(ch.requestedBy, {
-        kind: "ATTENDANCE",
-        title: `Change ${approve ? "approved" : "rejected"}: ${ch.studentName}, ${formatDate(ch.date)}`,
-        body: `${CODE_WORD[ch.from]} → ${CODE_WORD[ch.to]}. ${approve ? "Approved" : "Rejected"} by ${by}.`,
-        link: "/registers",
-      });
-    }
-    return HttpResponse.json({ decided: pending.length });
   }),
 ];

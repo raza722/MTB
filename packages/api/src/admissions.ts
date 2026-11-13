@@ -52,7 +52,8 @@ export interface AdmissionsApplicant extends StudentPersonalExtras {
   /** 13 digits, or "" when the family didn't give it. */
   fatherCnic: string;
   mother?: string;
-  dob: IsoDate;
+  /** null when unknown (most applicants migrated from the old system have no real date of birth). */
+  dob: IsoDate | null;
   gender: "F" | "M";
   bForm?: string;
   previousSchool?: string;
@@ -77,7 +78,8 @@ export interface AdmissionsApplicant extends StudentPersonalExtras {
   absentFromTest?: boolean;
   /** Entrance test score; null until marked. */
   testScore: number | null;
-  testMax: number;
+  /** Total of the candidate's papers in the sitting; null (shown "—") when no sitting is booked. */
+  testMax: number | null;
   /** No entrance test for this class: admission is decided on interview and seats. */
   directAdmission?: boolean;
   /** Candidate (test) fee. */
@@ -98,7 +100,7 @@ export interface AdmissionsApplicant extends StudentPersonalExtras {
   admittedClassSection?: string;
   withdrawnOn?: IsoDate;
   withdrawnReason?: string;
-  /** Children already at MTB with the same father's CNIC. */
+  /** Children already at MTB in the same family (campuses the user works at). */
   siblings?: Array<{ grNo: string; name: string; classSection: string; campusName: string }>;
   history?: AdmissionsHistoryItem[];
 }
@@ -106,12 +108,59 @@ export interface AdmissionsApplicant extends StudentPersonalExtras {
 export interface AdmissionsPipeline {
   campus: CampusScope;
   session: number;
+  /** Applications per stage over the whole session in scope (filters do not change them). */
   counts: Record<AdmissionsStage, number>;
+  /** Applications per stage that match the class, gender and search filters. */
+  matched: Record<AdmissionsStage, number>;
+  /** Applications that match every filter (stage included): the rows over all pages. */
+  total: number;
+  page: number;
+  pageSize: number;
+  /** One page of the applications that match, in the requested order (or, with `perStage`, the first n of each stage). */
   applicants: AdmissionsApplicant[];
   /** Enquiries still open (not yet an application). */
   openEnquiries: number;
   /** Admitted in the last 7 days. */
   admittedThisWeek: number;
+  /** Children behind the applications in `counts` (one person counted once: a child with two applications, e.g. one withdrawn as a duplicate, is one child). */
+  children: number;
+}
+
+export type AdmissionsPipelineSort = "appliedOn" | "name" | "classApplied" | "stage" | "score";
+
+/** Server-side filters and paging of the pipeline: a session can hold thousands of applications. */
+export interface AdmissionsPipelineQuery {
+  /** Only these stages (all when omitted). */
+  stage?: AdmissionsStage[];
+  /** Class applied for (name or short name). */
+  class?: string;
+  gender?: "F" | "M";
+  /** Application no., child's or father's name, or 4+ digits of the father's CNIC, a mobile or the B-form. */
+  q?: string;
+  /** Default appliedOn, newest first. */
+  sort?: AdmissionsPipelineSort;
+  dir?: "asc" | "desc";
+  /** From 1 (default 1). */
+  page?: number;
+  /** 1 to 1,000 (default 100). */
+  pageSize?: number;
+  /** Board view: the first n (1 to 1,000) of every stage instead of a page. */
+  perStage?: number;
+}
+
+function pipelineQuery(ctx: Ctx, q: AdmissionsPipelineQuery) {
+  return {
+    ...ctxQuery(ctx),
+    stage: q.stage?.length ? q.stage.join(",") : undefined,
+    class: q.class,
+    gender: q.gender,
+    q: q.q?.trim() || undefined,
+    sort: q.sort,
+    dir: q.dir,
+    page: q.page,
+    pageSize: q.pageSize,
+    perStage: q.perStage,
+  };
 }
 
 export interface AdmissionsMeritRow {
@@ -124,7 +173,8 @@ export interface AdmissionsMeritList {
   /** Classes that have a merit list this session at this campus. */
   classes: string[];
   testName: string;
-  testDate: IsoDate;
+  /** null when the class has no sitting held yet. */
+  testDate: IsoDate | null;
   seats: number;
   /** Lowest score inside the seats. */
   cutoffScore: number | null;
@@ -213,6 +263,8 @@ export interface AdmissionsEnquiry {
   notes?: string;
   closedReason?: string;
   applicationNo?: string;
+  /** The converting application's id (with applicationNo), to open it without searching. */
+  applicationId?: string;
   takenBy: string;
 }
 
@@ -249,9 +301,10 @@ export interface AdmissionsTest {
   /** "Class 6 entrance test · round 2" */
   name: string;
   date: IsoDate;
-  /** "9:00 am" */
-  time: string;
-  venue: string;
+  /** "9:00 am"; missing (or "") when not recorded, e.g. sittings migrated from the old system. */
+  time?: string;
+  /** Missing (or "") when not recorded. */
+  venue?: string;
   subjects: AdmissionsTestSubject[];
   max: number;
   candidates: number;
@@ -290,7 +343,8 @@ export interface AdmissionsClassRule {
   classShort: string;
   testRequired: boolean;
   candidateFee: Rupees;
-  admissionFee: Rupees;
+  /** Set by Fees; null (or 0) = not set yet, shown "—". */
+  admissionFee: Rupees | null;
   seatsOnMeritList: number;
   /** Groups a child chooses in this class (9, 10, college), e.g. "Science (Biology)"; empty for other classes. */
   streams: string[];
@@ -339,14 +393,14 @@ export interface AdmissionsPlacement {
   classShort: string;
   /** Next G.R. number the campus will issue. */
   nextGrNo: string;
-  admissionFee: Rupees;
+  /** Set by Fees; null (or 0) = not set yet, shown "—". */
+  admissionFee: Rupees | null;
   sections: Array<{ section: string; classSection: string; seats: number; enrolled: number; nextRollNo: number; classTeacher?: string; girls: number; boys: number }>;
 }
 
 export interface AdmissionsAdmitInput {
   classSection: string;
   admissionDate: IsoDate;
-  house?: string;
   /** Send the welcome SMS to the guardian. */
   welcomeSms: boolean;
   /** Group, confirmed on admission; required for classes with groups. */
@@ -357,8 +411,11 @@ export interface AdmissionsAdmitInput {
 export interface AdmissionsAdmitResult {
   applicant: AdmissionsApplicant;
   student: StudentSummary;
+  /** 0 when the section gave no roll number. */
   rollNo: number;
-  /** Charges raised on the student's ledger, for the fee counter. */
+  /** True when the child kept an earlier G.R. number (a former pupil, or a pupil joining next year's intake). */
+  readmitted?: boolean;
+  /** Charges raised on the student's ledger, for the fee counter (empty until Fees raises the admission fee). */
   charges: Array<{ head: string; amount: Rupees; dueDate: IsoDate }>;
   /** The welcome SMS, when asked for: its send in Messages (held while all SMS are paused). */
   welcomeSms?: { batchId: string; held: boolean };
@@ -438,7 +495,17 @@ export function admissionsMatchLabel(strength: number): string {
 export const ADMISSIONS_WITHDRAW_REASONS = ["Family chose another school", "Did not appear in the test", "Offer not accepted in time", "Below the cut-off, not interested in the waiting list", "Duplicate application", "Other"];
 
 export const admissionsApi = {
-  pipeline: (ctx: Ctx) => apiFetch<AdmissionsPipeline>("/admissions/pipeline", { query: ctxQuery(ctx) }),
+  pipeline: (ctx: Ctx, q: AdmissionsPipelineQuery = {}) => apiFetch<AdmissionsPipeline>("/admissions/pipeline", { query: pipelineQuery(ctx, q) }),
+  /** Every page of a filtered pipeline (pages of 1,000), e.g. all offers waiting; prefer `pipeline` for screens that page. */
+  pipelineAll: async (ctx: Ctx, q: Omit<AdmissionsPipelineQuery, "page" | "pageSize" | "perStage"> = {}): Promise<AdmissionsPipeline> => {
+    const first = await apiFetch<AdmissionsPipeline>("/admissions/pipeline", { query: pipelineQuery(ctx, { ...q, page: 1, pageSize: 1000 }) });
+    const applicants = [...first.applicants];
+    for (let page = 2; applicants.length < first.total && page <= Math.ceil(first.total / 1000); page++) {
+      const next = await apiFetch<AdmissionsPipeline>("/admissions/pipeline", { query: pipelineQuery(ctx, { ...q, page, pageSize: 1000 }) });
+      applicants.push(...next.applicants);
+    }
+    return { ...first, applicants, page: 1, pageSize: applicants.length };
+  },
   applicant: (id: string) => apiFetch<AdmissionsApplicant>(`/admissions/applicants/${encodeURIComponent(id)}`),
   setup: (ctx: Ctx) => apiFetch<AdmissionsSetup>("/admissions/setup", { query: ctxQuery(ctx) }),
   merit: (ctx: Ctx, classApplied: string, q: AdmissionsMeritQuery = {}) =>
@@ -485,7 +552,10 @@ export const admissionsApi = {
 
 export const admissionsQueries = {
   all: () => ["admissions"] as const,
-  pipeline: (ctx: Ctx) => queryOptions({ queryKey: ["admissions", ...ctxKey(ctx), "pipeline"], queryFn: () => admissionsApi.pipeline(ctx) }),
+  pipeline: (ctx: Ctx, q: AdmissionsPipelineQuery = {}) =>
+    queryOptions({ queryKey: ["admissions", ...ctxKey(ctx), "pipeline", q], queryFn: () => admissionsApi.pipeline(ctx, q) }),
+  pipelineAll: (ctx: Ctx, q: Omit<AdmissionsPipelineQuery, "page" | "pageSize" | "perStage"> = {}) =>
+    queryOptions({ queryKey: ["admissions", ...ctxKey(ctx), "pipeline", "all", q], queryFn: () => admissionsApi.pipelineAll(ctx, q) }),
   applicant: (id: string) => queryOptions({ queryKey: ["admissions", "applicant", id], queryFn: () => admissionsApi.applicant(id), enabled: Boolean(id) }),
   setup: (ctx: Ctx) => queryOptions({ queryKey: ["admissions", ...ctxKey(ctx), "setup"], queryFn: () => admissionsApi.setup(ctx) }),
   merit: (ctx: Ctx, classApplied: string, q: AdmissionsMeritQuery = {}) =>

@@ -1,12 +1,12 @@
-import { smsApi, smsQueries, smsStatusQueries, type SmsDeliveryRow, type SmsDeliveryStatus } from "@mtb/api";
-import { formatCount, formatTime } from "@mtb/domain";
+import { newIdempotencyKey, smsApi, smsQueries, smsStatusQueries, type SmsDeliveryRow, type SmsDeliveryStatus } from "@mtb/api";
+import { formatCount } from "@mtb/domain";
 import { Banner, Button, DataTable, EmptyState, Input, Pagination, Segmented, StatCard, StatusBadge, useToast, type Column } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { campusLabel } from "../../app/shell/campus";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
-import { errorText, LoadError, MessagesShell, slide } from "./shell";
+import { errorText, LoadError, MessagesShell, slide, whenText } from "./shell";
 
 export interface DeliverySearch {
   status?: SmsDeliveryStatus;
@@ -19,13 +19,16 @@ const PAGE_SIZE = 25;
 const FILTERS: Array<{ value: Filter; label: string }> = [
   { value: "all", label: "All" },
   { value: "failed", label: "Failed" },
-  { value: "queued", label: "Queued" },
+  { value: "queued", label: "Held" },
   { value: "sent", label: "Sent" },
   { value: "delivered", label: "Delivered" },
   { value: "optedout", label: "Opted out" },
 ];
 
-/** /sms/delivery — today's messages one by one: delivered, failed with the reason, opted out; retry failed. */
+/**
+ * /sms/delivery — the latest messages one by one with today's totals. Nothing is sent from this system: new messages
+ * are held ("queued"); sent / failed come from the old system's log.
+ */
 export function DeliveryPage({ search, setSearch }: { search: DeliverySearch; setSearch: (next: DeliverySearch) => void }) {
   const ctx = useCtx();
   const toast = useToast();
@@ -33,20 +36,19 @@ export function DeliveryPage({ search, setSearch }: { search: DeliverySearch; se
   const canSend = useCan("sms.send");
   const readOnly = useReadOnly();
   const status = useQuery(smsStatusQueries.status());
-  const report = useQuery({
-    ...smsQueries.report(ctx, search.batch ? { batchId: search.batch } : {}),
-    // While messages are on their way, refresh every 2 seconds.
-    refetchInterval: (q) => (q.state.data?.rows.some((r) => r.status === "queued" || r.status === "sent") ? 2000 : false),
-  });
+  const report = useQuery(smsQueries.report(ctx, search.batch ? { batchId: search.batch } : {}));
   const filter: Filter = search.status ?? "all";
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
 
+  // Kept until the retry succeeds, so a retry after a lost reply can't act twice.
+  const retryKey = useRef(newIdempotencyKey());
   const retry = useMutation({
-    mutationFn: () => smsApi.retryFailed(ctx, search.batch),
+    mutationFn: () => smsApi.retryFailed(ctx, search.batch, retryKey.current),
     onSuccess: async ({ retried }) => {
+      retryKey.current = newIdempotencyKey();
       await queryClient.invalidateQueries({ queryKey: ["sms"] });
-      toast({ title: `Retrying ${formatCount(retried)} failed SMS`, message: "Most should be delivered within a minute. Wrong numbers will fail again — correct them in the student's record." });
+      toast(retried ? { title: `Retrying ${formatCount(retried)} failed SMS`, message: "They are held in the outbox: nothing is sent from this system." } : { tone: "info", title: "Nothing to retry", message: "Failed messages from the old system are kept as they were. Nothing is sent from this system." });
     },
     onError: (e) => toast({ tone: "danger", title: "Retry not started", message: errorText(e) }),
   });
@@ -63,7 +65,7 @@ export function DeliveryPage({ search, setSearch }: { search: DeliverySearch; se
   const batchName = search.batch ? all[0]?.templateName : undefined;
 
   const columns: Array<Column<SmsDeliveryRow>> = [
-    { key: "at", header: "Time", width: 90, render: (r) => <time className="mtb-num" dateTime={r.at}>{formatTime(r.at)}</time> },
+    { key: "at", header: "Time", width: 150, render: (r) => <time className="mtb-num" dateTime={r.at}>{whenText(r.at)}</time> },
     {
       key: "to",
       header: "To",
@@ -71,7 +73,7 @@ export function DeliveryPage({ search, setSearch }: { search: DeliverySearch; se
       render: (r) => (
         <span className="grid">
           <span className="mtb-mono">{r.mobile}</span>
-          <span className="mtb-cell-secondary">{r.guardian}</span>
+          <span className="mtb-cell-secondary">{r.guardian || "—"}</span>
         </span>
       ),
     },
@@ -81,9 +83,9 @@ export function DeliveryPage({ search, setSearch }: { search: DeliverySearch; se
       width: 180,
       render: (r) => (
         <span className="grid">
-          <span className="mtb-cell-primary">{r.studentName}</span>
+          <span className="mtb-cell-primary">{r.studentName || "—"}</span>
           <span className="mtb-cell-secondary">
-            {r.classSection}
+            {r.classSection || "—"}
             {ctx.campus === "ALL" ? ` · ${campusLabel(r.campus)}` : ""}
           </span>
         </span>
@@ -137,10 +139,10 @@ export function DeliveryPage({ search, setSearch }: { search: DeliverySearch; se
         <>
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">
             {[
-              <StatCard key="d" label={search.batch ? "Delivered" : "Delivered today"} icon="checkCircle" value={totals ? formatCount(totals.delivered) : undefined} loading={!totals} foot="Delivery report received" />,
-              <StatCard key="f" label="Failed" icon="alertCircle" tone="danger" value={totals ? formatCount(totals.failed) : undefined} loading={!totals} foot="Not delivered" />,
-              <StatCard key="q" label="Queued" icon="clock" tone="neutral" value={totals ? formatCount(totals.queued) : undefined} loading={!totals} foot={paused ? "Held while SMS is paused" : "Waiting to send"} />,
-              <StatCard key="s" label="Sent" icon="send" tone="info" value={totals ? formatCount(totals.sent) : undefined} loading={!totals} foot="Waiting for delivery report" />,
+              <StatCard key="d" label={search.batch ? "Delivered" : "Delivered today"} icon="checkCircle" value={totals ? formatCount(totals.delivered) : undefined} loading={!totals} foot="No delivery reports: nothing is sent from this system" />,
+              <StatCard key="f" label="Failed" icon="alertCircle" tone="danger" value={totals ? formatCount(totals.failed) : undefined} loading={!totals} foot="Old system: recorded as not sent" />,
+              <StatCard key="q" label="Held" icon="clock" tone="neutral" value={totals ? formatCount(totals.queued) : undefined} loading={!totals} foot="In the outbox: nothing is sent from this system" />,
+              <StatCard key="s" label="Sent" icon="send" tone="info" value={totals ? formatCount(totals.sent) : undefined} loading={!totals} foot="Old system: accepted by the SMS company" />,
               <StatCard key="o" label="Opted out" icon="ban" tone="neutral" value={totals ? formatCount(totals.optedout) : undefined} loading={!totals} foot="Skipped notices" />,
               <StatCard key="a" label="By app" icon="smartphone" tone="info" value={data ? formatCount(data.appToday ?? 0) : undefined} loading={!data} foot="Free app notifications" />,
             ].map((card, i) => (
@@ -150,14 +152,14 @@ export function DeliveryPage({ search, setSearch }: { search: DeliverySearch; se
             ))}
           </div>
 
-          {paused && totals && totals.queued > 0 && (
+          {totals && totals.queued > 0 && (
             <Banner tone="warning" title={`${formatCount(totals.queued)} messages are held.`}>
-              They will go out when an admin resumes SMS.
+              Sending is switched off in this system{paused ? " and all SMS are paused" : ""}: they stay in the outbox.
             </Banner>
           )}
 
           <DataTable
-            caption={search.batch ? "Recipients of this message" : "Messages sent today"}
+            caption={search.batch ? "Recipients of this message" : "Latest messages"}
             columns={columns}
             rows={pageRows}
             rowKey="id"
@@ -167,8 +169,8 @@ export function DeliveryPage({ search, setSearch }: { search: DeliverySearch; se
             empty={
               <EmptyState
                 icon="message"
-                title={filter === "all" && !q ? "No messages sent today" : "No messages match"}
-                description={filter === "all" && !q ? "Messages appear here as soon as they are queued." : "Try another status or clear the search."}
+                title={filter === "all" && !q ? "No messages yet" : "No messages match"}
+                description={filter === "all" && !q ? "Messages appear here as soon as they are written to the outbox." : "Try another status or clear the search."}
               />
             }
             toolbar={
@@ -207,7 +209,7 @@ export function DeliveryPage({ search, setSearch }: { search: DeliverySearch; se
           />
           {data && (
             <p className="m-0 text-small text-ink-muted">
-              Showing the latest {formatCount(all.length)} of {formatCount(grandTotal)} SMS{search.batch ? " in this message" : " today"}. The totals above count every message. For earlier days, run the <Link to="/reports/$reportId" params={{ reportId: "msg-log" } as never} className="font-medium text-brand-ink">Message log</Link> report.
+              Showing the latest {formatCount(all.length)} messages{search.batch ? ` of ${formatCount(grandTotal)} in this message` : `; ${formatCount(grandTotal)} today`}. The totals above count every message{search.batch ? "" : " of today"}. For earlier days, run the <Link to="/reports/$reportId" params={{ reportId: "msg-log" }} className="font-medium text-brand-ink">Message log</Link> report.
             </p>
           )}
         </>

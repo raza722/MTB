@@ -1,20 +1,22 @@
-import { ApiError, portalApi, type PortalAccountKind, type PortalCodeRequest } from "@mtb/api";
+import { ApiError, portalApi, type PortalAccountKind, type PortalCodeRequest, type PortalTooSoonDetails } from "@mtb/api";
 import { normalizeMobile } from "@mtb/domain";
 import { Banner, Button, Input, Segmented } from "@mtb/ui";
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { lazy, Suspense, useState } from "react";
+import { useState } from "react";
 import { z } from "zod";
 import { Ltr, useLang } from "../../app/i18n";
 import { AuthLayout } from "./AuthLayout";
 import { loadPending, savePending } from "./challenge";
 
-const DemoHint = lazy(() => import("./DemoHint"));
-
-/** Validation runs in the browser first, so a typo gets a message next to the field without a round trip. */
+/**
+ * Validation runs in the browser first, so a typo gets a message next to the field without a round trip.
+ * A G.R. number is the campus code, a dash and the number as the school card prints it, letters allowed
+ * ("KC-14823", "KC-C-1234"), at most 20 characters: the server's rule (12_portal.md X15, C5). "kc14823" → "KC-14823".
+ */
 const mobileSchema = z.string().trim().refine((v) => normalizeMobile(v) !== null);
-const grSchema = z.string().trim().regex(/^[A-Za-z]{2}\s*-?\s*\d{3,6}$/);
 const normaliseGr = (v: string) => v.trim().toUpperCase().replace(/\s+/g, "").replace(/^([A-Z]{2})-?(\d+)$/, "$1-$2");
+const grSchema = z.string().transform(normaliseGr).pipe(z.string().max(20).regex(/^[A-Z]{2}-[A-Z0-9]+(?:-[A-Z0-9]+)*$/));
 
 /**
  * Sign in with the family's mobile number (parent) or a G.R. number (student) and a one-time SMS code.
@@ -35,10 +37,9 @@ export function SignInPage({ as, expired }: { as?: "student"; expired?: boolean 
       savePending({ ...challenge, identifier: body.kind === "PARENT" ? body.mobile : body.grNo, sentAt: Date.now() });
       await navigate({ to: "/sign-in/verify" });
     },
+    // The server never says whether a number or G.R. is registered (C1): an unknown one gets a code that never comes.
     onError: (e) => {
-      if (!(e instanceof ApiError)) return;
-      if (e.code === "NOT_REGISTERED" || e.code === "GR_NOT_FOUND" || e.code === "PORTAL_NOT_ENABLED") setFieldError(t(`signin.err.${e.code}`));
-      else if (e.code === "VALIDATION") setFieldError(kind === "PARENT" ? t("signin.errMobile") : t("signin.errGr", { example: "KC-14823" }));
+      if (e instanceof ApiError && e.code === "VALIDATION") setFieldError(kind === "PARENT" ? t("signin.errMobile") : t("signin.errGr", { example: "KC-14823" }));
     },
   });
 
@@ -54,29 +55,26 @@ export function SignInPage({ as, expired }: { as?: "student"; expired?: boolean 
     }
   };
 
-  const err = send.error instanceof ApiError ? send.error : null;
-  const bannerError = err && !fieldError ? (err.isNetwork ? t("error.network") : err.code === "CODE_LOCKED" ? t("verify.err.CODE_LOCKED") : null) : null;
+  const err = send.error && !fieldError ? send.error : null;
+  const waitSec = err instanceof ApiError ? (err.details as PortalTooSoonDetails | undefined)?.waitSec : undefined;
+  const bannerError = !err
+    ? null
+    : !(err instanceof ApiError)
+      ? t("error.generic")
+      : err.isNetwork
+        ? t("error.network")
+        : err.code === "CODE_LOCKED"
+          ? t("verify.err.CODE_LOCKED")
+          : err.code === "TOO_SOON"
+            ? waitSec !== undefined
+              ? t("signin.err.TOO_SOON", { sec: waitSec })
+              : t("verify.err.TOO_SOON")
+            : err.code === "VALIDATION"
+              ? null
+              : t("error.generic");
 
   return (
-    <AuthLayout
-      title={t("signin.title")}
-      subtitle={t("signin.subtitle")}
-      aside={
-        import.meta.env.VITE_USE_MOCKS !== "false" ? (
-          <Suspense fallback={null}>
-            <DemoHint
-              onPick={(k, value) => {
-                setKind(k);
-                setFieldError(null);
-                send.reset();
-                if (k === "PARENT") setMobile(value);
-                else setGrNo(value);
-              }}
-            />
-          </Suspense>
-        ) : null
-      }
-    >
+    <AuthLayout title={t("signin.title")} subtitle={t("signin.subtitle")}>
       {expired && <Banner tone="info">{t("error.signedOut")}</Banner>}
       <form
         className="grid gap-4"

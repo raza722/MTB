@@ -9,7 +9,7 @@ import {
   type AccountsVoucherStatus,
   type AccountsVoucherType,
 } from "@mtb/api";
-import { formatDate, formatRs, formatSession, type IsoDate } from "@mtb/domain";
+import { formatDate, formatRs, formatSession, pakistanToday, type IsoDate } from "@mtb/domain";
 import { Banner, Button, cx, Icon, StatusBadge, Tooltip, type ComboboxOption, type IconName } from "@mtb/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -20,12 +20,22 @@ import { Page, PageHeader } from "../../app/shell/page";
 import { SubNav, type SubNavItem } from "../../app/shell/SubNav";
 import "./accounts.css";
 
-/** The demo's today (Wednesday 04-Nov-2026). Only for form defaults; the server decides what the books cover. */
-export const TODAY: IsoDate = "2026-11-04";
+/**
+ * Today in Pakistan (Asia/Karachi). Only for form defaults, date-picker limits and "printed on" lines; the server
+ * decides what the books cover (and sends `asOf` / `from` / `to` back on the reports, which the pages show).
+ */
+export const accToday = (): IsoDate => pakistanToday();
+/**
+ * The session runs 1 April to 31 March at every campus today. The responses don't carry the session's dates yet
+ * (contract change C10, 07_accounts.md §5.2); change these three when they do.
+ */
 export const sessionStartOf = (session: number): IsoDate => `${session}-04-01`;
 export const sessionEndOf = (session: number): IsoDate => `${session + 1}-03-31`;
 /** The last day the books cover: today, or the last day of a past session. */
-export const asOfFor = (session: number): IsoDate => (session === CURRENT_SESSION ? TODAY : sessionEndOf(session));
+export const asOfFor = (session: number): IsoDate => {
+  const today = accToday();
+  return session === CURRENT_SESSION && today <= sessionEndOf(session) ? today : sessionEndOf(session);
+};
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 /** "2026-10" → "October 2026" */
@@ -33,7 +43,7 @@ export const monthName = (m: string) => `${MONTHS[Number(m.slice(5, 7)) - 1] ?? 
 /** "2026-10" → "Oct" */
 export const monthShort = (m: string) => (MONTHS[Number(m.slice(5, 7)) - 1] ?? "").slice(0, 3);
 export const monthEnd = (m: string): IsoDate => new Date(Date.UTC(Number(m.slice(0, 4)), Number(m.slice(5, 7)), 0)).toISOString().slice(0, 10);
-/** April to March of a session. */
+/** April to March of a session (C10: from the session's dates once the responses carry them). */
 export const sessionMonths = (session: number) => Array.from({ length: 12 }, (_, i) => new Date(Date.UTC(session, 3 + i, 1)).toISOString().slice(0, 7));
 /** Months of the session that have started. */
 export const monthsSoFar = (session: number) => sessionMonths(session).filter((m) => `${m}-01` <= asOfFor(session));
@@ -260,7 +270,7 @@ export function DocHead({ title, subtitle, right }: { title: string; subtitle?: 
 export function DocFoot() {
   return (
     <div className="acc-doc-foot">
-      <span>Printed {formatDate(TODAY)} from MTB Accounts</span>
+      <span>Printed {formatDate(accToday())} from MTB Accounts</span>
       <span>Amounts in rupees</span>
     </div>
   );

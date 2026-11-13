@@ -44,6 +44,15 @@ export function useCan(permission: Permission): boolean {
   return can(user, permission, campus);
 }
 
+/**
+ * A group-wide right: held through an all-campus grant (the SMS kill switch is one switch for every campus, so the
+ * backend checks pause / resume at ALL; a single-campus admin cannot use it).
+ */
+export function useCanGroupWide(permission: Permission): boolean {
+  const user = useSessionUser();
+  return can(user, permission, "ALL");
+}
+
 export function useRoleLabel(): string {
   const user = useSessionUser();
   const { campus } = useCtx();
@@ -61,12 +70,15 @@ export function useSessionStatus(): SessionStatus {
   return session === CURRENT_SESSION ? "CURRENT" : session > CURRENT_SESSION ? "PLANNED" : "ENDED";
 }
 
-/** Pages where next year's sections, seats, rooms and teachers are prepared while it is still planned. */
-const PLANNED_EDITABLE = ["/setup/classes", "/setup/teachers"];
+/**
+ * Pages where next year is prepared while it is still planned: its sections, seats, rooms and teachers, and its intake
+ * (Admissions takes applications, tests, merit lists, offers and admissions for next year during this year).
+ */
+const PLANNED_EDITABLE = ["/setup/classes", "/setup/teachers", "/admissions"];
 
 /**
  * Editing and posting are switched off outside the current session. A planned session stays editable on the pages
- * that prepare it (Setup → Classes and Teacher allotment); ended and closed sessions are read-only everywhere.
+ * that prepare it (Setup → Classes, Teacher allotment and Admissions); ended and closed sessions are read-only everywhere.
  */
 export function useReadOnly(): boolean {
   const status = useSessionStatus();

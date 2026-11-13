@@ -16,7 +16,7 @@ const schema = z.object({
     .string()
     .trim()
     .min(5, { error: "Say why the mark should change, in a few words." })
-    .max(200, { error: "Keep the reason under 200 characters." }),
+    .max(300, { error: "Keep the reason under 300 letters." }),
 });
 
 type Errors = Partial<Record<"grNo" | "to" | "reason" | "form", string>>;

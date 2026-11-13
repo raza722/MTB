@@ -17,7 +17,7 @@ import { Fragment, useMemo, useState, type ReactNode } from "react";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { campusLabel } from "../../app/shell/campus";
 import { CampusNote, DocHead, errorField, errorText, inRange, LoadError, periodText, RequireSingleCampusOverlay, SignLines, usePrinter } from "../library/common";
-import { checkLines, itemOptions, LineEditor, newLine, WarehouseShell, type LineDraft } from "./shared";
+import { checkLines, itemOptions, LineEditor, newLine, orDash, WarehouseShell, type LineDraft } from "./shared";
 
 /* ---------------------------------------------------------------- Rooms */
 
@@ -183,7 +183,7 @@ function NewIssue({ request, onClose }: { request: WarehouseRequest | null; onCl
     >
       <div className="grid gap-4">
         {request && (
-          <Banner tone="info" title={`${request.requestedBy} asked on ${formatDate(request.requestedOn)}`}>
+          <Banner tone="info" title={request.requestedBy ? `${request.requestedBy} asked on ${formatDate(request.requestedOn)}` : `Asked on ${formatDate(request.requestedOn)}`}>
             {request.note || "Quantities still waiting are filled in. Change them if you issue part now."}
           </Banner>
         )}
@@ -336,7 +336,7 @@ function IssueDoc({ i, campus }: { i: WarehouseIssue; campus: string }) {
         <dt>Room or class</dt>
         <dd>{i.room}</dd>
         <dt>Received by</dt>
-        <dd>{i.receivedBy}</dd>
+        <dd>{orDash(i.receivedBy)}</dd>
         <dt>Issued by</dt>
         <dd>{i.issuedBy}</dd>
       </dl>
@@ -357,7 +357,7 @@ function IssueDoc({ i, campus }: { i: WarehouseIssue; campus: string }) {
               <td className="n">{l.qty}</td>
               <td>{l.unit}</td>
               <td className="n">{l.returned || "—"}</td>
-              <td>{l.remarks}</td>
+              <td>{orDash(l.remarks)}</td>
             </tr>
           ))}
         </tbody>
@@ -457,7 +457,7 @@ function RequestDoc({ requests, kindOf: kind, subtitle, campus, single }: { requ
           <dt>Date</dt>
           <dd>{formatDate(r0.requestedOn)}</dd>
           <dt>Asked by</dt>
-          <dd>{r0.requestedBy}</dd>
+          <dd>{orDash(r0.requestedBy)}</dd>
           <dt>Items issued</dt>
           <dd>{issuedText(r0.status)}</dd>
         </dl>
@@ -478,7 +478,7 @@ function RequestDoc({ requests, kindOf: kind, subtitle, campus, single }: { requ
               {!single && (
                 <tr>
                   <th colSpan={5}>
-                    {r.no} · {formatDate(r.requestedOn)} · {r.department} · {r.room} · asked by {r.requestedBy} · items issued: {issuedText(r.status)}
+                    {r.no} · {formatDate(r.requestedOn)} · {r.department} · {r.room} · asked by {orDash(r.requestedBy)} · items issued: {issuedText(r.status)}
                   </th>
                 </tr>
               )}
@@ -536,8 +536,8 @@ function ReturnsRegister({ rows, kindOf: kind, subtitle, campus }: { rows: Wareh
                 <td>{l.itemName}</td>
                 <td>{kind(l.itemId)}</td>
                 <td className="n">{formatCount(l.qty)}</td>
-                <td>{r.reason}</td>
-                <td>{r.receivedBy}</td>
+                <td>{orDash(r.reason)}</td>
+                <td>{orDash(r.receivedBy)}</td>
               </tr>
             )),
           )}
@@ -599,7 +599,7 @@ function IssuePanel({ i, onClose }: { i: WarehouseIssue; onClose: () => void }) 
       <div className="grid gap-5">
         <KeyValue
           items={[
-            ["Received by", i.receivedBy],
+            ["Received by", orDash(i.receivedBy)],
             ["Issued by", `${i.issuedBy}, ${formatDateTime(i.postedAt)}`],
             ["Against request", i.requestNo ?? "No request"],
             ["Value at cost", formatRs(i.value)],
@@ -748,14 +748,14 @@ export function IssuePage({ tab, setTab, openNew, setOpenNew }: { tab: IssueTab;
 
   const issueCols: Array<Column<WarehouseIssue>> = [
     { key: "no", header: "Issue note", render: (i) => <span className="grid"><span className="mtb-mono font-medium">{i.no}</span><span className="text-small text-ink-muted">{formatDate(i.date)}{i.requestNo ? ` · ${i.requestNo}` : ""}{ctx.campus === "ALL" ? ` · ${campusLabel(i.campus)}` : ""}</span></span> },
-    { key: "to", header: "Issued to", render: (i) => <span className="grid"><span>{i.department} · {i.room}</span><span className="text-small text-ink-muted">Received by {i.receivedBy}</span></span> },
+    { key: "to", header: "Issued to", render: (i) => <span className="grid"><span>{i.department} · {i.room}</span><span className="text-small text-ink-muted">Received by {orDash(i.receivedBy)}</span></span> },
     { key: "items", header: "Items", render: (i) => <span className="text-small">{i.lines.slice(0, 2).map((l) => `${l.itemName} × ${l.qty}`).join(", ")}{i.lines.length > 2 ? ` and ${i.lines.length - 2} more` : ""}</span> },
     { key: "value", header: "Value", align: "right", render: (i) => <span className="mtb-num">{formatRs(i.value)}</span> },
     { key: "ret", header: "Returned", render: (i) => (i.returns.length ? <StatusBadge status="info">{i.returns.reduce((a, r) => a + r.qty, 0)} back</StatusBadge> : <span className="text-ink-subtle">—</span>) },
   ];
   const reqCols: Array<Column<WarehouseRequest>> = [
     { key: "no", header: "Request", render: (r) => <span className="grid"><span className="mtb-mono font-medium">{r.no}</span><span className="text-small text-ink-muted">{formatDate(r.requestedOn)}</span></span> },
-    { key: "from", header: "From", render: (r) => <span className="grid"><span>{r.department} · {r.room}</span><span className="text-small text-ink-muted">{r.requestedBy}</span></span> },
+    { key: "from", header: "From", render: (r) => <span className="grid"><span>{r.department} · {r.room}</span><span className="text-small text-ink-muted">{orDash(r.requestedBy)}</span></span> },
     { key: "items", header: "Items (issued of asked)", render: (r) => <span className="text-small">{r.lines.map((l) => `${l.itemName} ${l.issued}/${l.qty}`).join(", ")}</span> },
     { key: "status", header: "Status", render: (r) => <StatusBadge status={r.status === "FULFILLED" ? "paid" : r.status === "CANCELLED" ? "cancelled" : r.status === "PARTIAL" ? "warning" : "pending"}>{WAREHOUSE_REQUEST_STATUS_LABEL[r.status]}</StatusBadge> },
     {
@@ -784,7 +784,7 @@ export function IssuePage({ tab, setTab, openNew, setOpenNew }: { tab: IssueTab;
     { key: "from", header: "From", render: (r) => `${r.department} · ${r.room}` },
     { key: "items", header: "Items", render: (r) => <span className="text-small">{r.lines.map((l) => `${l.itemName} × ${l.qty}`).join(", ")}</span> },
     { key: "why", header: "Reason", render: (r) => <span className="text-small">{r.reason}</span> },
-    { key: "by", header: "Taken in by", render: (r) => <span className="text-small">{r.receivedBy}</span> },
+    { key: "by", header: "Taken in by", render: (r) => <span className="text-small">{orDash(r.receivedBy)}</span> },
   ];
 
   const filtered = (f: Filters) => anyFilter(f);

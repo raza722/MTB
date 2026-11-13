@@ -6,7 +6,7 @@ import { useState } from "react";
 import { z } from "zod";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { campusLabel } from "../../app/shell/campus";
-import { CampusNote, errorField, errorText, LoadError, RequireSingleCampusOverlay, TODAY, validate } from "../library/common";
+import { CampusNote, errorField, errorText, LoadError, opsToday, RequireSingleCampusOverlay, validate } from "../library/common";
 import { AlertBadge, DateDue, TransportShell } from "./shared";
 
 const date = (what: string) => z.string({ error: `Enter the date the ${what} runs out.` }).regex(/^\d{4}-\d{2}-\d{2}$/, { error: `Enter the date the ${what} runs out.` });
@@ -16,7 +16,11 @@ const vehicleSchema = z
     type: z.enum(["BUS", "COASTER", "HIACE", "VAN", "CAR"]),
     make: z.string().trim().min(2, { error: "Enter the make, for example Toyota." }),
     model: z.string().trim().min(1, { error: "Enter the model." }),
-    year: z.number({ error: "Enter the model year." }).int().min(1990, { error: "Enter the model year." }).max(2027, { error: "The year can't be in the future." }),
+    year: z
+      .number({ error: "Enter the model year, for example 2019." })
+      .int({ error: "Enter the model year, for example 2019." })
+      .min(1950, { error: "Enter the model year, for example 2019." })
+      .refine((y) => y <= Number(opsToday().slice(0, 4)) + 1, { error: "Enter the model year, for example 2019." }),
     capacity: z.number({ error: "Enter the seats." }).int().min(2, { error: "Seats are 2 to 80." }).max(80, { error: "Seats are 2 to 80." }),
     ownership: z.enum(["OWNED", "CONTRACTED"]),
     contractor: z.string().trim(),
@@ -74,7 +78,8 @@ function VehicleForm({ v, onClose }: { v: TransportVehicle | null; onClose: () =
   });
   const num = (s: string) => (s.trim() === "" ? undefined : Number(s.replace(/\D/g, "")));
   const set = <K extends keyof Draft>(k: K, val: Draft[K]) => setD({ ...d, [k]: val });
-  const dateField = (k: "licenceExpiry" | "fitnessExpiry" | "insuranceExpiry" | "permitExpiry", label: string) => <DatePicker label={label} value={d[k] || null} onValueChange={(x) => set(k, x ?? "")} today={TODAY} error={errors[k]} />;
+  const today = opsToday();
+  const dateField = (k: "licenceExpiry" | "fitnessExpiry" | "insuranceExpiry" | "permitExpiry", label: string) => <DatePicker label={label} value={d[k] || null} onValueChange={(x) => set(k, x ?? "")} today={today} error={errors[k]} />;
   return (
     <SidePanel
       open
@@ -157,15 +162,16 @@ export function VehiclesPage() {
   const q = useQuery(transportQueries.vehicles(ctx));
   const [edit, setEdit] = useState<TransportVehicle | null | "new">(null);
   const [onlyAlerts, setOnlyAlerts] = useState(false);
+  const today = opsToday();
   const rows = (q.data ?? []).filter((v) => !onlyAlerts || v.alerts.length > 0);
   const columns: Array<Column<TransportVehicle>> = [
-    { key: "reg", header: "Vehicle", render: (v) => <span className="grid"><span className="mtb-mono font-medium">{v.regNo}</span><span className="text-small text-ink-muted">{v.make} {v.model} {v.year} · {TRANSPORT_VEHICLE_TYPE_LABEL[v.type]}{v.ownership === "CONTRACTED" ? " · contracted" : ""}{ctx.campus === "ALL" ? ` · ${campusLabel(v.campus)}` : ""}</span></span> },
+    { key: "reg", header: "Vehicle", render: (v) => <span className="grid"><span className="mtb-mono font-medium">{v.regNo}</span><span className="text-small text-ink-muted">{[v.make, v.model, v.year].filter(Boolean).join(" ")} · {TRANSPORT_VEHICLE_TYPE_LABEL[v.type]}{v.ownership === "CONTRACTED" ? " · contracted" : ""}{ctx.campus === "ALL" ? ` · ${campusLabel(v.campus)}` : ""}</span></span> },
     { key: "seats", header: "Seats", align: "right", render: (v) => <span className="mtb-num">{v.riders} / {v.capacity}</span> },
     { key: "route", header: "Route", render: (v) => (v.routeCode ? <span className="grid"><span>{v.routeCode}</span><span className="text-small text-ink-muted">{v.routeName}</span></span> : <StatusBadge status="neutral">Spare</StatusBadge>) },
-    { key: "driver", header: "Driver", render: (v) => <span className="grid"><span>{v.driverName}</span><span className="text-small text-ink-muted">{formatMobile(v.driverMobile)}</span></span> },
-    { key: "fit", header: "Fitness", render: (v) => <DateDue date={v.fitnessExpiry} today={TODAY} /> },
-    { key: "ins", header: "Insurance", render: (v) => <DateDue date={v.insuranceExpiry} today={TODAY} /> },
-    { key: "lic", header: "Licence", render: (v) => <DateDue date={v.licenceExpiry} today={TODAY} /> },
+    { key: "driver", header: "Driver", render: (v) => <span className="grid"><span>{v.driverName || "—"}</span><span className="text-small text-ink-muted">{v.driverMobile ? formatMobile(v.driverMobile) : "—"}</span></span> },
+    { key: "fit", header: "Fitness", render: (v) => <DateDue date={v.fitnessExpiry} today={today} /> },
+    { key: "ins", header: "Insurance", render: (v) => <DateDue date={v.insuranceExpiry} today={today} /> },
+    { key: "lic", header: "Licence", render: (v) => <DateDue date={v.licenceExpiry} today={today} /> },
     { key: "km", header: "Meter", align: "right", render: (v) => <span className="mtb-num text-small">{formatCount(v.odometer)} km</span> },
   ];
   const alerts = (q.data ?? []).flatMap((v) => v.alerts);

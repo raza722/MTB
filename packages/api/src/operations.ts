@@ -2,7 +2,8 @@
 // Library: catalogue of titles and copies, issue and return with a fine worked out from the campus rule,
 // overdue reminders, member history, lost and damaged copies, stock counts that correct the records.
 // Warehouse: items, suppliers, goods received, issues to departments, returns, a stock ledger per item,
-// stock counts with approval, and the book shop (books, uniform and stationery sold to students).
+// stock counts with approval, and the book shop (books, uniform and stationery sold to students). Real since module
+// 11b (backend/docs/modules/11_warehouse.md); migrated records leave some text fields "" (spec §5.3): show "—".
 // Transport: vehicles and their documents, routes and stops, students on each route with the monthly
 // transport fee sent to Fees, trips and fuel, printable route sheets.
 import type { IsoDate, IsoDateTime, Rupees } from "@mtb/domain";
@@ -140,14 +141,17 @@ export interface LibraryTitle {
   titleUr: string;
   authors: string[];
   publisher: string;
+  /** "" (with category "") for a migrated title the old system filed under no subject. */
   categoryId: string;
   category: string;
-  language: LibraryLanguage;
+  /** null for a migrated title the old system recorded no language for (shown as "—"); new titles always have one. */
+  language: LibraryLanguage | null;
   edition: string;
   /** Volume number of a work in several volumes; null for a single book. */
   volume: number | null;
   publisherCountry: string;
   year: number | null;
+  /** Stored without spaces or dashes ("9789694480076"); "" when none. */
   isbn: string;
   pages: number | null;
   copies: number;
@@ -175,7 +179,10 @@ export interface LibraryCopy {
   id: string;
   titleId: string;
   campus: CampusCode;
-  /** "KC-L-04213" — printed on the spine label. */
+  /**
+   * "KC-L-00001" for a copy added here — printed on the spine label. Numbers carried over from the old system are
+   * bare digits ("5210"; "5210-B" where the old system gave one number to two books).
+   */
   accessionNo: string;
   shelfId: string | null;
   shelfLabel: string | null;
@@ -247,6 +254,7 @@ export interface LibraryLoan {
   daysLate: number;
   /** Worked out from the campus rule: charged at return, or what it would be if returned today. */
   fine: Rupees;
+  /** PAID with fineNote "Fine recorded in the old system" for a fine settled before the move. */
   fineStatus: LibraryFineStatus;
   fineNote: string;
   issuedBy: string;
@@ -291,6 +299,8 @@ export interface LibraryOverview {
   outOfUse: number;
   /** Issues and returns per week, last 10 weeks, oldest first. */
   byWeek: Array<{ weekStart: IsoDate; issued: number; returned: number }>;
+  /** Copies per subject, most first; every copy counted once, so the copies add up to `copies`. Titles without a subject
+   *  (carried over from the old system) form the last bucket, named "No subject". */
   byCategory: Array<{ name: string; copies: number; onLoan: number }>;
   recent: LibraryActivity[];
   openCount: { id: string; name: string; scanned: number; expected: number } | null;
@@ -452,6 +462,7 @@ export interface LibraryPolicyInput {
 }
 
 export interface OperationsSmsResult {
+  /** Messages written to the outbox. They are held there (SMS sending is off), never sent from this system. */
   queued: number;
   skipped: Array<{ name: string; reason: string }>;
 }
@@ -647,6 +658,7 @@ export interface WarehouseGrn {
   campus: CampusCode;
   supplierId: string;
   supplierName: string;
+  /** "" on migrated receipts (the old system kept no supplier bill number). */
   supplierInvoiceNo: string;
   date: IsoDate;
   lines: WarehouseGrnLine[];
@@ -684,6 +696,7 @@ export interface WarehouseRequest {
   departmentId: string;
   department: string;
   room: string;
+  /** "" on migrated requests. */
   requestedBy: string;
   requestedOn: IsoDate;
   lines: Array<{ itemId: string; itemName: string; unit: string; qty: number; issued: number }>;
@@ -709,7 +722,7 @@ export interface WarehouseIssueLine {
   qty: number;
   returned: number;
   unitCost: Rupees;
-  /** What it was used for (the legacy "consumption remarks"). */
+  /** What it was used for (the legacy "consumption remarks"); "" when none was entered. */
   remarks: string;
 }
 
@@ -722,6 +735,7 @@ export interface WarehouseIssue {
   departmentId: string;
   department: string;
   room: string;
+  /** "" on migrated issues. */
   receivedBy: string;
   requestId: string | null;
   requestNo: string | null;
@@ -842,6 +856,7 @@ export interface WarehouseSaleInput {
 }
 
 export interface WarehouseBookSet {
+  /** One set per class with a live section at the campus; a class never saved has lines [] (the first save creates it). */
   id: string;
   campus: CampusCode;
   classShort: string;
@@ -903,7 +918,7 @@ export interface TransportAlert {
 export interface TransportVehicle {
   id: string;
   campus: CampusCode;
-  /** "BSA-1427" */
+  /** "BSA-1427": 2-4 letters, a dash, 1-4 digits; unique within the campus. */
   regNo: string;
   type: TransportVehicleType;
   make: string;
@@ -994,8 +1009,9 @@ export interface TransportRider {
   fromDate: IsoDate;
   toDate: IsoDate | null;
   monthlyFee: Rupees;
-  /** BILLED: charged monthly with the fee. PAYROLL: staff, deducted from salary. */
+  /** BILLED: charged monthly with the fee (Fees). PAYROLL: staff; recorded for payroll, never charged in Fees (no salary deduction is made yet). */
   feeLink: "BILLED" | "PAYROLL";
+  /** ACTIVE: no last day, or the last day is today or later (a start up to 60 days ahead already counts). */
   status: "ACTIVE" | "ENDED";
   endReason: string;
 }
@@ -1014,8 +1030,9 @@ export interface TransportRiderInput {
 /** What assigning a student did in Fees. */
 export interface TransportRiderResult {
   rider: TransportRider;
-  /** "Transport fee – Nov 2026", or empty for staff. */
+  /** "Transport fee – Nov 2026" (assign) or "Transport fee Rs 1,250 a month from the next fee voucher" (move); empty for staff, and on assign for a student whose fare is Rs 0. */
   feeHead: string;
+  /** Due date of the month charged on assign; null for staff, a move, or when nothing was charged. */
   feeDueOn: IsoDate | null;
 }
 
@@ -1210,7 +1227,9 @@ export const libraryQueries = {
   titles: (ctx: Ctx) => queryOptions({ queryKey: lk(ctx, "titles"), queryFn: () => libraryApi.titles(ctx) }),
   title: (ctx: Ctx, id: string) => queryOptions({ queryKey: lk(ctx, "title", id), queryFn: () => libraryApi.title(id), enabled: id !== "" }),
   lookup: (ctx: Ctx, accessionNo: string) =>
-    queryOptions({ queryKey: lk(ctx, "lookup", accessionNo), queryFn: () => libraryApi.lookup(ctx, accessionNo), enabled: accessionNo.trim().length >= 3, retry: false }),
+    queryOptions({ queryKey: lk(ctx, "lookup", accessionNo), queryFn: () => libraryApi.lookup(ctx, accessionNo), enabled: accessionNo.trim().length >= 1, retry: false }),
+  // ^ legacy accession numbers can be 1-2 characters ("57"): the desk only sets accessionNo on Find, so any
+  //   non-blank submitted value must run the lookup (fix L5 of backend/docs/modules/11_library.md §9).
   loans: (ctx: Ctx, q: LibraryLoansQuery = {}) =>
     queryOptions({
       queryKey: lk(ctx, "loans", q.status ?? "ALL", q.borrowerType ?? "", q.from ?? "", q.to ?? "", q.q ?? "", q.cls ?? "", q.section ?? "", q.staffGroup ?? ""),

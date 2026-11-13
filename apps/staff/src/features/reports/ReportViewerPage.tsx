@@ -14,7 +14,7 @@ import {
   type ReportResult,
   type ReportRunRequest,
 } from "@mtb/api";
-import { formatCount, formatDate, formatPercent, formatRs } from "@mtb/domain";
+import { daysBetween, formatCount, formatDate, formatPercent, formatRs, formatSession, pakistanToday, type IsoDate } from "@mtb/domain";
 import {
   AreaChart,
   Banner,
@@ -68,31 +68,57 @@ const startFilters = (filters: ReportFilterDef[], given: Record<string, string> 
   return out;
 };
 
-const TODAY = "2026-11-04";
 const PAGE = 50;
 
-/** Turns "today" / "monthStart" defaults into dates the pickers understand. */
+/**
+ * Today in Pakistan (the server's "today"). Only for default dates, picker limits and the checks next to the
+ * filters: the server resolves and validates the filters again.
+ */
+const today = (): IsoDate => pakistanToday();
+const monthStartOf = (d: IsoDate): IsoDate => `${d.slice(0, 7)}-01`;
+
+/** The last day of the month before the one `d` falls in, and that month's first day. */
+function prevMonthOf(d: IsoDate): { from: IsoDate; to: IsoDate } {
+  const y = Number(d.slice(0, 4));
+  const m = Number(d.slice(5, 7));
+  const py = m === 1 ? y - 1 : y;
+  const pm = m === 1 ? 12 : m - 1;
+  const last = new Date(Date.UTC(py, pm, 0)).getUTCDate();
+  const mm = String(pm).padStart(2, "0");
+  return { from: `${py}-${mm}-01`, to: `${py}-${mm}-${String(last).padStart(2, "0")}` };
+}
+
+/**
+ * Turns the "today" / "monthStart" defaults into dates the pickers understand (the contract's two tokens; the
+ * server sends every other default already resolved).
+ */
 function defaultsOf(filters: ReportFilterDef[]): ReportFilterValues {
+  const t = today();
   const out: ReportFilterValues = {};
-  for (const f of filters) out[f.key] = (f.default ?? "").replace("monthStart", `${TODAY.slice(0, 7)}-01`).replace(/today/g, TODAY);
+  for (const f of filters) out[f.key] = (f.default ?? "").replace(/monthStart/g, monthStartOf(t)).replace(/today/g, t);
   return out;
 }
 
-/** Plain-English checks next to the filters (the server checks again). */
+/** Plain-English checks next to the filters, in the server's order and wording (the server checks again). */
 function check(filters: ReportFilterDef[], v: ReportFilterValues): Record<string, string> {
+  const t = today();
   const e: Record<string, string> = {};
   for (const f of filters) {
     const val = v[f.key] ?? "";
+    if (f.required && !val) {
+      e[f.key] = `Choose ${f.label.toLowerCase()}.`;
+      continue;
+    }
     if (f.kind === "dateRange") {
       const [from = "", to = ""] = val.split("|");
       if (!from || !to) e[f.key] = "Choose both dates.";
       else if (from > to) e[f.key] = "The first date must be on or before the second.";
-      else if (to > TODAY) e[f.key] = `Choose dates up to today (${formatDate(TODAY)}).`;
+      else if (to > t) e[f.key] = `Choose dates up to today (${formatDate(t)}).`;
+      else if (daysBetween(from, to) > 366) e[f.key] = "Choose a period of one year or less.";
       continue;
     }
-    if (f.required && !val) e[f.key] = `Choose ${f.label.toLowerCase()}.`;
-    else if (f.kind === "date" && val > TODAY && !f.allowFuture) e[f.key] = `Choose today (${formatDate(TODAY)}) or an earlier date.`;
-    else if (f.kind === "number" && val && !/^\d+$/.test(val)) e[f.key] = "Enter a whole number.";
+    if (f.kind === "date" && val > t && !f.allowFuture) e[f.key] = `Choose today (${formatDate(t)}) or an earlier date.`;
+    else if (f.kind === "number" && val && !/^\d+$/.test(val)) e[f.key] = `${f.label}: enter a whole number.`;
   }
   return e;
 }
@@ -330,7 +356,7 @@ function Viewer({ def, search, setSearch }: { def: ReportCatalogueItem; search: 
                 <Skeleton height={240} />
               ) : (
                 <Banner tone="warning" title="That copy is no longer available." actions={<Button size="sm" onClick={() => setSearch({})}>Run it again</Button>}>
-                  Files are kept for 7 days and only for the person who asked for them.
+                  Files are kept for 7 days, only for the person who asked for them and the people a scheduled report was sent to.
                 </Banner>
               )
             ) : job.status === "QUEUED" || job.status === "RUNNING" ? (
@@ -396,25 +422,22 @@ function Viewer({ def, search, setSearch }: { def: ReportCatalogueItem; search: 
 function FilterControl({ def, value, onChange, error, classFilter }: { def: ReportFilterDef; value: string; onChange: (v: string) => void; error: string | undefined; classFilter: string }) {
   const ctx = useCtx();
   const classes = useQuery(metaQueries.classes(ctx.campus));
+  const todayIso = today();
   const errorProps = error ? { error } : {};
   const helpProps = def.help ? { help: def.help } : {};
   switch (def.kind) {
     case "date":
-      return <DatePicker label={def.label} value={value || null} onValueChange={(v) => onChange(v ?? "")} today={TODAY} {...(def.allowFuture ? {} : { maxDate: TODAY })} {...helpProps} {...errorProps} />;
+      return <DatePicker label={def.label} value={value || null} onValueChange={(v) => onChange(v ?? "")} today={todayIso} {...(def.allowFuture ? {} : { maxDate: todayIso })} {...helpProps} {...errorProps} />;
     case "dateRange": {
       const [from = "", to = ""] = value.split("|");
       return (
         <div className="grid gap-1.5" style={{ gridColumn: "span 2" }}>
           <div className="grid grid-cols-2 gap-2">
-            <DatePicker label="From" value={from || null} onValueChange={(v) => onChange(`${v ?? ""}|${to}`)} today={TODAY} maxDate={TODAY} {...errorProps} />
-            <DatePicker label="To" value={to || null} onValueChange={(v) => onChange(`${from}|${v ?? ""}`)} today={TODAY} maxDate={TODAY} />
+            <DatePicker label="From" value={from || null} onValueChange={(v) => onChange(`${v ?? ""}|${to}`)} today={todayIso} maxDate={todayIso} {...errorProps} />
+            <DatePicker label="To" value={to || null} onValueChange={(v) => onChange(`${from}|${v ?? ""}`)} today={todayIso} maxDate={todayIso} />
           </div>
           <div className="flex flex-wrap gap-1">
-            {[
-              ["This month", "2026-11-01|2026-11-04"],
-              ["Last month", "2026-10-01|2026-10-31"],
-              ["This session", "2026-04-01|2026-11-04"],
-            ].map(([label, v]) => (
+            {quickRanges(todayIso, ctx.session).map(([label, v]) => (
               <button key={label} type="button" className="rpt-module" aria-pressed={value === v} onClick={() => onChange(v!)}>
                 {label}
               </button>
@@ -428,7 +451,8 @@ function FilterControl({ def, value, onChange, error, classFilter }: { def: Repo
     case "class":
       return <Select label={def.label} value={value} onChange={(e) => onChange(e.target.value)} options={[...(def.required ? [] : [{ value: "", label: "All classes" }]), ...(classes.data ?? []).map((c) => ({ value: c.short, label: c.name }))]} {...errorProps} />;
     case "section": {
-      const sections = classes.data?.find((c) => c.short === classFilter)?.sections ?? ["A", "B", "C"];
+      // The chosen class's sections; with no class chosen, every section name at the campus.
+      const sections = classFilter ? (classes.data?.find((c) => c.short === classFilter)?.sections ?? []) : [...new Set((classes.data ?? []).flatMap((c) => c.sections))].sort();
       return <Select label={def.label} value={value} onChange={(e) => onChange(e.target.value)} options={[...(def.required ? [] : [{ value: "", label: "All sections" }]), ...sections.map((s) => ({ value: s, label: s }))]} {...errorProps} />;
     }
     case "classSection":
@@ -442,6 +466,23 @@ function FilterControl({ def, value, onChange, error, classFilter }: { def: Repo
     case "text":
       return <Input label={def.label} mono value={value} onChange={(e) => onChange(e.target.value.toUpperCase())} {...helpProps} {...errorProps} />;
   }
+}
+
+/**
+ * Quick date ranges: this month and last month up to today, and the chosen session (1 April, as the server's
+ * session start) up to today or the session's last day. Only ranges that end on or before today are offered.
+ */
+function quickRanges(t: IsoDate, session: number): Array<[string, string]> {
+  const prev = prevMonthOf(t);
+  const sessionFrom = `${session}-04-01`;
+  const sessionEnd = `${session + 1}-03-31`;
+  const sessionTo = sessionEnd < t ? sessionEnd : t;
+  const out: Array<[string, string]> = [
+    ["This month", `${monthStartOf(t)}|${t}`],
+    ["Last month", `${prev.from}|${prev.to}`],
+  ];
+  if (sessionFrom <= t) out.push([sessionEnd < t ? `Session ${formatSession(session)}` : "This session", `${sessionFrom}|${sessionTo}`]);
+  return out;
 }
 
 const DAY_CODE: Record<string, string> = { A: "text-danger-ink font-semibold", L: "text-info-ink", Lt: "text-warning-ink" };

@@ -24,7 +24,13 @@ export function StockBadge({ status }: { status: WarehouseStockStatus }) {
   return <StatusBadge status={status === "OK" ? "paid" : status === "LOW" ? "warning" : "overdue"}>{WAREHOUSE_STOCK_STATUS_LABEL[status]}</StatusBadge>;
 }
 
-export const qtyText = (n: number, unit: string) => `${formatCount(n)} ${unit.toLowerCase()}${n === 1 || unit.endsWith("s") ? "" : unit === "Box" ? "es" : "s"}`;
+/**
+ * "—" for a text the record does not have. Migrated records leave some fields empty (spec 11_warehouse §5.3): a GRN's
+ * supplier invoice no., who received an issue, who asked for a request, an issue line's remarks.
+ */
+export const orDash = (s: string | null | undefined): string => (s && s.trim() ? s : "—");
+
+export const qtyText =(n: number, unit: string) => `${formatCount(n)} ${unit.toLowerCase()}${n === 1 || unit.endsWith("s") ? "" : unit === "Box" ? "es" : "s"}`;
 
 export function itemOptions(items: WarehouseItem[], showStock = true): ComboboxOption[] {
   return items

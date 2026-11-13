@@ -5,14 +5,13 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState, type CSSProperties } from "react";
 import { z } from "zod";
-import { useCan, useReadOnly } from "../../app/session";
-import { EXAMS_TODAY } from "./NewExamPage";
-import { errorText, PaperBadge, useExam } from "./shared";
+import { useReadOnly } from "../../app/session";
+import { errorText, examsToday, PaperBadge, useCanOnExam, useExam } from "./shared";
 
 /** Overview of one exam: where every paper stands, the date sheet, absence fines and the history log. */
 export function ExamOverview() {
   const exam = useExam();
-  const canManage = useCan("exams.manage");
+  const canManage = useCanOnExam("exams.manage", exam.campus);
   const readOnly = useReadOnly();
   const [paper, setPaper] = useState<ExamsPaper | null>(null);
   const [editing, setEditing] = useState(false);
@@ -43,6 +42,7 @@ export function ExamOverview() {
       {declared ? (
         <Banner tone="success" title={`Declared${exam.declaredOn ? ` on ${formatDateTime(exam.declaredOn)}` : ""}${exam.declaredBy ? ` by ${exam.declaredBy}` : ""}.`}>
           Results are read-only and visible in the parent portal. Grades and positions are kept exactly as declared.
+          {exam.missingMarks > 0 && ` Declared in the old system with ${formatCount(exam.missingMarks)} ${exam.missingMarks === 1 ? "mark" : "marks"} missing: those papers show “—”.`}
         </Banner>
       ) : exam.missingMarks > 0 ? (
         <Banner tone="warning" title={`${formatCount(exam.missingMarks)} ${exam.missingMarks === 1 ? "mark is" : "marks are"} missing — results can't be declared yet.`}>
@@ -51,7 +51,7 @@ export function ExamOverview() {
         </Banner>
       ) : (
         <Banner tone="info" title="Draft — all marks are in.">
-          The principal can declare now. Declaring freezes grades and positions and shows the results in the parent portal.
+          The principal can declare now. Declaring locks the marks and the grading rules, so grades and positions stay as declared, and shows the results in the parent portal.
         </Banner>
       )}
 
@@ -99,7 +99,7 @@ export function ExamOverview() {
           meterLabel={`${done} of ${papers.length} papers submitted or checked`}
           foot={`${papers.filter((p) => p.status === "CHECKED").length} checked by the exam office`}
         />
-        <StatCard label="Marks missing" icon="alertCircle" tone={exam.missingMarks > 0 ? "warning" : "neutral"} value={<AnimatedNumber value={exam.missingMarks} format={formatCount} />} foot={exam.missingMarks > 0 ? "Declaring is blocked" : "Nothing missing"} />
+        <StatCard label="Marks missing" icon="alertCircle" tone={exam.missingMarks > 0 && !declared ? "warning" : "neutral"} value={<AnimatedNumber value={exam.missingMarks} format={formatCount} />} foot={exam.missingMarks > 0 ? (declared ? "Declared in the old system with gaps" : "Declaring is blocked") : "Nothing missing"} />
         <StatCard label="Absent papers" icon="user" value={<AnimatedNumber value={fineable.length} format={formatCount} />} foot={fine > 0 ? `${formatRs(fine * fineable.length)} in fines · ${absences.length - fineable.length} on leave` : `${absences.length - fineable.length} on leave · no fine for this type`} />
       </div>
 
@@ -140,7 +140,7 @@ export function ExamOverview() {
                       <span className="exams-board-meter" aria-hidden="true">
                         <span style={{ width: `${pct}%` }} />
                       </span>
-                      <span className="truncate text-[12px] text-ink-muted">{p.teacher ?? "Admissions office"}</span>
+                      <span className="truncate text-[12px] text-ink-muted">{teacherText(exam, p)}</span>
                     </button>
                   );
                 })}
@@ -230,6 +230,10 @@ export function ExamOverview() {
   );
 }
 
+/** Who marks a paper: the section's subject teacher; entrance tests are marked by the admissions office. */
+const teacherText = (exam: Pick<ExamDetail, "category" | "programmeId">, p: Pick<ExamsPaper, "teacher">) =>
+  p.teacher || (exam.category === "ENTRANCE" && !exam.programmeId ? "Admissions office" : "No subject teacher recorded");
+
 /** One section's paper: counts, teacher, and the exam office's check / return actions. */
 function PaperPanel({ exam, paper, editable, onClose }: { exam: ExamDetail; paper: ExamsPaper; editable: boolean; onClose: () => void }) {
   const toast = useToast();
@@ -273,7 +277,7 @@ function PaperPanel({ exam, paper, editable, onClose }: { exam: ExamDetail; pape
         </div>
         <KeyValue
           items={[
-            ["Teacher", live.teacher ?? "Admissions office"],
+            ["Teacher", teacherText(exam, live)],
             ["Entered", `${live.entered} of ${live.candidates}${missing > 0 ? ` · ${missing} missing` : ""}`],
             ["Absent", `${live.absent}${live.leave ? ` · ${live.leave} on leave` : ""}`],
             ["Last change", live.updatedAt ? `${live.updatedBy ?? "—"} · ${formatDateTime(live.updatedAt)}` : "Nothing entered yet"],
@@ -391,7 +395,7 @@ function DateSheetPanel({ exam, onClose }: { exam: ExamDetail; onClose: () => vo
             <fieldset key={r.id} className="m-0 grid gap-3 rounded-md border border-border p-3">
               <legend className="px-1 font-semibold">{r.name}</legend>
               <div className="grid gap-3 sm:grid-cols-3">
-                <DatePicker label="Date" value={r.date} onValueChange={(d) => set(i, { date: d })} today={EXAMS_TODAY} />
+                <DatePicker label="Date" value={r.date} onValueChange={(d) => set(i, { date: d })} today={examsToday()} />
                 <Input label="Starts" value={r.startTime} onChange={(e) => set(i, { startTime: e.target.value })} error={err.startTime} />
                 <Input label="Minutes" value={r.durationMins} inputMode="numeric" amount onChange={(e) => set(i, { durationMins: e.target.value.replace(/\D/g, "") })} error={err.durationMins} />
               </div>

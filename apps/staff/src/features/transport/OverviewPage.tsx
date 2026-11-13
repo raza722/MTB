@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
-import { LoadError, monthShort, slide, ViewToggle } from "../library/common";
+import { LoadError, monthShort, opsToday, slide, ViewToggle } from "../library/common";
 import { AlertBadge, Load, TransportShell } from "./shared";
 
 function RouteLoad({ o }: { o: TransportOverview }) {
@@ -67,6 +67,7 @@ export function TransportOverviewPage() {
   const o = q.data;
   const go = (to: string) => void navigate({ to: to as never });
   const maxFuel = Math.max(1, ...(o?.fuel.map((f) => f.amount) ?? [1]));
+  const thisMonth = opsToday().slice(0, 7);
   return (
     <TransportShell
       title="Transport"
@@ -135,7 +136,7 @@ export function TransportOverviewPage() {
               <div key={f.month} className="mtb-slide-in grid gap-1" style={slide(i)}>
                 <span className="text-small text-ink-muted">
                   {monthShort(f.month)} {f.month.slice(0, 4)}
-                  {f.month === "2026-11" ? " (so far)" : ""}
+                  {f.month === thisMonth ? " (so far)" : ""}
                 </span>
                 <span className="mtb-num font-semibold">{formatRs(f.amount)}</span>
                 <span className="text-small text-ink-muted">{formatCount(f.litres)} litres</span>

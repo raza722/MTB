@@ -14,10 +14,14 @@ import { AdmitPanel } from "./AdmitPanel";
 import { ApplicantPanel } from "./ApplicantPanel";
 import { MeritListView } from "./MeritListView";
 import { DuplicatesView } from "./DuplicatesView";
-import { AdmissionsSubNav, DiamondMindsBadge, downloadCsv, offerDeadline, relationName, scoreText } from "./shared";
+import { AdmissionsSubNav, DiamondMindsBadge, downloadCsv, mobileOrDash, offerDeadline, relationName, scoreOf, scoreShare, scoreText } from "./shared";
 import { AdmittedListPrint } from "./slips";
 
-const classOfCs = (a: AdmissionsApplicant) => (a.admittedClassSection ?? a.classApplied.replace("Class ", "")).split("-")[0]!;
+/** The class part of the admitted class-section ("7" of "7-B"); the class applied for when there is no placement. */
+const classOfCs = (a: AdmissionsApplicant) => (a.admittedClassSection ? (a.admittedClassSection.split("-")[0] ?? a.classApplied) : a.classApplied);
+
+/** "Test 88/100" or "Interview". */
+const basisOf = (a: AdmissionsApplicant) => (scoreShare(a) === null ? "Interview" : `Test ${scoreOf(a, "/")}`);
 
 /** Offered applicants waiting to complete admission, and everyone admitted this session. */
 export function OffersPage() {
@@ -25,7 +29,10 @@ export function OffersPage() {
   const canManage = useCan("admissions.manage");
   const canEdit = useCan("students.edit");
   const readOnly = useReadOnly();
-  const pipeline = useQuery(admissionsQueries.pipeline(ctx));
+  // Only the two stages this page lists, every page of each (the pipeline is paged, contract C8).
+  const offeredQ = useQuery(admissionsQueries.pipelineAll(ctx, { stage: ["OFFERED"] }));
+  const admittedQ = useQuery(admissionsQueries.pipelineAll(ctx, { stage: ["ADMITTED"] }));
+  const pipeline = { data: offeredQ.data && admittedQ.data ? offeredQ.data : undefined, isError: offeredQ.isError || admittedQ.isError, error: offeredQ.error ?? admittedQ.error, isLoading: offeredQ.isLoading || admittedQ.isLoading, refetch: () => Promise.all([offeredQ.refetch(), admittedQ.refetch()]) };
   const [admitting, setAdmitting] = useState<AdmissionsApplicant | null>(null);
   const [viewing, setViewing] = useState<string | null>(null);
   const [slipFor, setSlipFor] = useState<string | null>(null);
@@ -36,20 +43,24 @@ export function OffersPage() {
   const [ticked, setTicked] = useState<Set<unknown>>(new Set());
   const [bulkSlips, setBulkSlips] = useState<string[] | null>(null);
   const [printList, setPrintList] = useState(false);
-  const all = pipeline.data?.applicants ?? [];
-  const offered = all.filter((a) => a.stage === "OFFERED").sort((a, b) => (a.offerValidUntil ?? "").localeCompare(b.offerValidUntil ?? ""));
+  const all = [...(offeredQ.data?.applicants ?? []), ...(admittedQ.data?.applicants ?? [])];
+  // Soonest expiry first; offers without an expiry (migrated from the old system) last.
+  const offered = all.filter((a) => a.stage === "OFFERED").sort((a, b) => (a.offerValidUntil ?? "9999").localeCompare(b.offerValidUntil ?? "9999"));
   const admittedAll = all.filter((a) => a.stage === "ADMITTED").sort((a, b) => (b.admittedOn ?? "").localeCompare(a.admittedOn ?? ""));
   const classes = useMemo(() => [...new Set(admittedAll.map(classOfCs))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })), [admittedAll]);
+  /** Class short name → the class's name as applied for ("7" → "Class 7"), from the rows themselves. */
+  const className = useMemo(() => new Map(admittedAll.map((a) => [classOfCs(a), a.classApplied])), [admittedAll]);
+  const classLabel = (c: string) => className.get(c) ?? c;
   const sections = useMemo(() => [...new Set(admittedAll.filter((a) => classOfCs(a) === cls).map((a) => (a.admittedClassSection ?? "").split("-")[1] ?? "").filter(Boolean))].sort(), [admittedAll, cls]);
   const rangeBad = Boolean(from && to && from > to);
   const admitted = admittedAll.filter((a) => (!cls || classOfCs(a) === cls) && (!section || (a.admittedClassSection ?? "").endsWith(`-${section}`)) && (!from || (a.admittedOn ?? "") >= from) && (!to || (a.admittedOn ?? "") <= to));
-  const scope = `${cls ? (cls === "Prep" ? "Prep" : `Class ${cls}`) : "Every class"}${section ? `-${section}` : ""} · ${from ? formatDate(from) : "session start"} to ${to ? formatDate(to) : "today"}`;
+  const scope = `${cls ? classLabel(cls) : "Every class"}${section ? ` · section ${cls}-${section}` : ""} · ${from ? formatDate(from) : "session start"} to ${to ? formatDate(to) : "today"}`;
   const tickedGr = admitted.filter((a) => ticked.has(a.id) && a.grNo).map((a) => a.grNo!);
   const csv = () =>
     downloadCsv(
       "new-admissions.csv",
       ["G.R. no.", "Student", "Father", "Gender", "Class", "Group", "Admitted", "Previous school", "Mobile", "Basis"],
-      admitted.map((a) => [a.grNo ?? "", a.name, a.father, a.gender === "F" ? "Girl" : "Boy", a.admittedClassSection ?? a.classApplied, a.stream ?? "", a.admittedOn ? formatDate(a.admittedOn) : "", a.previousSchool ?? "", formatMobile(a.mobile), a.testScore !== null ? `Test ${a.testScore}/${a.testMax}` : "Interview"]),
+      admitted.map((a) => [a.grNo ?? "", a.name, a.father, a.gender === "F" ? "Girl" : "Boy", a.admittedClassSection ?? a.classApplied, a.stream ?? "", a.admittedOn ? formatDate(a.admittedOn) : "", a.previousSchool ?? "", a.mobile ? formatMobile(a.mobile) : "", basisOf(a)]),
     );
   const urgent = offered.filter((a) => offerDeadline(a.offerValidUntil)?.urgent).length;
   const editable = canManage && !readOnly;
@@ -63,7 +74,7 @@ export function OffersPage() {
           <span className="mtb-cell-primary flex items-center gap-2">
             {a.name} {a.diamondMinds && <DiamondMindsBadge />}
           </span>
-          <span className="mtb-cell-secondary">{relationName(a)}</span>
+          <span className="mtb-cell-secondary">{relationName(a) || "—"}</span>
         </span>
       ),
     },
@@ -107,7 +118,7 @@ export function OffersPage() {
       render: (a) => (
         <span className="grid">
           <span className="mtb-cell-primary">{a.name}</span>
-          <span className="mtb-cell-secondary">{relationName(a)}</span>
+          <span className="mtb-cell-secondary">{relationName(a) || "—"}</span>
         </span>
       ),
     },
@@ -116,8 +127,8 @@ export function OffersPage() {
     { key: "admittedClassSection", header: "Class", width: 110, render: (a) => <span className="grid"><span>{a.admittedClassSection ?? a.classApplied}</span>{a.stream && <span className="mtb-cell-secondary">{a.stream}</span>}</span> },
     { key: "admittedOn", header: "Admitted", width: 120, render: (a) => <span className="tabular-nums">{a.admittedOn ? formatDate(a.admittedOn) : "—"}</span> },
     { key: "previousSchool", header: "Previous school", width: 180, render: (a) => a.previousSchool ?? <span className="text-ink-subtle">—</span> },
-    { key: "mobile", header: "Mobile", width: 130, render: (a) => <span className="tabular-nums">{formatMobile(a.mobile)}</span> },
-    { key: "basis", header: "Basis", width: 120, render: (a) => (a.testScore !== null ? `Test ${a.testScore}/${a.testMax}` : "Interview") },
+    { key: "mobile", header: "Mobile", width: 130, render: (a) => <span className="tabular-nums">{mobileOrDash(a.mobile)}</span> },
+    { key: "basis", header: "Basis", width: 120, render: basisOf },
     {
       key: "slip",
       header: <span className="mtb-sr-only">Admission slip</span>,
@@ -148,14 +159,14 @@ export function OffersPage() {
           <StatCard label="Offers waiting" icon="send" tone="warning" loading={!pipeline.data} value={pipeline.data ? <AnimatedNumber value={offered.length} format={formatCount} /> : undefined} foot={`${urgent} ending within two days`} />
         </div>
         <div className="mtb-rise" style={stagger(2)}>
-          <StatCard label="Admitted this session" icon="checkCircle" loading={!pipeline.data} value={pipeline.data ? <AnimatedNumber value={admittedAll.length} format={formatCount} /> : undefined} {...(pipeline.data?.admittedThisWeek ? { delta: pipeline.data.admittedThisWeek, deltaLabel: `+${pipeline.data.admittedThisWeek} this week` } : {})} foot="G.R. numbers issued" />
+          <StatCard label="Admitted through Admissions" icon="checkCircle" loading={!pipeline.data} value={pipeline.data ? <AnimatedNumber value={admittedAll.length} format={formatCount} /> : undefined} {...(pipeline.data?.admittedThisWeek ? { delta: pipeline.data.admittedThisWeek, deltaLabel: `+${pipeline.data.admittedThisWeek} this week` } : {})} foot="this session, on their student records" />
         </div>
         <div className="mtb-rise" style={stagger(3)}>
           <StatCard label="With siblings at MTB" icon="home" tone="info" loading={!pipeline.data} value={pipeline.data ? <AnimatedNumber value={[...offered, ...admittedAll].filter((a) => a.siblings?.length).length} format={formatCount} /> : undefined} foot="linked to their family on admission" />
         </div>
       </div>
       {urgent > 0 && <Banner tone="warning" title={`${urgent} ${urgent === 1 ? "offer ends" : "offers end"} within two days`}>Call these families today. An offer that lapses frees the seat for the next applicant on the merit list.</Banner>}
-      <Panel id="offers" rise={4} title="Waiting to complete admission" description="Choose the section; the G.R. number, roll number and first charges follow in one step" flush>
+      <Panel id="offers" rise={4} title="Waiting to complete admission" description="Choose the section; the G.R. number and roll number follow in one step" flush>
         <DataTable caption="Offers waiting" columns={offerCols} rows={offered} loading={pipeline.isLoading} onRowClick={(a) => setViewing(a.id)} stickyHeader={false} empty={<EmptyState icon="checkCircle" title="No offers waiting" description="Offer seats from the merit list, or after an interview for classes without a test." />} />
       </Panel>
       <Panel
@@ -198,7 +209,7 @@ export function OffersPage() {
                     setCls(e.target.value);
                     setSection("");
                   }}
-                  options={[{ value: "", label: "Every class" }, ...classes.map((c) => ({ value: c, label: c === "Prep" ? "Prep" : `Class ${c}` }))]}
+                  options={[{ value: "", label: "Every class" }, ...classes.map((c) => ({ value: c, label: classLabel(c) }))]}
                 />
               </div>
               <div className="w-36">
@@ -232,7 +243,7 @@ export function OffersPage() {
       >
         {printList && (
           <PrintSheet paper="A4_LANDSCAPE" label="New admission list" zoom={0.5}>
-            <AdmittedListPrint rows={admitted} campus={ctx.campus} campusName={admitted[0]?.campusName ?? ""} scope={scope} />
+            <AdmittedListPrint rows={admitted} campus={ctx.campus} campusName={admitted[0]?.campusName ?? ctx.campus} scope={scope} />
           </PrintSheet>
         )}
       </Modal>

@@ -1,10 +1,10 @@
 import { SMS_CATEGORY_LABEL, smsQueries, smsStatusQueries, type SmsBatch, type SmsTemplateCategory, type SmsTrendDay } from "@mtb/api";
-import { formatCount, formatDate, formatPercent, formatRs, formatWeekday } from "@mtb/domain";
+import { formatCount, formatDate, formatPercent, formatRs, formatWeekday, pakistanToday } from "@mtb/domain";
 import { AnimatedNumber, buttonClassName, ColumnChart, DataTable, EmptyState, Icon, Panel, Segmented, SegmentedBar, Skeleton, Sparkline, StatCard, type Column } from "@mtb/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { useCan, useCtx, useReadOnly } from "../../app/session";
+import { useCan, useCanGroupWide, useCtx, useReadOnly } from "../../app/session";
 import { campusLabel } from "../../app/shell/campus";
 import { KillSwitch } from "./KillSwitch";
 import { BatchStatus, ChannelLabel, LoadError, MessagesShell, slide, useGo, whenText } from "./shell";
@@ -22,12 +22,12 @@ const CATEGORY_COLOR: Record<SmsTemplateCategory, string> = {
 
 const shortDay = (d: string) => formatDate(d).slice(0, 6).replace("-", " ");
 
-/** /sms — what went out today and this month, what it cost, and what needs attention. */
+/** /sms — messages today and this month, what they would cost, and what needs attention. */
 export function OverviewPage() {
   const ctx = useCtx();
   const go = useGo();
   const canSend = useCan("sms.send");
-  const canPause = useCan("sms.pause");
+  const canPause = useCanGroupWide("sms.pause"); // group-wide switch: an all-campus grant
   const readOnly = useReadOnly();
   const q = useQuery({ ...smsQueries.overview(ctx), refetchInterval: (s) => (s.state.data && (s.state.data.today.queued > 0 || s.state.data.today.sent > 0) ? 3000 : false) });
   const status = useQuery(smsStatusQueries.status());
@@ -45,7 +45,10 @@ export function OverviewPage() {
     </>
   );
 
-  const total = d ? d.today.delivered + d.today.app : 0;
+  // Nothing is sent from this system: today's new messages are held ("queued"); sent / delivered / failed are
+  // migrated history only.
+  const total = d ? d.today.delivered + d.today.sent + d.today.app : 0;
+  const todayIso = pakistanToday();
   const budgetPct = d && d.month.budget ? Math.round((d.month.cost / d.month.budget) * 100) : 0;
   const appPct = d ? Math.round((d.appFamilies.withApp / Math.max(1, d.appFamilies.total)) * 100) : 0;
   const catTotal = d ? d.byCategory.reduce((s, c) => s + c.count, 0) : 0;
@@ -66,11 +69,11 @@ export function OverviewPage() {
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <div className="mtb-rise" style={slide(0)}>
               <StatCard
-                label="Delivered today"
+                label="Sent today"
                 icon="checkCircle"
                 loading={!d}
                 value={d ? <AnimatedNumber value={total} format={formatCount} /> : ""}
-                foot={d ? `${formatCount(d.today.delivered)} SMS · ${formatCount(d.today.app)} app · ${formatPercent(d.deliveryRate)} of SMS delivered` : ""}
+                foot={d ? `${formatCount(d.today.delivered + d.today.sent)} SMS · ${formatCount(d.today.app)} app · ${d.today.delivered + d.today.failed > 0 ? `${formatPercent(d.deliveryRate)} of SMS delivered` : "delivery rate —"} · ${formatCount(d.today.queued)} held in the outbox` : ""}
                 {...(d ? { onClick: () => go("/sms/delivery") } : {})}
               >
                 {d && <Sparkline values={d.trend.map((t) => t.sms + t.app)} label={`Last 14 days: ${d.trend.map((t) => t.sms + t.app).join(", ")} messages a day`} height={32} />}
@@ -83,7 +86,7 @@ export function OverviewPage() {
                 {...(d && d.today.failed > 0 ? { tone: "danger" as const } : {})}
                 loading={!d}
                 value={d ? <AnimatedNumber value={d.today.failed} format={formatCount} /> : ""}
-                foot={d ? (d.today.queued + d.today.sent > 0 ? `${formatCount(d.today.queued + d.today.sent)} still on the way` : "Wrong or switched-off numbers. Retry from Delivery.") : ""}
+                foot={d ? (d.today.queued > 0 ? `${formatCount(d.today.queued)} held in the outbox: nothing is sent from this system` : "Only messages from the old system can have failed.") : ""}
                 {...(d ? { onClick: () => go("/sms/delivery", { status: "failed" }) } : {})}
               />
             </div>
@@ -117,8 +120,8 @@ export function OverviewPage() {
             <Panel
               id="sms-trend"
               rise={4}
-              title="Messages sent, last 14 days"
-              description={`${campusLabel(ctx.campus)}. SMS and app notifications together; Sundays are quiet.`}
+              title="Messages, last 14 days"
+              description={`${campusLabel(ctx.campus)}. SMS and app notifications together; new SMS are held in the outbox (nothing is sent from this system).`}
               actions={
                 <Segmented
                   aria-label="Show messages as"
@@ -137,9 +140,9 @@ export function OverviewPage() {
                 <ColumnChart
                   data={d.trend}
                   value={(t) => t.sms + t.app}
-                  axisLabel={(t) => (t.date === "2026-11-04" ? "Today" : shortDay(t.date))}
+                  axisLabel={(t) => (t.date === todayIso ? "Today" : shortDay(t.date))}
                   formatAxis={(v) => formatCount(v)}
-                  partial={(t) => t.date === "2026-11-04"}
+                  partial={(t) => t.date === todayIso}
                   partialLabel="Today so far"
                   valueLabel="Messages"
                   label="Messages sent per day, last 14 days"
@@ -219,7 +222,7 @@ export function OverviewPage() {
               {!d ? (
                 <Skeleton height={140} />
               ) : (
-                <AttentionList waiting={d.awaitingApproval} failed={d.today.failed} held={status.data?.paused ? d.today.queued : 0} />
+                <AttentionList waiting={d.awaitingApproval} failed={d.today.failed} held={d.today.queued} paused={Boolean(status.data?.paused)} />
               )}
             </Panel>
             <Panel id="sms-scheduled" rise={7} title="Scheduled" description="Messages set to go out later." actions={<Link to="/sms/outbox" search={{ status: "SCHEDULED" } as never} className="text-small font-medium text-brand-ink">See all</Link>}>
@@ -236,11 +239,11 @@ export function OverviewPage() {
   );
 }
 
-function AttentionList({ waiting, failed, held }: { waiting: SmsBatch[]; failed: number; held: number }) {
+function AttentionList({ waiting, failed, held, paused }: { waiting: SmsBatch[]; failed: number; held: number; paused: boolean }) {
   const items = [
     ...waiting.map((b) => ({ key: b.id, icon: "clock" as const, tone: "is-warning", title: `${b.templateName} · ${formatCount(b.recipients)} families`, desc: `Waiting for the principal's approval. Asked by ${b.createdBy}.`, to: "/sms/outbox", search: { batch: b.id } })),
-    ...(held ? [{ key: "held", icon: "pause" as const, tone: "is-warning", title: `${formatCount(held)} SMS held`, desc: "All SMS are paused. They go out when an admin resumes SMS.", to: "/sms/delivery", search: { status: "queued" } }] : []),
-    ...(failed ? [{ key: "failed", icon: "alertCircle" as const, tone: "is-warning", title: `${formatCount(failed)} SMS failed today`, desc: "Retry them, and correct wrong numbers in the student's record.", to: "/sms/delivery", search: { status: "failed" } }] : []),
+    ...(held ? [{ key: "held", icon: "pause" as const, tone: "is-warning", title: `${formatCount(held)} SMS held`, desc: paused ? "All SMS are paused, and sending is switched off in this system: they stay in the outbox." : "Sending is switched off in this system: they stay in the outbox.", to: "/sms/delivery", search: { status: "queued" } }] : []),
+    ...(failed ? [{ key: "failed", icon: "alertCircle" as const, tone: "is-warning", title: `${formatCount(failed)} SMS failed today`, desc: "Messages from the old system that it recorded as not sent.", to: "/sms/delivery", search: { status: "failed" } }] : []),
   ];
   if (!items.length) return <EmptyState icon="checkCircle" title="All clear" description="Nothing is waiting for approval and nothing failed today." />;
   return (

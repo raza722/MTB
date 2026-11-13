@@ -1,12 +1,12 @@
-import { SMS_CATEGORY_LABEL, smsApi, smsQueries, type SmsBatch, type SmsBatchStatus, type SmsChannel, type SmsDeliveryRow } from "@mtb/api";
-import { formatCount, formatDateTime, formatRs, type IsoDate } from "@mtb/domain";
+import { newIdempotencyKey, SMS_CATEGORY_LABEL, smsApi, smsQueries, type SmsBatch, type SmsBatchStatus, type SmsChannel, type SmsDeliveryRow } from "@mtb/api";
+import { formatCount, formatDateTime, formatRs, pakistanToday, type IsoDate } from "@mtb/domain";
 import { Banner, Button, ConfirmDialog, DataTable, DatePicker, EmptyState, Input, KeyValue, Modal, Pagination, Segmented, SegmentedBar, Select, SidePanel, Skeleton, StatusBadge, Textarea, useToast, type Column } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { campusLabel } from "../../app/shell/campus";
-import { BatchProgress, BatchStatus, ChannelLabel, demoNowIso, errorField, errorText, isoAt, LoadError, MessagesShell, TIME_SLOTS, whenText } from "./shell";
+import { BatchProgress, BatchStatus, ChannelLabel, errorField, errorText, isLaterThanNow, isoAt, LoadError, MessagesShell, pkDateOf, pkTimeOf, TIME_SLOTS, whenText } from "./shell";
 import { SmsBubble } from "./sms-text";
 
 export interface OutboxSearch {
@@ -19,7 +19,8 @@ const PAGE = 20;
 /** /sms/outbox — every send with its status: waiting for approval, scheduled, sending, sent, cancelled. */
 export function OutboxPage({ search, setSearch }: { search: OutboxSearch; setSearch: (next: OutboxSearch) => void }) {
   const ctx = useCtx();
-  const all = useQuery({ ...smsQueries.batches(ctx), refetchInterval: (q) => (q.state.data?.some((b) => b.status === "SENDING") ? 2500 : 15_000) });
+  // Nothing sends from this system (a released batch stays held), so there is no progress to follow closely.
+  const all = useQuery({ ...smsQueries.batches(ctx), refetchInterval: 15_000 });
   const [query, setQuery] = useState("");
   const [channel, setChannel] = useState<"" | SmsChannel>("");
   const [page, setPage] = useState(1);
@@ -116,7 +117,7 @@ function BatchPanel({ id, onClose }: { id: string | null; onClose: () => void })
   const canApprove = useCan("approvals.decide");
   const canSend = useCan("sms.send");
   const readOnly = useReadOnly();
-  const q = useQuery({ ...smsQueries.batch(ctx, id), refetchInterval: (s) => (s.state.data?.status === "SENDING" ? 2000 : false) });
+  const q = useQuery(smsQueries.batch(ctx, id));
   const b = q.data;
   const [approveOpen, setApproveOpen] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
@@ -127,17 +128,22 @@ function BatchPanel({ id, onClose }: { id: string | null; onClose: () => void })
   const [date, setDate] = useState<IsoDate | null>(null);
   const [time, setTime] = useState("08:00");
   const [moveError, setMoveError] = useState<string | null>(null);
+  // One key per retry-unsafe action until it succeeds, so a retry after a lost reply can't act twice.
+  const keys = useRef<Record<string, string>>({});
+  const keyOf = (action: string) => (keys.current[`${id}:${action}`] ??= newIdempotencyKey());
+  const doneKey = (action: string) => delete keys.current[`${id}:${action}`];
 
   const refresh = async () => {
     await queryClient.invalidateQueries({ queryKey: ["sms"] });
   };
   const decide = useMutation({
-    mutationFn: (d: "approve" | "reject") => smsApi.decideBatch(id!, d, d === "reject" ? note : undefined),
+    mutationFn: (d: "approve" | "reject") => smsApi.decideBatch(id!, d, d === "reject" ? note : undefined, keyOf(`decide-${d}`)),
     onSuccess: async (r, d) => {
+      doneKey(`decide-${d}`);
       setApproveOpen(false);
       setRejectOpen(false);
       await refresh();
-      toast(d === "approve" ? { title: r.status === "SCHEDULED" ? `Approved · goes ${whenText(r.scheduledFor!)}` : `Approved · sending to ${formatCount(r.recipients)}`, message: `${r.templateName}. ${r.createdBy} can follow delivery in the Outbox.` } : { tone: "warning", title: "Not approved", message: `${r.createdBy} will see your note in the Outbox.` });
+      toast(d === "approve" ? { title: r.status === "SCHEDULED" ? `Approved · goes ${whenText(r.scheduledFor!)}` : `Approved · ${formatCount(r.recipients)} messages held`, message: `${r.templateName}. The messages stay in the Outbox: nothing is sent from this system.` } : { tone: "warning", title: "Not approved", message: `${r.createdBy} will see your note in the Outbox.` });
     },
   });
   const cancel = useMutation({
@@ -149,12 +155,13 @@ function BatchPanel({ id, onClose }: { id: string | null; onClose: () => void })
     },
   });
   const now = useMutation({
-    mutationFn: () => smsApi.sendBatchNow(id!),
+    mutationFn: () => smsApi.sendBatchNow(id!, keyOf("send-now")),
     onSuccess: async (r) => {
+      doneKey("send-now");
       await refresh();
-      toast({ title: `Sending now · ${formatCount(r.recipients)} recipients`, message: r.templateName });
+      toast({ title: `Released · ${formatCount(r.recipients)} messages held`, message: `${r.templateName}. Nothing is sent from this system.` });
     },
-    onError: (e) => toast({ tone: "danger", title: "Not sent", message: errorText(e) }),
+    onError: (e) => toast({ tone: "danger", title: "Not released", message: errorText(e) }),
   });
   const move = useMutation({
     mutationFn: (at: string) => smsApi.rescheduleBatch(id!, at),
@@ -166,10 +173,11 @@ function BatchPanel({ id, onClose }: { id: string | null; onClose: () => void })
     onError: (e) => setMoveError(errorText(e)),
   });
   const retry = useMutation({
-    mutationFn: () => smsApi.retryFailed(ctx, id!),
+    mutationFn: () => smsApi.retryFailed(ctx, id!, keyOf("retry")),
     onSuccess: async ({ retried }) => {
+      doneKey("retry");
       await refresh();
-      toast({ title: `Retrying ${formatCount(retried)} failed SMS`, message: "Wrong numbers will fail again — correct them in the student's record." });
+      toast(retried ? { title: `Retrying ${formatCount(retried)} failed SMS`, message: "They are held in the outbox: nothing is sent from this system." } : { tone: "info", title: "Nothing to retry", message: "Failed messages from the old system are kept as they were. Nothing is sent from this system." });
     },
     onError: (e) => toast({ tone: "danger", title: "Retry not started", message: errorText(e) }),
   });
@@ -196,7 +204,7 @@ function BatchPanel({ id, onClose }: { id: string | null; onClose: () => void })
             <div className="flex gap-2">
               <Button onClick={() => { setNote(""); decide.reset(); setRejectOpen(true); }}>Don't approve</Button>
               <Button variant="primary" icon="check" onClick={() => { decide.reset(); setApproveOpen(true); }}>
-                Approve and send
+                Approve
               </Button>
             </div>
           ) : (
@@ -213,15 +221,16 @@ function BatchPanel({ id, onClose }: { id: string | null; onClose: () => void })
             <Button
               icon="clock"
               onClick={() => {
-                setDate((b.scheduledFor ?? "2026-11-05").slice(0, 10));
-                setTime((b.scheduledFor ?? "T08:00").slice(11, 16));
+                setDate(b.scheduledFor ? pkDateOf(b.scheduledFor) : null);
+                const t = b.scheduledFor ? pkTimeOf(b.scheduledFor) : "08:00";
+                setTime(TIME_SLOTS.some((x) => x.value === t) ? t : "08:00");
                 setMoveError(null);
                 setMoveOpen(true);
               }}
             >
               Change time
             </Button>
-            <Button variant="primary" icon="send" loading={now.isPending} loadingLabel="Sending…" onClick={() => now.mutate()}>
+            <Button variant="primary" icon="send" loading={now.isPending} loadingLabel="Releasing…" onClick={() => now.mutate()}>
               Send now
             </Button>
           </div>
@@ -270,16 +279,16 @@ function BatchPanel({ id, onClose }: { id: string | null; onClose: () => void })
                 format={formatCount}
                 segments={[
                   { key: "app", label: "App delivered", value: c.app, color: "var(--chart-1)" },
-                  { key: "delivered", label: "SMS delivered", value: c.delivered, color: "var(--status-paid)" },
-                  { key: "way", label: "On the way", value: c.sent + c.queued, color: "var(--info)" },
+                  { key: "delivered", label: "SMS sent", value: c.delivered + c.sent, color: "var(--status-paid)" },
+                  { key: "way", label: "Held in the outbox", value: c.queued, color: "var(--info)" },
                   { key: "failed", label: "Failed", value: c.failed, color: "var(--danger)" },
                   { key: "optedout", label: "Opted out", value: c.optedout, color: "var(--ink-subtle)" },
                 ]}
               />
               <ul className="sms-legend">
                 <li><span className="mtb-chart-key" style={{ background: "var(--chart-1)" }} aria-hidden="true" />App notifications delivered<b>{formatCount(c.app)}</b><span className="w-24 text-right">{formatCount(c.appRead)} opened</span></li>
-                <li><span className="mtb-chart-key" style={{ background: "var(--status-paid)" }} aria-hidden="true" />SMS delivered<b>{formatCount(c.delivered)}</b><span className="w-24 text-right">of {formatCount(smsTotal)}</span></li>
-                <li><span className="mtb-chart-key" style={{ background: "var(--info)" }} aria-hidden="true" />On the way<b>{formatCount(c.sent + c.queued)}</b><span className="w-24" /></li>
+                <li><span className="mtb-chart-key" style={{ background: "var(--status-paid)" }} aria-hidden="true" />SMS sent<b>{formatCount(c.delivered + c.sent)}</b><span className="w-24 text-right">of {formatCount(smsTotal)}</span></li>
+                <li><span className="mtb-chart-key" style={{ background: "var(--info)" }} aria-hidden="true" />Held in the outbox<b>{formatCount(c.queued)}</b><span className="w-24" /></li>
                 <li><span className="mtb-chart-key" style={{ background: "var(--danger)" }} aria-hidden="true" />Failed<b>{formatCount(c.failed)}</b><span className="w-24" /></li>
                 {c.optedout > 0 && <li><span className="mtb-chart-key" style={{ background: "var(--ink-subtle)" }} aria-hidden="true" />Opted out, skipped<b>{formatCount(c.optedout)}</b><span className="w-24" /></li>}
               </ul>
@@ -315,10 +324,10 @@ function BatchPanel({ id, onClose }: { id: string | null; onClose: () => void })
         onClose={() => setApproveOpen(false)}
         onConfirm={() => decide.mutate("approve")}
         icon="check"
-        title={`Approve and send to ${formatCount(b?.recipients ?? 0)} recipients?`}
-        message={b?.scheduledFor && b.scheduledFor > demoNowIso() ? `It goes out ${whenText(b.scheduledFor)}.` : "It goes out straight away and can't be called back once the network accepts it."}
+        title={`Approve the message to ${formatCount(b?.recipients ?? 0)} recipients?`}
+        message={b?.scheduledFor && isLaterThanNow(b.scheduledFor) ? `It is released ${whenText(b.scheduledFor)}. It is held in the outbox; nothing is sent from this system.` : "It is held in the outbox; nothing is sent from this system."}
         details={b ? [["Message", b.templateName], ["To", b.audienceLabel], ["Cost", formatRs(b.estCost)], ["Asked by", b.createdBy]] : []}
-        confirmLabel="Approve and send"
+        confirmLabel="Approve"
         loading={decide.isPending}
         loadingLabel="Approving…"
         error={decide.error ? errorText(decide.error) : undefined}
@@ -371,7 +380,7 @@ function BatchPanel({ id, onClose }: { id: string | null; onClose: () => void })
               onClick={() => {
                 if (!date) return setMoveError("Choose the day.");
                 const at = isoAt(date, time);
-                if (at <= demoNowIso()) return setMoveError("Choose a time later than now.");
+                if (!isLaterThanNow(at)) return setMoveError("Choose a time later than now.");
                 setMoveError(null);
                 move.mutate(at);
               }}
@@ -382,7 +391,7 @@ function BatchPanel({ id, onClose }: { id: string | null; onClose: () => void })
         }
       >
         <div className="grid gap-3 sm:grid-cols-2">
-          <DatePicker label="Day" value={date} onValueChange={setDate} today="2026-11-04" minDate="2026-11-04" maxDate="2027-03-31" />
+          <DatePicker label="Day" value={date} onValueChange={setDate} today={pakistanToday()} minDate={pakistanToday()} {...(b ? { maxDate: `${b.session + 1}-03-31` } : {})} />
           <Select label="Time" value={time} onChange={(e) => setTime(e.target.value)} options={TIME_SLOTS} />
         </div>
         {moveError && <p className="m-0 mt-3 text-small text-danger-ink" role="alert">{moveError}</p>}

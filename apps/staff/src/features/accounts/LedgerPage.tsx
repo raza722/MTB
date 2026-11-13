@@ -1,11 +1,11 @@
-import { ACCOUNTS_ALL_BANKS, ACCOUNTS_CONTROL_LABEL, accountsQueries, type AccountsLedgerLine } from "@mtb/api";
+import { ACCOUNTS_ALL_BANKS, ACCOUNTS_CONTROL_LABEL, accountsQueries, ApiError, type AccountsLedgerLine } from "@mtb/api";
 import { formatCount, formatDate, formatRs, formatWeekday } from "@mtb/domain";
-import { AnimatedNumber, AreaChart, Button, Combobox, DataTable, DatePicker, EmptyState, Pagination, Panel, Segmented, Skeleton, StatCard, type Column } from "@mtb/ui";
+import { AnimatedNumber, AreaChart, Banner, Button, Combobox, DataTable, DatePicker, EmptyState, Pagination, Panel, Segmented, Skeleton, StatCard, type Column } from "@mtb/ui";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useCtx } from "../../app/session";
 import { campusLabel } from "../../app/shell/campus";
-import { accountOptions, AccountsShell, asOfFor, Bal, balText, DocFoot, DocHead, lakhTick, LoadError, sessionStartOf, shortDate, slide, TODAY, TypeChip, useChart } from "./shared";
+import { accountOptions, AccountsShell, accToday, asOfFor, Bal, balText, DocFoot, DocHead, errorText, lakhTick, LoadError, sessionStartOf, shortDate, slide, TypeChip, useChart } from "./shared";
 import { VoucherPeek } from "./VoucherPeek";
 
 export interface LedgerSearch {
@@ -22,8 +22,8 @@ export function LedgerPage({ search, setSearch }: { search: LedgerSearch; setSea
   const { accounts, byCode, q: chartQ } = useChart();
   const asOf = asOfFor(ctx.session);
   const start = sessionStartOf(ctx.session);
-  // The books here go back to 2025–26, so a ledger can start in the session before the one chosen.
-  const earliest = ctx.session > 2025 ? sessionStartOf(ctx.session - 1) : start;
+  // A ledger can start in the session before the one chosen (the year-end close shows as one line).
+  const earliest = sessionStartOf(ctx.session - 1);
   const account = search.account ?? "";
   const from = search.from ?? start;
   const to = search.to ?? asOf;
@@ -125,8 +125,8 @@ export function LedgerPage({ search, setSearch }: { search: LedgerSearch; setSea
             placeholder={chartQ.isLoading ? "Loading accounts…" : allBanks ? "All bank accounts" : "Choose an account…"}
             searchPlaceholder="Type a code or name"
           />
-          <DatePicker label="From" value={from} onValueChange={(v) => setSearch({ ...search, from: v ?? undefined })} today={TODAY} minDate={earliest} maxDate={asOf} {...(from < start ? { help: "Starts in the previous session; the year-end close shows as one line." } : {})} />
-          <DatePicker label="To" value={to} onValueChange={(v) => setSearch({ ...search, to: v ?? undefined })} today={TODAY} minDate={start} maxDate={asOf} />
+          <DatePicker label="From" value={from} onValueChange={(v) => setSearch({ ...search, from: v ?? undefined })} today={accToday()} minDate={earliest} maxDate={asOf} {...(from < start ? { help: "Starts in the previous session; the year-end close shows as one line." } : {})} />
+          <DatePicker label="To" value={to} onValueChange={(v) => setSearch({ ...search, to: v ?? undefined })} today={accToday()} minDate={start} maxDate={asOf} />
           <Segmented
             aria-label="Period"
             value={from === start && to === asOf ? "session" : from === monthStart && to === asOf ? "month" : "custom"}
@@ -145,6 +145,21 @@ export function LedgerPage({ search, setSearch }: { search: LedgerSearch; setSea
         <div className="mtb-card">
           <EmptyState icon="book" title="Choose an account" description="Pick any account to see every voucher that touched it, with the running balance. The cash book and bank books are one click away above." />
         </div>
+      ) : q.error && !l && q.error instanceof ApiError && q.error.code === "TOO_MANY_LINES" ? (
+        // The server sends at most `accounts.ledgerMaxLines` lines at a time until the ledger is paged (C3).
+        <Banner
+          tone="warning"
+          title="Too many lines to show at once."
+          actions={
+            from !== monthStart || to !== asOf ? (
+              <Button size="sm" onClick={() => setSearch({ ...search, from: monthStart, to: undefined })}>
+                Show this month
+              </Button>
+            ) : undefined
+          }
+        >
+          {errorText(q.error)}
+        </Banner>
       ) : q.error && !l ? (
         <LoadError what="The ledger" error={q.error} onRetry={() => void q.refetch()} />
       ) : (

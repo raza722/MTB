@@ -27,7 +27,7 @@ import { useEffect, useMemo, useState } from "react";
 import { campusLabel } from "../../../app/shell/campus";
 import { Page, PageHeader, RequirePermission } from "../../../app/shell/page";
 import { useCtx, useReadOnly } from "../../../app/session";
-import { CLASS_SHORTS, className, errorText, FeesNav, LoadError, PaperSize, slide, TODAY, useCanAny } from "../shared";
+import { errorText, feeToday, FeesNav, LoadError, PaperSize, slide, useCanAny, useFeeClasses } from "../shared";
 import { VoucherSheet } from "./VoucherSheet";
 
 const STATUS_TONE: Record<FeeVoucherStatus, "unpaid" | "pending" | "paid" | "overdue" | "cancelled"> = {
@@ -158,7 +158,7 @@ function VoucherPanel({ voucherNo, onClose }: { voucherNo: string; onClose: () =
           )}
           {v.status === "OVERDUE" && (
             <Banner tone="warning" title={`Not paid by ${formatDate(v.dueDate)}.`}>
-              Late fine has been running since {formatDate(v.dueDate)}. Today the family pays about {formatRs(v.fineTable.find((r) => r.upTo >= TODAY)?.amount ?? v.fineTable.at(-1)?.amount ?? v.payableByDue)}; the counter works out the exact figure.
+              Late fine has been running since {formatDate(v.dueDate)}. Today the family pays about {formatRs(v.fineTable.find((r) => r.upTo >= feeToday())?.amount ?? v.fineTable.at(-1)?.amount ?? v.payableByDue)}; the counter works out the exact figure.
             </Banner>
           )}
           <KeyValue
@@ -205,6 +205,7 @@ function VoucherPanel({ voucherNo, onClose }: { voucherNo: string; onClose: () =
 
 export function VouchersPage({ initialRun }: { initialRun?: string }) {
   const ctx = useCtx();
+  const classList = useFeeClasses(ctx.campus);
   const readOnly = useReadOnly();
   const canIssue = useCanAny(["fees.collect", "fees.setup"]);
   const [runId, setRunId] = useState(initialRun ?? "");
@@ -298,7 +299,7 @@ export function VouchersPage({ initialRun }: { initialRun?: string }) {
                 <Select aria-label="Month" value={month} onChange={(e) => setMonth(e.target.value)} options={[{ value: "", label: "Every month" }, ...(d?.months ?? []).map((m) => ({ value: m, label: feeMonthLabel(m) }))]} />
               </div>
               <div className="w-36">
-                <Select aria-label="Class" value={cls} onChange={(e) => setCls(e.target.value)} options={[{ value: "", label: "Every class" }, ...CLASS_SHORTS.map((c) => ({ value: c, label: className(c) }))]} />
+                <Select aria-label="Class" value={cls} onChange={(e) => setCls(e.target.value)} options={[{ value: "", label: "Every class" }, ...classList.options]} />
               </div>
               <div className="w-40">
                 <Select

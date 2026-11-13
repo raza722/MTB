@@ -27,7 +27,7 @@ import { useCan, useCtx } from "../../../app/session";
 import { AddChargePanel } from "../../fees/ledger/ChargePanels";
 import { PrintSheet, printNow } from "../documents/print";
 import { ReadmissionStatement, StatusNotice } from "../documents/templates";
-import { apiMessage, EnrolmentBadge, fieldError, TODAY } from "../shared";
+import { apiMessage, EnrolmentBadge, fieldError, today } from "../shared";
 
 type Kind = StudentMovementChange["kind"];
 
@@ -50,7 +50,7 @@ const schema = z
     toClassSection: z.string().optional(),
   })
   .superRefine((v, c) => {
-    if (v.date > TODAY) c.addIssue({ code: "custom", path: ["date"], message: "The date can't be in the future." });
+    if (v.date > today()) c.addIssue({ code: "custom", path: ["date"], message: "The date can't be in the future." });
     if (v.kind === "EXPELLED" && !v.approvedBy?.trim()) c.addIssue({ code: "custom", path: ["approvedBy"], message: "Enter who approved the expulsion (the principal)." });
     if (v.kind === "TRANSFER" && !v.toCampus) c.addIssue({ code: "custom", path: ["toCampus"], message: "Choose the campus the student is moving to." });
     if (v.kind === "TRANSFER" && !v.toClassSection) c.addIssue({ code: "custom", path: ["toClassSection"], message: "Choose the section at the new campus." });
@@ -68,7 +68,7 @@ export function StatusChangePanel({ open, onClose, grNo: fixedGrNo, initialKind 
   const classes = useQuery(metaQueries.classes("ALL"));
   const p = profile.data;
   const allowed = useMemo(() => (p ? studentMovementsAllowed(p.status) : []), [p]);
-  const [form, setForm] = useState<StudentMovementChange>({ kind: initialKind ?? "LEFT", date: TODAY, reason: "" });
+  const [form, setForm] = useState<StudentMovementChange>({ kind: initialKind ?? "LEFT", date: today(), reason: "" });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [confirming, setConfirming] = useState(false);
   const [key, setKey] = useState(newIdempotencyKey);
@@ -95,7 +95,7 @@ export function StatusChangePanel({ open, onClose, grNo: fixedGrNo, initialKind 
   useEffect(() => {
     if (!p) return;
     const kind = initialKind && allowed.includes(initialKind) ? initialKind : (allowed[0] ?? "LEFT");
-    setForm({ kind, date: TODAY, reason: "", ...(kind === "EXPELLED" || kind === "STRUCK_OFF" ? { approvedBy: p.campus === "KC" ? "Mrs Sadia Rehman" : "" } : {}) });
+    setForm({ kind, date: today(), reason: "", ...(kind === "EXPELLED" || kind === "STRUCK_OFF" ? { approvedBy: "" } : {}) });
   }, [p?.grNo, p?.status, initialKind]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const record = useMutation({
@@ -235,7 +235,7 @@ export function StatusChangePanel({ open, onClose, grNo: fixedGrNo, initialKind 
                     </Banner>
                   )}
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <DatePicker label="Effective date" required value={form.date} onValueChange={(v) => set({ date: v ?? "" })} maxDate={TODAY} minDate={p.admissionDate} error={err("date")} />
+                    <DatePicker label="Effective date" required value={form.date} onValueChange={(v) => set({ date: v ?? "" })} maxDate={today()} minDate={p.admissionDate} error={err("date")} />
                     <Select label="Reason" required value={form.reason} error={err("reason")} onChange={(e) => set({ reason: e.target.value })} options={[{ value: "", label: "Choose…" }, ...STUDENT_MOVEMENT_REASONS[form.kind]]} />
                     {form.kind === "TRANSFER" && (
                       <>

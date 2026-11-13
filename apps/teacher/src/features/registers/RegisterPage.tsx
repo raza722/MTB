@@ -118,7 +118,7 @@ function RegisterView({ reg, requestedDate }: { reg: TeacherRegister; requestedD
       void queryClient.invalidateQueries({ queryKey: teacherQueries.all(ctx) });
       toast({
         title: "Attendance submitted",
-        message: `${reg.classSection} · ${teacherCountsLine(counts)}.${counts.absent ? ` Parents of ${counts.absent} absent ${counts.absent === 1 ? "student" : "students"} get an SMS.` : ""}`,
+        message: `${reg.classSection} · ${teacherCountsLine(counts)}.${counts.absent ? ` Absence messages for ${counts.absent} ${counts.absent === 1 ? "student is" : "students are"} held until SMS starts.` : ""}`,
       });
     } else {
       toast({
@@ -199,7 +199,7 @@ function RegisterView({ reg, requestedDate }: { reg: TeacherRegister; requestedD
         {!queued.submit && submitted && (
           <Banner tone="success" icon="lock" title={`Submitted${reg.submittedAt ? ` at ${formatTime(reg.submittedAt)}` : ""} · locked.`}>
             {reg.takenOffline ? "Taken offline and synced. " : ""}
-            {reg.smsSent ? `Parents of ${reg.smsSent} absent ${reg.smsSent === 1 ? "student were" : "students were"} sent an SMS. ` : ""}
+            {reg.smsSent ? `Absence messages for ${reg.smsSent} ${reg.smsSent === 1 ? "student are" : "students are"} held until SMS starts. ` : ""}
             To correct a mark, tap the student or use Request change.
           </Banner>
         )}
@@ -274,12 +274,12 @@ function RegisterView({ reg, requestedDate }: { reg: TeacherRegister; requestedD
                     }}
                     aria-label={`${s.rollNo}. ${s.name}, ${MARK_LABEL[mark]}${pendingTo ? `, change to ${MARK_LABEL[pendingTo]} waiting for approval` : ""}. ${editable ? "Tap to change the mark." : submitted && !queued.submit && !pendingTo ? "Tap to request a change." : ""}`}
                   >
-                    <span className="w-6 shrink-0 text-end text-small text-ink-muted tabular-nums">{s.rollNo}</span>
+                    <span className="w-6 shrink-0 text-end text-small text-ink-muted tabular-nums">{s.rollNo || "—"}</span>
                     <Avatar name={s.name} />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-medium text-ink">{s.name}</span>
                       <span className={cx("block truncate text-small", pendingTo ? "text-status-unpaid-ink" : "text-ink-muted")}>
-                        {pendingTo ? `Change pending: ${MARK_LABEL[mark]} → ${MARK_LABEL[pendingTo]}${qc ? " (on this phone)" : ""}` : changed ? `Marked ${MARK_LABEL[mark].toLowerCase()}` : `Father: ${s.father}`}
+                        {pendingTo ? `Change pending: ${MARK_LABEL[mark]} → ${MARK_LABEL[pendingTo]}${qc ? " (on this phone)" : ""}` : changed ? `Marked ${MARK_LABEL[mark].toLowerCase()}` : `Father: ${s.father || "—"}`}
                       </span>
                     </span>
                     <MarkChip code={mark} />
@@ -421,7 +421,7 @@ function SubmitSheet({
               <ul className="m-0 grid list-none gap-1 p-0">
                 {list.map((s) => (
                   <li key={s.grNo} className="flex items-center gap-2 rounded-md px-2 py-1.5 text-ink">
-                    <span className="w-6 text-end text-small text-ink-muted tabular-nums">{s.rollNo}</span>
+                    <span className="w-6 text-end text-small text-ink-muted tabular-nums">{s.rollNo || "—"}</span>
                     {s.name}
                   </li>
                 ))}
@@ -431,8 +431,8 @@ function SubmitSheet({
         })}
         <Banner tone={counts.absent ? "info" : "neutral"} icon="message">
           {counts.absent
-            ? `Parents of the ${counts.absent} absent ${counts.absent === 1 ? "student" : "students"} will get an SMS after you submit.`
-            : "Nobody is absent, so no absence SMS will be sent."}
+            ? `An absence message for the parents of the ${counts.absent} absent ${counts.absent === 1 ? "student" : "students"} is written when you submit. It is held until SMS starts.`
+            : "Nobody is absent, so no absence message is written."}
         </Banner>
         {!online && (
           <Banner tone="warning" icon="cloudOff">

@@ -9,11 +9,11 @@ import { RequirePermission } from "../../app/shell/page";
 import { useCan, useCtx, useReadOnly, useSessionUser } from "../../app/session";
 import { ReportDoc } from "./print";
 import { issues } from "./StaffPanels";
-import { campusHeading, DesignationSelect, errorField, errorText, filterNote, HrShell, LoadError, LoanBadge, staffOptions, THIS_MONTH, TODAY, useDesignationTitle, usePayAccess, usePrint } from "./shared";
+import { campusHeading, DesignationSelect, errorField, errorText, filterNote, HrShell, LoadError, LoanBadge, staffOptions, thisMonth, today, useDesignationTitle, usePayAccess, usePrint } from "./shared";
 
 const nextMonths = (n: number) => {
   const out: string[] = [];
-  let [y, m] = THIS_MONTH.split("-").map(Number) as [number, number];
+  let [y, m] = thisMonth().split("-").map(Number) as [number, number];
   for (let i = 0; i < n; i++) {
     out.push(`${y}-${String(m).padStart(2, "0")}`);
     m++;
@@ -128,7 +128,7 @@ function LoanPanel({ l, onClose }: { l: HrLoan; onClose: () => void }) {
   const [mode, setMode] = useState<"view" | "reject" | "repay">("view");
   const [note, setNote] = useState("");
   const [amount, setAmount] = useState<number | null>(l.balance);
-  const [date, setDate] = useState<string | null>(TODAY);
+  const [date, setDate] = useState<string | null>(today());
   const key = useMemo(() => newIdempotencyKey(), [l.id, mode]);
   const done = (title: string, message?: string) => {
     toast({ title, ...(message ? { message } : {}) });
@@ -207,7 +207,7 @@ function LoanPanel({ l, onClose }: { l: HrLoan; onClose: () => void }) {
         {mode === "repay" && (
           <div className="grid gap-4 sm:grid-cols-2">
             <AmountInput label="Amount received" required value={amount} onValueChange={setAmount} help={`Up to ${formatRs(l.balance)}`} />
-            <DatePicker label="Received on" required value={date} onValueChange={setDate} today={TODAY} maxDate={TODAY} />
+            <DatePicker label="Received on" required value={date} onValueChange={setDate} today={today()} maxDate={today()} />
             <Input label="Receipt or note" value={note} onChange={(e) => setNote(e.target.value)} className="sm:col-span-2" />
           </div>
         )}

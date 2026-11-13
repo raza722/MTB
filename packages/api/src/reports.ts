@@ -32,9 +32,17 @@ export interface ReportFilterDef {
   key: string;
   label: string;
   kind: ReportFilterKind;
-  /** For select (and month: the months offered). */
+  /**
+   * For select (and month: the months offered). Lists built from data (fee heads, concession types, the session's
+   * months, cashiers) are filled in for the ctx campus and session.
+   */
   options?: Array<{ value: string; label: string }>;
-  /** Default value; for dateRange "from|to". "today" and "monthStart" are resolved by the server. */
+  /**
+   * Default value; for dateRange "from|to". The tokens "today" and "monthStart" are sent as they are (the page turns
+   * them into dates; the server resolves them again when the report runs). Every other default comes resolved: an
+   * ISO date, or "YYYY-MM" for a month (the server's own tokens sessionStart, prevMonthStart, monthStart-2 and
+   * prevMonth never reach the page). A class or section default is sent only when it exists at the campus.
+   */
   default?: string;
   required?: boolean;
   help?: string;
@@ -149,6 +157,7 @@ export interface ReportResult {
 export type ReportJobStatus = "QUEUED" | "RUNNING" | "READY" | "FAILED" | "EXPIRED";
 
 export interface ReportJob {
+  /** A number as a string, e.g. "12". */
   id: string;
   reportId: string;
   reportName: string;
@@ -160,15 +169,17 @@ export interface ReportJob {
   /** SCREEN = run in the background to view on screen. */
   format: ReportFormat | "SCREEN";
   status: ReportJobStatus;
-  /** 0–100 */
+  /** 0–100. An estimate while RUNNING (elapsed time against the report's recent run times, at most 95). */
   progress: number;
   requestedAt: IsoDateTime;
   requestedBy: string;
   readyAt?: IsoDateTime;
-  /** Files are kept for 7 days. */
+  /** Files are kept for 7 days (until 23:59 Pakistan time on the seventh day after READY). */
   expiresAt?: IsoDateTime;
   rowCount?: number;
+  /** "{report}-{campus|all-campuses}-{dd-mmm-yyyy}.{csv|pdf}" (EXCEL / PDF only). The file is built in the browser. */
   fileName?: string;
+  /** Size of the prepared data (EXCEL / PDF only; omitted for SCREEN). */
   sizeKb?: number;
   error?: string;
   /** Set when a schedule produced it. */
@@ -178,6 +189,7 @@ export interface ReportJob {
 export type ReportFrequency = "DAILY" | "WEEKLY" | "MONTHLY";
 
 export interface ReportSchedule {
+  /** A number as a string, e.g. "7". */
   id: string;
   reportId: string;
   reportName: string;
@@ -194,7 +206,10 @@ export interface ReportSchedule {
   /** "18:00" */
   time: string;
   format: ReportFormat;
-  /** Staff who get it in the app (bell) and by email. */
+  /**
+   * Staff who get it under the bell, by name as `reportsApi.recipients()` lists them. Email is kept on hold: a held
+   * email record is written, nothing is sent.
+   */
   recipients: string[];
   active: boolean;
   nextRunAt: IsoDateTime;
@@ -219,6 +234,7 @@ export interface ReportScheduleInput {
 export type StaffNotificationKind = "REPORT_READY" | "REPORT_FAILED" | "SCHEDULE_SENT";
 
 export interface StaffNotification {
+  /** A number as a string. */
   id: string;
   kind: StaffNotificationKind;
   title: string;
@@ -236,6 +252,12 @@ export const REPORT_BACKGROUND_NOTE = "Large reports are prepared in the backgro
 export const reportsApi = {
   catalogue: (ctx: Ctx) => apiFetch<ReportCatalogue>("/reports/catalogue", { query: ctxQuery(ctx) }),
   setFavourite: (reportId: string, favourite: boolean) => apiFetch<{ favourite: boolean }>(`/reports/favourites/${encodeURIComponent(reportId)}`, { method: "PUT", body: { favourite } }),
+  /**
+   * Every catalogue entry is built (module 13c); a catalogue row without a report would answer 404 "This report is not
+   * available yet." after the filter checks. A report whose module is switched off at the chosen campus (Payroll,
+   * Transport today) answers 403 "Your role can't open this report at this campus."; at ALL it answers rows [] with a
+   * note saying the module is switched off (spec 13 D63). Cells the server has no value for come as null ("—").
+   */
   run: (body: ReportRunRequest) => apiFetch<ReportResult>("/reports/run", { method: "POST", body }),
   /** Starts a background job (export, or a large report to view on screen). Small exports come back READY. */
   startJob: (body: ReportRunRequest & { format: ReportFormat | "SCREEN" }) => apiFetch<ReportJob>("/reports/jobs", { method: "POST", body }),
@@ -249,6 +271,7 @@ export const reportsApi = {
   updateSchedule: (id: string, body: Partial<ReportScheduleInput> & { active?: boolean }) => apiFetch<ReportSchedule>(`/reports/schedules/${encodeURIComponent(id)}`, { method: "PUT", body }),
   deleteSchedule: (id: string) => apiFetch<{ status: "ok" }>(`/reports/schedules/${encodeURIComponent(id)}`, { method: "DELETE" }),
   runScheduleNow: (id: string) => apiFetch<ReportJob>(`/reports/schedules/${encodeURIComponent(id)}/run`, { method: "POST" }),
+  /** Staff who may get scheduled reports: reports.view at a campus the caller can see; role "{Role}, {Campus}". */
   recipients: () => apiFetch<Array<{ name: string; role: string }>>("/reports/recipients"),
 };
 

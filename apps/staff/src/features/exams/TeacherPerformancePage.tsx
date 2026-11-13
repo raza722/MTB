@@ -1,12 +1,12 @@
 import { EXAMS_LEVEL_LABEL, examsQueries, type CampusCode, type ExamsClassLevel, type ExamsGender, type ExamsTeacherPerfQuery, type ExamsTeacherPerfRow } from "@mtb/api";
 import { formatPercent, formatSession } from "@mtb/domain";
 import { Banner, Button, DataTable, EmptyState, Panel, Segmented, Select, Skeleton } from "@mtb/ui";
-import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { campusLabel } from "../../app/shell/campus";
 import { Page, PageHeader } from "../../app/shell/page";
 import { useCtx } from "../../app/session";
-import { DocHead, PRINTED_ON } from "./print/docs";
+import { DocHead, printedOn } from "./print/docs";
 import { PrintSheet, printNow } from "./print/PrintSheet";
 import { ExamsNav, LoadError } from "./shared";
 
@@ -27,6 +27,9 @@ function combine(list: ExamsTeacherPerfRow[]) {
   return { average: Math.round((list.reduce((a, r) => a + r.averagePercent * r.sat, 0) / sat) * 10) / 10, pass: Math.round((list.reduce((a, r) => a + r.passRate * r.sat, 0) / sat) * 10) / 10 };
 }
 const pctText = (n: number | null) => (n === null ? "" : formatPercent(n));
+/** Earlier sessions have no subject teachers until the timetable history is loaded: their papers group under this. */
+const NO_TEACHER = "No subject teacher recorded";
+const teacherOf = (r: Pick<ExamsTeacherPerfRow, "teacher">) => r.teacher || NO_TEACHER;
 
 /**
  * Teacher performance across exams, classes and departments: the old Teacher/Lecturer academic report (one teacher's
@@ -35,20 +38,28 @@ const pctText = (n: number | null) => (n === null ? "" : formatPercent(n));
 export function TeacherPerformancePage() {
   const ctx = useCtx();
   const [view, setView] = useState<View>("teacher");
-  const [q, setQ] = useState<ExamsTeacherPerfQuery>({});
+  // Opens on this month (a whole KC session is ~10,000 paper rows); when this month has no marks yet, the latest month
+  // that has. "Every month" needs one teacher (contract change C13: the server refuses a whole session of every
+  // teacher). The server sends the filter lists with every answer (worked out before the filters), so one call serves both.
+  const [q, setQ] = useState<ExamsTeacherPerfQuery>(() => ({ month: thisMonthPkt() }));
   const [printing, setPrinting] = useState(false);
-  // Filter lists come from the unfiltered call; the rows from the filtered one.
-  const lists = useQuery(examsQueries.teacherPerformance(ctx, {}));
-  const data = useQuery(examsQueries.teacherPerformance(ctx, q));
+  const data = useQuery({ ...examsQueries.teacherPerformance(ctx, q), placeholderData: keepPreviousData });
+  const latestMonth = data.data?.months[0];
+  const noMonthData = data.data !== undefined && q.month !== undefined && !data.data.months.includes(q.month);
+  useEffect(() => {
+    if (noMonthData && latestMonth && q.month !== latestMonth) setQ((x) => ({ ...x, month: latestMonth }));
+  }, [noMonthData, latestMonth, q.month]);
+  const opts = data.data;
   const set = (patch: Partial<ExamsTeacherPerfQuery>) => setQ((x) => {
     const next = { ...x, ...patch };
     for (const k of Object.keys(next) as Array<keyof ExamsTeacherPerfQuery>) if (!next[k]) delete next[k];
+    // C13: without a teacher, a month is required (back to the latest month with marks)
+    if (!next.month && !next.teacher) next.month = opts?.months[0] ?? thisMonthPkt();
     return next;
   });
-  const opts = lists.data;
   const rows = data.data?.rows ?? [];
   // One-teacher view needs a teacher, department view a subject: default to the first one with papers.
-  const teacher = q.teacher ?? rows[0]?.teacher ?? opts?.teachers[0];
+  const teacher = q.teacher ?? (rows[0] ? teacherOf(rows[0]) : undefined) ?? opts?.teachers[0];
   const subject = q.subject ?? rows[0]?.subjectId ?? opts?.subjects[0]?.id;
   const subjectName = opts?.subjects.find((s) => s.id === subject)?.name ?? "";
   const campus: CampusCode = ctx.campus === "ALL" ? "KC" : ctx.campus;
@@ -62,18 +73,18 @@ export function TeacherPerformancePage() {
     .filter(Boolean)
     .join(" · ");
 
-  const teacherRows = rows.filter((r) => r.teacher === teacher);
+  const teacherRows = rows.filter((r) => teacherOf(r) === teacher);
   const deptRows = rows.filter((r) => r.subjectId === subject);
 
   return (
     <Page>
       <PageHeader title="Teacher performance" />
       <ExamsNav />
-      {lists.isError && <LoadError what="Teacher results" error={lists.error} onRetry={() => void lists.refetch()} />}
+      {data.isError && <LoadError what="Teacher results" error={data.error} onRetry={() => void data.refetch()} />}
       <Panel id="perf-filters" title="Filters" description={`Every exam of ${campusLabel(ctx.campus)} in ${formatSession(ctx.session)} with marks entered. Drafts count as provisional.`} rise={0}>
-        {lists.isLoading ? (
+        {data.isLoading && !data.data ? (
           <Skeleton height={80} />
-        ) : !opts || opts.teachers.length === 0 ? (
+        ) : !opts || opts.subjects.length === 0 ? (
           <EmptyState icon="user" title="No papers with marks yet" description="Teacher results appear once marks are entered in an exam." />
         ) : (
           <div className="grid gap-3">
@@ -82,7 +93,7 @@ export function TeacherPerformancePage() {
               <Select label="Subject (department)" value={q.subject ?? ""} onChange={(e) => set({ subject: e.target.value })} options={[{ value: "", label: "Every subject" }, ...opts.subjects.map((s) => ({ value: s.id, label: s.name }))]} />
               <Select label="Class level" value={q.level ?? ""} onChange={(e) => set({ level: (LEVELS.find((l) => l === e.target.value) ?? "") as ExamsClassLevel })} options={[{ value: "", label: "Every level" }, ...LEVELS.map((l) => ({ value: l, label: EXAMS_LEVEL_LABEL[l] }))]} />
               <Select label="Exam type" value={q.examTypeId ?? ""} onChange={(e) => set({ examTypeId: e.target.value })} options={[{ value: "", label: "Every exam type" }, ...opts.examTypes.map((t) => ({ value: t.id, label: t.name }))]} />
-              <Select label="Month" value={q.month ?? ""} onChange={(e) => set({ month: e.target.value })} options={[{ value: "", label: "Every month" }, ...opts.months.map((m) => ({ value: m, label: monthLabel(m) }))]} />
+              <Select label="Month" value={q.month ?? ""} onChange={(e) => set({ month: e.target.value })} options={[...(q.teacher ? [{ value: "", label: "Every month" }] : []), ...opts.months.map((m) => ({ value: m, label: monthLabel(m) }))]} help={q.teacher ? undefined : "Choose a teacher to see every month."} />
               <Select
                 label="Boys or girls"
                 value={q.gender ?? ""}
@@ -98,7 +109,7 @@ export function TeacherPerformancePage() {
         )}
       </Panel>
 
-      {opts && opts.teachers.length > 0 && (
+      {opts && opts.subjects.length > 0 && (
         <Panel
           id="perf-result"
           title={view === "teacher" ? `Teacher: ${teacher ?? "—"}` : view === "department" ? `Department: ${subjectName || "—"}` : "Detail by teacher, class, exam and section"}
@@ -159,7 +170,7 @@ export function TeacherPerformancePage() {
                 sub={[view === "teacher" ? teacher : view === "department" ? subjectName : q.teacher ?? "", filterText].filter(Boolean).join(" · ")}
               />
               {view === "teacher" ? <TeacherTables rows={teacherRows} print /> : view === "department" ? <DepartmentTables rows={deptRows} print /> : <DetailTable rows={rows} print />}
-              <p className="exams-doc-key">Pass % is the share of students with a mark (absent included) at or above the pass mark. Printed {PRINTED_ON}.</p>
+              <p className="exams-doc-key">Pass % is the share of students with a mark (absent included) at or above the pass mark. Printed {printedOn()}.</p>
               <div className="exams-doc-signs">
                 <div>Head of department</div>
                 <div>Controller of examinations</div>
@@ -227,12 +238,12 @@ function TeacherTables({ rows, print }: { rows: ExamsTeacherPerfRow[]; print?: b
 /** #35: a subject's teachers: rows = their class-sections, columns = the session's exams (pass %), plus an Average row. */
 function DepartmentTables({ rows, print }: { rows: ExamsTeacherPerfRow[]; print?: boolean }) {
   if (!rows.length) return <EmptyState icon="book" title="No papers in this subject" description="Choose another subject or widen the filters." />;
-  const teachers = [...new Set(rows.map((r) => r.teacher))].sort((a, b) => a.localeCompare(b));
+  const teachers = [...new Set(rows.map(teacherOf))].sort((a, b) => a.localeCompare(b));
   const exams = [...new Map(rows.map((r) => [r.examId, { id: r.examId, name: r.examName, date: r.startDate }])).values()].sort((a, b) => a.date.localeCompare(b.date));
   return (
     <div className={print ? "" : "grid gap-4 p-4"} style={print ? { display: "grid", gap: "4mm" } : undefined}>
       {teachers.map((t) => {
-        const list = rows.filter((r) => r.teacher === t);
+        const list = rows.filter((r) => teacherOf(r) === t);
         const sections = [...new Set(list.map((r) => r.classSection))].sort(sortCs);
         const mine = exams.filter((e) => list.some((r) => r.examId === e.id));
         return (
@@ -282,9 +293,9 @@ function DepartmentTables({ rows, print }: { rows: ExamsTeacherPerfRow[]; print?
 
 /** #36: per teacher, class, exam and section: pass %, absents, failed and the failed students' names. */
 function DetailTable({ rows, print }: { rows: ExamsTeacherPerfRow[]; print?: boolean }) {
-  const sorted = [...rows].sort((a, b) => a.teacher.localeCompare(b.teacher) || a.subjectName.localeCompare(b.subjectName) || sortCs(a.classSection, b.classSection) || a.startDate.localeCompare(b.startDate));
+  const sorted = [...rows].sort((a, b) => teacherOf(a).localeCompare(teacherOf(b)) || a.subjectName.localeCompare(b.subjectName) || sortCs(a.classSection, b.classSection) || a.startDate.localeCompare(b.startDate));
   if (print) {
-    const teachers = [...new Set(sorted.map((r) => r.teacher))];
+    const teachers = [...new Set(sorted.map(teacherOf))];
     return (
       <table style={{ fontSize: "8pt" }}>
         <thead>
@@ -305,7 +316,7 @@ function DetailTable({ rows, print }: { rows: ExamsTeacherPerfRow[]; print?: boo
               <th colSpan={8}>Teacher: {t}</th>
             </tr>,
             ...sorted
-              .filter((r) => r.teacher === t)
+              .filter((r) => teacherOf(r) === t)
               .map((r) => (
                 <tr key={`${r.examId}-${r.classSection}-${r.subjectId}`}>
                   <td>{r.subjectName}</td>
@@ -332,7 +343,7 @@ function DetailTable({ rows, print }: { rows: ExamsTeacherPerfRow[]; print?: boo
         density="dense"
         maxHeight={560}
         columns={[
-          { key: "teacher", header: "Teacher", width: 170, render: (r) => <span className="mtb-cell-primary">{r.teacher}</span> },
+          { key: "teacher", header: "Teacher", width: 170, render: (r) => (r.teacher ? <span className="mtb-cell-primary">{r.teacher}</span> : <span className="text-ink-muted">—</span>) },
           { key: "subject", header: "Subject", width: 130, render: (r) => r.subjectName },
           { key: "exam", header: "Exam", render: (r) => <span className="grid"><span>{r.examName}</span><span className="mtb-cell-secondary">{r.examType}{r.status === "DRAFT" ? " · provisional" : ""}</span></span> },
           { key: "cs", header: "Section", width: 80, render: (r) => r.classSection },
@@ -344,4 +355,9 @@ function DetailTable({ rows, print }: { rows: ExamsTeacherPerfRow[]; print?: boo
       />
     </>
   );
+}
+
+/** This month in Pakistan time, "YYYY-MM". */
+function thisMonthPkt(): string {
+  return new Date(Date.now() + 5 * 3600 * 1000).toISOString().slice(0, 7);
 }

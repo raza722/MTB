@@ -46,6 +46,7 @@ export const en = {
   "common.table": "Table",
   "common.view": "View as",
   "common.new": "New",
+  "common.none": "—",
   "error.title": "This page didn't load.",
   "error.network": "Can't reach the school's server. Check your internet connection and try again.",
   "error.generic": "Something went wrong. Try again.",
@@ -69,15 +70,16 @@ export const en = {
   "signin.sending": "Sending…",
   "signin.errMobile": "Enter an 11-digit mobile number that starts with 03.",
   "signin.errGr": "Enter the G.R. number as it is on the school card, for example {example}.",
-  "signin.err.NOT_REGISTERED": "This number isn't in the school's records. Use the number you gave at admission, or call your campus office to update it.",
-  "signin.err.GR_NOT_FOUND": "We couldn't find this G.R. number. Check it on the school card or a fee receipt.",
-  "signin.err.PORTAL_NOT_ENABLED": "The portal hasn't been set up for this student yet. Ask your campus office.",
+  "signin.err.TOO_SOON": "Wait {sec} seconds before asking for another code.",
   "signin.trouble": "Trouble signing in? Call your campus office.",
   "signin.privacy": "Only families registered with the school can sign in. The school will never ask you for this code on the phone.",
 
   // ---- One-time code ----
   "verify.title": "Enter the code",
-  "verify.subtitle": "We sent a 6-digit code by SMS to {phone}. It works for 5 minutes.",
+  "verify.subtitle": "If this number is in the school's records, we sent a 6-digit code by SMS to {phone}. It works for 5 minutes.",
+  "verify.subtitleStudent": "If this G.R. number is in the school's records, we sent a 6-digit code by SMS to your parent's mobile {phone}. It works for 5 minutes.",
+  "verify.noCode": "No code? Use the number you gave at admission, or call your campus office.",
+  "verify.noCodeStudent": "No code? Check the G.R. number on your school card, or ask your campus office.",
   "verify.label": "One-time code",
   "verify.digit": "Digit {n} of 6",
   "verify.submit": "Verify and sign in",
@@ -98,11 +100,6 @@ export const en = {
   "verify.welcome": "Signed in. Welcome, {name}.",
 
   // ---- Demo hint (mock mode only) ----
-  "demo.title": "Demo accounts",
-  "demo.code": "One-time code {code}",
-  "demo.parents": "Parents",
-  "demo.students": "Students",
-  "demo.note": "Fictional people and data. Tap an account to fill the form.",
 
   // ---- Shell ----
   "shell.switchChild": "Switch child",
@@ -159,7 +156,7 @@ export const en = {
   "fees.desc": "What is due, the fee voucher and every receipt",
   "fees.toPay": "To pay",
   "fees.totalDue": "Total to pay",
-  "fees.fineRule": "A late fine of Rs 10 a day is added from the day after the due date.",
+  "fees.fineRule": "A late fine of {amount} a day is added from the day after the due date.",
   "fees.fineSoFar": "Includes {amount} late fine so far",
   "fees.colCharge": "Charge",
   "fees.colDue": "Due date",
@@ -169,6 +166,7 @@ export const en = {
   "fees.daysOverdue": "{n} days late",
   "fees.voucher": "Download fee voucher",
   "fees.voucherHint": "Pay at any branch of {bank} or at the school's fee counter.",
+  "fees.voucherHintCounter": "Pay at the school's fee counter.",
   "fees.cleared": "All dues cleared",
   "fees.clearedDesc": "Nothing to pay for {child} right now. Receipts for everything paid are below.",
   "fees.sessionTitle": "This session",
@@ -189,6 +187,8 @@ export const en = {
   "fees.method.BANK": "Bank deposit",
   "fees.method.CHEQUE": "Cheque",
   "fees.method.ONLINE": "Online transfer",
+  "fees.method.SALARY": "Salary deduction",
+  "fees.method.LEGACY": "Old system",
   "fees.receiptReview": "Under review",
   "fees.receiptCancelled": "Cancelled",
   "fees.receiptToday": "Paid today",
@@ -212,6 +212,9 @@ export const en = {
   "doc.ifLate": "If paid late",
   "doc.noVoucher": "No voucher to download",
   "doc.noVoucherDesc": "All of {child}'s dues are cleared.",
+  "doc.noVoucherYet": "No voucher for this month yet",
+  "doc.noVoucherYetDesc": "There is no fee voucher for this month yet. Pay at the campus office, or ask the office to issue one.",
+  "doc.noVoucherYetCall": "Call the office on {phone}.",
   "doc.preview": "Preview",
 
   // ---- Attendance ----

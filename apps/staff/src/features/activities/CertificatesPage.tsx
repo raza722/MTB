@@ -8,9 +8,8 @@ import { campusLabel } from "../../app/shell/campus";
 import { Page, PageHeader, RequireSingleCampus } from "../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { CertificateDoc } from "./print";
-import { ActivitiesNav, DocPreview, errorText, LoadError, PersonChip, PlaceBadge, plural, PrintLayer, StudentSearch, useRefresh } from "./shared";
+import { ActivitiesNav, DocPreview, errorText, LoadError, PersonChip, PlaceBadge, plural, PrintLayer, StudentSearch, useRefresh, useToday } from "./shared";
 
-const TODAY = "2026-11-04";
 type IssueType = Exclude<ActivitiesCertType, "SCHOLARSHIP">;
 
 /** Certificates of merit, participation and appreciation: issue with a serial number, print on A4, reprint as duplicate. */
@@ -144,9 +143,10 @@ function IssuePanel({ eventId, onEvent, onPrint }: { eventId: string | undefined
   const ctx = useCtx();
   const toast = useToast();
   const refresh = useRefresh();
+  const today = useToday();
   const events = useQuery(activitiesQueries.events(ctx));
   const [type, setType] = useState<IssueType>("MERIT");
-  const held = (events.data ?? []).filter((e) => e.date <= TODAY && e.status !== "CANCELLED" && e.participants > 0 && (type !== "MERIT" || e.status === "DONE")).sort((a, b) => b.date.localeCompare(a.date));
+  const held = (events.data ?? []).filter((e) => e.date <= today && e.status !== "CANCELLED" && e.participants > 0 && (type !== "MERIT" || e.status === "DONE")).sort((a, b) => b.date.localeCompare(a.date));
   const evId = eventId && held.some((e) => e.id === eventId) ? eventId : "";
   const ev = useQuery({ ...activitiesQueries.event(ctx, evId), enabled: evId !== "" });
   const [ticked, setTicked] = useState<Set<string>>(new Set());
@@ -174,11 +174,12 @@ function IssuePanel({ eventId, onEvent, onPrint }: { eventId: string | undefined
 
   // A draft of the first certificate for the preview.
   const first = type === "APPRECIATION" ? people[0] : eligible.find((p) => ticked.has(p.id));
-  const draft: ActivitiesCertificate | null = first
+  const campus = ctx.campus === "ALL" ? null : ctx.campus;
+  const draft: ActivitiesCertificate | null = first && campus
     ? {
         id: "draft",
         certNo: "Given when issued",
-        campus: ctx.campus === "ALL" ? "KC" : ctx.campus,
+        campus,
         session: ctx.session,
         type,
         studentId: "studentId" in first ? first.studentId : first.id,
@@ -200,7 +201,7 @@ function IssuePanel({ eventId, onEvent, onPrint }: { eventId: string | undefined
             : type === "PARTICIPATION" && "item" in first
               ? `for taking part in ${first.item} at the ${ev.data?.title ?? ""} held on ${ev.data ? formatDate(ev.data.date) : ""}.`
               : `in appreciation of ${title.trim() || "…"}.`),
-        issuedOn: TODAY,
+        issuedOn: today,
         issuedBy: "",
         prints: 0,
       }

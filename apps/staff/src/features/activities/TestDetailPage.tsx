@@ -111,7 +111,8 @@ function TestView({ test: t, tab, onTab }: { test: ActivitiesTestDetail; tab: Te
             <dd>{t.source === "EXAM" ? t.examName : `${t.date ? formatDate(t.date) : "—"}${t.venue ? `, ${t.venue}` : ""}`}</dd>
             <dt>Papers</dt>
             <dd>
-              {t.papers.map((p) => `${p.name} ${p.maxMarks}`).join(" · ")} = {t.maxMarks} marks
+              {/* A merit list from an exam lists no papers here: they belong to the exam in Exams. */}
+              {t.papers.length ? `${t.papers.map((p) => `${p.name} ${p.maxMarks}`).join(" · ")} = ${t.maxMarks} marks` : t.maxMarks ? `${t.maxMarks} marks` : "—"}
             </dd>
             <dt>Awards from</dt>
             <dd>
@@ -527,6 +528,9 @@ function MarksTab({ test: t, canManage }: { test: ActivitiesTestDetail; canManag
   const bad = t.candidates.some((c) => t.papers.some((p) => invalid(valueOf(c, p.id), p.maxMarks)));
   const dirty = Object.keys(draft).length > 0;
   const total = (c: ActivitiesCandidate) => t.papers.reduce((s, p) => s + (Number(valueOf(c, p.id)) || 0), 0);
+  // While marks are typed the totals follow the boxes; otherwise they are the server's (an exam's own marks for a merit list from results).
+  const totalText = (c: ActivitiesCandidate) => (editable ? String(total(c)) : c.percent === null && t.source === "EXAM" ? "—" : String(c.obtained));
+  const percentText = (c: ActivitiesCandidate) => (editable ? (t.maxMarks ? ((total(c) / t.maxMarks) * 100).toFixed(1) : "—") : c.percent === null ? "—" : c.percent.toFixed(1));
   const rows = [...t.candidates].sort((a, b) => a.rollNo - b.rollNo || a.name.localeCompare(b.name));
 
   return (
@@ -592,8 +596,8 @@ function MarksTab({ test: t, canManage }: { test: ActivitiesTestDetail; canManag
                       </td>
                     );
                   })}
-                  <td className="n font-semibold">{total(c)}</td>
-                  <td className="n">{t.maxMarks ? ((total(c) / t.maxMarks) * 100).toFixed(1) : "—"}</td>
+                  <td className="n font-semibold">{totalText(c)}</td>
+                  <td className="n">{percentText(c)}</td>
                 </tr>
               ))}
             </tbody>

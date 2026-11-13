@@ -1,5 +1,5 @@
-import { HR_CATEGORY_LABEL, HR_DOCUMENT_LABEL, HR_EMPLOYMENT_LABEL, HR_PAYMENT_LABEL, hrApi, hrMonthLabel, hrQueries, type HrDocumentKind, type HrStaffProfile } from "@mtb/api";
-import { formatCnic, formatDate, formatDateTime, formatMobile, formatRs } from "@mtb/domain";
+import { can, HR_CATEGORY_LABEL, HR_DOCUMENT_LABEL, HR_EMPLOYMENT_LABEL, HR_PAYMENT_LABEL, hrApi, hrMonthLabel, hrQueries, type HrDocumentKind, type HrStaffProfile } from "@mtb/api";
+import { formatDate, formatDateTime, formatMobile, formatRs, formatSession } from "@mtb/domain";
 import {
   AttendanceCalendar,
   Avatar,
@@ -28,14 +28,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useRef, useState, type ReactNode } from "react";
 import { RequirePermission } from "../../app/shell/page";
-import { useCan, useCtx, useReadOnly } from "../../app/session";
+import { useCan, useCtx, useReadOnly, useSessionUser } from "../../app/session";
 import { AppointmentLetterDoc, IdCardDoc, PayslipDoc, ProfileDoc } from "./print";
-import { AddPostingPanel, EditPersonalPanel, EndPostingPanel, PayPanel, QualificationsPanel, TeachingPanel, useHrSettings } from "./StaffPanels";
-import { errorText, HrShell, LoadError, LoanBadge, Ltr, RunBadge, slide, StaffStatusBadge, THIS_MONTH, TODAY, usePayAccess, usePrint, years } from "./shared";
+import { AddPostingPanel, EditPersonalPanel, EndPostingPanel, PayPanel, QualificationsPanel, RejoinPanel, TeachingPanel, useHrSettings } from "./StaffPanels";
+import { basicRs, cnicOrDash, dateOrDash, errorText, HrShell, LoadError, LoanBadge, Ltr, mobileOrDash, orDash, RunBadge, sessionOf, slide, StaffStatusBadge, thisMonth, today, usePayAccess, usePrint, years } from "./shared";
 
 export type ProfileTab = "overview" | "employment" | "qualifications" | "pay" | "leave" | "documents" | "history";
 
-type Editing = null | "personal" | "posting" | "qualifications" | "teaching" | "pay" | { end: string };
+type Editing = null | "personal" | "posting" | "rejoin" | "qualifications" | "teaching" | "pay" | { end: string };
 
 function Section({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
   return (
@@ -54,7 +54,7 @@ export function StaffProfilePage({ staffId, tab, setTab }: { staffId: string; ta
   const ctx = useCtx();
   const readOnly = useReadOnly();
   const canManage = useCan("hr.manage");
-  const canPayroll = useCan("payroll.manage");
+  const user = useSessionUser();
   const payAccess = usePayAccess();
   const q = useQuery(hrQueries.profile(ctx, staffId));
   const settings = useHrSettings();
@@ -63,17 +63,21 @@ export function StaffProfilePage({ staffId, tab, setTab }: { staffId: string; ta
   const { print, area } = usePrint();
   const [editing, setEditing] = useState<Editing>(null);
   const [leaving, setLeaving] = useState(false);
-  const [leftDate, setLeftDate] = useState<string | null>(TODAY);
+  const [leftDate, setLeftDate] = useState<string | null>(today());
   const [leftReason, setLeftReason] = useState("");
   const [docKind, setDocKind] = useState<HrDocumentKind>("OTHER");
   const fileRef = useRef<HTMLInputElement>(null);
   const s = q.data;
   const edit = canManage && !readOnly && s?.status === "ACTIVE";
+  // Pay is changed by payroll at the paying campus (the open main posting, else the latest main one), whatever campus
+  // is selected: the API checks payroll.manage there, with that campus's Payroll switch.
+  const payCampus = (s?.postings.find((p) => p.primary && !p.endDate) ?? s?.postings.filter((p) => p.primary).sort((a, b) => b.startDate.localeCompare(a.startDate))[0])?.campus;
+  const canPayroll = payCampus ? can(user, "payroll.manage", payCampus) : false;
 
   const markLeft = useMutation({
     mutationFn: () => hrApi.markLeft(staffId, { date: leftDate ?? "", reason: leftReason }),
     onSuccess: (r) => {
-      toast({ title: `${r.name} marked as left`, message: `Last working day ${formatDate(r.leavingDate ?? TODAY)}. The record stays for reports and history.` });
+      toast({ title: `${r.name} marked as left`, message: `Last working day ${formatDate(r.leavingDate ?? today())}. The record stays for reports and history.` });
       setLeaving(false);
       void queryClient.invalidateQueries({ queryKey: ["hr"] });
     },
@@ -103,7 +107,6 @@ export function StaffProfilePage({ staffId, tab, setTab }: { staffId: string; ta
       </RequirePermission>
     );
 
-  const primary = s?.postings.find((p) => p.primary) ?? s?.postings[0];
   const tabs = [
     { id: "overview", label: "Overview" },
     { id: "employment", label: "Postings", count: s?.postings.length },
@@ -136,7 +139,7 @@ export function StaffProfilePage({ staffId, tab, setTab }: { staffId: string; ta
                 <MenuItem icon="file" onSelect={() => print(<ProfileDoc s={s} />, "A4")}>
                   Staff profile (A4)
                 </MenuItem>
-                <MenuItem icon="file" onSelect={() => print(<AppointmentLetterDoc s={s} principal={primary?.campus === "KC" ? "Mrs Sadia Rehman" : "Principal"} />, "A4")}>
+                <MenuItem icon="file" onSelect={() => print(<AppointmentLetterDoc s={s} principal={s.principalName ?? "Principal"} />, "A4")}>
                   Appointment letter (A4)
                 </MenuItem>
                 <MenuItem icon="idCard" onSelect={() => print(<IdCardDoc s={s} />, "CARD")}>
@@ -174,7 +177,8 @@ export function StaffProfilePage({ staffId, tab, setTab }: { staffId: string; ta
                   </div>
                   <div className="hr-hero-meta">
                     <span>
-                      {s.designation} · {s.department}
+                      {s.designation}
+                      {s.department ? ` · ${s.department}` : ""}
                     </span>
                     <span>{HR_CATEGORY_LABEL[s.category]}</span>
                     <span>{HR_EMPLOYMENT_LABEL[s.employmentType]}</span>
@@ -188,7 +192,7 @@ export function StaffProfilePage({ staffId, tab, setTab }: { staffId: string; ta
                       .map((p) => (
                         <StatusBadge key={p.id} status={p.primary ? "brand" : "info"} dot={false} icon="building">
                           {p.campusName}
-                          {p.primary ? " · main" : ` · ${p.daysPerWeek ?? ""} days a week`}
+                          {p.primary ? " · main" : p.daysPerWeek ? ` · ${p.daysPerWeek} days a week` : ""}
                         </StatusBadge>
                       ))}
                     {s.userName && (
@@ -200,8 +204,19 @@ export function StaffProfilePage({ staffId, tab, setTab }: { staffId: string; ta
                 </div>
               </div>
               {s.status === "LEFT" && (
-                <Banner tone="neutral" className="mt-4" title={`Left on ${formatDate(s.leavingDate ?? TODAY)}`}>
-                  {s.leavingReason}. The record is kept for history, reports and experience letters.
+                <Banner
+                  tone="neutral"
+                  className="mt-4"
+                  title={`Left on ${formatDate(s.leavingDate ?? today())}`}
+                  actions={
+                    canManage && !readOnly ? (
+                      <Button size="sm" icon="plus" onClick={() => setEditing("rejoin")}>
+                        Rejoin
+                      </Button>
+                    ) : undefined
+                  }
+                >
+                  {s.leavingReason}. The record is kept for history, reports and experience letters. If they come back, rejoin them here instead of adding a new record.
                 </Banner>
               )}
               {s.probationEnds && s.status === "ACTIVE" && <Banner tone="info" className="mt-4">On probation until {formatDate(s.probationEnds)}. Confirm the appointment in writing before then.</Banner>}
@@ -214,15 +229,21 @@ export function StaffProfilePage({ staffId, tab, setTab }: { staffId: string; ta
                 <Panel id="personal" title="Personal and contact" rise={1} actions={edit ? <Button size="sm" variant="quiet" icon="edit" onClick={() => setEditing("personal")}>Edit</Button> : undefined}>
                   <KeyValue
                     items={[
-                      [s.relation === "w/o" ? "Husband" : "Father", s.guardianName],
-                      ["CNIC", <Ltr>{formatCnic(s.cnic)}</Ltr>],
-                      ["Date of birth", formatDate(s.dob)],
-                      ["Blood group", s.bloodGroup],
-                      ["Marital status", s.maritalStatus.charAt(0) + s.maritalStatus.slice(1).toLowerCase()],
-                      ["Mobile", <Ltr>{formatMobile(s.mobile)}{s.mobile2 ? ` · ${formatMobile(s.mobile2)}` : ""}</Ltr>],
-                      ["Email", s.email ?? "—"],
-                      ["Address", `${s.address}${s.city && !s.address.includes(s.city) ? `, ${s.city}` : ""}`],
-                      ["Emergency contact", `${s.emergency.name} (${s.emergency.relation}) · ${formatMobile(s.emergency.mobile)}`],
+                      [s.relation === "w/o" ? "Husband" : "Father", orDash(s.guardianName)],
+                      ["CNIC", <Ltr>{cnicOrDash(s.cnic)}</Ltr>],
+                      ["Date of birth", dateOrDash(s.dob)],
+                      ["Blood group", orDash(s.bloodGroup)],
+                      ["Marital status", s.maritalStatus ? s.maritalStatus.charAt(0) + s.maritalStatus.slice(1).toLowerCase() : "—"],
+                      [
+                        "Mobile",
+                        <Ltr>
+                          {mobileOrDash(s.mobile)}
+                          {s.mobile2 ? ` · ${formatMobile(s.mobile2)}` : ""}
+                        </Ltr>,
+                      ],
+                      ["Email", orDash(s.email)],
+                      ["Address", orDash([s.address, s.city && !s.address.includes(s.city) ? s.city : ""].filter(Boolean).join(", "))],
+                      ["Emergency contact", s.emergency ? `${s.emergency.name} (${s.emergency.relation}) · ${mobileOrDash(s.emergency.mobile)}` : "No emergency contact"],
                       ...(s.reference ? ([["Reference", s.reference]] as Array<[string, string]>) : []),
                       ...(s.caste ? ([["Caste", s.caste]] as Array<[string, string]>) : []),
                     ]}
@@ -242,7 +263,7 @@ export function StaffProfilePage({ staffId, tab, setTab }: { staffId: string; ta
                       <p className="m-0 text-small text-ink-muted">Doesn't teach.</p>
                     )}
                   </Panel>
-                  <Panel id="this-month" title="Attendance" description={`${hrMonthLabel(s.attendance.month)}${s.attendance.month === THIS_MONTH ? " so far" : ""}`} rise={3}>
+                  <Panel id="this-month" title="Attendance" description={`${hrMonthLabel(s.attendance.month)}${s.attendance.month === thisMonth() ? " so far" : ""}`} rise={3}>
                     <dl className="m-0 grid grid-cols-4 gap-3 text-center">
                       {[
                         ["Present", s.attendance.present],
@@ -256,9 +277,15 @@ export function StaffProfilePage({ staffId, tab, setTab }: { staffId: string; ta
                         </div>
                       ))}
                     </dl>
-                    <p className="m-0 mt-3 text-small text-ink-muted">
-                      Leave left: {s.leave.filter((b) => b.left !== null && b.entitled && b.entitled <= 14).map((b) => `${b.typeName.replace(" leave", "")} ${b.left}`).join(" · ")}
-                    </p>
+                    {s.leave.some((b) => b.left !== null && b.entitled) && (
+                      <p className="m-0 mt-3 text-small text-ink-muted">
+                        Leave left:{" "}
+                        {s.leave
+                          .filter((b) => b.left !== null && b.entitled)
+                          .map((b) => `${b.typeName.replace(" leave", "")} ${b.left}`)
+                          .join(" · ")}
+                      </p>
+                    )}
                   </Panel>
                 </div>
               </div>
@@ -282,7 +309,7 @@ export function StaffProfilePage({ staffId, tab, setTab }: { staffId: string; ta
                           {p.endDate ? <StatusBadge status="cancelled">Ended {formatDate(p.endDate)}</StatusBadge> : <StatusBadge status="success">Current</StatusBadge>}
                         </span>
                         <span className="text-small text-ink-muted">
-                          {p.designation} · {p.department} · {HR_EMPLOYMENT_LABEL[p.employmentType]}
+                          {[p.designation, p.department, HR_EMPLOYMENT_LABEL[p.employmentType]].filter(Boolean).join(" · ")}
                           {p.payScale ? ` · scale ${p.payScale}` : ""}
                           {p.daysPerWeek ? ` · ${p.daysPerWeek} days a week` : ""}
                         </span>
@@ -312,11 +339,10 @@ export function StaffProfilePage({ staffId, tab, setTab }: { staffId: string; ta
                         {s.qualifications.map((x, i) => (
                           <li key={x.id} className="mtb-slide-in flex flex-wrap items-baseline justify-between gap-2 rounded-md bg-surface-sunken px-3 py-2" style={slide(i)}>
                             <span>
-                              <span className="font-medium">{x.degree}</span> <span className="text-ink-muted">· {x.institution}</span>
+                              <span className="font-medium">{x.degree}</span>
+                              {x.institution && <span className="text-ink-muted"> · {x.institution}</span>}
                             </span>
-                            <span className="text-small text-ink-muted">
-                              {x.year} · {x.result}
-                            </span>
+                            <span className="text-small text-ink-muted">{[x.year, x.result].filter(Boolean).join(" · ") || "Year not recorded"}</span>
                           </li>
                         ))}
                       </ul>
@@ -357,9 +383,9 @@ export function StaffProfilePage({ staffId, tab, setTab }: { staffId: string; ta
             {tab === "leave" && (
               <div className="hr-split">
                 <Panel id="calendar" title={`Attendance · ${hrMonthLabel(s.attendance.month)}`} description="From the fingerprint machine and the office register." rise={1}>
-                  <AttendanceCalendar year={Number(s.attendance.month.slice(0, 4))} month={Number(s.attendance.month.slice(5, 7)) - 1} days={s.attendance.days} holidayNames={s.attendance.holidays} today={TODAY} />
+                  <AttendanceCalendar year={Number(s.attendance.month.slice(0, 4))} month={Number(s.attendance.month.slice(5, 7)) - 1} days={s.attendance.days} holidayNames={s.attendance.holidays} today={today()} />
                 </Panel>
-                <Panel id="balances" title="Leave this session" description="Days allowed, taken and left (2026–27)." rise={2}>
+                <Panel id="balances" title="Leave this session" description={`Days allowed, taken and left (${formatSession(sessionOf(today()))}).`} rise={2}>
                   <ul className="m-0 grid list-none gap-3 p-0">
                     {s.leave.map((b, i) => (
                       <li key={b.typeId} className="mtb-slide-in grid gap-1" style={slide(i)}>
@@ -450,6 +476,7 @@ export function StaffProfilePage({ staffId, tab, setTab }: { staffId: string; ta
 
             {editing === "personal" && <EditPersonalPanel s={s} onClose={() => setEditing(null)} />}
             {editing === "posting" && settings.data && <AddPostingPanel s={s} settings={settings.data} onClose={() => setEditing(null)} />}
+            {editing === "rejoin" && settings.data && <RejoinPanel s={s} settings={settings.data} onClose={() => setEditing(null)} />}
             {editing === "qualifications" && <QualificationsPanel s={s} onClose={() => setEditing(null)} />}
             {editing === "teaching" && settings.data && <TeachingPanel s={s} settings={settings.data} onClose={() => setEditing(null)} />}
             {editing === "pay" && settings.data && s.pay && <PayPanel s={s} settings={settings.data} onClose={() => setEditing(null)} />}
@@ -469,7 +496,7 @@ export function StaffProfilePage({ staffId, tab, setTab }: { staffId: string; ta
               error={markLeft.error ? errorText(markLeft.error) : undefined}
             >
               <div className="mt-3 grid gap-3">
-                <DatePicker label="Last working day" required value={leftDate} onValueChange={setLeftDate} today={TODAY} />
+                <DatePicker label="Last working day" required value={leftDate} onValueChange={setLeftDate} today={today()} />
                 <Textarea label="Reason" required rows={2} value={leftReason} onChange={(e) => setLeftReason(e.target.value)} placeholder="Resigned; one month's notice served" />
               </div>
             </ConfirmDialog>
@@ -511,7 +538,7 @@ function PayTab({ s, canEdit, onEdit, onPrintSlip }: { s: HrStaffProfile; canEdi
               <tbody>
                 <tr>
                   <td className="py-1">Basic pay{p.payScale ? ` (scale ${p.payScale})` : ""}</td>
-                  <td className="py-1 text-right tabular-nums">{formatRs(p.basic)}</td>
+                  <td className="py-1 text-right tabular-nums">{basicRs(p.basic)}</td>
                 </tr>
                 {p.allowances.map((a) => (
                   <tr key={a.code}>
@@ -524,7 +551,7 @@ function PayTab({ s, canEdit, onEdit, onPrintSlip }: { s: HrStaffProfile; canEdi
                 ))}
                 <tr className="border-t border-border font-semibold">
                   <td className="py-1">Gross</td>
-                  <td className="py-1 text-right tabular-nums">{formatRs(p.gross)}</td>
+                  <td className="py-1 text-right tabular-nums">{p.basic ? formatRs(p.gross) : "—"}</td>
                 </tr>
               </tbody>
             </table>
@@ -541,7 +568,7 @@ function PayTab({ s, canEdit, onEdit, onPrintSlip }: { s: HrStaffProfile; canEdi
                 ))}
                 <tr className="border-t border-border font-semibold">
                   <td className="py-1">Take-home (usual month)</td>
-                  <td className="py-1 text-right tabular-nums">{formatRs(p.net)}</td>
+                  <td className="py-1 text-right tabular-nums">{p.basic ? formatRs(p.net) : "—"}</td>
                 </tr>
               </tbody>
             </table>

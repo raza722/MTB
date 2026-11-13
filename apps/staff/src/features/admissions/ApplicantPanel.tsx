@@ -12,8 +12,8 @@ import { Link } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { PrintSheet, printNow } from "../students/documents/print";
-import { apiMessage, TODAY } from "../students/shared";
-import { DiamondMindsBadge, offerDeadline, StageBadge } from "./shared";
+import { apiMessage } from "../students/shared";
+import { dateOrBlank, DiamondMindsBadge, mobileOrDash, offerDeadline, orDash, scoreOf, sittingWhen, sittingWhenWhere, StageBadge, today } from "./shared";
 import { ApplicationForm, TestSlip } from "./slips";
 
 /** One applicant: details, candidate fee, test booking and marks, offer, history, and the next step. */
@@ -25,7 +25,7 @@ export function ApplicantPanel({ id, onClose, onAdmit }: { id: string | null; on
   const readOnly = useReadOnly();
   const q = useQuery({ ...admissionsQueries.applicant(id ?? ""), enabled: Boolean(id) });
   const a = q.data;
-  const setup = useQuery({ ...admissionsQueries.setup({ campus: a?.campus ?? ctx.campus, session: ctx.session }), enabled: Boolean(a) });
+  const setup = useQuery({ ...admissionsQueries.setup({ campus: a?.campus ?? ctx.campus, session: a?.session ?? ctx.session }), enabled: Boolean(a) });
   const [testId, setTestId] = useState("");
   const [printing, setPrinting] = useState<null | "form" | "slip">(null);
   const [withdrawing, setWithdrawing] = useState(false);
@@ -43,8 +43,8 @@ export function ApplicantPanel({ id, onClose, onAdmit }: { id: string | null; on
     void queryClient.invalidateQueries({ queryKey: admissionsQueries.all() });
     toast({ title, ...(message ? { message } : {}) });
   };
-  const fee = useMutation({ mutationFn: () => admissionsApi.recordFee(a!.id, newIdempotencyKey()), onSuccess: (n) => done(n, "Candidate fee recorded", `${n.fee?.receiptNo} · ${formatRs(n.fee?.amount ?? 0)}`) });
-  const book = useMutation({ mutationFn: () => admissionsApi.scheduleTest(a!.id, testId, newIdempotencyKey()), onSuccess: (n) => done(n, "Entrance test booked", `${formatDate(n.testDate!)} · seat ${n.testRollNo}. Print the test slip for the family.`) });
+  const fee = useMutation({ mutationFn: () => admissionsApi.recordFee(a!.id, newIdempotencyKey()), onSuccess: (n) => done(n, "Candidate fee recorded", [n.fee?.receiptNo, n.fee ? formatRs(n.fee.amount) : ""].filter(Boolean).join(" · ")) });
+  const book = useMutation({ mutationFn: () => admissionsApi.scheduleTest(a!.id, testId, newIdempotencyKey()), onSuccess: (n) => done(n, "Entrance test booked", `${n.testDate ? formatDate(n.testDate) : ""}${n.testRollNo ? ` · seat ${n.testRollNo}` : ""}. Print the test slip for the family.`) });
   const withdraw = useMutation({
     mutationFn: () => admissionsApi.withdraw(a!.id, reason, newIdempotencyKey()),
     onSuccess: (n) => {
@@ -56,13 +56,13 @@ export function ApplicantPanel({ id, onClose, onAdmit }: { id: string | null; on
     mutationFn: () => admissionsApi.offerDirect(a!.id, newIdempotencyKey()),
     onSuccess: (n) => {
       setOffering(false);
-      done(n, `Seat offered to ${n.name}`, `Valid until ${formatDate(n.offerValidUntil!)}. Complete the admission when the family confirms.`);
+      done(n, `Seat offered to ${n.name}`, `${n.offerValidUntil ? `Valid until ${formatDate(n.offerValidUntil)}. ` : ""}Complete the admission when the family confirms.`);
     },
   });
 
   const editable = canManage && !readOnly;
   const rule = setup.data?.classes.find((c) => c.classApplied === a?.classApplied);
-  const sittings = (setup.data?.tests ?? []).filter((t) => t.classApplied === a?.classApplied && t.date >= TODAY);
+  const sittings = (setup.data?.tests ?? []).filter((t) => t.classApplied === a?.classApplied && t.date >= today());
   const test = setup.data?.tests.find((t) => t.id === a?.testId);
   const deadline = a?.stage === "OFFERED" ? offerDeadline(a.offerValidUntil) : null;
   const mutError = fee.error ?? book.error;
@@ -134,8 +134,8 @@ export function ApplicantPanel({ id, onClose, onAdmit }: { id: string | null; on
             {a.enquiryNo && <StatusBadge status="neutral">From enquiry {a.enquiryNo}</StatusBadge>}
             {a.nameUr && <Urdu size="small">{a.nameUr}</Urdu>}
           </div>
-          {deadline && <Banner tone={deadline.urgent ? "warning" : "info"} title={deadline.text}>{`Offered on ${formatDate(a.offeredOn!)} by ${a.offeredBy ?? "the principal"}. Complete the admission when the family confirms and the admission fee is arranged.`}</Banner>}
-          {a.stage === "WITHDRAWN" && <Banner tone="neutral" title={`Withdrawn on ${formatDate(a.withdrawnOn!)}`}>{a.withdrawnReason}</Banner>}
+          {deadline && <Banner tone={deadline.urgent ? "warning" : "info"} title={deadline.text}>{`Offered${a.offeredOn ? ` on ${formatDate(a.offeredOn)}` : ""} by ${a.offeredBy ?? "the principal"}. Complete the admission when the family confirms and the admission fee is arranged.`}</Banner>}
+          {a.stage === "WITHDRAWN" && <Banner tone="neutral" title={a.withdrawnOn ? `Withdrawn on ${formatDate(a.withdrawnOn)}` : "Withdrawn"}>{a.withdrawnReason}</Banner>}
           {a.siblings && a.siblings.length > 0 && (
             <Banner tone="info" icon="home" title="Siblings already at MTB">
               {a.siblings.map((s, i) => (
@@ -152,17 +152,17 @@ export function ApplicantPanel({ id, onClose, onAdmit }: { id: string | null; on
           )}
           <KeyValue
             items={[
-              ["Date of birth", <span className="tabular-nums">{formatDate(a.dob)}</span>],
+              ["Date of birth", <span className="tabular-nums">{dateOrBlank(a.dob)}</span>],
               ...(a.bForm ? ([["B-form", <span className="mtb-mono">{formatCnic(a.bForm)}</span>]] as Array<[string, ReactNode]>) : []),
               ...(a.stream ? ([["Group", a.stream]] as Array<[string, string]>) : []),
               ...(a.religion || a.disability || a.identificationMark || a.birthCertificateNo
                 ? ([["More about the child", [a.religion, a.birthCertificateNo && `birth certificate ${a.birthCertificateNo}`, a.disability && `disability: ${a.disability}`, a.identificationMark && `mark: ${a.identificationMark}`].filter(Boolean).join(" · ")]] as Array<[string, string]>)
                 : []),
-              ["Father", `${a.father}${a.fatherCnic ? ` · ${formatCnic(a.fatherCnic)}` : " · CNIC not given"}${a.fatherOccupation ? ` · ${a.fatherOccupation}` : ""}${a.fatherQualification ? ` · ${a.fatherQualification}` : ""}`],
+              ["Father", `${orDash(a.father)}${a.fatherCnic ? ` · ${formatCnic(a.fatherCnic)}` : " · CNIC not given"}${a.fatherOccupation ? ` · ${a.fatherOccupation}` : ""}${a.fatherQualification ? ` · ${a.fatherQualification}` : ""}`],
               ...(a.mother || a.motherOccupation || a.motherQualification ? ([["Mother", [a.mother, a.motherOccupation, a.motherQualification].filter(Boolean).join(" · ")]] as Array<[string, string]>) : []),
-              ["Mobile", <span className="tabular-nums">{formatMobile(a.mobile)}{a.homePhone ? ` · home ${a.homePhone}` : ""}</span>],
+              ["Mobile", <span className="tabular-nums">{mobileOrDash(a.mobile)}{a.homePhone ? ` · home ${a.homePhone}` : ""}</span>],
               ...(a.email ? ([["Email", a.email]] as Array<[string, string]>) : []),
-              ["Address", `${a.address}${a.city ? `, ${a.city}` : ""}`],
+              ["Address", [a.address, a.city].filter((x) => x?.trim()).join(", ") || "—"],
               ...(a.tempAddress ? ([["Temporary address", a.tempAddress]] as Array<[string, string]>) : []),
               ...(a.emergencyContact ? ([["Emergency contact", `${a.emergencyContact.name} · ${formatMobile(a.emergencyContact.mobile1)}${a.emergencyContact.mobile2 ? ` / ${formatMobile(a.emergencyContact.mobile2)}` : ""}`]] as Array<[string, string]>) : []),
               ["Previous school", a.previousSchool ?? "—"],
@@ -176,12 +176,16 @@ export function ApplicantPanel({ id, onClose, onAdmit }: { id: string | null; on
             <section className="grid gap-2 rounded-lg border border-border p-3" aria-label="Candidate fee">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="font-medium text-ink">Candidate fee · {formatRs(a.fee.amount)}</span>
-                {a.fee.status === "PAID" ? <StatusBadge status="paid">Paid · {a.fee.receiptNo}</StatusBadge> : <StatusBadge status="unpaid">Not paid</StatusBadge>}
+                {a.fee.status === "PAID" ? (
+                  <StatusBadge status="paid">{["Paid", a.fee.receiptNo ?? (a.fee.bankChallanNo ? `challan ${a.fee.bankChallanNo}` : ""), a.fee.paidOn ? formatDate(a.fee.paidOn) : ""].filter(Boolean).join(" · ")}</StatusBadge>
+                ) : a.fee.status === "WAIVED" ? (
+                  <StatusBadge status="neutral">Waived</StatusBadge>
+                ) : <StatusBadge status="unpaid">Not paid</StatusBadge>}
               </div>
               {a.fee.status === "DUE" && (
                 <div className="flex flex-wrap items-center justify-between gap-2 text-small text-ink-muted">
                   <span>The test slip is printed once the fee is paid.</span>
-                  {editable && (
+                  {editable && a.fee.amount > 0 && (
                     <Button size="sm" variant="primary" icon="fees" loading={fee.isPending} onClick={() => fee.mutate()}>
                       Record payment
                     </Button>
@@ -199,7 +203,7 @@ export function ApplicantPanel({ id, onClose, onAdmit }: { id: string | null; on
               </div>
               {test && (
                 <span className="text-small text-ink-muted">
-                  {test.name} · {formatDate(test.date)}, {test.time} · {test.venue}
+                  {test.name} · {sittingWhenWhere(test)}
                 </span>
               )}
               {a.marks && Object.keys(a.marks).length > 0 && (
@@ -212,20 +216,18 @@ export function ApplicantPanel({ id, onClose, onAdmit }: { id: string | null; on
                   ))}
                   <li className="grid rounded-md bg-brand-tint px-2 py-1.5 text-small">
                     <span className="text-brand-ink">Total</span>
-                    <b className="tabular-nums text-brand-ink">
-                      {a.testScore ?? "—"} / {a.testMax}
-                    </b>
+                    <b className="tabular-nums text-brand-ink">{a.absentFromTest ? "Absent" : scoreOf(a)}</b>
                   </li>
                 </ul>
               )}
-              {editable && (a.stage === "APPLIED" || (a.stage === "TEST" && (a.testDate ?? "") > TODAY)) && (
+              {editable && (a.stage === "APPLIED" || (a.stage === "TEST" && (a.testDate ?? "") > today())) && (
                 <div className="flex flex-wrap items-end gap-2">
                   <div className="min-w-56 flex-1">
                     <Select
                       label={a.testId ? "Move to another sitting" : "Book a sitting"}
                       value={testId}
                       onChange={(e) => setTestId(e.target.value)}
-                      options={[{ value: "", label: sittings.length ? "Choose a date…" : "No upcoming sitting for this class" }, ...sittings.filter((t) => t.id !== a.testId).map((t) => ({ value: t.id, label: `${formatDate(t.date)}, ${t.time} · ${t.candidates} booked` }))]}
+                      options={[{ value: "", label: sittings.length ? "Choose a date…" : "No upcoming sitting for this class" }, ...sittings.filter((t) => t.id !== a.testId).map((t) => ({ value: t.id, label: `${sittingWhen(t)} · ${t.candidates} booked` }))]}
                     />
                   </div>
                   <Button variant="primary" disabled={!testId || a.fee?.status === "DUE"} loading={book.isPending} onClick={() => book.mutate()}>
@@ -303,7 +305,7 @@ export function ApplicantPanel({ id, onClose, onAdmit }: { id: string | null; on
           onConfirm={() => offer.mutate()}
           icon="send"
           title={`Offer ${a.name} a seat in ${a.classApplied}?`}
-          message={`${a.classApplied} admits on an interview and available seats, without an entrance test. The offer is valid for seven days.`}
+          message={`${a.classApplied} admits on an interview and available seats, without an entrance test. The offer has an expiry date (seven days unless the office changes it).`}
           confirmLabel="Offer a seat"
           loading={offer.isPending}
           loadingLabel="Offering…"

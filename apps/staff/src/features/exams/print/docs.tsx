@@ -15,14 +15,15 @@ import {
   type ExamsResultRow,
   type ExamsSubject,
 } from "@mtb/api";
-import { amountInWords, formatDate, formatMobile, formatPercent, formatRs, formatSession, formatWeekday } from "@mtb/domain";
+import { amountInWords, formatDate, formatMobile, formatPercent, formatRs, formatSession, formatWeekday, pakistanToday } from "@mtb/domain";
 import { Urdu } from "@mtb/ui";
 import type { ReactNode } from "react";
 import { campusLabel } from "../../../app/shell/campus";
 import { markText, ordinal } from "../shared";
 
 const CITY: Partial<Record<CampusCode, string>> = { KC: "Sadiqabad", HC: "Lahore" };
-export const PRINTED_ON = "04-Nov-2026";
+/** Today (Pakistan time) as printed on documents: "07-Nov-2026". */
+export const printedOn = () => formatDate(pakistanToday());
 
 /** An English label with its Urdu underneath when Urdu headings are on. */
 function L({ en, ur, urdu }: { en: string; ur: string; urdu: boolean | undefined }) {
@@ -61,7 +62,7 @@ function Foot({ exam, page }: { exam: ExamDetail; page?: string }) {
   return (
     <footer className="exams-doc-foot">
       <span>
-        Printed <bdi dir="ltr">{PRINTED_ON}</bdi>
+        Printed <bdi dir="ltr">{printedOn()}</bdi>
         {exam.status === "DECLARED" ? "" : " · Provisional: not declared"}
       </span>
       <span>{page ?? ""}</span>
@@ -469,7 +470,7 @@ export function MasterSheet({
                 </th>
                 {stats.map((s) => (
                   <th key={s.subjectId} className="n">
-                    {s.sat ? s.average.toFixed(1) : ""}
+                    {s.average === null ? "" : s.average.toFixed(1)}
                   </th>
                 ))}
                 <th colSpan={trail} />
@@ -480,7 +481,7 @@ export function MasterSheet({
                 </th>
                 {stats.map((s) => (
                   <th key={s.subjectId} className="n">
-                    {s.sat ? formatPercent(s.averagePercent) : ""}
+                    {s.averagePercent === null ? "" : formatPercent(s.averagePercent)}
                   </th>
                 ))}
                 <th colSpan={trail} />
@@ -1183,8 +1184,8 @@ export function TeacherReport({ exam, section, gender }: { exam: ExamDetail; sec
                   <td>{s.subjectName}</td>
                   <td>{s.classSection}</td>
                   <td className="n">{s.sat}</td>
-                  <td className="n">{formatPercent(s.averagePercent)}</td>
-                  <td className={s.passRate < 70 ? "n fail" : "n"}>{formatPercent(s.passRate)}</td>
+                  <td className="n">{s.averagePercent === null ? "—" : formatPercent(s.averagePercent)}</td>
+                  <td className={s.passRate !== null && s.passRate < 70 ? "n fail" : "n"}>{s.passRate === null ? "—" : formatPercent(s.passRate)}</td>
                 </tr>
               )),
             )}
@@ -1316,13 +1317,13 @@ export function SubjectPerformance({ exam, section, gender }: { exam: ExamDetail
           </thead>
           <tbody>
             {one && line("Teacher / lecturer", (s) => s.teacher ?? "—")}
-            {line("Max. obt. marks", (s) => s.highest)}
-            {line("Min. obt. marks", (s) => s.lowest)}
+            {line("Max. obt. marks", (s) => s.highest ?? "—")}
+            {line("Min. obt. marks", (s) => s.lowest ?? "—")}
             {line("Absent", (s) => s.absent)}
-            {line("Average marks", (s) => s.average.toFixed(1))}
-            {line("Marks %age", (s) => formatPercent(s.averagePercent))}
+            {line("Average marks", (s) => (s.average === null ? "—" : s.average.toFixed(1)))}
+            {line("Marks %age", (s) => (s.averagePercent === null ? "—" : formatPercent(s.averagePercent)))}
             {line("No. of failures", (s) => <span className={s.failed > 0 ? "fail" : undefined}>{s.failed}</span>)}
-            {line("Pass %age", (s) => formatPercent(s.passRate))}
+            {line("Pass %age", (s) => (s.passRate === null ? "—" : formatPercent(s.passRate)))}
           </tbody>
         </table>
       )}

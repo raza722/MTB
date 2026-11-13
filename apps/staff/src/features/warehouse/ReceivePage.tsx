@@ -5,8 +5,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Fragment, useMemo, useState } from "react";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { campusLabel } from "../../app/shell/campus";
-import { CampusNote, DocHead, errorField, errorText, inRange, LoadError, periodText, RequireSingleCampusOverlay, SignLines, TODAY, usePrinter } from "../library/common";
-import { checkLines, itemOptions, LineEditor, newLine, WarehouseShell, type LineDraft } from "./shared";
+import { CampusNote, DocHead, errorField, errorText, inRange, LoadError, opsToday, periodText, RequireSingleCampusOverlay, SignLines, usePrinter } from "../library/common";
+import { checkLines, itemOptions, LineEditor, newLine, orDash, WarehouseShell, type LineDraft } from "./shared";
 
 function GrnDoc({ g, campus }: { g: WarehouseGrn; campus: string }) {
   return (
@@ -16,11 +16,11 @@ function GrnDoc({ g, campus }: { g: WarehouseGrn; campus: string }) {
         <dt>Supplier</dt>
         <dd>{g.supplierName}</dd>
         <dt>Supplier invoice</dt>
-        <dd>{g.supplierInvoiceNo}</dd>
+        <dd>{orDash(g.supplierInvoiceNo)}</dd>
         <dt>Received on</dt>
         <dd>{formatDate(g.date)}</dd>
         <dt>Received by</dt>
-        <dd>{g.receivedBy}</dd>
+        <dd>{orDash(g.receivedBy)}</dd>
       </dl>
       <table>
         <thead>
@@ -83,9 +83,10 @@ function NewGrn({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();
   const items = useQuery(warehouseQueries.items(ctx));
   const suppliers = useQuery(warehouseQueries.suppliers(ctx));
+  const today = opsToday();
   const [supplierId, setSupplierId] = useState("");
   const [invoice, setInvoice] = useState("");
-  const [date, setDate] = useState<string | null>(TODAY);
+  const [date, setDate] = useState<string | null>(() => opsToday());
   const [freight, setFreight] = useState<number | null>(0);
   const [tax, setTax] = useState<number | null>(0);
   const [note, setNote] = useState("");
@@ -112,7 +113,7 @@ function NewGrn({ onClose }: { onClose: () => void }) {
     if (!supplierId) e.supplierId = "Choose the supplier.";
     if (!invoice.trim()) e.supplierInvoiceNo = "Enter the supplier's invoice or bill number.";
     if (!date) e.date = "Enter the date the goods arrived.";
-    else if (date > TODAY) e.date = "The date can't be in the future.";
+    else if (date > today) e.date = "The date can't be in the future.";
     if (freight === null || freight < 0) e.freight = "Enter freight in whole rupees, or 0.";
     if (tax === null || tax < 0) e.tax = "Enter sales tax in whole rupees, or 0.";
     setErrors(e);
@@ -141,7 +142,7 @@ function NewGrn({ onClose }: { onClose: () => void }) {
         <div className="grid gap-4 sm:grid-cols-3">
           <Select label="Supplier" required value={supplierId} onChange={(e) => setSupplierId(e.target.value)} error={errors.supplierId} options={[{ value: "", label: "Choose…" }, ...(suppliers.data ?? []).filter((s) => s.active).map((s) => ({ value: s.id, label: s.name }))]} />
           <Input label="Supplier's invoice no." required mono value={invoice} onChange={(e) => setInvoice(e.target.value)} error={errors.supplierInvoiceNo} help="The same bill can't be received twice." />
-          <DatePicker label="Received on" value={date} onValueChange={setDate} maxDate={TODAY} today={TODAY} error={errors.date} />
+          <DatePicker label="Received on" value={date} onValueChange={setDate} maxDate={today} today={today} error={errors.date} />
         </div>
         <LineEditor items={all} lines={lines} onChange={setLines} errors={errors} price stock={false} />
         <div className="grid gap-4 sm:grid-cols-2">
@@ -180,7 +181,7 @@ function GrnPanel({ g, onClose }: { g: WarehouseGrn; onClose: () => void }) {
       wide
       onClose={onClose}
       title={g.no}
-      description={`${g.supplierName} · invoice ${g.supplierInvoiceNo} · ${formatDate(g.date)}`}
+      description={`${g.supplierName} · invoice ${orDash(g.supplierInvoiceNo)} · ${formatDate(g.date)}`}
       footer={
         <>
           <Button icon="printer" onClick={() => printer.print(<GrnDoc g={g} campus={campusLabel(g.campus)} />)}>
@@ -202,7 +203,7 @@ function GrnPanel({ g, onClose }: { g: WarehouseGrn; onClose: () => void }) {
         )}
         <KeyValue
           items={[
-            ["Received by", `${g.receivedBy}, ${formatDateTime(g.postedAt)}`],
+            ["Received by", `${orDash(g.receivedBy)}, ${formatDateTime(g.postedAt)}`],
             ["Before discount", formatRs(g.subtotal)],
             ["Discount", g.discount ? formatRs(g.discount) : "None"],
             ["Freight", g.freight ? formatRs(g.freight) : "None"],
@@ -303,7 +304,7 @@ function PurchaseRegister({ receipts, kindOf, subtitle, campus }: { receipts: Re
                   <Fragment key={r.g.id}>
                     <tr>
                       <td colSpan={8}>
-                        <strong>{r.g.no}</strong> · invoice {r.g.supplierInvoiceNo} · {formatDate(r.g.date)}
+                        <strong>{r.g.no}</strong> · invoice {orDash(r.g.supplierInvoiceNo)} · {formatDate(r.g.date)}
                         {r.g.status === "REVERSED" ? " · REVERSED, not counted in the totals" : ""}
                       </td>
                     </tr>
@@ -410,11 +411,11 @@ export function ReceivePage({ openNew, setOpenNew }: { openNew: boolean; setOpen
   };
   const columns: Array<Column<WarehouseGrn>> = [
     { key: "no", header: "Receipt", render: (g) => <span className="grid"><span className="mtb-mono font-medium">{g.no}</span><span className="text-small text-ink-muted">{formatDate(g.date)}{ctx.campus === "ALL" ? ` · ${campusLabel(g.campus)}` : ""}</span></span> },
-    { key: "sup", header: "Supplier", render: (g) => <span className="grid"><span>{g.supplierName}</span><span className="text-small text-ink-muted">Invoice {g.supplierInvoiceNo}</span></span> },
+    { key: "sup", header: "Supplier", render: (g) => <span className="grid"><span>{g.supplierName}</span><span className="text-small text-ink-muted">Invoice {orDash(g.supplierInvoiceNo)}</span></span> },
     { key: "items", header: "Items", render: (g) => <span className="text-small">{g.lines.slice(0, 2).map((l) => l.itemName).join(", ")}{g.lines.length > 2 ? ` and ${g.lines.length - 2} more` : ""}</span> },
     { key: "total", header: "Total", align: "right", render: (g) => <span className={`mtb-num font-medium ${g.status === "REVERSED" ? "mtb-strike text-ink-muted" : ""}`}>{formatRs(g.total)}</span> },
     { key: "status", header: "Status", render: (g) => (g.status === "POSTED" ? <StatusBadge status="declared" icon="lock">Posted</StatusBadge> : <StatusBadge status="cancelled" icon="refresh">Reversed</StatusBadge>) },
-    { key: "by", header: "Received by", render: (g) => <span className="text-small">{g.receivedBy}</span> },
+    { key: "by", header: "Received by", render: (g) => <span className="text-small">{orDash(g.receivedBy)}</span> },
   ];
   return (
     <WarehouseShell
@@ -487,7 +488,7 @@ export function ReceivePage({ openNew, setOpenNew }: { openNew: boolean; setOpen
           <EmptyState
             icon="download"
             title={filtered ? "No receipts match" : "No goods received this session"}
-            description={filtered ? "Change or clear the filters." : "Receive a supplier's bill to add stock. The warehouse moved to this system on 01-Apr-2026 with a physical count."}
+            description={filtered ? "Change or clear the filters." : "Receive a supplier's bill to add stock."}
           />
         }
       />

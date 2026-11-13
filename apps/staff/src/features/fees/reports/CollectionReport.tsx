@@ -1,4 +1,4 @@
-import { feeSetupApi, feeSetupQueries, newIdempotencyKey, PAYMENT_METHOD_LABEL, type CampusCode, type CampusScope, type FeeCollectionGroup, type FeeCollectionMethod, type FeeCollectionRow } from "@mtb/api";
+import { COUNTER_PAYMENT_METHODS, feeSetupApi, feeSetupQueries, newIdempotencyKey, PAYMENT_METHOD_LABEL, type CampusCode, type CampusScope, type FeeCollectionGroup, type FeeCollectionMethod, type FeeCollectionRow } from "@mtb/api";
 import { formatCount, formatDate, formatDateTime, formatLongDate, formatRs, formatTime, formatWeekday, type IsoDate } from "@mtb/domain";
 import {
   AmountInput,
@@ -32,17 +32,17 @@ import { useEffect, useMemo, useState } from "react";
 import { campusLabel } from "../../../app/shell/campus";
 import { Page, PageHeader, RequirePermission } from "../../../app/shell/page";
 import { useCan, useCtx, useReadOnly, useSessionUser } from "../../../app/session";
-import { addDaysIso, CLASS_SHORTS, className, errorText, FeesNav, lakhTick, LoadError, PaperSize, sectionsOf, slide, TODAY } from "../shared";
+import { addDaysIso, errorText, feeToday, FeesNav, lakhTick, LoadError, PaperSize, slide, useFeeClasses } from "../shared";
 
 type Preset = "TODAY" | "YESTERDAY" | "MONTH" | "CUSTOM";
 
 const yesterday = () => {
-  let d = addDaysIso(TODAY, -1);
+  let d = addDaysIso(feeToday(), -1);
   if (new Date(`${d}T00:00:00Z`).getUTCDay() === 0) d = addDaysIso(d, -1);
   return d;
 };
 
-const METHOD_COLOR: Record<FeeCollectionMethod, string> = { CASH: "var(--chart-1)", BANK: "var(--chart-2)", ONLINE: "var(--chart-3)", CHEQUE: "var(--chart-4)" };
+const METHOD_COLOR: Record<FeeCollectionMethod, string> = { CASH: "var(--chart-1)", BANK: "var(--chart-2)", ONLINE: "var(--chart-3)", CHEQUE: "var(--chart-4)", SALARY: "var(--chart-5)", LEGACY: "var(--ink-subtle)" };
 
 function GroupList({ groups, total }: { groups: FeeCollectionGroup[]; total: number }) {
   return (
@@ -72,7 +72,7 @@ function CloseCashPanel({ campus, onClose }: { campus: CampusCode; onClose: () =
   const user = useSessionUser();
   const toast = useToast();
   const queryClient = useQueryClient();
-  const mine = useQuery(feeSetupQueries.collection(ctx, { from: TODAY, to: TODAY, cashier: user?.name ?? "", method: "CASH", pageSize: 10 }));
+  const mine = useQuery(feeSetupQueries.collection(ctx, { from: feeToday(), to: feeToday(), cashier: user?.name ?? "", method: "CASH", pageSize: 10 }));
   const expected = mine.data?.rowsAmount ?? 0;
   const [counted, setCounted] = useState<number | null>(null);
   const [note, setNote] = useState("");
@@ -83,7 +83,7 @@ function CloseCashPanel({ campus, onClose }: { campus: CampusCode; onClose: () =
   if (counted === null) errors.counted = "Enter the cash you counted.";
   if (counted !== null && diff !== 0 && !note.trim()) errors.note = `The cash is ${diff < 0 ? "short" : "over"} by ${formatRs(Math.abs(diff))}. Say why before closing.`;
   const save = useMutation({
-    mutationFn: () => feeSetupApi.closeCash({ campus, date: TODAY, counted: counted!, ...(note.trim() ? { note: note.trim() } : {}) }, key),
+    mutationFn: () => feeSetupApi.closeCash({ campus, date: feeToday(), counted: counted!, ...(note.trim() ? { note: note.trim() } : {}) }, key),
     onSuccess: (c) => {
       toast({ title: "Today's cash closed", message: c.difference === 0 ? `${formatRs(c.counted)} handed over; it matches the receipts.` : `${formatRs(c.counted)} handed over, ${formatRs(Math.abs(c.difference))} ${c.difference < 0 ? "short" : "over"}. The accountant sees the note.` });
       void queryClient.invalidateQueries({ queryKey: ["fees", "setup"] });
@@ -95,7 +95,7 @@ function CloseCashPanel({ campus, onClose }: { campus: CampusCode; onClose: () =
       open
       onClose={onClose}
       title="Close today's cash"
-      description={`${user?.name ?? ""} · ${campusLabel(campus)} · ${formatDate(TODAY)}`}
+      description={`${user?.name ?? ""} · ${campusLabel(campus)} · ${formatDate(feeToday())}`}
       footer={
         <>
           <Button onClick={onClose}>Cancel</Button>
@@ -146,18 +146,19 @@ export interface CollectionSearch {
   campus?: CampusScope;
 }
 
-/** The link's dates when they make a period up to today; otherwise today. */
+/** The link's dates when they make a period up to today; otherwise today. (Receipts go back to the old system's first, 2017.) */
 function startingDates(search: CollectionSearch): { preset: Preset; from: string; to: string } {
   const from = search.from ?? search.to;
   const to = search.to ?? search.from;
-  if (!from || !to || from > to || to > TODAY || from < "2025-04-01") return { preset: "TODAY", from: TODAY, to: TODAY };
-  return { preset: from === TODAY && to === TODAY ? "TODAY" : "CUSTOM", from, to };
+  if (!from || !to || from > to || to > feeToday()) return { preset: "TODAY", from: feeToday(), to: feeToday() };
+  return { preset: from === feeToday() && to === feeToday() ? "TODAY" : "CUSTOM", from, to };
 }
 
 export function CollectionReport({ search = {} }: { search?: CollectionSearch }) {
   const ctx = useCtx();
   const readOnly = useReadOnly();
   const canCollect = useCan("fees.collect");
+  const classList = useFeeClasses(ctx.campus);
   const [start] = useState(() => startingDates(search));
   const [preset, setPreset] = useState<Preset>(start.preset);
   const [from, setFrom] = useState<string | null>(start.from);
@@ -178,14 +179,14 @@ export function CollectionReport({ search = {} }: { search?: CollectionSearch })
 
   useEffect(() => {
     if (preset === "TODAY") {
-      setFrom(TODAY);
-      setTo(TODAY);
+      setFrom(feeToday());
+      setTo(feeToday());
     } else if (preset === "YESTERDAY") {
       setFrom(yesterday());
       setTo(yesterday());
     } else if (preset === "MONTH") {
-      setFrom(`${TODAY.slice(0, 7)}-01`);
-      setTo(TODAY);
+      setFrom(`${feeToday().slice(0, 7)}-01`);
+      setTo(feeToday());
     }
   }, [preset]);
   useEffect(() => {
@@ -194,8 +195,8 @@ export function CollectionReport({ search = {} }: { search?: CollectionSearch })
   }, [query]);
   useEffect(() => setPage(1), [from, to, cashier, method, head, cls, section, gender, q, ctx.campus]);
 
-  const rangeError = !from || !to ? "Choose both dates." : from > to ? "The start date must be on or before the end date." : to > TODAY ? "The report runs up to today." : undefined;
-  const params = { from: from ?? TODAY, to: to ?? TODAY, cashier, method, head, classShort: cls, section, gender, q, page };
+  const rangeError = !from || !to ? "Choose both dates." : from > to ? "The start date must be on or before the end date." : to > feeToday() ? "The report runs up to today." : undefined;
+  const params = { from: from ?? feeToday(), to: to ?? feeToday(), cashier, method, head, classShort: cls, section, gender, q, page };
   const report = useQuery({ ...feeSetupQueries.collection(ctx, params), enabled: !rangeError, placeholderData: keepPreviousData });
   const printQ = useQuery({ ...feeSetupQueries.collection(ctx, { ...params, page: 1, pageSize: 2000 }), enabled: printing && !rangeError });
   useEffect(() => {
@@ -210,7 +211,7 @@ export function CollectionReport({ search = {} }: { search?: CollectionSearch })
 
   const r = report.data;
   const oneDay = from === to;
-  const isToday = oneDay && from === TODAY;
+  const isToday = oneDay && from === feeToday();
   const matches = r?.dashboardToday ? r.dashboardToday.amount === r.total.amount && r.dashboardToday.receipts === r.total.receipts : null;
   const printRows = printQ.data?.rows ?? [];
   const heads = r?.heads ?? [];
@@ -219,21 +220,21 @@ export function CollectionReport({ search = {} }: { search?: CollectionSearch })
   const installmentOf = (x: FeeCollectionRow, code: string) => [...new Set(x.lines.filter((l) => l.head === code).map((l) => l.installment).filter(Boolean))].join(", ");
   const filtersOn = Boolean(cashier || method || head || cls || section || gender || q);
   const cancelledItems = (r?.cancelled.items ?? []).filter((c) => !cashier || c.cashier === cashier);
-  const sectionOptions = sectionsOf(cls);
+  const sectionOptions = classList.sectionsOf(cls);
+  // Methods to filter on: the counter's, plus any other the period's receipts used (salary deductions, old system).
+  const methodOptions = [...new Set<FeeCollectionMethod>([...COUNTER_PAYMENT_METHODS, ...((r?.byMethod ?? []).map((m) => m.key).filter((k): k is FeeCollectionMethod => k in PAYMENT_METHOD_LABEL))])];
 
   const columns: Array<Column<FeeCollectionRow>> = [
     {
       key: "receiptNo",
       header: "Receipt",
       width: 160,
-      render: (x) =>
-        x.openable ? (
-          <Link to="/fees/receipts/$receiptNo" params={{ receiptNo: x.receiptNo }} className="mtb-num text-brand-ink underline-offset-2 hover:underline" onClick={(e) => e.stopPropagation()}>
-            {x.receiptNo}
-          </Link>
-        ) : (
-          <span className="mtb-num">{x.receiptNo}</span>
-        ),
+      // Every row is a real receipt (old-system receipts too), so every row opens.
+      render: (x) => (
+        <Link to="/fees/receipts/$receiptNo" params={{ receiptNo: x.receiptNo }} className="mtb-num text-brand-ink underline-offset-2 hover:underline" onClick={(e) => e.stopPropagation()}>
+          {x.receiptNo}
+        </Link>
+      ),
     },
     { key: "at", header: oneDay ? "Time" : "When", width: oneDay ? 90 : 170, render: (x) => <span className="mtb-num">{oneDay ? formatTime(x.at) : formatDateTime(x.at)}</span> },
     {
@@ -303,26 +304,23 @@ export function CollectionReport({ search = {} }: { search?: CollectionSearch })
   const headColumns: Array<Column<FeeCollectionRow>> = [
     { key: "grNo", header: "G.R. No.", width: 110, render: (x) => <span className="mtb-mono">{x.grNo}</span> },
     { key: "student", header: "Student", render: (x) => <span className="font-medium">{x.studentName}</span> },
-    { key: "class", header: "Class", render: (x) => className(x.classSection.split("-")[0] ?? "") },
+    { key: "class", header: "Class", render: (x) => classList.nameOf(x.classSection.split("-")[0] ?? "") },
     { key: "section", header: "Section", render: (x) => x.classSection },
     { key: "at", header: "Payment date", render: (x) => <span className="mtb-num">{formatDate(x.at)}</span> },
     {
       key: "receiptNo",
       header: "Receipt",
-      render: (x) =>
-        x.openable ? (
-          <Link to="/fees/receipts/$receiptNo" params={{ receiptNo: x.receiptNo }} className="mtb-num text-brand-ink underline-offset-2 hover:underline">
-            {x.receiptNo}
-          </Link>
-        ) : (
-          <span className="mtb-num">{x.receiptNo}</span>
-        ),
+      render: (x) => (
+        <Link to="/fees/receipts/$receiptNo" params={{ receiptNo: x.receiptNo }} className="mtb-num text-brand-ink underline-offset-2 hover:underline">
+          {x.receiptNo}
+        </Link>
+      ),
     },
     { key: "inst", header: "For", render: (x) => <span className="text-small">{installmentOf(x, head)}</span> },
     { key: "amount", header: headTitle || "Amount", align: "right", render: (x) => <span className={`mtb-num ${x.status === "CANCELLED" ? "line-through text-ink-muted" : ""}`}>{formatRs(headAmount(x, head))}</span> },
   ];
 
-  const title = oneDay ? `Collection on ${formatDate(from ?? TODAY)}` : `Collection ${formatDate(from ?? TODAY)} to ${formatDate(to ?? TODAY)}`;
+  const title = oneDay ? `Collection on ${formatDate(from ?? feeToday())}` : `Collection ${formatDate(from ?? feeToday())} to ${formatDate(to ?? feeToday())}`;
 
   return (
     <RequirePermission permission="fees.reports" page="the collection report">
@@ -358,10 +356,10 @@ export function CollectionReport({ search = {} }: { search?: CollectionSearch })
           {preset === "CUSTOM" && (
             <>
               <div className="w-48">
-                <DatePicker label="From" value={from} onValueChange={setFrom} today={TODAY} maxDate={TODAY} minDate="2025-04-01" />
+                <DatePicker label="From" value={from} onValueChange={setFrom} today={feeToday()} maxDate={feeToday()} />
               </div>
               <div className="w-48">
-                <DatePicker label="To" value={to} onValueChange={setTo} today={TODAY} maxDate={TODAY} minDate="2025-04-01" error={rangeError} />
+                <DatePicker label="To" value={to} onValueChange={setTo} today={feeToday()} maxDate={feeToday()} error={rangeError} />
               </div>
             </>
           )}
@@ -376,7 +374,7 @@ export function CollectionReport({ search = {} }: { search?: CollectionSearch })
         )}
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <StatCard label={oneDay ? "Collected" : "Collected in the period"} icon="receipt" loading={report.isLoading} value={<AnimatedNumber value={r?.total.amount ?? 0} format={formatRs} />} foot={oneDay ? formatLongDate(from ?? TODAY) : `${formatCount(r?.days.length ?? 0)} school days`} />
+          <StatCard label={oneDay ? "Collected" : "Collected in the period"} icon="receipt" loading={report.isLoading} value={<AnimatedNumber value={r?.total.amount ?? 0} format={formatRs} />} foot={oneDay ? formatLongDate(from ?? feeToday()) : `${formatCount(r?.days.length ?? 0)} school days`} />
           <StatCard label="Receipts" icon="file" loading={report.isLoading} value={<AnimatedNumber value={r?.total.receipts ?? 0} format={formatCount} />} foot={r && r.total.receipts ? `Average ${formatRs(Math.round(r.total.amount / r.total.receipts))}` : "—"} />
           <StatCard label="Late fine inside it" icon="clock" loading={report.isLoading} value={<AnimatedNumber value={r?.total.fine ?? 0} format={formatRs} />} foot="Worked out by the campus rule" />
           <StatCard label="Cancelled" icon="ban" tone={(r?.cancelled.count ?? 0) > 0 ? "warning" : "neutral"} loading={report.isLoading} value={<AnimatedNumber value={r?.cancelled.count ?? 0} format={formatCount} />} foot={`${formatRs(r?.cancelled.amount ?? 0)} · ${formatCount(r?.pendingCancellations ?? 0)} waiting for approval`} />
@@ -411,7 +409,7 @@ export function CollectionReport({ search = {} }: { search?: CollectionSearch })
 
         {r && (
           <div className={`grid items-start gap-6 ${ctx.campus === "ALL" ? "xl:grid-cols-2" : ""}`}>
-            <Panel id="by-class" title="By class" description="Whose fees came in, Prep to Class 10." rise={4}>
+            <Panel id="by-class" title="By class" description="Whose fees came in, by class." rise={4}>
               <GroupList groups={r.byClass} total={r.total.amount} />
             </Panel>
             {ctx.campus === "ALL" && (
@@ -426,7 +424,7 @@ export function CollectionReport({ search = {} }: { search?: CollectionSearch })
           <Panel
             id="by-day"
             title="Day by day"
-            description="School days only. Fees are due on the 10th, so collections peak just before it."
+            description="School days only. Collections peak just before the fee due dates."
             rise={4}
             actions={<Segmented aria-label="Show days as" value={view} onChange={setView} options={[{ value: "chart", label: "Chart" }, { value: "table", label: "Table" }]} />}
           >
@@ -482,7 +480,7 @@ export function CollectionReport({ search = {} }: { search?: CollectionSearch })
                 <Select aria-label="Cashier" value={cashier} onChange={(e) => setCashier(e.target.value)} options={[{ value: "", label: "Every cashier" }, ...(r?.cashiers ?? []).map((c) => ({ value: c, label: c }))]} />
               </div>
               <div className="w-48">
-                <Select aria-label="Payment method" value={method} onChange={(e) => setMethod(e.target.value as FeeCollectionMethod | "")} options={[{ value: "", label: "Every method" }, ...(Object.keys(PAYMENT_METHOD_LABEL) as FeeCollectionMethod[]).map((m) => ({ value: m, label: PAYMENT_METHOD_LABEL[m] }))]} />
+                <Select aria-label="Payment method" value={method} onChange={(e) => setMethod(e.target.value as FeeCollectionMethod | "")} options={[{ value: "", label: "Every method" }, ...methodOptions.map((m) => ({ value: m, label: PAYMENT_METHOD_LABEL[m] }))]} />
               </div>
               <div className="w-48">
                 <Select aria-label="Fee head" value={head} onChange={(e) => setHead(e.target.value)} options={[{ value: "", label: "Every fee head" }, ...heads.map((h) => ({ value: h.code, label: h.title }))]} />
@@ -495,7 +493,7 @@ export function CollectionReport({ search = {} }: { search?: CollectionSearch })
                     setCls(e.target.value);
                     setSection("");
                   }}
-                  options={[{ value: "", label: "Every class" }, ...CLASS_SHORTS.map((c) => ({ value: c, label: className(c) }))]}
+                  options={[{ value: "", label: "Every class" }, ...classList.options]}
                 />
               </div>
               <div className="w-32">
@@ -532,13 +530,13 @@ export function CollectionReport({ search = {} }: { search?: CollectionSearch })
                 ) : (
                   <ul className="m-0 grid list-none gap-2 p-0 text-small">
                     {cancelledItems.map((c, i) => (
-                      <li key={c.cnNo} className="mtb-slide-in flex flex-wrap justify-between gap-2 rounded-md border border-border px-3 py-2" style={slide(i)}>
+                      <li key={c.receiptNo} className="mtb-slide-in flex flex-wrap justify-between gap-2 rounded-md border border-border px-3 py-2" style={slide(i)}>
                         <span className="grid">
                           <span className="font-medium">
                             {c.receiptNo} · {c.studentName} <span className="font-normal text-ink-muted">({c.grNo}, {c.classSection})</span>
                           </span>
                           <span className="text-ink-muted">
-                            Paid {formatDate(c.paidOn)} by {c.cashier} · cancelled {formatDate(c.at)} · {c.cnNo}
+                            Paid {formatDate(c.paidOn)} by {c.cashier} · cancelled {formatDate(c.at)} · {c.cnNo || "—"}
                           </span>
                           <span className="text-ink-muted">
                             {c.heads} · {c.reason} · approved by {c.approvedBy}
@@ -594,10 +592,10 @@ export function CollectionReport({ search = {} }: { search?: CollectionSearch })
                   <h1>{title}</h1>
                   <p>
                     {campusLabel(ctx.campus)} · fee collection report
-                    {[cashier, method ? PAYMENT_METHOD_LABEL[method] : "", headTitle, cls ? `${className(cls)}${section ? `-${section}` : ""}` : "", gender === "F" ? "Girls" : gender === "M" ? "Boys" : ""].filter(Boolean).map((x) => ` · ${x}`).join("")}
+                    {[cashier, method ? PAYMENT_METHOD_LABEL[method] : "", headTitle, cls ? `${classList.nameOf(cls)}${section ? `-${section}` : ""}` : "", gender === "F" ? "Girls" : gender === "M" ? "Boys" : ""].filter(Boolean).map((x) => ` · ${x}`).join("")}
                   </p>
                 </div>
-                <p>Printed {formatDate(TODAY)}</p>
+                <p>Printed {formatDate(feeToday())}</p>
               </div>
               <table>
                 <tbody>
@@ -692,7 +690,7 @@ export function CollectionReport({ search = {} }: { search?: CollectionSearch })
                     </thead>
                     <tbody>
                       {[...cancelledItems].sort((a, b) => a.cashier.localeCompare(b.cashier)).map((c) => (
-                        <tr key={c.cnNo}>
+                        <tr key={c.receiptNo}>
                           <td>{c.cashier}</td>
                           <td>{c.receiptNo}</td>
                           <td>{formatDate(c.paidOn)}</td>

@@ -55,7 +55,7 @@ export function MembersPage({ search, setSearch }: { search: MemberSearch; setSe
             id="member-loans"
             rise={1}
             title={`${m.person.name}`}
-            description={`${m.person.type === "STUDENT" ? `${m.person.detail} · ${m.person.relation} ${m.person.father}` : m.person.detail} · ${formatMobile(m.person.mobile)}`}
+            description={`${m.person.type === "STUDENT" ? `${m.person.detail} · ${m.person.relation} ${m.person.father}` : m.person.detail} · ${m.person.mobile ? formatMobile(m.person.mobile) : "No mobile"}`}
             actions={
               m.person.type === "STUDENT" && canStudents ? (
                 <Link to="/students/$grNo" params={{ grNo: m.person.id }} className={buttonClassName({ size: "sm" })}>

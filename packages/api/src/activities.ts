@@ -100,11 +100,12 @@ export interface ActivitiesFeeLine {
 /** What an award does to the student's fees. Read-only here: the Fees module applies it to vouchers. */
 export interface ActivitiesFeeEffect {
   lines: ActivitiesFeeLine[];
-  /** Rs off each monthly tuition voucher. */
+  /** Rs off tuition a month: the fees module's monthlyValue (monthly tuition = the tuition line x times billed a year / 12,
+   *  so a quarterly voucher saves 3 x this). */
   monthly: number;
   /** Total relief this session, from the first voucher it applies to. */
   session: number;
-  /** Monthly vouchers it covers this session. */
+  /** Months of tuition it covers this session (tuition vouchers x the months each one bills). */
   months: number;
   /** "Dec 2026" */
   firstVoucher: string;

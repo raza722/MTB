@@ -21,12 +21,11 @@ import { useState } from "react";
 import { z } from "zod";
 import { campusLabel } from "../../app/shell/campus";
 import { Page, PageHeader } from "../../app/shell/page";
-import { useCan, useCtx, useReadOnly } from "../../app/session";
+import { useCan, useCtx, useReadOnly, useSessionStatus } from "../../app/session";
 import { EventsByTeacherDoc } from "./print";
-import { ActivitiesNav, errorField, errorText, EventBadge, LoadError, plural, PrintLayer, useRefresh } from "./shared";
+import { ActivitiesNav, dateLimits, errorField, errorText, EventBadge, LoadError, plural, PrintLayer, useRefresh, useSessionDays, useToday } from "./shared";
 
 export type EventsView = "calendar" | "list" | "catalogue";
-const TODAY = "2026-11-04";
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -43,7 +42,13 @@ export function EventsPage({ view, month, creating, onSearch }: { view: EventsVi
   const readOnly = useReadOnly();
   const canManage = useCan("activities.manage") && !readOnly;
   const events = useQuery(activitiesQueries.events(ctx));
-  const defaultMonth = ctx.session === 2026 ? TODAY.slice(0, 7) : `${ctx.session}-11`;
+  const today = useToday();
+  const status = useSessionStatus();
+  const { starts, ends } = useSessionDays();
+  // This month while the session is running; otherwise the month of the session's first event (or its first month).
+  const inSession = starts && ends ? starts <= today && today <= ends : status === "CURRENT";
+  const firstEvent = (events.data ?? []).reduce<string | undefined>((m, e) => (m === undefined || e.date < m ? e.date : m), undefined);
+  const defaultMonth = (inSession ? today : (firstEvent ?? starts ?? today)).slice(0, 7);
   const shown = month ?? defaultMonth;
 
   return (
@@ -82,6 +87,7 @@ export function EventsPage({ view, month, creating, onSearch }: { view: EventsVi
 
 function CalendarView({ events, loading, month, onMonth }: { events: ActivitiesEventSummary[]; loading: boolean; month: string; onMonth: (m: string) => void }) {
   const ctx = useCtx();
+  const today = useToday();
   const navigate = useNavigate();
   const canAttendance = useCan("attendance.view");
   const cal = useQuery({ ...attendanceQueries.calendar(ctx), enabled: canAttendance && ctx.campus !== "ALL" });
@@ -107,7 +113,7 @@ function CalendarView({ events, loading, month, onMonth }: { events: ActivitiesE
       actions={
         <div className="flex items-center gap-2">
           <IconButton icon="chevronLeft" label="Previous month" variant="secondary" onClick={() => onMonth(addMonths(month, -1))} />
-          <Button size="sm" onClick={() => onMonth(TODAY.slice(0, 7))}>
+          <Button size="sm" onClick={() => onMonth(today.slice(0, 7))}>
             This month
           </Button>
           <IconButton icon="chevronRight" label="Next month" variant="secondary" onClick={() => onMonth(addMonths(month, 1))} />
@@ -127,7 +133,7 @@ function CalendarView({ events, loading, month, onMonth }: { events: ActivitiesE
             const list = on(c.date);
             const h = closed(c.date);
             return (
-              <div key={c.date} className={`act-cal-day${c.inMonth ? "" : " is-outside"}${h ? " is-closed" : ""}${c.date === TODAY ? " is-today" : ""}`}>
+              <div key={c.date} className={`act-cal-day${c.inMonth ? "" : " is-outside"}${h ? " is-closed" : ""}${c.date === today ? " is-today" : ""}`}>
                 <span className="act-cal-num">
                   <b aria-hidden="true">{c.day}</b>
                   <span className="mtb-sr-only">
@@ -176,6 +182,8 @@ const whenText = (e: Pick<ActivitiesEventSummary, "time" | "period">) => [e.time
 function ListView({ events, loading }: { events: ActivitiesEventSummary[]; loading: boolean }) {
   const ctx = useCtx();
   const navigate = useNavigate();
+  const today = useToday();
+  const { starts, ends } = useSessionDays();
   const [when, setWhen] = useState<"UPCOMING" | "HELD" | "ALL">("UPCOMING");
   const [kind, setKind] = useState("");
   // The old staff activity log: one teacher's events between two dates.
@@ -187,7 +195,7 @@ function ListView({ events, loading }: { events: ActivitiesEventSummary[]; loadi
   const rangeError = range.success ? undefined : range.error.issues[0]?.message;
   const teachers = [...new Set(events.flatMap((e) => e.inCharge))].sort((a, b) => bareName(a).localeCompare(bareName(b)));
   const rows = events
-    .filter((e) => (when === "ALL" ? true : when === "UPCOMING" ? e.date >= TODAY && e.status !== "CANCELLED" : e.date < TODAY || e.status === "DONE") && (!kind || e.kind === kind))
+    .filter((e) => (when === "ALL" ? true : when === "UPCOMING" ? e.date >= today && e.status !== "CANCELLED" : e.date < today || e.status === "DONE") && (!kind || e.kind === kind))
     .filter((e) => (!teacher || e.inCharge.includes(teacher)) && (rangeError || ((!from || (e.endDate ?? e.date) >= from) && (!to || e.date <= to))))
     .sort((a, b) => (when === "HELD" ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date)));
   const filtered = Boolean(teacher || from || to);
@@ -212,7 +220,7 @@ function ListView({ events, loading }: { events: ActivitiesEventSummary[]; loadi
       ),
     },
     { key: "venue", header: "Where", width: 160, render: (e) => e.venue },
-    { key: "who", header: "In charge", width: 180, render: (e) => <span className="text-small">{e.inCharge.join(", ")}</span> },
+    { key: "who", header: "In charge", width: 180, render: (e) => <span className="text-small">{e.inCharge.join(", ") || "—"}</span> },
     { key: "names", header: "Names", align: "right", width: 80, render: (e) => <span className="mtb-num">{e.participants}</span> },
     { key: "status", header: "Status", width: 170, render: (e) => <EventBadge status={e.status} /> },
   ];
@@ -243,10 +251,10 @@ function ListView({ events, loading }: { events: ActivitiesEventSummary[]; loadi
               <Select aria-label="Teacher in charge" value={teacher} onChange={(e) => setTeacher(e.target.value)} options={[{ value: "", label: "Every teacher in charge" }, ...teachers.map((t) => ({ value: t, label: t }))]} />
             </div>
             <div className="w-40">
-              <DatePicker aria-label="From" placeholder="From" value={from} onValueChange={setFrom} minDate={`${ctx.session}-04-01`} maxDate={`${ctx.session + 1}-03-31`} today={TODAY} />
+              <DatePicker aria-label="From" placeholder="From" value={from} onValueChange={setFrom} {...dateLimits(starts, ends)} today={today} />
             </div>
             <div className="w-40">
-              <DatePicker aria-label="To" placeholder="To" value={to} onValueChange={setTo} minDate={`${ctx.session}-04-01`} maxDate={`${ctx.session + 1}-03-31`} today={TODAY} {...(rangeError ? { error: rangeError } : {})} />
+              <DatePicker aria-label="To" placeholder="To" value={to} onValueChange={setTo} {...dateLimits(starts, ends)} today={today} {...(rangeError ? { error: rangeError } : {})} />
             </div>
             {filtered && (
               <Button
@@ -428,6 +436,8 @@ const eventSchema = z.object({
 
 export function EventPanel({ event, onClose }: { event: ActivitiesEventDetail | null; onClose: (id?: string) => void }) {
   const ctx = useCtx();
+  const today = useToday();
+  const { starts, ends } = useSessionDays();
   const toast = useToast();
   const refresh = useRefresh();
   const navigate = useNavigate();
@@ -440,7 +450,8 @@ export function EventPanel({ event, onClose }: { event: ActivitiesEventDetail | 
     endDate: event?.endDate ?? (null as string | null),
     time: event?.time ?? "09:00",
     period: event?.period ? String(event.period) : "",
-    venue: event?.venue ?? "",
+    // A migrated event has no place ("—"): one of the campus's places must be chosen before it is saved.
+    venue: event && event.venue !== "—" ? event.venue : "",
     inCharge: event?.inCharge.join(", ") ?? "",
     forClasses: event?.forClasses ?? "",
     houseEvent: event?.houseEvent ?? true,
@@ -516,14 +527,14 @@ export function EventPanel({ event, onClose }: { event: ActivitiesEventDetail | 
         </div>
         <div className="grid gap-4 sm:grid-cols-3">
           <Select label="Kind" value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value as ActivitiesEventKind })} options={ACTIVITIES_EVENT_KINDS.map((k) => ({ value: k, label: ACTIVITIES_EVENT_KIND_LABEL[k] }))} />
-          <DatePicker label="Date" required value={f.date} onValueChange={(d) => setF({ ...f, date: d })} minDate={`${ctx.session}-04-01`} maxDate={`${ctx.session + 1}-03-31`} today={TODAY} error={err("date")} />
+          <DatePicker label="Date" required value={f.date} onValueChange={(d) => setF({ ...f, date: d })} {...dateLimits(starts, ends)} today={today} error={err("date")} />
           <div className="grid grid-cols-2 gap-3">
             <Input label="Starts at" type="time" value={f.time} onChange={(e) => setF({ ...f, time: e.target.value })} />
             <Input label="Period" inputMode="numeric" maxLength={2} value={f.period} onChange={(e) => setF({ ...f, period: e.target.value.replace(/\D/g, "") })} placeholder="—" {...(err("period") ? { error: err("period") } : { help: "Optional" })} />
           </div>
         </div>
         <div className="grid gap-4 sm:grid-cols-3">
-          <DatePicker label="Last day (if longer)" value={f.endDate} onValueChange={(d) => setF({ ...f, endDate: d })} minDate={f.date ?? `${ctx.session}-04-01`} maxDate={`${ctx.session + 1}-03-31`} today={TODAY} error={err("endDate")} />
+          <DatePicker label="Last day (if longer)" value={f.endDate} onValueChange={(d) => setF({ ...f, endDate: d })} {...dateLimits(f.date ?? starts, ends)} today={today} error={err("endDate")} />
           <Select label="Where" required value={f.venue} onChange={(e) => setF({ ...f, venue: e.target.value })} error={err("venue")} options={[{ value: "", label: "Choose…" }, ...venues.map((v) => ({ value: v.name, label: v.name }))]} />
           <Input label="For" value={f.forClasses} onChange={(e) => setF({ ...f, forClasses: e.target.value })} placeholder="Classes 6–10" />
         </div>

@@ -5,11 +5,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useDeferredValue, useState } from "react";
 import { z } from "zod";
 import { useCtx } from "../../app/session";
-import { errorField, errorText, PersonChip, StudentSearch, useRefresh } from "./shared";
-
-const FIRST_OPEN = "2026-11-01";
-const NEXT_VOUCHER = "2026-12-01";
-const TODAY = "2026-11-04";
+import { dateLimits, errorField, errorText, monthStart, nextMonthStart, PersonChip, StudentSearch, useRefresh, useSessionDays, useToday } from "./shared";
 
 const schema = z.object({
   student: z.string().min(1, "Search for the student or applicant and pick them from the list."),
@@ -23,7 +19,7 @@ const schema = z.object({
 /** The application form's details (legacy Scholarship Application): all optional except the date when the section is open. */
 const applicationSchema = z
   .object({
-    submittedOn: z.string({ error: "Choose the date the form was handed in." }).min(1, "Choose the date the form was handed in.").refine((d) => d <= TODAY, "The date can't be after today."),
+    submittedOn: z.string({ error: "Choose the date the form was handed in." }).min(1, "Choose the date the form was handed in."),
     examName: z.string(),
     obtained: z.string(),
     total: z.string(),
@@ -42,6 +38,10 @@ const HEAD_SHORT: Record<ActivitiesFeeHead, string> = { TUITION: "Tuition", ANNU
 /** Propose a scholarship or concession for one student or admission applicant. It waits for the principal's or admin's approval. */
 export function NewAwardPanel({ onClose }: { onClose: (createdId?: string) => void }) {
   const ctx = useCtx();
+  const today = useToday();
+  const { ends } = useSessionDays();
+  // This month's vouchers may still be open; the first voucher not yet raised is next month's.
+  const firstOpen = monthStart(today);
   const toast = useToast();
   const refresh = useRefresh();
   const schemes = useQuery(activitiesQueries.schemes(ctx));
@@ -52,11 +52,11 @@ export function NewAwardPanel({ onClose }: { onClose: (createdId?: string) => vo
   const [heads, setHeads] = useState<ActivitiesFeeHead[]>([]);
   const [perHead, setPerHead] = useState(false);
   const [headValues, setHeadValues] = useState<Partial<Record<ActivitiesFeeHead, string>>>({});
-  const [from, setFrom] = useState<string | null>(NEXT_VOUCHER);
+  const [from, setFrom] = useState<string | null>(nextMonthStart(today));
   const [reason, setReason] = useState("");
   const [evidence, setEvidence] = useState("");
   const [appOpen, setAppOpen] = useState(false);
-  const [app, setApp] = useState({ submittedOn: TODAY as string | null, receiptNo: "", examName: "", rollNo: "", obtained: "", total: "", previousSchool: "", staffParentId: "", subjectGroup: "" });
+  const [app, setApp] = useState({ submittedOn: today as string | null, receiptNo: "", examName: "", rollNo: "", obtained: "", total: "", previousSchool: "", staffParentId: "", subjectGroup: "" });
   const [tried, setTried] = useState(false);
   const scheme = choosable.find((s) => s.id === schemeId);
   const fixed = scheme?.basis === "FIXED";
@@ -74,7 +74,7 @@ export function NewAwardPanel({ onClose }: { onClose: (createdId?: string) => vo
   const check = schema.safeParse({ student: person?.id ?? "", scheme: schemeId, value: usePer ? num : value === "" ? undefined : num, feeHeads: fixed ? ["TUITION"] : ticked, from: from ?? "", reason });
   const errs: Record<string, string> = check.success ? {} : Object.fromEntries(check.error.issues.map((i) => [String(i.path[0]), i.message]));
   if (scheme && !usePer && value !== "") {
-    if (!fixed && (!Number.isFinite(num) || num < 1 || num > 100)) errs.value = "Enter a percentage from 1 to 100.";
+    if (!fixed && (!Number.isInteger(num) || num < 1 || num > 100)) errs.value = "Enter a whole percentage from 1 to 100.";
     if (fixed && (!Number.isInteger(num) || num < 100)) errs.value = "Enter whole rupees, at least Rs 100.";
   }
   if (usePer) {
@@ -82,13 +82,14 @@ export function NewAwardPanel({ onClose }: { onClose: (createdId?: string) => vo
     for (const h of ticked) {
       const raw = headValues[h] ?? "";
       const n = Number(raw);
-      if (raw === "" || !Number.isFinite(n) || n < 1 || n > 100) errs[`values.${h}`] = `Enter the % off ${HEAD_SHORT[h].toLowerCase()}, from 1 to 100.`;
+      if (raw === "" || !Number.isInteger(n) || n < 1 || n > 100) errs[`values.${h}`] = `Enter the % off ${HEAD_SHORT[h].toLowerCase()}, a whole number from 1 to 100.`;
     }
   }
   if (scheme && scheme.evidence.length > 0 && !evidence.trim()) errs.evidence = `Note the documents you have seen (${scheme.evidence.join(", ").toLowerCase()}).`;
   if (appOpen) {
     const a = applicationSchema.safeParse({ submittedOn: app.submittedOn ?? "", examName: app.examName, obtained: app.obtained, total: app.total });
     if (!a.success) for (const i of a.error.issues) errs[`app.${String(i.path[0])}`] ??= i.message;
+    if (app.submittedOn && app.submittedOn > today) errs["app.submittedOn"] ??= "The date can't be after today.";
   }
   const valid = Object.keys(errs).length === 0;
 
@@ -263,7 +264,7 @@ export function NewAwardPanel({ onClose }: { onClose: (createdId?: string) => vo
                   help={`The scheme's usual figure is ${fixed ? formatRs(scheme.value) : `${scheme.value}%`}.`}
                 />
               )}
-              <DatePicker label="Applies from" required value={from} onValueChange={setFrom} minDate={FIRST_OPEN} maxDate="2027-03-31" today={TODAY} error={show("from")} help="Vouchers already posted are not changed." />
+              <DatePicker label="Applies from" required value={from} onValueChange={setFrom} {...dateLimits(firstOpen, ends)} today={today} error={show("from")} help="Vouchers already posted are not changed." />
             </div>
           </>
         )}
@@ -280,7 +281,7 @@ export function NewAwardPanel({ onClose }: { onClose: (createdId?: string) => vo
           </div>
           {appOpen ? (
             <div className="grid gap-4 sm:grid-cols-2">
-              <DatePicker label="Handed in on" required value={app.submittedOn} onValueChange={(d) => setApp({ ...app, submittedOn: d })} maxDate={TODAY} today={TODAY} error={show("app.submittedOn") ?? (serverField === "submittedOn" ? errorText(save.error) : undefined)} />
+              <DatePicker label="Handed in on" required value={app.submittedOn} onValueChange={(d) => setApp({ ...app, submittedOn: d })} maxDate={today} today={today} error={show("app.submittedOn") ?? (serverField === "submittedOn" ? errorText(save.error) : undefined)} />
               <Input label="Receipt no." mono value={app.receiptNo} onChange={(e) => setApp({ ...app, receiptNo: e.target.value })} />
               <Input label="Last examination" value={app.examName} onChange={(e) => setApp({ ...app, examName: e.target.value })} placeholder="For example: Class 8 annual 2026" error={show("app.examName")} />
               <Input label="Roll no." mono value={app.rollNo} onChange={(e) => setApp({ ...app, rollNo: e.target.value })} />
@@ -322,7 +323,7 @@ export function NewAwardPanel({ onClose }: { onClose: (createdId?: string) => vo
                 ))}
               </ul>
               <p className="m-0 text-small">
-                <b>{formatRs(fx.data.monthly)}</b> off each voucher · <b>{formatRs(fx.data.session)}</b> this session ({fx.data.months} vouchers from {fx.data.firstVoucher})
+                <b>{formatRs(fx.data.monthly)}</b> a month off tuition · <b>{formatRs(fx.data.session)}</b> this session ({fx.data.months} {fx.data.months === 1 ? "month" : "months"} from the {fx.data.firstVoucher} voucher)
               </p>
               <p className="m-0 text-small text-ink-muted">Shown for checking only. The fees office applies it once the award is approved{applicant ? " and the applicant is admitted" : ""}.</p>
             </>

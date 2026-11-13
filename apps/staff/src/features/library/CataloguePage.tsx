@@ -45,7 +45,7 @@ import { useMemo, useState } from "react";
 import { z } from "zod";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { campusLabel } from "../../app/shell/campus";
-import { CampusNote, DocHead, errorCode, errorField, errorText, LoadError, PersonPicker, Spine, StaleNote, TODAY, usePrinter, validate } from "./common";
+import { CampusNote, DocHead, errorCode, errorField, errorText, languageLabel, LoadError, opsToday, PersonPicker, Spine, StaleNote, usePrinter, validate } from "./common";
 import { CopyStatusBadge, LibraryShell, LoanStatus, MemberLink, TitleText } from "./shared";
 
 /* ---------------------------------------------------------------- Title form */
@@ -57,11 +57,12 @@ const titleSchema = z
     authors: z.array(z.string().trim().min(1)).min(1, { error: "Enter at least one author. Put a comma between two names." }),
     publisher: z.string().trim(),
     categoryId: z.string().min(1, { error: "Choose a subject." }),
-    language: z.enum(["EN", "UR", "AR", "PA"]),
+    language: z.enum(["EN", "UR", "AR", "PA"], { error: "Choose the language." }),
     edition: z.string().trim(),
     volume: z.number({ error: "Volume is a number from 1 to 999." }).int({ error: "Volume is a whole number." }).min(1, { error: "Volume is a number from 1 to 999." }).max(999, { error: "Volume is a number from 1 to 999." }).nullable(),
     publisherCountry: z.string().trim().max(60, { error: "Keep the country under 60 letters." }),
-    year: z.number().int().min(1800, { error: "Enter the year it was published, for example 2019." }).max(2027, { error: "The year can't be in the future." }).nullable(),
+    // Up to next year (a book printed ahead of its year), as the server allows.
+    year: z.number().int().min(1800, { error: "Enter the year it was published, for example 2019." }).max(Number(opsToday().slice(0, 4)) + 1, { error: "The year can't be in the future." }).nullable(),
     isbn: z.string().trim().refine((v) => v === "" || /^(\d{9}[\dXx]|\d{13})$/.test(v.replace(/[-\s]/g, "")), { error: "An ISBN has 10 or 13 digits. Leave it empty if the book has none." }),
     pages: z.number().int().min(1, { error: "Pages must be 1 or more." }).nullable(),
   })
@@ -83,7 +84,8 @@ interface TitleDraft {
   authors: string;
   publisher: string;
   categoryId: string;
-  language: LibraryLanguage;
+  /** "" for a migrated title with no language recorded: the form asks for one. */
+  language: LibraryLanguage | "";
   edition: string;
   volume: string;
   publisherCountry: string;
@@ -111,7 +113,7 @@ function TitleForm({ existing, setup, onClose, onSaved }: { existing: LibraryTit
     authors: existing?.authors.join(", ") ?? "",
     publisher: existing?.publisher ?? "",
     categoryId: existing?.categoryId ?? "",
-    language: existing?.language ?? "EN",
+    language: existing ? (existing.language ?? "") : "EN",
     edition: existing?.edition ?? "",
     volume: existing?.volume ? String(existing.volume) : "",
     publisherCountry: existing?.publisherCountry ?? "",
@@ -121,7 +123,7 @@ function TitleForm({ existing, setup, onClose, onSaved }: { existing: LibraryTit
     count: 1,
     shelfId: "",
     cost: null,
-    acquiredOn: TODAY,
+    acquiredOn: opsToday(),
     condition: "NEW",
   }));
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -194,7 +196,13 @@ function TitleForm({ existing, setup, onClose, onSaved }: { existing: LibraryTit
           <Input label="Publisher" value={d.publisher} onChange={(e) => set("publisher", e.target.value)} list="lib-publishers" />
           <Input label="Publisher country" value={d.publisherCountry} onChange={(e) => set("publisherCountry", e.target.value)} error={errors.publisherCountry} list="lib-countries" placeholder="Pakistan" />
           <Select label="Subject" required value={d.categoryId} onChange={(e) => set("categoryId", e.target.value)} error={errors.categoryId} options={[{ value: "", label: "Choose…" }, ...(setup?.categories ?? []).filter((c) => c.active).map((c) => ({ value: c.id, label: c.name }))]} />
-          <Select label="Language" value={d.language} onChange={(e) => set("language", e.target.value as LibraryLanguage)} options={LIBRARY_LANGUAGES.map((l) => ({ value: l, label: LIBRARY_LANGUAGE_LABEL[l] }))} />
+          <Select
+            label="Language"
+            value={d.language}
+            onChange={(e) => set("language", e.target.value as LibraryLanguage | "")}
+            error={errors.language}
+            options={[...(d.language === "" ? [{ value: "", label: "Choose…" }] : []), ...LIBRARY_LANGUAGES.map((l) => ({ value: l, label: LIBRARY_LANGUAGE_LABEL[l] }))]}
+          />
           <Input label="Edition" value={d.edition} onChange={(e) => set("edition", e.target.value)} placeholder="2nd edition" />
           <Input label="Volume" inputMode="numeric" value={d.volume} onChange={(e) => set("volume", e.target.value.replace(/\D/g, "").slice(0, 3))} error={errors.volume} help="For a work in several volumes. Leave empty for a single book." />
           <Input label="Year published" inputMode="numeric" value={d.year} onChange={(e) => set("year", e.target.value.replace(/\D/g, "").slice(0, 4))} error={errors.year} />
@@ -223,7 +231,7 @@ function TitleForm({ existing, setup, onClose, onSaved }: { existing: LibraryTit
               <Input label="How many copies" inputMode="numeric" value={d.count === null ? "" : String(d.count)} onChange={(e) => set("count", numOrNull(e.target.value.replace(/\D/g, "")))} error={errors.count} />
               <Select label="Shelf" value={d.shelfId} onChange={(e) => set("shelfId", e.target.value)} options={shelfOptions(setup)} error={errors.shelfId} />
               <AmountInput label="Price of one copy" value={d.cost} onValueChange={(v) => set("cost", v)} error={errors.cost} help="Used as the most a late fine can reach, and for a lost book." />
-              <DatePicker label="Arrived on" value={d.acquiredOn} onValueChange={(v) => set("acquiredOn", v)} maxDate={TODAY} today={TODAY} error={errors.acquiredOn} />
+              <DatePicker label="Arrived on" value={d.acquiredOn} onValueChange={(v) => set("acquiredOn", v)} maxDate={opsToday()} today={opsToday()} error={errors.acquiredOn} />
               <Select label="Condition" value={d.condition} onChange={(e) => set("condition", e.target.value as LibraryCondition)} options={(["NEW", "GOOD", "WORN"] as const).map((c) => ({ value: c, label: LIBRARY_CONDITION_LABEL[c] }))} />
             </div>
           </fieldset>
@@ -351,7 +359,7 @@ function AddCopiesForm({ title, setup, onDone }: { title: LibraryTitleDetail; se
     },
   });
   const submit = () => {
-    const r = validate(copiesSchema, { count: count ?? undefined, shelfId: shelfId || null, cost: cost ?? undefined, acquiredOn: TODAY, condition: "NEW" });
+    const r = validate(copiesSchema, { count: count ?? undefined, shelfId: shelfId || null, cost: cost ?? undefined, acquiredOn: opsToday(), condition: "NEW" });
     if (!r.ok) return setErrors(r.errors);
     setErrors({});
     m.mutate(r.data);
@@ -392,7 +400,7 @@ function TitlePanel({ id, setup, onClose, onEdit }: { id: string; setup: Library
       wide
       onClose={onClose}
       title={t ? t.title || t.titleUr : "Loading…"}
-      description={t ? `${t.authors.join(", ")} · ${t.category}` : undefined}
+      description={t ? `${t.authors.join(", ") || "—"} · ${t.category || "No subject"}` : undefined}
       footer={
         canManage && t ? (
           <>
@@ -423,7 +431,7 @@ function TitlePanel({ id, setup, onClose, onEdit }: { id: string; setup: Library
           <KeyValue
             items={[
               ["Publisher", [t.publisher, t.publisherCountry ? `(${t.publisherCountry})` : ""].filter(Boolean).join(" ") || "—"],
-              ["Language", LIBRARY_LANGUAGE_LABEL[t.language]],
+              ["Language", languageLabel(t.language)],
               ["Edition, volume and year", [t.edition, t.volume ? `Volume ${t.volume}` : "", t.year].filter(Boolean).join(", ") || "—"],
               ["ISBN", t.isbn ? <span className="mtb-mono">{t.isbn}</span> : "None recorded"],
               ["Pages", t.pages ? formatCount(t.pages) : "—"],
@@ -633,7 +641,7 @@ function CopiesByCabinet({ rows, subtitle, campus }: { rows: LibraryCopyRow[]; s
                       {r.title}
                       {r.titleUr && <span className="ops-doc-urdu">{r.title ? " · " : ""}{r.titleUr}</span>}
                     </td>
-                    <td>{r.category}</td>
+                    <td>{r.category || "—"}</td>
                     <td>{r.shelfLabel || "—"}</td>
                     <td>{r.placedOn ? formatDate(r.placedOn) : "—"}</td>
                     <td>{LIBRARY_COPY_STATUS_LABEL[r.status]}</td>
@@ -689,9 +697,9 @@ function GeneralBooksList({ titles, price, subtitle, campus }: { titles: Library
                 {t.title}
                 {t.titleUr && <span className="ops-doc-urdu">{t.title ? " · " : ""}{t.titleUr}</span>}
               </td>
-              <td>{t.category}</td>
+              <td>{t.category || "—"}</td>
               <td className="n">{t.volume ?? ""}</td>
-              <td>{LIBRARY_LANGUAGE_LABEL[t.language]}</td>
+              <td>{languageLabel(t.language)}</td>
               <td>{t.authors.join(", ")}</td>
               <td>{t.edition}</td>
               <td>{t.publisher}</td>
@@ -777,7 +785,7 @@ function TitleCount({ titles, campus }: { titles: LibraryTitle[]; campus: string
           {titles.map((t) => (
             <tr key={t.id}>
               <td>{t.title || t.titleUr}</td>
-              <td>{t.category}</td>
+              <td>{t.category || "—"}</td>
               <td className="n">{t.copies}</td>
               <td className="n">{t.available}</td>
               <td className="n">{t.onLoan}</td>
@@ -837,8 +845,8 @@ export function CataloguePage({ openTitle, setOpenTitle, author = "", setAuthor 
 
   const columns: Array<Column<LibraryTitle>> = [
     { key: "title", header: "Title", render: (t) => <TitleText title={t.title} titleUr={t.titleUr} sub={t.authors.join(", ")} /> },
-    { key: "subject", header: "Subject", render: (t) => <span className="text-small">{t.category}</span> },
-    { key: "lang", header: "Language", width: 90, render: (t) => LIBRARY_LANGUAGE_LABEL[t.language] },
+    { key: "subject", header: "Subject", render: (t) => <span className="text-small">{t.category || "—"}</span> },
+    { key: "lang", header: "Language", width: 90, render: (t) => languageLabel(t.language) },
     { key: "shelves", header: "Shelf", render: (t) => <span className="text-small text-ink-muted">{t.shelves.join(", ") || "Not shelved"}</span> },
     ...(ctx.campus === "ALL" ? [{ key: "campus", header: "Campus", render: (t: LibraryTitle) => campusLabel(t.campus) }] : []),
     {

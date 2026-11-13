@@ -3,7 +3,7 @@ import { Avatar, Button, buttonClassName, Icon, KeyValue, Panel, Segmented, Skel
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { setTheme, useTheme, type ThemeChoice } from "../../app/appearance";
-import { ClockTime, Cls, DateL, DateTimeL, Phone, SessionL } from "../../app/format";
+import { ClockTime, Cls, DateL, DateTimeL, NONE, Phone, SessionL } from "../../app/format";
 import { Ltr, useLang } from "../../app/i18n";
 import { PageHeader, QueryState } from "../../app/shell/page";
 import { useSignOut } from "../../app/shell/PortalShell";
@@ -33,7 +33,7 @@ function StudentPanel({ p }: { p: PortalProfile }) {
         items={[
           [t("prof.gr"), <Ltr mono key="gr">{c.grNo}</Ltr>],
           [t("prof.class"), <Cls key="cls" value={c.classSection} />],
-          [t("prof.roll"), <Ltr key="roll" className="tabular-nums">{c.rollNo}</Ltr>],
+          [t("prof.roll"), c.rollNo > 0 ? <Ltr key="roll" className="tabular-nums">{c.rollNo}</Ltr> : NONE],
           ...(c.house ? ([[t("prof.house"), pick(c.house, c.houseUr)]] as Array<[string, string]>) : []),
           [t("prof.campus"), pick(c.campusName, c.campusNameUr)],
           [t("prof.session"), <SessionL key="s" value={c.session} />],
@@ -56,7 +56,7 @@ function GuardianPanel({ p }: { p: PortalProfile }) {
         items={[
           [t("prof.name"), name(g.name, g.nameUr)],
           [t("prof.mobile"), <Phone key="m" value={g.mobile} />],
-          [t("prof.address"), name(g.address)],
+          [t("prof.address"), g.address ? name(g.address) : NONE],
         ]}
       />
       <p className="m-0 mt-4 flex items-start gap-2 text-small text-ink-muted">
@@ -75,18 +75,20 @@ function SchoolPanel({ p }: { p: PortalProfile }) {
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-surface-sunken p-3">
         <div className="grid min-w-0">
           <span className="font-semibold text-ink">{t("prof.office")}</span>
-          <span className="text-small text-ink-muted">{pick(s.address, s.addressUr)}</span>
+          <span className="text-small text-ink-muted">{pick(s.address, s.addressUr) || NONE}</span>
           <Phone value={s.phone} />
         </div>
-        <a href={`tel:${s.phone.replace(/\D/g, "")}`} className={buttonClassName({ variant: "primary", size: "touch" })}>
-          <Icon name="phone" size={18} />
-          {t("prof.call")}
-        </a>
+        {s.phone.replace(/\D/g, "") && (
+          <a href={`tel:${s.phone.replace(/\D/g, "")}`} className={buttonClassName({ variant: "primary", size: "touch" })}>
+            <Icon name="phone" size={18} />
+            {t("prof.call")}
+          </a>
+        )}
       </div>
       <KeyValue
         items={[
           [t("prof.principal"), name(s.principal, s.principalUr)],
-          [t("prof.classTeacher"), name(s.classTeacher, s.classTeacherUr)],
+          [t("prof.classTeacher"), s.classTeacher ? name(s.classTeacher, s.classTeacherUr) : NONE],
           [
             t("prof.timings"),
             <span key="tm">
