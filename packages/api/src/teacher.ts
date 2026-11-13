@@ -4,7 +4,9 @@
 // connection comes back: a replay must never create a second register or a second set of marks.
 // The registers (registers, register, submitRegister, requestChange) are served by the real backend (Attendance,
 // backend/docs/modules/04_attendance.md), and so are the papers and marks (papers, paper, saveMarks, submitMarks:
-// Exams, backend/docs/modules/05_exams.md); today, timetable, classes and notifications are still mocked.
+// Exams, backend/docs/modules/05_exams.md), the week timetable by Timetable (backend/docs/modules/08_timetable.md),
+// and today, classes, class detail and notifications by the teacher home (backend/docs/modules/14_home.md).
+// Only the Demo panel's /teacher/demo is answered by the mock server alone (the real API has no such route).
 import type { AttendanceCode, IsoDate, IsoDateTime } from "@mtb/domain";
 import { queryOptions } from "@tanstack/react-query";
 import type { RegisterCode } from "./attendance";
@@ -15,7 +17,7 @@ import type { BellDay } from "./timetable";
 
 /* ------------------------------------------------------------------ Days and periods */
 
-/** Why there is no register on a day: a holiday from the school calendar, Sunday, or the demo's holiday switch. */
+/** Why there is no register on a day: a closure from the school calendar or the weekly off day (kind "WEEKLY_OFF"). */
 export interface TeacherClosedDay {
   name: string;
   nameUr?: string;
@@ -88,7 +90,7 @@ export interface TeacherToday {
   /** Papers still open for marks (not submitted). */
   papers: TeacherPaper[];
   unread: number;
-  /** The next day the school is closed (not a Sunday). */
+  /** The next day the school is closed by the calendar (not a weekly off day), within 60 days. */
   nextClosed: { date: IsoDate; name: string } | null;
 }
 

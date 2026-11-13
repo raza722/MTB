@@ -1,8 +1,7 @@
 import type { HttpHandler } from "msw";
 import { authTapHandlers } from "./auth-state";
-import { dashboardHandlers } from "./dashboard";
 import { portalHandlers } from "./portal";
-import { teacherHandlers } from "./teacher";
+import { teacherDemoHandlers } from "./teacher-demo";
 
 /**
  * Modules that are real now have no handlers here: their requests fall through (onUnhandledRequest "bypass") to the
@@ -22,19 +21,16 @@ import { teacherHandlers } from "./teacher";
  * mock-mode /api/portal/demo hint stays in portal.ts) and the report centre with the staff bell (/api/reports/*:
  * catalogue, favourites, run, jobs, schedules, recipients; /api/notifications*), with the fee and admission reports
  * (13a), the student, attendance and exam reports (13b) and the accounts, staff, timetable, library, warehouse,
- * transport and message reports (13c): every report in the catalogue is real.
- * Model files without routes that the remaining mocks (dashboard, teacher app, portal hint) still read: the
- * fictional staff in fixtures/hr.ts with handlers/hr-model.ts, the fictional registers and calendar in
- * fixtures/attendance.ts with handlers/attendance-model.ts, the fictional exams in fixtures/exams.ts with
- * handlers/exams-model.ts (the teacher app's Today papers), the fictional fee figures of the
- * dashboard mocks in handlers/fees-state.ts, and the fictional timetable of the teacher app's Today /
- * Classes in fixtures/timetable.ts with handlers/timetable-model.ts.
- * The report centre's mock builders, their model files (accounts, admissions, fee setup, library, portal, student
- * records, transport, warehouse, SMS) and the fixtures only they read were deleted in module 13c.
+ * transport and message reports (13c): every report in the catalogue is real; and the staff dashboard
+ * (/api/dashboard) with the teacher app's home (/api/teacher/today, /api/teacher/classes*, /api/teacher/notifications*:
+ * module 14).
+ * What is left here is mock-mode only (the real API answers 404): the teacher app's Demo panel (/api/teacher/demo,
+ * handlers/teacher-demo.ts) and the portal's demo hint (/api/portal/demo, handlers/portal.ts).
+ * The dashboard and teacher-home mocks, their model files (attendance, exams, fees, HR, timetable) and the fixtures
+ * only they read were deleted in module 14.
  */
 export const handlers: HttpHandler[] = [
   ...authTapHandlers,
-  ...dashboardHandlers,
-  ...teacherHandlers,
+  ...teacherDemoHandlers,
   ...portalHandlers,
 ];

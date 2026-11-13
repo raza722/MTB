@@ -6,7 +6,8 @@ import { ctxKey, ctxQuery, type CampusCode, type Ctx } from "./context";
 export interface CampusComparisonRow {
   campus: CampusCode;
   name: string;
-  attendancePercent: number;
+  /** null when nothing was marked at the campus today ("—"). */
+  attendancePercent: number | null;
   collected: Rupees;
   target: Rupees;
   arrears: Rupees;
@@ -21,7 +22,8 @@ export interface CollectionDay {
 
 export interface AttendanceTrendDay {
   date: IsoDate;
-  percent: number;
+  /** null on a day with registers but nothing marked ("—"). */
+  percent: number | null;
 }
 
 /** Attendance today by class (one campus) or by campus (all campuses). */
@@ -52,11 +54,15 @@ export interface DashboardEvent {
   date: IsoDate;
   title: string;
   detail: string;
-  kind: "FEE_DUE" | "LATE_FINE" | "TEST" | "EXAM" | "MEETING";
+  /** EVENT: a calendar event such as a sports day. MEETING has no source yet (there is no meeting calendar). */
+  kind: "FEE_DUE" | "LATE_FINE" | "TEST" | "EXAM" | "MEETING" | "EVENT";
 }
 
 export interface DashboardSummary {
-  attendance: { percent: number; present: number; total: number; deltaPts: number };
+  /** The server's day (Pakistan time): the Hero date, "Yesterday" in activity, today's collection bar. */
+  today: IsoDate;
+  /** percent and deltaPts are null when nothing is marked today (or yesterday, for the delta): shown as "—". */
+  attendance: { percent: number | null; present: number; total: number; deltaPts: number | null };
   feesToday: { amount: Rupees; receipts: number };
   month: { collected: Rupees; target: Rupees };
   arrears: { amount: Rupees; students: number };

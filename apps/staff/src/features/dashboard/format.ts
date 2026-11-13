@@ -1,7 +1,10 @@
-import { formatDate, formatLakh, formatRs, type IsoDate } from "@mtb/domain";
+import { formatDate, formatLakh, formatPercent, formatRs, type IsoDate } from "@mtb/domain";
 import type { CSSProperties } from "react";
 
-export const TODAY: IsoDate = "2026-11-04";
+/** A percentage, or "—" when there is no value (nothing marked yet). */
+export function percentOrDash(v: number | null | undefined, fractionDigits = 1): string {
+  return v === null || v === undefined ? "—" : formatPercent(v, fractionDigits);
+}
 
 /** Axis ticks in lakh, the unit people at MTB count fees in: 0, 2 lakh, 4 lakh … */
 export function lakhTick(v: number): string {
@@ -20,9 +23,9 @@ export function money(amount: number, lakh: boolean): string {
   return lakh && amount >= 100_000 ? `${formatRs(amount)} (${formatLakh(amount)})` : formatRs(amount);
 }
 
-/** Days from today, in words: "Today", "Tomorrow", "In 3 days". */
-export function fromToday(d: IsoDate): string {
-  const days = Math.round((Date.parse(`${d}T00:00:00Z`) - Date.parse(`${TODAY}T00:00:00Z`)) / 86_400_000);
+/** Days from today (the server's day, DashboardSummary.today), in words: "Today", "Tomorrow", "In 3 days". */
+export function fromToday(d: IsoDate, today: IsoDate): string {
+  const days = Math.round((Date.parse(`${d}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000);
   if (days === 0) return "Today";
   if (days === 1) return "Tomorrow";
   if (days === -1) return "Yesterday";

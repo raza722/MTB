@@ -3,11 +3,9 @@ import { formatCount, formatDate, formatLakh, formatRs, formatWeekday } from "@m
 import { AnimatedNumber, AreaChart, DataTable, Segmented, Skeleton } from "@mtb/ui";
 import { useState } from "react";
 import { DashCard } from "./DashCard";
-import { lakhTick, shortDate, stagger, TODAY } from "./format";
+import { lakhTick, shortDate, stagger } from "./format";
 
-const isToday = (d: CollectionDay) => d.date === TODAY;
-
-function Tip({ d }: { d: CollectionDay }) {
+function Tip({ d, isToday }: { d: CollectionDay; isToday: (d: CollectionDay) => boolean }) {
   return (
     <>
       <div className="mtb-chart-tip-title">
@@ -27,6 +25,8 @@ function Tip({ d }: { d: CollectionDay }) {
 export function CollectionsCard({ s }: { s: DashboardSummary | undefined }) {
   const [view, setView] = useState("chart");
   const data = s?.collectionsTrend ?? [];
+  // The server's day (C2), not the browser's: the last point is today so far.
+  const isToday = (d: CollectionDay) => d.date === s?.today;
   const total = data.reduce((a, d) => a + d.amount, 0);
   const past = data.filter((d) => !isToday(d));
   const best = past.reduce<CollectionDay | undefined>((a, d) => (!a || d.amount > a.amount ? d : a), undefined);
@@ -36,7 +36,7 @@ export function CollectionsCard({ s }: { s: DashboardSummary | undefined }) {
     <DashCard
       id="collections"
       title="Collections"
-      description="Last 30 days, school days only. Fees are due on the 10th of each month."
+      description="Last 30 days, school days only."
       style={stagger(5)}
       actions={<Segmented aria-label="Show collections as" value={view} onChange={setView} options={[{ value: "chart", label: "Chart" }, { value: "table", label: "Table" }]} />}
     >
@@ -74,9 +74,9 @@ export function CollectionsCard({ s }: { s: DashboardSummary | undefined }) {
               axisLabel={(d) => (isToday(d) ? "Today" : shortDate(d.date))}
               formatAxis={lakhTick}
               peakLabel={(d) => formatLakh(d.amount)}
-              tooltip={(d) => <Tip d={d} />}
+              tooltip={(d) => <Tip d={d} isToday={isToday} />}
               describe={(d) => `${formatWeekday(d.date)} ${formatDate(d.date)}${isToday(d) ? ", so far" : ""}: ${formatRs(d.amount)} from ${formatCount(d.receipts)} receipts`}
-              label={`Daily collections from ${formatDate(data[0]?.date ?? TODAY)} to today`}
+              label={`Daily collections from ${formatDate(data[0]?.date ?? s.today)} to today`}
             />
           ) : (
             <DataTable

@@ -4,8 +4,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Popover } from "radix-ui";
 
 /**
- * Presenter's panel, mock mode only: reset the demo data of the modules that are still mocked. Sign-in is real, and so
- * are the fee counter and receipts (module 6), so there is no "sign in as" or "fail the next receipt post" here.
+ * Presenter's panel, mock mode only (hidden when VITE_USE_MOCKS=false): every staff screen is served by the real
+ * backend now (the dashboard too, module 14), so this only clears the mock stores and the screens cached in this tab.
  * Not part of the product.
  */
 export default function DemoControls() {
@@ -22,7 +22,7 @@ export default function DemoControls() {
         <Popover.Content side="top" align="start" sideOffset={8} className="mtb-popover z-50 grid w-80 gap-4">
           <div className="grid gap-1">
             <span className="text-title-3">Demo controls</span>
-            <span className="text-small text-ink-muted">For the presenter. Modules not built yet use fictional data, which resets when this tab closes.</span>
+            <span className="text-small text-ink-muted">For the presenter. Every screen reads the real server; this clears what this tab has cached.</span>
           </div>
           <Button
             variant="danger-quiet"

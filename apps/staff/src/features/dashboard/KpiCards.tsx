@@ -5,7 +5,7 @@ import { useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { usePreferences } from "../../app/preferences";
 import { useCan } from "../../app/session";
-import { money, stagger } from "./format";
+import { money, percentOrDash, stagger } from "./format";
 
 interface KpiProps {
   i: number;
@@ -88,10 +88,12 @@ export function KpiCards({ s }: { s: DashboardSummary | undefined }) {
     );
   }
 
-  const att = s.attendanceTrend;
+  // Days with registers but nothing marked have no percentage (C1): the line skips them.
+  const att = s.attendanceTrend.flatMap((a) => (a.percent === null ? [] : [a.percent]));
   const fees = s.collectionsTrend.slice(-14);
-  const monthPct = Math.round((s.month.collected / s.month.target) * 100);
+  const monthPct = s.month.target > 0 ? Math.round((s.month.collected / s.month.target) * 100) : null;
   const d = s.attendance.deltaPts;
+  const percent = s.attendance.percent;
 
   return (
     <div className="mtb-dash-kpis">
@@ -99,9 +101,9 @@ export function KpiCards({ s }: { s: DashboardSummary | undefined }) {
         i={0}
         label="Attendance today"
         icon="attendance"
-        value={<AnimatedNumber value={s.attendance.percent} decimals={1} format={(v) => formatPercent(v)} />}
-        side={<Sparkline values={att.map((a) => a.percent)} label={`Attendance over the last ${att.length} school days, from ${formatPercent(att[0]?.percent ?? 0)} to ${formatPercent(s.attendance.percent)} today`} />}
-        delta={{ value: d, text: `${d > 0 ? "+" : ""}${d} pts` }}
+        value={percent === null ? "—" : <AnimatedNumber value={percent} decimals={1} format={(v) => formatPercent(v)} />}
+        side={att.length > 1 ? <Sparkline values={att} label={`Attendance over the last ${att.length} school days, from ${formatPercent(att[0]!)} to ${percentOrDash(percent)} today`} /> : undefined}
+        {...(d === null ? {} : { delta: { value: d, text: `${d > 0 ? "+" : ""}${d} pts` } })}
         foot={`${formatCount(s.attendance.present)} of ${formatCount(s.attendance.total)} present`}
         onClick={canAttendance ? () => navigate({ to: "/attendance" }) : undefined}
       />
@@ -119,8 +121,8 @@ export function KpiCards({ s }: { s: DashboardSummary | undefined }) {
         label="Collected this month"
         icon="trendUp"
         value={<AnimatedNumber value={s.month.collected} format={(v) => money(v, showLakh)} />}
-        meter={{ percent: monthPct, label: `${monthPct}% of the ${formatRs(s.month.target)} target` }}
-        foot={`${monthPct}% of the ${money(s.month.target, showLakh)} target`}
+        {...(monthPct === null ? {} : { meter: { percent: monthPct, label: `${monthPct}% of the ${formatRs(s.month.target)} target` } })}
+        foot={monthPct === null ? "No target set this month" : `${monthPct}% of the ${money(s.month.target, showLakh)} target`}
       />
       <Kpi
         i={3}
