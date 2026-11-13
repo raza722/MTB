@@ -1,4 +1,4 @@
-import { ApiError, teacherApi, type Ctx, type ExamsMark, type TeacherChangeInput, type TeacherPaperRef, type TeacherRegisterSubmit } from "@mtb/api";
+import { ApiError, newIdempotencyKey, teacherApi, type Ctx, type ExamsMark, type TeacherChangeInput, type TeacherPaperRef, type TeacherRegisterSubmit } from "@mtb/api";
 import { onlineManager, type QueryClient } from "@tanstack/react-query";
 import { useSyncExternalStore } from "react";
 import { idbGet, idbSet } from "../idb";
@@ -94,7 +94,7 @@ export async function initOutbox(qc: QueryClient): Promise<void> {
 
 /** Stores a write on the phone and sends it if there is a connection. */
 export function enqueue(input: { ctx: Ctx; payload: OutboxPayload; label: string; coalesceKey?: string }): Promise<OutboxResult> {
-  const item: OutboxItem = { id: crypto.randomUUID(), createdAt: Date.now(), attempts: 0, ...input };
+  const item: OutboxItem = { id: newIdempotencyKey(), createdAt: Date.now(), attempts: 0, ...input };
   let items = state.items;
   if (item.coalesceKey) {
     for (const old of items.filter((i) => i.coalesceKey === item.coalesceKey && i.id !== inFlight)) settle(old.id, { status: "superseded" });
