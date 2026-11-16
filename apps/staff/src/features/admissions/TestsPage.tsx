@@ -111,7 +111,7 @@ function NewSittingModal({ open, onClose, tests, onCreated }: { open: boolean; o
                 <Input aria-label={`Paper ${i + 1}`} placeholder="Subject, e.g. Mathematics" value={s.subject} onChange={(e) => setSubjects((x) => x.map((y, j) => (j === i ? { ...y, subject: e.target.value } : y)))} />
               </div>
               {streams.length > 0 && (
-                <div className="w-48">
+                <div className="w-full sm:w-48">
                   <Select aria-label={`Group for paper ${i + 1}`} value={s.stream} onChange={(e) => setSubjects((x) => x.map((y, j) => (j === i ? { ...y, stream: e.target.value } : y)))} options={[{ value: "", label: "All candidates" }, ...streams.map((g) => ({ value: g, label: g }))]} />
                 </div>
               )}

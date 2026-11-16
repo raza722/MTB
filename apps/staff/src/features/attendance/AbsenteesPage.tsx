@@ -278,7 +278,7 @@ export function AbsenteesPage() {
                 <div className="att-f">
                   <Select aria-label="Class" value={cls} onChange={(e) => setCls(e.target.value)} options={[{ value: "", label: "All classes" }, ...classes.map((c) => ({ value: c, label: c }))]} />
                 </div>
-                <div className="w-64">
+                <div className="w-full sm:w-64">
                   <Input aria-label="Search" icon="search" placeholder="Student, parent or mobile" value={search} onChange={(e) => setSearch(e.target.value)} />
                 </div>
               </div>

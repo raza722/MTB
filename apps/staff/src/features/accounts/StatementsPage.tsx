@@ -90,10 +90,10 @@ function IncomeExpenditure({ search, setSearch }: { search: StatementsSearch; se
   return (
     <>
       <section className="mtb-card mtb-rise flex flex-wrap items-end gap-4 p-5" aria-label="Dates">
-        <div className="w-44">
+        <div className="w-full sm:w-44">
           <DatePicker label="From" value={from} onValueChange={(v) => setSearch({ ...search, from: v ?? undefined })} today={accToday()} minDate={start} maxDate={end} />
         </div>
-        <div className="w-44">
+        <div className="w-full sm:w-44">
           <DatePicker label="To" value={to} onValueChange={(v) => setSearch({ ...search, to: v ?? undefined })} today={accToday()} minDate={start} maxDate={end} />
         </div>
         <Segmented
@@ -292,7 +292,7 @@ function BalanceSheet({ search, setSearch }: { search: StatementsSearch; setSear
   return (
     <>
       <section className="mtb-card mtb-rise flex flex-wrap items-end gap-4 p-5" aria-label="Date">
-        <div className="w-44">
+        <div className="w-full sm:w-44">
           <DatePicker label="As of" value={asOf} onValueChange={(v) => setSearch({ ...search, asOf: v ?? undefined })} today={accToday()} minDate={sessionStartOf(ctx.session)} maxDate={asOfFor(ctx.session)} />
         </div>
         <p className="m-0 ms-auto max-w-md text-small text-ink-muted">{campusLabel(ctx.campus)}. A summary of what the trust owns and owes; the surplus so far this session is shown under the trust's funds.</p>

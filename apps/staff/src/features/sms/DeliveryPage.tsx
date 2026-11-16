@@ -185,7 +185,7 @@ export function DeliveryPage({ search, setSearch }: { search: DeliverySearch; se
                     }}
                     options={FILTERS.map((f) => ({ value: f.value, label: f.value === "failed" && failedCount ? `Failed (${failedCount})` : f.label }))}
                   />
-                  <div className="w-64">
+                  <div className="w-full sm:w-64">
                     <Input
                       aria-label="Search messages"
                       icon="search"

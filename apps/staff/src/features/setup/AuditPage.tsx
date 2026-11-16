@@ -219,7 +219,7 @@ export function AuditPage() {
                   }}
                 />
               </div>
-              <div className="w-44">
+              <div className="w-full sm:w-44">
                 <Select
                   aria-label="Area"
                   value={area}
@@ -230,7 +230,7 @@ export function AuditPage() {
                   options={[{ value: "", label: "All areas" }, ...SETUP_AUDIT_AREAS.map((a) => ({ value: a, label: a }))]}
                 />
               </div>
-              <div className="w-48">
+              <div className="w-full sm:w-48">
                 <Select
                   aria-label="Person"
                   value={actor}
@@ -241,7 +241,7 @@ export function AuditPage() {
                   options={[{ value: "", label: "Everyone" }, ...(data?.actors ?? []).map((a) => ({ value: a, label: a }))]}
                 />
               </div>
-              <div className="w-40">
+              <div className="w-full sm:w-40">
                 <DatePicker
                   aria-label="From date"
                   placeholder="From"
@@ -254,7 +254,7 @@ export function AuditPage() {
                   }}
                 />
               </div>
-              <div className="w-40">
+              <div className="w-full sm:w-40">
                 <DatePicker
                   aria-label="To date"
                   placeholder="To"

@@ -531,10 +531,10 @@ export function ConcessionsPage() {
         >
           <div className="grid gap-4">
             <div className="flex flex-wrap items-end gap-3">
-              <div className="w-44">
+              <div className="w-full sm:w-44">
                 <DatePicker label="From" value={from} onValueChange={setFrom} today={feeToday()} minDate={`${ctx.session}-04-01`} maxDate={`${ctx.session + 1}-03-31`} />
               </div>
-              <div className="w-44">
+              <div className="w-full sm:w-44">
                 <DatePicker label="To" value={to} onValueChange={setTo} today={feeToday()} minDate={`${ctx.session}-04-01`} maxDate={`${ctx.session + 1}-03-31`} error={rangeError} />
               </div>
               <fieldset className="m-0 flex flex-wrap items-center gap-x-4 gap-y-2 border-0 p-0">
@@ -661,10 +661,10 @@ export function ConcessionsPage() {
           pagination={d && d.total > d.pageSize ? <Pagination page={d.page} pageSize={d.pageSize} total={d.total} onPageChange={setPage} /> : undefined}
           toolbar={
             <div className="flex w-full flex-wrap items-end gap-3">
-              <div className="w-60">
+              <div className="w-full sm:w-60">
                 <Input aria-label="Search" placeholder="Student, G.R. or father" icon="search" value={query} onChange={(e) => setQuery(e.target.value)} />
               </div>
-              <div className="w-36">
+              <div className="w-full sm:w-36">
                 <Select
                   aria-label="Class"
                   value={cls}
@@ -675,13 +675,13 @@ export function ConcessionsPage() {
                   options={[{ value: "", label: "Every class" }, ...classList.options]}
                 />
               </div>
-              <div className="w-32">
+              <div className="w-full sm:w-32">
                 <Select aria-label="Section" value={section} disabled={!cls} onChange={(e) => setSection(e.target.value)} options={[{ value: "", label: cls ? "Every section" : "Section" }, ...sections.map((x) => ({ value: x, label: `${cls}-${x}` }))]} />
               </div>
-              <div className="w-44">
+              <div className="w-full sm:w-44">
                 <Select aria-label="Kind" value={type} onChange={(e) => setType(e.target.value as FeeConcessionType | "")} options={[{ value: "", label: "Every kind" }, ...(d?.types ?? []).map((t) => ({ value: t.code, label: t.title }))]} />
               </div>
-              <div className="w-48">
+              <div className="w-full sm:w-48">
                 <Select
                   aria-label="Status"
                   value={status}

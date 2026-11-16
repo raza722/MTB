@@ -1,6 +1,6 @@
 import { authApi, can, CURRENT_SESSION, dashboardQueries, metaQueries, newIdempotencyKey, smsStatusApi, smsStatusQueries, type CampusScope, type Permission, type SessionInfo } from "@mtb/api";
 import { formatDateTime, formatSession } from "@mtb/domain";
-import { Avatar, Banner, Button, cx, Icon, IconButton, Menu, MenuItem, MenuLabel, MenuSeparator, Tooltip, useToast, type IconName } from "@mtb/ui";
+import { Avatar, Banner, Button, cx, Icon, IconButton, Menu, MenuItem, MenuLabel, MenuSeparator, NavDrawer, PHONE_QUERY, Tooltip, useMediaQuery, useToast, WIDE_QUERY, type IconName } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { lazy, Suspense, useRef, useState, type ReactNode } from "react";
@@ -72,23 +72,31 @@ function readCollapsed(): boolean {
   }
 }
 
-function NavLink({ item, collapsed, active }: { item: NavItem; collapsed: boolean; active: boolean }) {
+/**
+ * One menu entry. `rail` shows the icon only (a tooltip names it); `drawer` is the phone menu, where the current page
+ * is marked by its own tinted background because there is no sliding indicator there.
+ */
+function NavLink({ item, mode, active, onNavigate }: { item: NavItem; mode: "full" | "rail" | "drawer"; active: boolean; onNavigate?: () => void }) {
+  const rail = mode === "rail";
   const link = (
     <Link
       to={item.to}
       aria-current={active ? "page" : undefined}
+      onClick={onNavigate}
       className={cx(
         "mtb-nav-link relative z-[1] flex h-10 items-center gap-3 rounded-md px-3 font-medium no-underline",
         active ? "text-brand-ink" : "text-ink-muted hover:bg-surface-hover hover:text-ink",
-        collapsed && "justify-center px-0",
+        mode === "drawer" && "h-11",
+        mode === "drawer" && active && "bg-brand-tint",
+        rail && "justify-center px-0",
       )}
     >
       <Icon name={item.icon} size={20} className="mtb-nav-icon" />
-      {!collapsed && <span>{item.label}</span>}
-      {collapsed && <span className="mtb-sr-only">{item.label}</span>}
+      {!rail && <span>{item.label}</span>}
+      {rail && <span className="mtb-sr-only">{item.label}</span>}
     </Link>
   );
-  return collapsed ? (
+  return rail ? (
     <Tooltip content={item.label} side="right">
       {link}
     </Tooltip>
@@ -97,26 +105,80 @@ function NavLink({ item, collapsed, active }: { item: NavItem; collapsed: boolea
   );
 }
 
-function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
-  const path = useRouterState({ select: (s) => s.location.pathname });
+/** The menu entries this user's role can open. */
+function useNavItems(): NavItem[] {
   const user = useSessionUser();
   const { campus } = useCtx();
-  const items = NAV.filter((n) => !n.permission || (Array.isArray(n.permission) ? n.permission : [n.permission]).some((p) => can(user, p, campus)));
+  return NAV.filter((n) => !n.permission || (Array.isArray(n.permission) ? n.permission : [n.permission]).some((p) => can(user, p, campus)));
+}
+
+/**
+ * The sidebar, from tablets up (phones use the menu drawer). Below 1024px it is always the icon rail so the page keeps
+ * its width; from 1024px it follows the user's choice (full, or collapsed to the rail).
+ */
+function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
+  const path = useRouterState({ select: (s) => s.location.pathname });
+  const items = useNavItems();
+  const wide = useMediaQuery(WIDE_QUERY);
+  const rail = collapsed || !wide;
   // The active highlight is one element that slides to the current item (40px rows, 4px apart).
   const activeIndex = items.findIndex((n) => isActive(path, n.match));
   return (
-    <aside className={cx("sticky top-0 hidden h-screen shrink-0 flex-col border-r border-border bg-surface-raised md:flex", collapsed ? "w-16" : "w-60")} aria-label="Main">
-      <div className={cx("flex h-12 items-center border-b border-border", collapsed ? "justify-center" : "justify-between px-4")}>
-        {!collapsed && <span className="text-title-1">MTB</span>}
-        <IconButton icon={collapsed ? "chevronRight" : "chevronLeft"} label={collapsed ? "Expand sidebar" : "Collapse sidebar"} size="sm" onClick={onToggle} />
+    <aside className={cx("sticky top-0 hidden h-screen shrink-0 flex-col border-r border-border bg-surface-raised md:flex", rail ? "w-16" : "w-60")} aria-label="Main">
+      <div className={cx("flex h-12 items-center border-b border-border", rail ? "justify-center" : "justify-between px-4")}>
+        {!rail && <span className="text-title-1">MTB</span>}
+        {wide ? (
+          <IconButton icon={rail ? "chevronRight" : "chevronLeft"} label={rail ? "Expand sidebar" : "Collapse sidebar"} size="sm" onClick={onToggle} />
+        ) : (
+          <span className="text-small font-semibold text-brand-ink" aria-hidden="true">
+            MTB
+          </span>
+        )}
       </div>
       <nav className="relative grid flex-1 content-start gap-1 overflow-y-auto p-2">
         {activeIndex >= 0 && <span className="mtb-nav-indicator" style={{ transform: `translateY(${activeIndex * 44}px)` }} aria-hidden="true" />}
         {items.map((item) => (
-          <NavLink key={item.to} item={item} collapsed={collapsed} active={isActive(path, item.match)} />
+          <NavLink key={item.to} item={item} mode={rail ? "rail" : "full"} active={isActive(path, item.match)} />
         ))}
       </nav>
     </aside>
+  );
+}
+
+/** The phone menu: campus and session first (the top bar has no room for both), then every page the role can open. */
+function MobileNav({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const path = useRouterState({ select: (s) => s.location.pathname });
+  const items = useNavItems();
+  const user = useSessionUser();
+  const role = useRoleLabel();
+  return (
+    <NavDrawer
+      open={open}
+      onClose={onClose}
+      title="Main menu"
+      header={<span className="text-title-1">MTB</span>}
+      footer={
+        user && (
+          <div className="flex min-w-0 items-center gap-3">
+            <Avatar name={user.name.replace(/^(Mrs|Mr|Ms)\s+/, "")} size="sm" />
+            <div className="grid min-w-0 leading-tight">
+              <span className="truncate font-medium text-ink">{user.name}</span>
+              <span className="truncate text-small text-ink-muted">{role}</span>
+            </div>
+          </div>
+        )
+      }
+    >
+      <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 pb-3">
+        <CampusSwitcher />
+        <SessionSwitcher />
+      </div>
+      <nav className="grid content-start gap-1 p-2" aria-label="Main">
+        {items.map((item) => (
+          <NavLink key={item.to} item={item} mode="drawer" active={isActive(path, item.match)} onNavigate={onClose} />
+        ))}
+      </nav>
+    </NavDrawer>
   );
 }
 
@@ -125,11 +187,12 @@ function CampusSwitcher() {
   const { campus } = useCtx();
   const setCtx = useSetCtx();
   const options = campusesFor(user);
+  // On a phone the name shortens with an ellipsis rather than pushing the bell and account menu off the screen.
   const pill = (
-    <span className="inline-flex h-8 shrink-0 items-center gap-2 whitespace-nowrap rounded-full bg-brand-tint px-3 font-medium text-brand-ink">
-      <Icon name="building" size={16} />
-      {campusLabel(campus)}
-      {options.length > 1 && <Icon name="chevronDown" size={16} />}
+    <span className="inline-flex h-8 min-w-0 max-w-[11rem] items-center gap-2 whitespace-nowrap rounded-full bg-brand-tint px-3 font-medium text-brand-ink sm:max-w-none">
+      <Icon name="building" size={16} className="shrink-0" />
+      <span className="truncate">{campusLabel(campus)}</span>
+      {options.length > 1 && <Icon name="chevronDown" size={16} className="shrink-0" />}
     </span>
   );
   if (options.length <= 1) return pill;
@@ -137,7 +200,7 @@ function CampusSwitcher() {
     <Menu
       label="Campus"
       trigger={
-        <button type="button" className="rounded-full" aria-label={`Campus: ${campusLabel(campus)}. Change campus`}>
+        <button type="button" className="min-w-0 rounded-full" aria-label={`Campus: ${campusLabel(campus)}. Change campus`}>
           {pill}
         </button>
       }
@@ -345,6 +408,8 @@ function ReadOnlyBanner() {
 export function AppShell({ children }: { children?: ReactNode }) {
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
+  const phone = useMediaQuery(PHONE_QUERY);
   const toggle = () => {
     setCollapsed((c) => {
       try {
@@ -362,21 +427,31 @@ export function AppShell({ children }: { children?: ReactNode }) {
       </a>
       <Sidebar collapsed={collapsed} onToggle={toggle} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="mtb-topbar sticky top-0 z-30 flex h-12 items-center gap-3 border-b border-border px-4 shadow-sm">
+        {/* Phones: menu · campus · search · bell · account (session moves into the menu). Tablets add the session and the
+            search field; the sidebar rail carries the pages. */}
+        <header className="mtb-topbar sticky top-0 z-30 flex h-12 items-center gap-2 border-b border-border px-2 shadow-sm sm:gap-3 sm:px-4">
+          <IconButton icon="menu" label="Open menu" className="md:hidden" aria-haspopup="dialog" aria-expanded={navOpen} onClick={() => setNavOpen(true)} />
           <CampusSwitcher />
-          <SessionSwitcher />
-          <div className="mx-auto w-full min-w-0 max-w-md">
+          <div className="hidden sm:block">
+            <SessionSwitcher />
+          </div>
+          <div className="mx-auto hidden w-full min-w-0 max-w-md md:block">
             <SearchTrigger onOpen={() => setSearchOpen(true)} />
           </div>
-          <Notifications />
-          <UserMenu />
+          <div className="ml-auto flex shrink-0 items-center gap-1 md:ml-0 md:gap-3">
+            <IconButton icon="search" label="Search" className="md:hidden" onClick={() => setSearchOpen(true)} />
+            <Notifications />
+            <UserMenu />
+          </div>
         </header>
-        <main id="main" tabIndex={-1} className="mtb-page grid min-w-0 flex-1 content-start gap-4 p-6 outline-none">
+        <main id="main" tabIndex={-1} className="mtb-page grid min-w-0 flex-1 content-start gap-4 p-3 outline-none sm:p-4 lg:p-6">
           <SmsPausedBanner />
           <ReadOnlyBanner />
           {children ?? <Outlet />}
         </main>
       </div>
+      {/* Only on phones: turning a tablet or widening the window shows the sidebar instead. */}
+      <MobileNav open={navOpen && phone} onClose={() => setNavOpen(false)} />
       <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
       {import.meta.env.VITE_USE_MOCKS !== "false" && (
         <Suspense fallback={null}>

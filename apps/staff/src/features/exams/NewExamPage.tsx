@@ -305,7 +305,7 @@ function NewExamForm() {
           rise={0}
           actions={
             <div className="flex flex-wrap items-end gap-2">
-              <div className="w-44">
+              <div className="w-full sm:w-44">
                 <DatePicker aria-label="First paper on" value={firstDate} onValueChange={setFirstDate} today={examsToday()} minDate={examsToday()} />
               </div>
               <Button icon="calendar" onClick={spreadDates} disabled={!firstDate}>

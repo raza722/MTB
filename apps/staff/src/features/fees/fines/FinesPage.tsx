@@ -672,7 +672,7 @@ export function FinesPage() {
             toolbar={
               <div className="flex w-full flex-wrap items-end justify-between gap-3">
                 <div className="flex flex-wrap items-end gap-3">
-                  <div className="w-36">
+                  <div className="w-full sm:w-36">
                     <Select
                       aria-label="Class"
                       value={fineCls}
@@ -683,7 +683,7 @@ export function FinesPage() {
                       options={[{ value: "", label: "Every class" }, ...classList.options]}
                     />
                   </div>
-                  <div className="w-36">
+                  <div className="w-full sm:w-36">
                     <Select aria-label="Section" value={fineSection} disabled={!fineCls} onChange={(e) => setFineSection(e.target.value)} options={[{ value: "", label: fineCls ? "Every section" : "Choose a class" }, ...sectionsOfFines.map((x) => ({ value: x, label: `${fineCls}-${x}` }))]} />
                   </div>
                   {canCharge && !readOnly && (

@@ -208,7 +208,7 @@ function TeacherLoad({ data }: { data: SetupStaffing }) {
         rows={rows}
         caption="Teaching load"
         toolbar={
-          <div className="w-64">
+          <div className="w-full sm:w-64">
             <Input aria-label="Search teachers" icon="search" placeholder="Teacher name" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
         }

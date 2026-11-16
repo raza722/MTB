@@ -345,7 +345,7 @@ function ClassesTable({ onEdit }: { onEdit: (c: SetupClass | null) => void }) {
         {...(readOnly || !canManage ? {} : { onRowClick: (c: SetupClass) => onEdit(c) })}
         toolbar={
           <>
-            <div className="w-56">
+            <div className="w-full sm:w-56">
               <Select aria-label="Level" value={level} onChange={(e) => setLevel(e.target.value)} options={[{ value: "", label: "All levels" }, ...levels.map((l) => ({ value: l.id, label: l.name }))]} />
             </div>
             <EditButton size="sm" variant="primary" icon="plus" onClick={() => onEdit(null)} reason={canManage ? null : HEAD_OFFICE_ONLY}>
@@ -421,10 +421,10 @@ function SectionsTable({ onEdit }: { onEdit: (s: SetupSection | null) => void })
         toolbar={
           <>
             <div className="flex flex-wrap items-center gap-3">
-              <div className="w-56">
+              <div className="w-full sm:w-56">
                 <Input aria-label="Search sections" icon="search" placeholder="Section, room or teacher" value={search} onChange={(e) => setSearch(e.target.value)} />
               </div>
-              <div className="w-44">
+              <div className="w-full sm:w-44">
                 <Select aria-label="Class" value={classId} onChange={(e) => setClassId(e.target.value)} options={[{ value: "", label: "All classes" }, ...classes.map((c) => ({ value: c.id, label: c.name }))]} />
               </div>
             </div>

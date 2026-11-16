@@ -113,7 +113,7 @@ export function PortalShell() {
 
       <div className="flex min-w-0 flex-col">
         <header className="portal-topbar portal-no-print sticky top-0 z-30 border-b border-border pt-[env(safe-area-inset-top)]">
-          <div className="mx-auto flex min-h-16 w-full max-w-[1120px] items-center gap-2 px-2 lg:gap-4 lg:px-8">
+          <div className="flex min-h-16 w-full items-center gap-2 px-2 lg:gap-4 lg:px-8">
             <ChildSwitcher />
             <div className="ms-auto flex shrink-0 items-center gap-1 lg:gap-2">
               <div className="hidden lg:block">
@@ -134,7 +134,8 @@ export function PortalShell() {
           </div>
         </header>
 
-        <main id="main" tabIndex={-1} className="portal-page mx-auto w-full max-w-[1120px] flex-1 px-4 pt-4 pb-28 outline-none lg:px-8 lg:pt-6 lg:pb-12">
+        {/* The full width of the window at any size; the pages' own grids add columns as it grows. */}
+        <main id="main" tabIndex={-1} className="portal-page w-full flex-1 px-4 pt-4 pb-28 outline-none lg:px-8 lg:pt-6 lg:pb-12">
           {child ? <Outlet /> : <EmptyState icon="students" title={t("error.notLinked")} />}
         </main>
       </div>

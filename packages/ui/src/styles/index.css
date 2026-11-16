@@ -14,5 +14,6 @@
 @import "../../design-system-source/bundle.css" layer(components);
 @import "./components-ext.css" layer(components);
 @import "./charts.css" layer(components);
+@import "./responsive.css" layer(components);
 @import "./motion.css";
 @import "./base.css";

@@ -445,7 +445,7 @@ export function StaffProfilePage({ staffId, tab, setTab }: { staffId: string; ta
                 )}
                 {edit && (
                   <div className="mt-4 flex flex-wrap items-end gap-3">
-                    <div className="w-60">
+                    <div className="w-full sm:w-60">
                       <Select label="Add another document" value={docKind} onChange={(e) => setDocKind(e.target.value as HrDocumentKind)} options={(Object.keys(HR_DOCUMENT_LABEL) as HrDocumentKind[]).map((k) => ({ value: k, label: HR_DOCUMENT_LABEL[k] }))} />
                     </div>
                     <Button icon="upload" loading={upload.isPending} onClick={() => fileRef.current?.click()}>

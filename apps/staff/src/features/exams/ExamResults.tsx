@@ -143,12 +143,12 @@ export function ExamResults() {
         toolbar={
           <>
             <div className="flex flex-wrap items-center gap-3">
-              <div className="w-60">
+              <div className="w-full sm:w-60">
                 <Input aria-label={`Search ${candidate.toLowerCase()}s`} placeholder={`Search ${candidate.toLowerCase()} or number`} icon="search" value={query} onChange={(e) => setQuery(e.target.value)} />
               </div>
               {sections.length > 1 && <Segmented aria-label="Section" value={section} onChange={setSection} options={[{ value: "ALL", label: "Whole class" }, ...sections.map((s) => ({ value: s, label: s }))]} />}
             </div>
-            <div className="w-48">
+            <div className="w-full sm:w-48">
               <Select aria-label="Sort by" value={sort} onChange={(e) => setSort(e.target.value as SortKey)} options={[{ value: "position", label: "Sort by position" }, { value: "name", label: "Sort by name" }, { value: "roll", label: "Sort by roll number" }]} />
             </div>
           </>

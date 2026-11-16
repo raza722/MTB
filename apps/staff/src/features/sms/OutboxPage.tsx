@@ -92,10 +92,10 @@ export function OutboxPage({ search, setSearch }: { search: OutboxSearch; setSea
                   { value: "CANCELLED", label: "Cancelled" },
                 ]}
               />
-              <div className="w-56">
+              <div className="w-full sm:w-56">
                 <Select aria-label="Sent as" value={channel} onChange={(e) => setChannel(e.target.value as "" | SmsChannel)} options={[{ value: "", label: "SMS and app" }, { value: "APP_FIRST", label: "App first, then SMS" }, { value: "SMS", label: "SMS only" }, { value: "APP", label: "App only" }]} />
               </div>
-              <div className="w-64">
+              <div className="w-full sm:w-64">
                 <Input aria-label="Search the outbox" icon="search" placeholder="Message, class or sender" value={query} onChange={(e) => { setQuery(e.target.value); setPage(1); }} />
               </div>
             </div>

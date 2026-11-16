@@ -79,10 +79,10 @@ function RangePicker({ search, setSearch }: { search: StudentReportSearch; setSe
       </div>
       {custom && (
         <>
-          <div className="w-44">
+          <div className="w-full sm:w-44">
             <DatePicker label="From" value={r.from} today={span.today} minDate={span.starts} maxDate={span.last} onValueChange={(d) => d && setSearch({ ...search, from: d })} />
           </div>
-          <div className="w-44">
+          <div className="w-full sm:w-44">
             <DatePicker label="To" value={r.to} today={span.today} minDate={r.from} maxDate={span.last} onValueChange={(d) => d && setSearch({ ...search, to: d })} />
           </div>
         </>
@@ -234,7 +234,7 @@ function OneStudent({ search, setSearch }: { search: StudentReportSearch; setSea
             if (typed.trim()) setSearch({ ...search, grNo: typed.trim().toUpperCase() });
           }}
         >
-          <div className="w-40">
+          <div className="w-full sm:w-40">
             <Input label="Or G.R. no." placeholder={`${ctx.campus === "ALL" ? "KC" : ctx.campus}-12345`} value={typed} onChange={(e) => setTyped(e.target.value)} />
           </div>
           <Button type="submit" icon="search">
@@ -340,7 +340,7 @@ function ClassReport({ search, setSearch }: { search: StudentReportSearch; setSe
           <Select label="Class" value={cls ?? ""} onChange={(e) => setSearch({ ...search, cls: e.target.value })} options={(sections.data ?? []).map((s) => ({ value: s.classSection, label: s.classSection }))} />
         </div>
         <RangePicker search={search} setSearch={setSearch} />
-        <div className="w-36">
+        <div className="w-full sm:w-36">
           <Input label="Below (%)" inputMode="numeric" amount value={String(below)} onChange={(e) => setSearch({ ...search, below: Math.max(0, Math.min(100, Number(e.target.value.replace(/\D/g, "")) || 0)) })} />
         </div>
         <div className="pb-2">

@@ -80,7 +80,7 @@ export function AttendancePage({ date, onDate }: AttendanceTodayProps) {
             Back to today
           </Button>
         )}
-        <div className="w-44">
+        <div className="w-full sm:w-44">
           <DatePicker aria-label="Day" value={day} today={today} minDate={span.starts} maxDate={today} onValueChange={(d) => onDate(d && d !== today ? d : undefined)} />
         </div>
       </div>

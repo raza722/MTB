@@ -212,7 +212,7 @@ function ClassSubjectsForm({
       {!readOnly && (
         <div className="flex flex-wrap items-end justify-between gap-3 border-t border-border px-5 py-4">
           <div className="flex flex-wrap items-end gap-2">
-            <div className="w-64">
+            <div className="w-full sm:w-64">
               <Combobox label="Add a subject" options={available.map((s) => ({ value: s.id, label: s.name, hint: s.code }))} value={adding} onValueChange={setAdding} placeholder="Choose a subject…" emptyText="Every active subject is already listed" />
             </div>
             <Button
@@ -384,7 +384,7 @@ function SubjectsList() {
           {...(readOnly ? {} : { onRowClick: (s: SetupSubject) => setEditing(s) })}
           toolbar={
             <>
-              <div className="w-64">
+              <div className="w-full sm:w-64">
                 <Input aria-label="Search subjects" icon="search" placeholder="Name or code" value={search} onChange={(e) => setSearch(e.target.value)} />
               </div>
               <EditButton size="sm" variant="primary" icon="plus" onClick={() => setEditing(null)}>

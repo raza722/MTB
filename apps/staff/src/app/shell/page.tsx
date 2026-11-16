@@ -39,9 +39,9 @@ export function PageHeader({ title, context, actions, meta }: PageHeaderProps) {
   );
 }
 
-/** Standard page body: header, then content stacked with 24px gaps. */
+/** Standard page body: header, then content stacked with 24px gaps, using the full width of the window at any size. */
 export function Page({ children }: { children: ReactNode }) {
-  return <div className="mx-auto grid w-full max-w-[1400px] grid-cols-[minmax(0,1fr)] gap-6">{children}</div>;
+  return <div className="grid w-full grid-cols-[minmax(0,1fr)] gap-6">{children}</div>;
 }
 
 /** Shown instead of a page the user's role can't open (for example after following a link). */

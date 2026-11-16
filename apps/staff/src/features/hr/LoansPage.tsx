@@ -328,13 +328,13 @@ export function LoansPage() {
           onRowClick={(l) => setOpenId(l.id)}
           toolbar={
             <div className="flex w-full flex-wrap items-end gap-3">
-              <div className="w-56">
+              <div className="w-full sm:w-56">
                 <Input aria-label="Search" placeholder="Staff or loan number" icon="search" value={query} onChange={(e) => setQuery(e.target.value)} />
               </div>
-              <div className="w-48">
+              <div className="w-full sm:w-48">
                 <Select aria-label="Status" value={status} onChange={(e) => setStatus(e.target.value as HrLoanStatus | "")} options={[{ value: "", label: "Every status" }, { value: "PENDING", label: "Waiting for approval" }, { value: "ACTIVE", label: "Being repaid" }, { value: "CLOSED", label: "Paid back" }, { value: "REJECTED", label: "Rejected" }]} />
               </div>
-              <div className="w-44">
+              <div className="w-full sm:w-44">
                 <Select
                   aria-label="Kind"
                   value={kind}

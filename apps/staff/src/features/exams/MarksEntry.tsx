@@ -43,7 +43,7 @@ export function MarksEntry({ search, onSearch }: { search: MarksSearch; onSearch
         actions={
           <div className="flex flex-wrap items-center gap-3">
             {!programme && exam.classes.length > 1 && <Segmented aria-label="Section" value={section} onChange={(v) => onSearch({ section: v, ...(subject !== "ALL" ? { subject } : {}) })} options={exam.classes} />}
-            <div className="w-48">
+            <div className="w-full sm:w-48">
               <Select
                 aria-label="Subjects shown"
                 value={subject}

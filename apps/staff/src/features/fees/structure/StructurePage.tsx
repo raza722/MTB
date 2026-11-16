@@ -229,7 +229,7 @@ function EditClassPanel({ structure, cls, onClose }: { structure: FeeStructure; 
                 {(h.billing === "ANNUAL" || extra) && (
                   <div className="flex flex-wrap items-end gap-3">
                     {h.billing === "ANNUAL" && h.code !== "BOARD" && (
-                      <div className="w-56">
+                      <div className="w-full sm:w-56">
                         <Select
                           label="Paid"
                           value={String(v.installments)}

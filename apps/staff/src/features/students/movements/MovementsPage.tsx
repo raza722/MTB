@@ -182,10 +182,10 @@ export function MovementsPage({ kind, setKind }: { kind: StudentMovementKind | "
               <div className="min-w-56 flex-1">
                 <Input label="Search" icon="search" placeholder="Name, G.R. or reason" value={q} onChange={(e) => setQ(e.target.value)} />
               </div>
-              <div className="w-40">
+              <div className="w-full sm:w-40">
                 <DatePicker label="From" value={from} onValueChange={setFrom} today={today()} minDate={sessionStart} maxDate={sessionEnd} error={rangeError} />
               </div>
-              <div className="w-40">
+              <div className="w-full sm:w-40">
                 <DatePicker label="To" value={to} onValueChange={setTo} today={today()} minDate={sessionStart} maxDate={sessionEnd} />
               </div>
               <Select label="Class" value={cls} onChange={(e) => setCls(e.target.value)} options={[{ value: "", label: "All classes" }, ...(classes.data ?? []).map((c) => ({ value: c.short, label: c.name }))]} />

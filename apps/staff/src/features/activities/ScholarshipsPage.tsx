@@ -161,7 +161,7 @@ export function ScholarshipsPage({ search, onSearch }: { search: ScholarshipsSea
           toolbar={
             <>
               <div className="flex flex-wrap items-center gap-3">
-                <div className="w-64">
+                <div className="w-full sm:w-64">
                   <Input
                     aria-label="Search awards"
                     icon="search"
@@ -184,7 +184,7 @@ export function ScholarshipsPage({ search, onSearch }: { search: ScholarshipsSea
                 />
               </div>
               <div className="flex flex-wrap items-center gap-3">
-              <div className="w-36">
+              <div className="w-full sm:w-36">
                 <Select
                   aria-label="Class"
                   value={cls}
@@ -195,7 +195,7 @@ export function ScholarshipsPage({ search, onSearch }: { search: ScholarshipsSea
                   options={[{ value: "", label: "Every class" }, ...classList.map((c) => ({ value: c, label: c === "Prep" ? "Prep" : `Class ${c}` }))]}
                 />
               </div>
-              <div className="w-36">
+              <div className="w-full sm:w-36">
                 <Select
                   aria-label="Boys or girls"
                   value={gender}
@@ -210,7 +210,7 @@ export function ScholarshipsPage({ search, onSearch }: { search: ScholarshipsSea
                   ]}
                 />
               </div>
-              <div className="w-60">
+              <div className="w-full sm:w-60">
                 <Select
                   aria-label="Scheme"
                   value={search.scheme ?? ""}

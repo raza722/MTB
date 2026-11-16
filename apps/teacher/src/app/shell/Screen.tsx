@@ -44,7 +44,7 @@ export function Screen({ title, subtitle, backTo, backLabel = "Back", actions, b
   return (
     <>
       <header className="sticky top-0 z-30 border-b border-border bg-surface-raised/95 pt-[env(safe-area-inset-top)] backdrop-blur">
-        <div className="mx-auto flex min-h-14 max-w-[560px] items-center gap-1 px-2">
+        <div className="mx-auto flex min-h-14 max-w-[560px] items-center gap-1 px-2 lg:max-w-[680px] xl:max-w-[840px] 2xl:max-w-[960px]">
           {backTo ? <IconButton icon="arrowLeft" label={backLabel} size="touch" onClick={goBack} /> : <span className="w-2 shrink-0" aria-hidden="true" />}
           <div className="min-w-0 flex-1 py-1.5">
             <h1 className="m-0 truncate text-title-2 text-ink">{title}</h1>
@@ -54,12 +54,16 @@ export function Screen({ title, subtitle, backTo, backLabel = "Back", actions, b
           {actions}
         </div>
       </header>
-      <main id="main" className={cx("mx-auto w-full max-w-[560px] px-4 pt-4", bottom ? "pb-[calc(env(safe-area-inset-bottom)+112px)]" : "pb-[calc(env(safe-area-inset-bottom)+104px)]", className)}>
+      {/* Room at the foot for the action bar or the bottom navigation; on a desktop the navigation is a sidebar instead. */}
+      <main
+        id="main"
+        className={cx("mx-auto w-full max-w-[560px] px-4 pt-4 lg:max-w-[680px] xl:max-w-[840px] 2xl:max-w-[960px] lg:pt-6", bottom ? "pb-[calc(env(safe-area-inset-bottom)+112px)]" : "pb-[calc(env(safe-area-inset-bottom)+104px)] lg:pb-12", className)}
+      >
         {children}
       </main>
       {bottom && (
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface-raised/95 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+12px)] backdrop-blur">
-          <div className="mx-auto max-w-[560px]">{bottom}</div>
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface-raised/95 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+12px)] backdrop-blur lg:left-[var(--t-nav-w)]">
+          <div className="mx-auto max-w-[560px] lg:max-w-[680px] xl:max-w-[840px] 2xl:max-w-[960px]">{bottom}</div>
         </div>
       )}
     </>

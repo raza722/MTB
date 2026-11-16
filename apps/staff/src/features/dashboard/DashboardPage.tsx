@@ -29,7 +29,7 @@ export function DashboardPage() {
   return (
     <RequirePermission permission="dashboard.view" page="the dashboard">
       {/* Keyed by campus and session so the charts draw in again when the context changes. */}
-      <div key={`${ctx.campus}:${ctx.session}`} className="mtb-dash mx-auto grid w-full max-w-[1400px] grid-cols-[minmax(0,1fr)] gap-6">
+      <div key={`${ctx.campus}:${ctx.session}`} className="mtb-dash grid w-full grid-cols-[minmax(0,1fr)] gap-6">
         <Hero s={s} approvals={approvals.data?.length} />
         {summary.isError && (
           <Banner tone="danger" title="The dashboard figures could not be loaded." actions={<Button size="sm" variant="secondary" onClick={() => void summary.refetch()}>Try again</Button>}>

@@ -220,7 +220,7 @@ function ProgrammePanel({ onClose }: { onClose: () => void }) {
           <p className="m-0 text-small text-ink-muted">Each type becomes a marks column. Courses can change these later.</p>
           {types.map((t) => (
             <div key={t.id} className="flex items-center gap-3">
-              <div className="w-48">
+              <div className="w-full sm:w-48">
                 <Checkbox label={t.name} checked={parts[t.id] !== undefined} onChange={(e) => setParts((p) => (e.target.checked ? { ...p, [t.id]: "5" } : Object.fromEntries(Object.entries(p).filter(([k]) => k !== t.id))))} />
               </div>
               {parts[t.id] !== undefined && (
@@ -631,7 +631,7 @@ function CoursePanel({ sem, programme, course, onClose }: { sem: ExamsUniSemeste
                     <div className="w-28">
                       <Input aria-label={`${typeName(t.id)} maximum`} suffix="marks" amount inputMode="numeric" value={p.max} onChange={(e) => setParts((x) => ({ ...x, [t.id]: { ...p, max: e.target.value.replace(/\D/g, "") } }))} />
                     </div>
-                    <div className="w-44">
+                    <div className="w-full sm:w-44">
                       <DatePicker aria-label={`${typeName(t.id)} date`} value={p.date} onValueChange={(d) => setParts((x) => ({ ...x, [t.id]: { ...p, date: d } }))} today={examsToday()} />
                     </div>
                   </>
@@ -730,7 +730,7 @@ function UniMarks({ sem, courseId, locked, onCourse }: { sem: ExamsUniSemester; 
   return (
     <div className="grid gap-3">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="w-96">
+        <div className="w-full sm:w-96">
           <Select label="Course" value={course.id} onChange={(e) => onCourse(e.target.value)} options={sem.courses.map((c) => ({ value: c.id, label: `${c.code} ${c.title} · ${c.creditHours} CH${c.teacher ? ` · ${c.teacher}` : ""}` }))} />
         </div>
         {!locked && (
@@ -879,7 +879,7 @@ function UniAwardList({ sem, courseId, onChange }: { sem: ExamsUniSemester; cour
     <div className="grid gap-3">
       <div className="flex flex-wrap items-end gap-3">
         <Segmented aria-label="Sheet" value="award" onChange={(v) => onChange({ sheet: v as SheetKind })} options={SHEET_OPTIONS} />
-        <div className="w-80">
+        <div className="w-full sm:w-80">
           <Select label="Course" value={course.id} onChange={(e) => onChange({ sheet: "award", course: e.target.value })} options={sem.courses.map((c) => ({ value: c.id, label: `${c.code} ${c.title}` }))} />
         </div>
         <Segmented
@@ -989,7 +989,7 @@ function UniCourseSheet({ sem, courseId, onChange }: { sem: ExamsUniSemester; co
     <div className="grid gap-3">
       <div className="flex flex-wrap items-end gap-3">
         <Segmented aria-label="Sheet" value="course" onChange={(v) => onChange({ sheet: v as SheetKind })} options={SHEET_OPTIONS} />
-        <div className="w-80">
+        <div className="w-full sm:w-80">
           <Select label="Course" value={course.id} onChange={(e) => onChange({ sheet: "course", course: e.target.value })} options={sem.courses.map((c) => ({ value: c.id, label: `${c.code} ${c.title}` }))} />
         </div>
         <Button variant="primary" icon="printer" onClick={printNow}>
@@ -1172,13 +1172,13 @@ function UniSheet({ sem, variant, onVariant }: { sem: ExamsUniSemester; variant:
         <Segmented aria-label="Sheet" value={variant} onChange={(v) => onVariant(v as SheetKind)} options={SHEET_OPTIONS} />
         {variant === "mid" && (
           <>
-            <div className="w-48">
+            <div className="w-full sm:w-48">
               <Select label="Assessment" value={assess} onChange={(e) => setAssess(e.target.value)} options={[{ value: "ALL", label: "Every assessment" }, ...types.map(([id, label]) => ({ value: id, label })), { value: MID, label: "Mid semester" }]} />
             </div>
-            <div className="w-44">
+            <div className="w-full sm:w-44">
               <DatePicker label="From" value={from} onValueChange={setFrom} today={examsToday()} />
             </div>
-            <div className="w-44">
+            <div className="w-full sm:w-44">
               <DatePicker label="To" value={to} onValueChange={setTo} today={examsToday()} {...(from ? { minDate: from } : {})} />
             </div>
           </>
@@ -1425,7 +1425,7 @@ function UniTranscript({ sem, studentId, view, onChange }: { sem: ExamsUniSemest
   return (
     <div className="grid gap-3">
       <div className="flex flex-wrap items-end gap-3">
-        <div className="w-80">
+        <div className="w-full sm:w-80">
           <Select label="Student" value={studentId} onChange={(e) => onChange({ student: e.target.value })} options={[...(inStudent ? [] : [{ value: studentId, label: studentId }]), ...sem.rows.map((r) => ({ value: r.id, label: `${r.name} · ${r.id}` }))]} />
         </div>
         <Segmented aria-label="Show" value={view} onChange={(v) => onChange({ view: v as "transcript" | "history" })} options={[{ value: "transcript", label: "Transcript" }, { value: "history", label: "Assessment history" }]} />
@@ -1436,13 +1436,13 @@ function UniTranscript({ sem, studentId, view, onChange }: { sem: ExamsUniSemest
       {view === "history" && t.data && (
         <div className="grid gap-3 rounded-md border border-border p-3">
           <div className="flex flex-wrap items-end gap-3">
-            <div className="w-56">
+            <div className="w-full sm:w-56">
               <Select label="Semester" value={semesterId} onChange={(e) => setSemesterId(e.target.value)} options={[{ value: "ALL", label: "Every semester" }, ...t.data.semesters.map((s) => ({ value: s.id, label: s.label }))]} />
             </div>
-            <div className="w-44">
+            <div className="w-full sm:w-44">
               <DatePicker label="From" value={from} onValueChange={setFrom} today={examsToday()} />
             </div>
-            <div className="w-44">
+            <div className="w-full sm:w-44">
               <DatePicker label="To" value={to} onValueChange={setTo} today={examsToday()} {...(from ? { minDate: from } : {})} />
             </div>
           </div>

@@ -374,10 +374,10 @@ export function DefaultersPage() {
           onRowClick={setOpen}
           toolbar={
             <div className="flex w-full flex-wrap items-end gap-3">
-              <div className="w-56">
+              <div className="w-full sm:w-56">
                 <Input aria-label="Search" placeholder="Student, G.R. or father" icon="search" value={query} onChange={(e) => setQuery(e.target.value)} />
               </div>
-              <div className="w-36">
+              <div className="w-full sm:w-36">
                 <Select
                   aria-label="Class"
                   value={cls}
@@ -390,7 +390,7 @@ export function DefaultersPage() {
               </div>
               <SectionsPicker cls={cls} value={sections} onChange={setSections} classList={classList} />
               <HeadPicker heads={d?.heads ?? []} value={heads} onChange={setHeads} />
-              <div className="w-40">
+              <div className="w-full sm:w-40">
                 <Select
                   aria-label="Month"
                   value={month}
@@ -407,14 +407,14 @@ export function DefaultersPage() {
                   options={[{ value: "", label: "Any month" }, ...monthOptions.map((m) => ({ value: m, label: monthText(m) }))]}
                 />
               </div>
-              <div className="w-40">
+              <div className="w-full sm:w-40">
                 <DatePicker aria-label="Due from" placeholder="Due from" value={dueFrom} onValueChange={setDueFrom} today={feeToday()} maxDate={feeToday()} />
               </div>
-              <div className="w-40">
+              <div className="w-full sm:w-40">
                 <DatePicker aria-label="Due to" placeholder="Due to" value={dueTo} onValueChange={setDueTo} today={feeToday()} maxDate={feeToday()} error={dueError} />
               </div>
               <Segmented aria-label="Months overdue" value={months} onChange={setMonths} options={[{ value: "0", label: "Any" }, { value: "1", label: "1+ month" }, { value: "2", label: "2+" }, { value: "3", label: "3+" }]} />
-              <div className="w-44">
+              <div className="w-full sm:w-44">
                 <AmountInput aria-label="Owing at least" placeholder="Owing at least" value={minAmount} onValueChange={setMinAmount} />
               </div>
               <Switch label="Include students who have left" checked={includeLeft} onChange={(e) => setIncludeLeft(e.target.checked)} />

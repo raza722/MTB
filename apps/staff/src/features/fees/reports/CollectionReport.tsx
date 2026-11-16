@@ -355,10 +355,10 @@ export function CollectionReport({ search = {} }: { search?: CollectionSearch })
           />
           {preset === "CUSTOM" && (
             <>
-              <div className="w-48">
+              <div className="w-full sm:w-48">
                 <DatePicker label="From" value={from} onValueChange={setFrom} today={feeToday()} maxDate={feeToday()} />
               </div>
-              <div className="w-48">
+              <div className="w-full sm:w-48">
                 <DatePicker label="To" value={to} onValueChange={setTo} today={feeToday()} maxDate={feeToday()} error={rangeError} />
               </div>
             </>
@@ -473,19 +473,19 @@ export function CollectionReport({ search = {} }: { search?: CollectionSearch })
           loading={report.isLoading}
           toolbar={
             <div className="flex w-full flex-wrap items-end gap-3">
-              <div className="w-60">
+              <div className="w-full sm:w-60">
                 <Input aria-label="Search receipts" placeholder="Receipt no., student or G.R." icon="search" value={query} onChange={(e) => setQuery(e.target.value)} />
               </div>
-              <div className="w-44">
+              <div className="w-full sm:w-44">
                 <Select aria-label="Cashier" value={cashier} onChange={(e) => setCashier(e.target.value)} options={[{ value: "", label: "Every cashier" }, ...(r?.cashiers ?? []).map((c) => ({ value: c, label: c }))]} />
               </div>
-              <div className="w-48">
+              <div className="w-full sm:w-48">
                 <Select aria-label="Payment method" value={method} onChange={(e) => setMethod(e.target.value as FeeCollectionMethod | "")} options={[{ value: "", label: "Every method" }, ...methodOptions.map((m) => ({ value: m, label: PAYMENT_METHOD_LABEL[m] }))]} />
               </div>
-              <div className="w-48">
+              <div className="w-full sm:w-48">
                 <Select aria-label="Fee head" value={head} onChange={(e) => setHead(e.target.value)} options={[{ value: "", label: "Every fee head" }, ...heads.map((h) => ({ value: h.code, label: h.title }))]} />
               </div>
-              <div className="w-36">
+              <div className="w-full sm:w-36">
                 <Select
                   aria-label="Class"
                   value={cls}
@@ -496,10 +496,10 @@ export function CollectionReport({ search = {} }: { search?: CollectionSearch })
                   options={[{ value: "", label: "Every class" }, ...classList.options]}
                 />
               </div>
-              <div className="w-32">
+              <div className="w-full sm:w-32">
                 <Select aria-label="Section" value={section} disabled={!cls} onChange={(e) => setSection(e.target.value)} options={[{ value: "", label: cls ? "Every section" : "Section" }, ...sectionOptions.map((x) => ({ value: x, label: `${cls}-${x}` }))]} />
               </div>
-              <div className="w-36">
+              <div className="w-full sm:w-36">
                 <Select aria-label="Boys or girls" value={gender} onChange={(e) => setGender(e.target.value as "" | "F" | "M")} options={[{ value: "", label: "Boys and girls" }, { value: "M", label: "Boys" }, { value: "F", label: "Girls" }]} />
               </div>
               {!head && <Switch label="Show by head" checked={byHead} onChange={(e) => setByHead(e.target.checked)} />}

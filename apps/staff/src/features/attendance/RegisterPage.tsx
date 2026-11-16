@@ -232,7 +232,7 @@ export function RegisterPage({ classSection, date, onDate }: RegisterPageProps) 
     <div className="flex flex-wrap items-end gap-2">
       <Button size="sm" variant="quiet" icon="chevronLeft" disabled={at <= 0} onClick={() => goto(list[at - 1]!.classSection)} aria-label="Previous class" />
       <Button size="sm" variant="quiet" icon="chevronRight" disabled={at < 0 || at >= list.length - 1} onClick={() => goto(list[at + 1]!.classSection)} aria-label="Next class" />
-      <div className="w-44">
+      <div className="w-full sm:w-44">
         <DatePicker aria-label="Day" value={day} today={today} minDate={span.starts} maxDate={span.last} onValueChange={(d) => onDate(d && d !== defaultDay ? d : undefined)} />
       </div>
       <Button size="sm" icon="printer" disabled={!reg || !!reg.closed || (reg.status === "NOT_MARKED" && !marking)} onClick={() => window.print()}>
@@ -311,7 +311,7 @@ export function RegisterPage({ classSection, date, onDate }: RegisterPageProps) 
 
             <Panel id="att-register" rise={0} flush title={`${reg.students.length} students`} description={marking ? "Tap P, A, L or LT for each student. Late counts as attended." : undefined} actions={
               <div className="flex flex-wrap items-center gap-2">
-                <div className="w-56">
+                <div className="w-full sm:w-56">
                   <Input aria-label="Search this register" icon="search" placeholder="Name, roll or G.R. no." value={search} onChange={(e) => setSearch(e.target.value)} />
                 </div>
                 {marking && (
