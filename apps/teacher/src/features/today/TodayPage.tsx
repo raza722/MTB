@@ -35,11 +35,8 @@ export function TodayPage() {
 }
 
 function TodayBody({ t }: { t: TeacherToday }) {
-  const ctx = useCtx();
-  // Marks are real (Exams): the open papers come from the papers list, the same one the Marks tab shows, until Today
-  // itself is served by the backend (module 8 reads the same exam view). Today's own `papers` are still fictional.
-  const papersQ = useQuery(teacherQueries.papers(ctx));
-  const papers = (papersQ.data ?? []).filter((p) => !p.locked);
+  // The server builds Today's papers from the Marks tab's own list (open papers only), so the two always agree.
+  const papers = t.papers;
   const now = pkMinutesNow();
   const nextIndex = t.periods.findIndex((p) => toMins(p.start) > now);
   return (

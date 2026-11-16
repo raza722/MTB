@@ -1,12 +1,12 @@
 import type { AttendanceGroup, DashboardSummary } from "@mtb/api";
 import { formatCount, formatPercent } from "@mtb/domain";
-import { DataTable, DeviationChart, Segmented, Skeleton } from "@mtb/ui";
+import { DataTable, DeviationChart, EmptyState, Segmented, Skeleton } from "@mtb/ui";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { campusLabel } from "../../app/shell/campus";
 import { useCan, useCtx } from "../../app/session";
 import { DashCard } from "./DashCard";
-import { stagger } from "./format";
+import { percentOrDash, stagger } from "./format";
 
 const short = (g: AttendanceGroup) => g.label.replace("Class ", "");
 
@@ -26,7 +26,7 @@ export function AttendanceCard({ s }: { s: DashboardSummary | undefined }) {
       description={
         s && lowest ? (
           <>
-            Today, against {all ? "all campuses" : campusLabel(ctx.campus)} at {formatPercent(s.attendance.percent)}. Lowest: {lowest.label} at {formatPercent(lowest.percent)}.
+            Today, against {all ? "all campuses" : campusLabel(ctx.campus)} at {percentOrDash(s.attendance.percent)}. Lowest: {lowest.label} at {formatPercent(lowest.percent)}.
           </>
         ) : (
           "Today"
@@ -46,6 +46,8 @@ export function AttendanceCard({ s }: { s: DashboardSummary | undefined }) {
     >
       {!s ? (
         <Skeleton height={240} />
+      ) : groups.length === 0 || s.attendance.percent === null ? (
+        <EmptyState icon="attendance" title="Nothing marked yet today" description={`Classes show here once their registers are submitted.`} />
       ) : view === "chart" ? (
         <DeviationChart
           data={groups}
@@ -68,7 +70,7 @@ export function AttendanceCard({ s }: { s: DashboardSummary | undefined }) {
             </>
           )}
           describe={(g) => `${g.label}: ${formatPercent(g.percent)}, ${formatCount(g.attended)} of ${formatCount(g.marked)} present`}
-          label={`Attendance today by ${all ? "campus" : "class"}, compared with ${formatPercent(s.attendance.percent)}`}
+          label={`Attendance today by ${all ? "campus" : "class"}, compared with ${percentOrDash(s.attendance.percent)}`}
         />
       ) : (
         <DataTable

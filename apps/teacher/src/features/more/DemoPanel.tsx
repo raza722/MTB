@@ -8,10 +8,10 @@ import { setSimulatedOffline, useSimulatedOffline } from "../../app/sync/network
 import { clearOutbox } from "../../app/sync/outbox";
 
 /**
- * Presenter's switches, mock mode only (not part of the product): turn today into a holiday, take the phone offline,
- * reset the demo. The holiday switch acts on the screens that are still mocked (Today); registers (Attendance) and
- * marks (Exams) are real, so a failed sync now comes only from the real server (or from going offline here), and
- * register changes are decided by the principal on the staff dashboard.
+ * Presenter's switches, mock mode only (not part of the product; hidden when VITE_USE_MOCKS=false): take the phone
+ * offline, reset this phone's saved screens and outbox. Every teacher screen is served by the real backend now
+ * (Today, classes and notifications: module 14), so the holiday switch is only remembered by the mock's
+ * /api/teacher/demo and changes no screen: the school calendar decides holidays.
  */
 export default function DemoPanel() {
   const queryClient = useQueryClient();
@@ -36,7 +36,7 @@ export default function DemoPanel() {
     await clearPersisted();
     queryClient.clear();
     // Sign-in is real now and survives a reset of the fictional data: the teacher stays signed in.
-    toast({ title: "Demo data reset", message: "Screens from modules not built yet start again from the demo data." });
+    toast({ title: "Demo data reset", message: "This phone's saved screens and waiting items were cleared." });
     await navigate({ to: "/today" });
   };
 

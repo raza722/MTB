@@ -8,9 +8,9 @@ import { DashCard } from "./DashCard";
 import { money, stagger } from "./format";
 
 const PARTS = [
-  { key: "paid", label: "Paid", color: "var(--status-paid)", note: "November settled" },
-  { key: "unpaid", label: "Unpaid", color: "var(--status-unpaid)", note: "Due on 10-Nov" },
-  { key: "overdue", label: "Overdue", color: "var(--status-overdue)", note: "Past months" },
+  { key: "paid", label: "Paid", color: "var(--status-paid)", note: "Nothing owed" },
+  { key: "unpaid", label: "Unpaid", color: "var(--status-unpaid)", note: "This month's fee due" },
+  { key: "overdue", label: "Overdue", color: "var(--status-overdue)", note: "Past months unpaid" },
 ] as const;
 
 /** Students by fee status as one bar with a legend that opens the filtered student list, then the month's target. */
@@ -18,10 +18,11 @@ export function FeeStatusCard({ s }: { s: DashboardSummary | undefined }) {
   const canStudents = useCan("students.view");
   const { showLakh } = usePreferences();
   const total = s ? s.feeStatus.paid + s.feeStatus.unpaid + s.feeStatus.overdue : 0;
-  const monthPct = s ? Math.round((s.month.collected / s.month.target) * 100) : 0;
+  // No target this month (no charges raised yet): "—" rather than a division by zero.
+  const monthPct = s && s.month.target > 0 ? Math.round((s.month.collected / s.month.target) * 100) : null;
 
   return (
-    <DashCard id="fee-status" title="Fee status" description="Students by November fee status" style={stagger(6)}>
+    <DashCard id="fee-status" title="Fee status" description="Students on roll by fee status (the Students list's fee filter)" style={stagger(6)}>
       {!s ? (
         <div className="grid gap-4">
           <Skeleton height={14} />
@@ -67,11 +68,13 @@ export function FeeStatusCard({ s }: { s: DashboardSummary | undefined }) {
           <div className="mtb-dash-target">
             <div className="flex items-baseline justify-between gap-3">
               <span className="text-small font-medium text-ink-muted">Month target</span>
-              <span className="text-small tabular-nums text-ink-muted">{monthPct}%</span>
+              <span className="text-small tabular-nums text-ink-muted">{monthPct === null ? "—" : `${monthPct}%`}</span>
             </div>
-            <div className="mtb-meter mtb-meter-lg mtb-meter-animate" role="progressbar" aria-valuenow={monthPct} aria-valuemin={0} aria-valuemax={100} aria-label={`${monthPct}% of the month's target collected`}>
-              <span style={{ width: `${Math.min(100, monthPct)}%` }} />
-            </div>
+            {monthPct !== null && (
+              <div className="mtb-meter mtb-meter-lg mtb-meter-animate" role="progressbar" aria-valuenow={monthPct} aria-valuemin={0} aria-valuemax={100} aria-label={`${monthPct}% of the month's target collected`}>
+                <span style={{ width: `${Math.min(100, monthPct)}%` }} />
+              </div>
+            )}
             <p className="m-0 text-small text-ink-muted">
               <span className="font-medium text-ink">{money(s.month.collected, showLakh)}</span> of {formatRs(s.month.target)}
             </p>

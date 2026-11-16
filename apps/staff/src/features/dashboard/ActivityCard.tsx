@@ -1,9 +1,9 @@
 import type { DashboardActivity, DashboardActivityKind, DashboardEvent, DashboardSummary } from "@mtb/api";
-import { formatDate, formatRs, formatTime } from "@mtb/domain";
+import { formatDate, formatRs, formatTime, type IsoDate } from "@mtb/domain";
 import { cx, EmptyState, Icon, Skeleton, type IconName } from "@mtb/ui";
 import { Link } from "@tanstack/react-router";
 import { DashCard } from "./DashCard";
-import { fromToday, stagger, TODAY } from "./format";
+import { fromToday, stagger } from "./format";
 
 const KIND: Record<DashboardActivityKind, { icon: IconName; tone: string }> = {
   RECEIPT: { icon: "receipt", tone: "brand" },
@@ -15,12 +15,12 @@ const KIND: Record<DashboardActivityKind, { icon: IconName; tone: string }> = {
   RESULT: { icon: "award", tone: "brand" },
 };
 
-function when(at: string) {
+function when(at: string, today: IsoDate) {
   const day = at.slice(0, 10);
-  return day === TODAY ? formatTime(at) : `${fromToday(day) === "Yesterday" ? "Yesterday" : formatDate(day)}, ${formatTime(at)}`;
+  return day === today ? formatTime(at) : `${fromToday(day, today) === "Yesterday" ? "Yesterday" : formatDate(day)}, ${formatTime(at)}`;
 }
 
-function ActivityRow({ a, i }: { a: DashboardActivity; i: number }) {
+function ActivityRow({ a, i, today }: { a: DashboardActivity; i: number; today: IsoDate }) {
   const k = KIND[a.kind];
   const inner = (
     <>
@@ -37,7 +37,7 @@ function ActivityRow({ a, i }: { a: DashboardActivity; i: number }) {
       <span className="grid justify-items-end gap-0.5 text-right">
         {a.amount !== undefined && <span className="mtb-money font-medium tabular-nums">{formatRs(a.amount)}</span>}
         <time dateTime={a.at} className="whitespace-nowrap text-small text-ink-muted">
-          {when(a.at)}
+          {when(a.at, today)}
         </time>
       </span>
     </>
@@ -55,7 +55,7 @@ function ActivityRow({ a, i }: { a: DashboardActivity; i: number }) {
   );
 }
 
-/** What happened on this campus today: receipts (including ones posted in this demo), registers, requests, SMS. */
+/** What happened on this campus today and yesterday: receipts, registers, corrections, SMS batches, admissions, results. */
 export function ActivityCard({ s, wide }: { s: DashboardSummary | undefined; wide?: boolean }) {
   return (
     <DashCard id="activity" title="Recent activity" description="Today and yesterday, newest first" style={stagger(9)} className={wide ? "xl:col-span-2" : undefined}>
@@ -70,7 +70,7 @@ export function ActivityCard({ s, wide }: { s: DashboardSummary | undefined; wid
       ) : (
         <ol className={cx("mtb-dash-feed", wide && "mtb-dash-feed-wide")}>
           {s.activity.map((a, i) => (
-            <ActivityRow key={a.id} a={a} i={i} />
+            <ActivityRow key={a.id} a={a} i={i} today={s.today} />
           ))}
         </ol>
       )}
@@ -78,9 +78,9 @@ export function ActivityCard({ s, wide }: { s: DashboardSummary | undefined; wid
   );
 }
 
-const EVENT_TONE: Record<DashboardEvent["kind"], string> = { FEE_DUE: "warning", LATE_FINE: "danger", TEST: "info", EXAM: "info", MEETING: "neutral" };
+const EVENT_TONE: Record<DashboardEvent["kind"], string> = { FEE_DUE: "warning", LATE_FINE: "danger", TEST: "info", EXAM: "info", MEETING: "neutral", EVENT: "neutral" };
 
-/** The next few dates that matter: tuition due, late fine starting, entrance tests. */
+/** The next few dates that matter: fees due, late fine starting, entrance tests, exams, calendar events. */
 export function UpcomingCard({ s }: { s: DashboardSummary | undefined }) {
   return (
     <DashCard id="upcoming" title="Coming up" description="The next dates that need the office" style={stagger(8)}>
@@ -90,6 +90,8 @@ export function UpcomingCard({ s }: { s: DashboardSummary | undefined }) {
             <Skeleton key={i} height={48} />
           ))}
         </div>
+      ) : s.upcoming.length === 0 ? (
+        <EmptyState icon="calendar" title="Nothing in the next 60 days" description="Fee due dates, entrance tests, exams and school events show here." />
       ) : (
         <ol className="mtb-dash-upcoming">
           {s.upcoming.map((e, i) => {
@@ -104,7 +106,7 @@ export function UpcomingCard({ s }: { s: DashboardSummary | undefined }) {
                   <span className="line-clamp-2 font-medium text-ink">{e.title}</span>
                   <span className="truncate text-small text-ink-muted">{e.detail}</span>
                 </span>
-                <span className="mtb-dash-when">{fromToday(e.date)}</span>
+                <span className="mtb-dash-when">{fromToday(e.date, s.today)}</span>
               </li>
             );
           })}

@@ -1,12 +1,12 @@
 import { admissionsQueries, type DashboardSummary } from "@mtb/api";
-import { formatCount, formatLongDate, formatPercent, formatRs, formatSession } from "@mtb/domain";
+import { formatCount, formatLongDate, formatRs, formatSession } from "@mtb/domain";
 import { buttonClassName, Icon, Kbd, Skeleton, type IconName } from "@mtb/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { campusLabel } from "../../app/shell/campus";
 import { openGlobalSearch } from "../../app/shell/GlobalSearch";
 import { useCan, useCtx, useSessionUser } from "../../app/session";
-import { firstName, greeting, stagger, TODAY } from "./format";
+import { firstName, greeting, percentOrDash, stagger } from "./format";
 
 function Glance({ icon, value, label, i, to }: { icon: IconName; value: string; label: string; i: number; to?: string }) {
   const body = (
@@ -47,7 +47,8 @@ export function Hero({ s, approvals }: { s: DashboardSummary | undefined; approv
   const admissions = useQuery({ ...admissionsQueries.pipeline(ctx, { pageSize: 1 }), enabled: canAdmissions });
   // Before anyone is marked today (the fingerprint file comes in later), show the roll rather than "0 present".
   const staffMarked = staff ? staff.total - staff.notMarked - staff.onLeave > 0 : false;
-  const delta = s?.attendance.deltaPts ?? 0;
+  const percent = s?.attendance.percent ?? null;
+  const delta = s?.attendance.deltaPts ?? null;
 
   return (
     <section className="mtb-dash-hero mtb-rise" aria-labelledby="dash-greeting">
@@ -60,8 +61,12 @@ export function Hero({ s, approvals }: { s: DashboardSummary | undefined; approv
           <span className="mtb-dash-live" aria-hidden="true" />
           <span>Dashboard</span>
           <span aria-hidden="true">·</span>
-          <span>{formatLongDate(TODAY)}</span>
-          <span aria-hidden="true">·</span>
+          {s && (
+            <>
+              <span>{formatLongDate(s.today)}</span>
+              <span aria-hidden="true">·</span>
+            </>
+          )}
           <span>
             {campusLabel(ctx.campus)} · Session {formatSession(ctx.session)}
           </span>
@@ -72,9 +77,15 @@ export function Hero({ s, approvals }: { s: DashboardSummary | undefined; approv
         <p className="m-0 max-w-[62ch] text-body text-ink-muted">
           {s ? (
             <>
-              <strong className="font-semibold text-ink">{formatRs(s.feesToday.amount)}</strong> collected so far today from {formatCount(s.feesToday.receipts)} receipts. Attendance is{" "}
-              <strong className="font-semibold text-ink">{formatPercent(s.attendance.percent)}</strong>
-              {delta === 0 ? ", the same as yesterday." : `, ${delta > 0 ? "up" : "down"} ${Math.abs(delta)} points on yesterday.`}
+              <strong className="font-semibold text-ink">{formatRs(s.feesToday.amount)}</strong> collected so far today from {formatCount(s.feesToday.receipts)} receipts.{" "}
+              {percent === null ? (
+                "No attendance marked yet today."
+              ) : (
+                <>
+                  Attendance is <strong className="font-semibold text-ink">{percentOrDash(percent)}</strong>
+                  {delta === null ? "." : delta === 0 ? ", the same as yesterday." : `, ${delta > 0 ? "up" : "down"} ${Math.abs(delta)} points on yesterday.`}
+                </>
+              )}
             </>
           ) : (
             <Skeleton width="80%" />
