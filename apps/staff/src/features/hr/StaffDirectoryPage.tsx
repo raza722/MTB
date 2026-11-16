@@ -153,14 +153,15 @@ export function StaffDirectoryPage() {
   const heading = ctx.campus === "ALL" ? "All campuses" : campusHeading(ctx.campus);
   const printList = () =>
     print(
+      // The old "Total Staff" list: Sr. No, Name, Staff Type first, no signatures; the employee number, joining date
+      // and mobile the office uses follow at the right.
       <ReportDoc
         campus={heading}
-        title="Staff list"
+        title="Total Staff"
         sub={filterNote([`Total staff: ${rows.length}`, filterText])}
-        head={["#", "Emp. no", "Name", "Designation", "Department", "Joined", "Service", "Mobile"]}
-        numeric={[6]}
-        rows={rows.map((s, i) => [i + 1, s.employeeNo, s.name, s.designation, s.department ?? "", formatDate(s.joiningDate), years(s.serviceYears), mobileOrDash(s.mobile)])}
-        signatures={["Office", "Principal"]}
+        head={["Sr. No", "Name", "Staff Type", "Emp. no", "Joined", "Mobile"]}
+        rows={rows.map((s, i) => [i + 1, s.name, s.designation, s.employeeNo, formatDate(s.joiningDate), mobileOrDash(s.mobile)])}
+        signatures={[]}
       />,
       "A4",
     );

@@ -15,9 +15,9 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, type CSSProperties, type ReactNode } from "react";
 import { useCtx, useReadOnly } from "../../app/session";
-import { campusLabel } from "../../app/shell/campus";
 import { Page, PageHeader } from "../../app/shell/page";
 import { SubNav, type SubNavItem } from "../../app/shell/SubNav";
+import { footerBoxes, Letterhead } from "../../app/print/letterhead";
 import "./accounts.css";
 
 /**
@@ -159,6 +159,12 @@ export function Bal({ value, strong, className }: { value: number; strong?: bool
 }
 
 /** Plain-language balance: "Rs 12,450 Dr" with a hint for screen readers. */
+/** "41,739,600.00" / "14,800": amounts as the old printouts showed them, without "Rs". */
+export const printAmt = (v: number, decimals = 0) => v.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+
+/** A printed running balance: "12,500 Dr", "3,000 Cr", "0" (no "Rs", as the old ledger). */
+export const printBal = (v: number) => `${printAmt(Math.abs(v))}${v > 0 ? " Dr" : v < 0 ? " Cr" : ""}`;
+
 export const balText = (v: number) => `${formatRs(Math.abs(v))}${v > 0 ? " Dr" : v < 0 ? " Cr" : ""}`;
 
 const SYSTEM_TYPES: AccountsVoucherType[] = ["FEE", "FEE_CANCEL", "OPENING"];
@@ -252,26 +258,18 @@ export function accountOptions(accounts: AccountsAccount[], filter: (a: Accounts
 
 /* ---------------------------------------------------------------- Print header */
 
-/** The top of every printed accounts document. */
+/** The top of every printed accounts document: the old letterhead (crest, school and campus heading, title), with
+ * the period or other detail under the title and an optional block at the top right. */
 export function DocHead({ title, subtitle, right }: { title: string; subtitle?: ReactNode; right?: ReactNode }) {
   const ctx = useCtx();
   return (
     <div className="acc-doc-head">
-      <div>
-        <h2>MTB Schools and Colleges · {campusLabel(ctx.campus)}</h2>
-        <h1>{title}</h1>
-        {subtitle && <div>{subtitle}</div>}
-      </div>
-      <div className="text-right">{right ?? <>Session {formatSession(ctx.session)}</>}</div>
+      <Letterhead campus={ctx.campus} title={title} {...(subtitle ? { sub: subtitle } : {})} {...(right ? { right } : {})} />
     </div>
   );
 }
 
+/** The old footer on every printed page: "Print DateTime …" bottom left and "Page No x of y" bottom right. */
 export function DocFoot() {
-  return (
-    <div className="acc-doc-foot">
-      <span>Printed {formatDate(accToday())} from MTB Accounts</span>
-      <span>Amounts in rupees</span>
-    </div>
-  );
+  return <style>{`@page acc-a4 { ${footerBoxes()} }`}</style>;
 }

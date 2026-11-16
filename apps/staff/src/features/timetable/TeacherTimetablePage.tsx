@@ -238,7 +238,7 @@ export function TeacherTimetablePage({ search, setSearch }: { search: TeacherTim
   const [handOver, setHandOver] = useState(false);
   const [texting, setTexting] = useState(false);
   const [printWhat, setPrintWhat] = useState<"view" | "slips">("view");
-  const [compact, setCompact] = useState(false);
+  const [compact, setCompact] = useState(true);
   const [shift, setShift] = useState<StaffFilter["shift"]>("");
   const view = search.view ?? "teacher";
   const today = useToday();
@@ -448,10 +448,11 @@ export function TeacherTimetablePage({ search, setSearch }: { search: TeacherTim
             {printWhat === "view" && view === "day" ? (
               <PrintMatrix
                 board={board}
-                title={`One-day timetable · ${dayLong(day)}`}
-                scope={`Class level: ${levelName}${genderName ? ` · ${genderName}` : ""}`}
-                right={`Total staff: ${filtered.length}`}
+                title="One Day Time Table"
+                scope={`Day: ${dayLong(day)} · Class Level: ${levelName}${genderName ? ` · ${genderName}` : ""}`}
+                right={`Total Staff: ${filtered.length}`}
                 rowHeader="Teacher"
+                timingRow
                 columns={dayColumns}
                 rows={filtered.map((t) => ({ key: t.id, label: t.name, cells: teacherDayCells(board, idx, t.id, day, dayCols) }))}
                 {...(otherTimings ? { note: otherTimings } : {})}
@@ -459,16 +460,16 @@ export function TeacherTimetablePage({ search, setSearch }: { search: TeacherTim
             ) : printWhat === "view" && view === "week" ? (
               <PrintMatrix
                 board={board}
-                title="Teacher-wise master sheet"
-                scope={`Class level: ${levelName}${genderName ? ` · ${genderName}` : ""}`}
-                right={`Total staff: ${filtered.length}`}
-                rowHeader="Teacher"
+                title="Teacher Wise Master Sheet"
+                scope={`Class Level: ${levelName}${genderName ? ` · ${genderName}` : ""}`}
+                right={`Total Staff: ${filtered.length}`}
+                rowHeader="Teacher Name"
                 columns={weekColumns}
                 rows={filtered.map((t) => ({ key: t.id, label: t.name, cells: teacherWeekCells(board, idx, t.id, weekCols) }))}
                 note="Each cell: class, subject and the days of that period."
               />
             ) : printWhat === "slips" && compact ? (
-              <CompactSlips board={board} idx={idx} teachers={filtered} scope={`Class level: ${levelName}${genderName ? ` · ${genderName}` : ""}`} />
+              <CompactSlips board={board} idx={idx} teachers={filtered} scope={`Class Level: ${levelName}${genderName ? ` · ${genderName}` : ""}`} />
             ) : (
               (printWhat === "slips" ? filtered : [teacher].filter((t): t is TimetableTeacher => !!t)).map((t) => (
                 <PrintTimetable
@@ -492,59 +493,76 @@ export function TeacherTimetablePage({ search, setSearch }: { search: TeacherTim
   );
 }
 
-/** Several teachers on each A4 page: only the periods each one teaches, with times and days. */
+/**
+ * The old "Time Table Slip (Teachers)": four teachers on each A4 landscape page, each with the name over a table of
+ * every period: Normal Timing, Periods, the lessons (class, subject and days) and Friday Timing, filled only in the
+ * periods the teacher takes.
+ */
 function CompactSlips({ board, idx, teachers, scope }: { board: TimetableBoard; idx: BoardIndex; teachers: TimetableTeacher[]; scope: string }) {
   const pages: TimetableTeacher[][] = [];
   for (let i = 0; i < teachers.length; i += 4) pages.push(teachers.slice(i, i + 4));
   if (pages.length === 0) pages.push([]);
+  const all = Array.from({ length: idx.maxPeriods }, (_, k) => k + 1);
+  const time = (list: typeof board.normal.periods, p: number) => {
+    const t = list.find((x) => x.no === p);
+    return t ? `${clockTime(t.start).slice(0, 5)} - ${clockTime(t.end).slice(0, 5)}` : "";
+  };
   return (
     <>
-      {pages.map((list, pi) => {
-        return (
-          <div key={pi} className="tt-print-page">
-            <PrintHead board={board} title="Teacher timetable slips" scope={`${scope} · page ${pi + 1} of ${pages.length}`} right={`Total staff: ${teachers.length}`} />
-            {list.length === 0 && <p>Nothing to print for these filters.</p>}
-            {list.map((t) => {
-              const used = [...new Set(board.slots.filter((s) => s.teacherId === t.id).map((s) => s.period))].sort((a, b) => a - b);
-              const cells = teacherWeekCells(board, idx, t.id, idx.maxPeriods);
-              return (
-                <div key={t.id} className="tt-print-slip">
-                  <h2>
-                    {t.name}
-                    {t.classTeacherOf ? ` · class teacher of ${t.classTeacherOf}` : ""} · {countLessons(board.slots.filter((s) => s.teacherId === t.id))} periods a week
-                  </h2>
-                  <table className="tt-print-matrix">
-                    <thead>
-                      <tr>
-                        {used.map((p) => {
-                          const tm = board.normal.periods.find((x) => x.no === p);
-                          return (
-                            <th key={p}>
-                              {p}
-                              {tm ? ` · ${clockTime(tm.start).slice(0, 5)}` : ""}
-                            </th>
-                          );
-                        })}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        {used.map((p) => (
-                          <td key={p} className="tt-print-small">
-                            {(cells[p - 1] ?? "").split("\n").map((line, j) => (
-                              <span key={j}>{line}</span>
-                            ))}
-                          </td>
-                        ))}
-                      </tr>
-                    </tbody>
-                  </table>
+      {pages.map((list, pi) => (
+        <div key={pi} className="tt-print-page">
+          <PrintHead board={board} title="Time Table Slip (Teachers)" scope={scope} right={`Total Staff: ${teachers.length}`} />
+          {list.length === 0 && <p>Nothing to print for these filters.</p>}
+          {list.map((t) => {
+            const used = new Set(board.slots.filter((s) => s.teacherId === t.id).map((s) => s.period));
+            const cells = teacherWeekCells(board, idx, t.id, idx.maxPeriods);
+            return (
+              <div key={t.id} className="tt-print-slip">
+                <div className="tt-slip-name">
+                  {t.name}
+                  <span style={{ fontWeight: 400, fontSize: "7.5pt" }}>
+                    {t.classTeacherOf ? `  · class teacher of ${t.classTeacherOf}` : ""} · {countLessons(board.slots.filter((s) => s.teacherId === t.id))} periods a week
+                  </span>
                 </div>
-              );
-            })}
-          </div>
-        );
-      })}
+                <table className="tt-slip">
+                  <tbody>
+                    <tr>
+                      <th>Normal Timing</th>
+                      {all.map((p) => (
+                        <th key={p}>{used.has(p) ? time(board.normal.periods, p) : ""}</th>
+                      ))}
+                    </tr>
+                    <tr>
+                      <th>Periods</th>
+                      {all.map((p) => (
+                        <th key={p}>{used.has(p) ? p : ""}</th>
+                      ))}
+                    </tr>
+                    <tr className="tt-slip-body">
+                      <th />
+                      {all.map((p) => (
+                        <td key={p}>
+                          {(cells[p - 1] ?? "").split("\n").map((line, j) => (
+                            <span key={j} style={{ display: "block" }}>
+                              {line}
+                            </span>
+                          ))}
+                        </td>
+                      ))}
+                    </tr>
+                    <tr>
+                      <th>Friday Timing</th>
+                      {all.map((p) => (
+                        <th key={p}>{used.has(p) ? time(board.friday.periods, p) : ""}</th>
+                      ))}
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            );
+          })}
+        </div>
+      ))}
     </>
   );
 }

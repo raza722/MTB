@@ -19,6 +19,7 @@ import { formatDate, formatRs, pakistanToday, type IsoDate } from "@mtb/domain";
 import { Banner, Button, Icon, Input, Segmented, Spinner, StatusBadge, cx } from "@mtb/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDeferredValue, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { footerBoxes } from "../../app/print/letterhead";
 import { createPortal } from "react-dom";
 import { campusLabel } from "../../app/shell/campus";
 import { SubNav } from "../../app/shell/SubNav";
@@ -337,7 +338,8 @@ export function PersonChip({ person, onRemove }: { person: { id: string; name: s
  * Renders documents into a print-only layer and opens the print dialog. Only this layer prints (see styles.css),
  * always in the light theme, on the paper given.
  */
-export function PrintLayer({ paper, children, onDone }: { paper: "A4" | "A4L"; children: ReactNode; onDone: () => void }) {
+/** `footer`: lists that run over several pages get the old footer (print time, "Page No x of y") in the bottom margin. */
+export function PrintLayer({ paper, children, onDone, footer }: { paper: "A4" | "A4L"; children: ReactNode; onDone: () => void; footer?: boolean }) {
   const { accent } = useAppearance();
   const doneRef = useRef(onDone);
   useEffect(() => {
@@ -353,8 +355,8 @@ export function PrintLayer({ paper, children, onDone }: { paper: "A4" | "A4L"; c
     };
   }, []);
   return createPortal(
-    <div className="mtb-print-area act-print-layer" data-theme="light" data-accent={accent}>
-      <style>{paper === "A4L" ? "@page { size: A4 landscape; margin: 0; }" : "@page { size: A4 portrait; margin: 0; }"}</style>
+    <div className={footer ? "mtb-print-area act-print-layer act-print-foot" : "mtb-print-area act-print-layer"} data-theme="light" data-accent={accent}>
+      <style>{`@page { size: A4 ${paper === "A4L" ? "landscape" : "portrait"}; margin: ${footer ? `0 0 9mm; ${footerBoxes()}` : "0;"} }`}</style>
       {children}
     </div>,
     document.body,

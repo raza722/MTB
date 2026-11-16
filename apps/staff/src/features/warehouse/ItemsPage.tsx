@@ -271,39 +271,48 @@ function RoomList({ departments, floor, campus }: { departments: WarehouseDepart
   let sr = 0;
   return (
     <div className="ops-doc">
-      <DocHead title="Room list" subtitle={`${groups.length} departments · ${total} rooms in use${floor !== "" ? ` · floor ${floorText(Number(floor))}` : ""}`} campus={campus} />
+      {/* The old "Room Info Report": Sr #, Floor No., Room No., Room Name under a "Department" row, a total per
+          department and the total count. */}
+      <DocHead title="Room Info Report" subtitle={`${groups.length} departments · ${total} rooms in use${floor !== "" ? ` · floor ${floorText(Number(floor))}` : ""}`} campus={campus} />
       <table>
         <thead>
           <tr>
-            <th className="n">Sr</th>
-            <th>Floor</th>
-            <th>Room no.</th>
-            <th>Room name</th>
+            <th>Sr #</th>
+            <th>Floor No.</th>
+            <th>Room No.</th>
+            <th>Room Name</th>
           </tr>
         </thead>
         <tbody>
           {groups.map((g) => (
             <Fragment key={g.d.id}>
-              <tr>
-                <th colSpan={4}>Department: {g.d.name}</th>
+              <tr className="ops-group ops-group-light">
+                <td>Department</td>
+                <td colSpan={3} style={{ fontWeight: 400 }}>
+                  {g.d.name}
+                </td>
               </tr>
               {g.rooms.map((r) => (
                 <tr key={`${g.d.id}-${r.name}`}>
-                  <td className="n">{++sr}</td>
-                  <td>{floorText(r.floor)}</td>
-                  <td>{r.roomNo || "—"}</td>
+                  <td style={{ textAlign: "center" }}>{++sr}</td>
+                  <td style={{ textAlign: "center" }}>{r.floor ?? ""}</td>
+                  <td style={{ textAlign: "center" }}>{r.roomNo}</td>
                   <td>{r.name}</td>
                 </tr>
               ))}
-              <tr className="tot">
-                <td colSpan={3}>Total rooms in {g.d.name}</td>
-                <td className="n">{g.rooms.length}</td>
+              <tr className="ops-group-light">
+                <td colSpan={3} style={{ textAlign: "right", fontWeight: 700 }}>
+                  Total Rooms in {g.d.name} :
+                </td>
+                <td style={{ textAlign: "center" }}>{g.rooms.length}</td>
               </tr>
             </Fragment>
           ))}
-          <tr className="tot">
-            <td colSpan={3}>Total count</td>
-            <td className="n">{total}</td>
+          <tr>
+            <td colSpan={3} style={{ textAlign: "right", fontWeight: 700 }}>
+              Total Count:
+            </td>
+            <td style={{ textAlign: "center" }}>{total}</td>
           </tr>
         </tbody>
       </table>

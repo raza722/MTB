@@ -1,5 +1,5 @@
 import { EXAMS_CATEGORY_LABEL, examsGroupShort, examsOfGender, examsQueries, type CampusCode, type ExamsCombined, type ExamsCombinedMode, type ExamsCombinedRow, type ExamsGender, type ExamsMark } from "@mtb/api";
-import { formatDate, formatPercent, formatSession } from "@mtb/domain";
+import { formatDate, formatPercent, formatSession, pakistanToday } from "@mtb/domain";
 import { Banner, Button, Checkbox, DataTable, EmptyState, Input, Panel, Segmented, Select, Skeleton, StatusBadge, type Column } from "@mtb/ui";
 import { useQuery } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
@@ -7,7 +7,7 @@ import { z } from "zod";
 import { campusLabel } from "../../app/shell/campus";
 import { Page, PageHeader } from "../../app/shell/page";
 import { useCtx } from "../../app/session";
-import { DocHead, printedOn } from "./print/docs";
+import { classWord, DocHead, Fields, pctText, PositionTable, sessionLong, spacedDate, splitSection } from "./print/docs";
 import { PrintSheet, printNow } from "./print/PrintSheet";
 import { ExamsNav, LoadError, ordinal, ResultBadge } from "./shared";
 
@@ -252,7 +252,7 @@ export function CombinedPage() {
                 Print
               </Button>
             </div>
-            <PrintSheet paper={printDoc === "sheet" ? "A4L" : "A4"} label="Combined result preview">
+            <PrintSheet paper={printDoc === "sheet" ? "A4L" : "A4"} footer={printDoc !== "cards" || data.parts.every((p) => p.category === "TEST")} label="Combined result preview">
               {printDoc === "sheet" && <CombinedDoc data={data} rows={visible} section={section} gender={gender} failedOnly={show === "FAILED"} campus={campus} session={ctx.session} />}
               {printDoc === "cards" &&
                 (cardStudent && visible.some((r) => r.id === cardStudent) ? visible.filter((r) => r.id === cardStudent) : visible).map((r) => (
@@ -399,163 +399,246 @@ function CombinedDoc({ data, rows: given, section, gender, failedOnly, campus, s
   );
 }
 
-const markCell = (m: ExamsMark | undefined) => (m === null || m === undefined ? "—" : String(m));
+const markCell = (m: ExamsMark | undefined) => (m === null || m === undefined ? "" : String(m));
 
 /**
- * One student's consolidated result sheet (terms) or class test report (tests): each subject's marks in every exam
- * and cumulatively, then total, %, grade, position and remarks for each exam and the combined result.
+ * One student's consolidated result sheet (terms) or class test report (tests), as the old system printed them: the
+ * boxed "Consolidated Result Sheet" with each exam's and the cumulative Obtained / Max. per subject, then Total Marks,
+ * Percentage, Grade, Position and Remarks, the class strength and two signature lines; or the "Class Test Report" with
+ * Obt. Marks/Total and %age per test, the total and the no-signature note.
  */
 function CombinedCard({ data, row, strength, campus, session }: { data: ExamsCombined; row: ExamsCombinedRow; strength: number; campus: CampusCode; session: number }) {
   const tests = data.parts.every((p) => p.category === "TEST");
   const subjects = (data.subjects ?? []).filter((s) => row.bySubject?.[s.id]);
   const months = [...new Set(data.parts.map((p) => p.startDate?.slice(0, 7)).filter((m): m is string => Boolean(m)))];
-  const span = tests ? 3 : 2;
-  const pct = (o: number, m: number) => (m ? formatPercent((o / m) * 100) : "—");
+  const pct = (o: number, m: number) => (m ? pctText((o / m) * 100, tests ? 0 : 1) : "");
+  const resultText = (r: string | undefined) => (r === "PASS" ? "Pass" : r === "SUPPLY" ? "Re-sit" : r === "FAIL" ? "Fail" : r === "WITHHELD" ? "Withheld" : "Incomplete");
+  const { cls, sec } = splitSection(row.classSection);
+  const partHead = (p: (typeof data.parts)[number]) => `${p.name}${data.mode === "AVERAGE" || data.parts.length === 1 ? "" : ` (${p.weight}%)`}`;
+  const keys = [...data.parts.map((p) => p.id), "cum"];
+  const provisional = data.parts.some((p) => p.status !== "DECLARED");
+
+  if (tests)
+    return (
+      <article className="exams-doc exams-doc-a4" aria-label={`Class test report, ${row.name}`}>
+        {provisional && <span className="exams-doc-mark">PROVISIONAL</span>}
+        <DocHead campus={campus} title="Class Test Report" />
+        <div className="exams-cons-info" style={{ gridTemplateColumns: "auto 1fr auto 1fr" }}>
+          <b>Student&apos;s Name:</b>
+          <span>{row.name}</span>
+          <b>Gr.No:</b>
+          <span>{row.id}</span>
+          <b>Father&apos;s Name :</b>
+          <span>{row.father ?? ""}</span>
+          <b>Class/Section:</b>
+          <span>{[cls, sec].filter(Boolean).join("/")}</span>
+          <b>Month :</b>
+          <span>{months.map(monthLabel).join(", ")}</span>
+          <b>Session:</b>
+          <span>{sessionLong(session)}</span>
+        </div>
+        <table style={{ width: "auto" }}>
+          <thead>
+            <tr>
+              <th className="exams-nob" />
+              {data.parts.map((p) => (
+                <th key={p.id} colSpan={2} className="c">
+                  {partHead(p)}
+                </th>
+              ))}
+              <th colSpan={2} className="c">
+                Cumulative Result
+              </th>
+            </tr>
+            <tr>
+              <th className="c">Subject</th>
+              {keys.flatMap((k) => [
+                <th key={`${k}-o`} className="c" style={{ fontWeight: 400 }}>
+                  Obt. Marks/Total
+                </th>,
+                <th key={`${k}-p`} className="c" style={{ fontWeight: 400 }}>
+                  %age
+                </th>,
+              ])}
+            </tr>
+          </thead>
+          <tbody>
+            {subjects.map((s) => {
+              const b = row.bySubject![s.id]!;
+              return (
+                <tr key={s.id}>
+                  <td style={{ minWidth: "34mm" }}>{s.name}</td>
+                  {data.parts.flatMap((p) => {
+                    const x = b.parts[p.id];
+                    return [
+                      <td key={`${p.id}-o`} className="c">
+                        {x ? `${markCell(x.mark)}/${x.max}` : ""}
+                      </td>,
+                      <td key={`${p.id}-p`} className="n">
+                        {x && x.mark !== null ? pct(typeof x.mark === "number" ? x.mark : 0, x.max) : ""}
+                      </td>,
+                    ];
+                  })}
+                  <td className="c">
+                    {b.obtained}/{b.max}
+                  </td>
+                  <td className="n">{pct(b.obtained, b.max)}</td>
+                </tr>
+              );
+            })}
+            <tr>
+              <th>Total Marks:</th>
+              {data.parts.flatMap((p) => {
+                const x = row.parts[p.id];
+                return [
+                  <td key={`${p.id}-o`} className="c">
+                    {x ? `${x.obtained}/${x.max}` : ""}
+                  </td>,
+                  <td key={`${p.id}-p`} className="n">
+                    {x ? pctText(x.percent) : ""}
+                  </td>,
+                ];
+              })}
+              <td className="c">{marksText(row)}</td>
+              <td className="n">{pctText(row.percent)}</td>
+            </tr>
+          </tbody>
+        </table>
+        {data.mode !== "AVERAGE" && data.parts.length > 1 && <p className="exams-doc-key">The cumulative % is weighted: {partsTitle(data)}.</p>}
+        <p className="m-0 mt-3" style={{ color: "#d00", fontFamily: "'Times New Roman', Times, serif", fontSize: "12pt" }}>
+          <b>Note:</b> It is a system generated report no signature required.
+        </p>
+      </article>
+    );
+
   const summary = (label: string, part: (p: (typeof data.parts)[number]) => ReactNode, total: ReactNode) => (
     <tr>
-      <th>{label}</th>
+      <th style={{ width: "34mm" }}>{label}</th>
       {data.parts.map((p) => (
-        <td key={p.id} colSpan={span} className="c">
+        <td key={p.id} className="c" style={{ width: "34mm" }}>
           {part(p)}
         </td>
       ))}
-      <td colSpan={span} className="c">
-        <b>{total}</b>
+      <td className="c" style={{ width: "34mm" }}>
+        {total}
       </td>
     </tr>
   );
-  const resultText = (r: string | undefined) => (r === "PASS" ? "Pass" : r === "SUPPLY" ? "Re-sit" : r === "FAIL" ? "Fail" : r === "WITHHELD" ? "Withheld" : "Incomplete");
-  const [cls, sec] = row.classSection.split("-");
   return (
-    <article className="exams-doc exams-doc-a4" aria-label={`${tests ? "Class test report" : "Consolidated result sheet"}, ${row.name}`}>
-      {data.parts.some((p) => p.status !== "DECLARED") && <span className="exams-doc-mark">PROVISIONAL</span>}
-      <DocHead campus={campus} title={tests ? "Class test report" : "Consolidated result sheet"} sub={`Session ${formatSession(session)} · ${tests && months.length ? months.map(monthLabel).join(", ") : `Printed ${printedOn()}`}`} />
-      <dl className="exams-doc-info">
-        <div>
-          <dt>Student</dt>
-          <dd>{row.name}</dd>
+    <article className="exams-doc exams-doc-a4" aria-label={`Consolidated result sheet, ${row.name}`}>
+      <div className="exams-cons">
+        {provisional && <span className="exams-doc-mark">PROVISIONAL</span>}
+        <DocHead campus={campus} title="Consolidated Result Sheet" />
+        <div className="exams-cons-info">
+          <span />
+          <span />
+          <b>Session:</b>
+          <span>{sessionLong(session)}</span>
+          <b>Date :</b>
+          <span>{spacedDate(pakistanToday())}</span>
+          <b>Student&apos;s Name:</b>
+          <span>{row.name}</span>
+          <b>Father&apos;s Name:</b>
+          <span>{row.father ?? ""}</span>
+          <b>Gr.No:</b>
+          <span>{row.id}</span>
+          <b>Class :</b>
+          <span>{cls}</span>
+          <b>Section:</b>
+          <span>{sec}</span>
+          <span />
+          <span />
         </div>
-        <div>
-          <dt>Father's name</dt>
-          <dd>{row.father ?? "—"}</dd>
-        </div>
-        <div>
-          <dt>G.R. No.</dt>
-          <dd className="mtb-mono">{row.id}</dd>
-        </div>
-        <div>
-          <dt>Class</dt>
-          <dd>{cls === "Prep" ? "Prep" : `Class ${cls}`}</dd>
-        </div>
-        <div>
-          <dt>Section</dt>
-          <dd>{sec ?? row.classSection}</dd>
-        </div>
-        <div>
-          <dt>{row.group ? "Group" : "Date"}</dt>
-          <dd>{row.group ?? printedOn()}</dd>
-        </div>
-      </dl>
-      <table>
-        <thead>
-          <tr>
-            <th rowSpan={2}>Subject</th>
-            {data.parts.map((p) => (
-              <th key={p.id} colSpan={span} className="c">
-                {p.name}
-                {data.mode === "AVERAGE" || data.parts.length === 1 ? "" : ` · ${p.weight}%`}
-              </th>
-            ))}
-            <th colSpan={span} className="c">
-              Cumulative result
-            </th>
-          </tr>
-          <tr>
-            {[...data.parts.map((p) => p.id), "cum"].flatMap((k) => [
-              <th key={`${k}-o`} className="c">
-                Obtained
-              </th>,
-              <th key={`${k}-m`} className="c">
-                Max.
-              </th>,
-              ...(tests
-                ? [
-                    <th key={`${k}-p`} className="c">
-                      %age
-                    </th>,
-                  ]
-                : []),
-            ])}
-          </tr>
-        </thead>
-        <tbody>
-          {subjects.map((s) => {
-            const b = row.bySubject![s.id]!;
-            return (
-              <tr key={s.id}>
-                <td>{s.name}</td>
-                {data.parts.flatMap((p) => {
-                  const x = b.parts[p.id];
-                  return [
-                    <td key={`${p.id}-o`} className="c">
-                      {x ? markCell(x.mark) : ""}
-                    </td>,
-                    <td key={`${p.id}-m`} className="c">
-                      {x ? x.max : ""}
-                    </td>,
-                    ...(tests
-                      ? [
-                          <td key={`${p.id}-p`} className="c">
-                            {x && x.mark !== null ? pct(typeof x.mark === "number" ? x.mark : 0, x.max) : ""}
-                          </td>,
-                        ]
-                      : []),
-                  ];
-                })}
-                <td className="c">{b.obtained}</td>
-                <td className="c">{b.max}</td>
-                {tests && <td className="c">{pct(b.obtained, b.max)}</td>}
-              </tr>
-            );
-          })}
-          {summary("Total marks", (p) => (row.parts[p.id] ? `${row.parts[p.id]!.obtained}/${row.parts[p.id]!.max}` : "No result"), marksText(row))}
-          {summary("Percentage", (p) => (row.parts[p.id] ? formatPercent(row.parts[p.id]!.percent) : "—"), row.percent === null ? "—" : formatPercent(row.percent))}
-          {summary("Grade", (p) => row.parts[p.id]?.grade ?? "—", row.grade ?? "—")}
-          {summary("Position in section", (p) => (row.parts[p.id]?.position ? ordinal(row.parts[p.id]!.position!) : "—"), row.position ? ordinal(row.position) : "—")}
-          {summary("Remarks", (p) => (row.parts[p.id] ? resultText(row.parts[p.id]!.result) : "No result"), row.result === "PASS" ? "Pass" : row.result === "FAIL" ? "Fail" : "Incomplete")}
-        </tbody>
-      </table>
-      <div className="exams-card-grid">
-        <table style={{ width: "auto" }}>
-          <tbody>
+        <table>
+          <thead>
             <tr>
-              <th>Class strength</th>
-              <td className="n" style={{ minWidth: "16mm" }}>
-                {strength}
-              </td>
+              <th className="c" style={{ width: "34mm" }}>
+                Semester
+              </th>
+              {data.parts.map((p) => (
+                <th key={p.id} colSpan={2} className="c">
+                  {partHead(p)}
+                </th>
+              ))}
+              <th colSpan={2} className="c">
+                Cumulative Result
+              </th>
             </tr>
-            {row.lastPercent != null && (
-              <tr>
-                <th>Last session's final</th>
-                <td className="n">{formatPercent(row.lastPercent)}</td>
-              </tr>
-            )}
+            <tr>
+              <th className="c">Subject</th>
+              {keys.flatMap((k) => [
+                <th key={`${k}-o`} className="c" style={{ width: "16mm" }}>
+                  Obtained
+                </th>,
+                <th key={`${k}-m`} className="c" style={{ width: "13mm" }}>
+                  Max.
+                </th>,
+              ])}
+            </tr>
+          </thead>
+          <tbody>
+            {subjects.map((s) => {
+              const b = row.bySubject![s.id]!;
+              return (
+                <tr key={s.id}>
+                  <td>{s.name}</td>
+                  {data.parts.flatMap((p) => {
+                    const x = b.parts[p.id];
+                    return [
+                      <td key={`${p.id}-o`} className="c">
+                        {x ? markCell(x.mark) : ""}
+                      </td>,
+                      <td key={`${p.id}-m`} className="c">
+                        {x ? x.max : ""}
+                      </td>,
+                    ];
+                  })}
+                  <td className="c">{b.obtained}</td>
+                  <td className="c">{b.max}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
-      </div>
-      <p className="exams-doc-key">
-        {data.mode === "AVERAGE" ? "The cumulative % is the average of the exams the student has." : data.parts.length > 1 ? `The cumulative % is weighted: ${partsTitle(data)}.` : ""} Cumulative marks are the totals of every exam. A = absent, L = leave.
-      </p>
-      {tests ? (
-        <p className="m-0 mt-3" style={{ color: "var(--danger-ink)", fontWeight: 600 }}>
-          Note: this is a system-generated report. No signature is required.
-        </p>
-      ) : (
-        <div className="exams-doc-signs" style={{ gridTemplateColumns: "1fr 1fr" }}>
-          <div>Controller / Superintendent of exams</div>
-          <div>Principal</div>
+        <div className="exams-cons-sum">
+          <table>
+            <tbody>
+              {summary("Total Marks:", (p) => (row.parts[p.id] ? `${row.parts[p.id]!.obtained}/${row.parts[p.id]!.max}` : ""), marksText(row))}
+              {summary("Percentage:", (p) => (row.parts[p.id] ? pctText(row.parts[p.id]!.percent) : ""), pctText(row.percent))}
+              {summary("Grade:", (p) => row.parts[p.id]?.grade ?? "", row.grade ?? "")}
+              {summary("Position:", (p) => (row.parts[p.id]?.position && row.parts[p.id]?.result === "PASS" ? ordinal(row.parts[p.id]!.position!) : ""), row.position && row.result === "PASS" ? ordinal(row.position) : "")}
+              {summary("Remarks", (p) => (row.parts[p.id] ? resultText(row.parts[p.id]!.result) : "No result"), row.result === "PASS" ? "Pass" : row.result === "FAIL" ? "Fail" : "Incomplete")}
+            </tbody>
+          </table>
         </div>
-      )}
+        <table>
+          <tbody>
+            <tr>
+              <th className="n" style={{ width: "34mm" }}>
+                Class Strength:
+              </th>
+              <td className="c" style={{ width: "34mm" }}>
+                {strength}
+              </td>
+              {row.lastPercent != null && (
+                <>
+                  <th className="n">Last session&apos;s final:</th>
+                  <td className="c">{pctText(row.lastPercent)}</td>
+                </>
+              )}
+            </tr>
+          </tbody>
+        </table>
+        {data.mode === "AVERAGE" ? <p className="exams-doc-key">The cumulative % is the average of the exams the student has.</p> : data.parts.length > 1 ? <p className="exams-doc-key">The cumulative % is weighted: {partsTitle(data)}.</p> : null}
+        <div className="exams-cons-signs">
+          <span>
+            Controller/Superintendent Exams: <i />
+          </span>
+          <span>
+            Principal: <i />
+          </span>
+        </div>
+      </div>
     </article>
   );
 }
@@ -563,105 +646,74 @@ function CombinedCard({ data, row, strength, campus, session }: { data: ExamsCom
 /** Top N combined positions of each section, under section headings (the old consolidated position table). */
 function CombinedPositions({ data, rows, top, gender, campus, session }: { data: ExamsCombined; rows: ExamsCombinedRow[]; top: number; gender: ExamsGender | undefined; campus: CampusCode; session: number }) {
   const sections = [...new Set(rows.map((r) => r.classSection))].sort();
-  const grouped = rows.some((r) => r.group);
   // Positions 1 to N of each section (equal percentages share a position), like the old table.
   const cut = (list: ExamsCombinedRow[]) => [...list].filter((r) => r.position !== null && r.position <= top).sort((a, b) => (a.position ?? 999) - (b.position ?? 999) || a.name.localeCompare(b.name));
+  const word = top === 3 ? "Three" : top === 5 ? "Five" : top === 10 ? "Ten" : String(top);
   return (
     <article className="exams-doc exams-doc-a4" aria-label="Combined positions">
-      <DocHead campus={campus} title={`Top ${top === 3 ? "three" : top} positions (combined)`} sub={[partsTitle(data), genderWord(gender), `Session ${formatSession(session)}`].filter(Boolean).join(" · ")} />
+      <DocHead campus={campus} title={`Top ${word} Consolidated Positions (Section-Wise)`} underline />
+      <PositionTable
+        fields={[["Session", <b key="s">{sessionLong(session)}</b>], ["Class", <b key="c">{classWord(data.classShort)}</b>], gender && ["Gender", <b key="g">{genderWord(gender)}</b>]]}
+        blocks={sections.map((cs) => ({
+          section: splitSection(cs).sec || cs,
+          rows: cut(rows.filter((r) => r.classSection === cs)).map((r) => ({ id: r.id, name: r.name, group: r.group ? examsGroupShort(r.group) : undefined, obtained: r.obtained ?? null, max: r.max ?? 0, percent: r.percent, position: r.position })),
+        }))}
+      />
       {sections.length === 0 && <p>No complete results.</p>}
-      {sections.map((cs) => (
-        <section key={cs} style={{ marginBottom: "4mm", breakInside: "avoid" }}>
-          <p style={{ margin: "0 0 1mm", fontWeight: 600 }}>Section: {cs}</p>
-          <table>
-            <thead>
-              <tr>
-                <th className="n">Position</th>
-                <th>G.R. No.</th>
-                <th>Student</th>
-                {grouped && <th>Group</th>}
-                <th className="n">Marks</th>
-                <th className="n">%age</th>
-              </tr>
-            </thead>
-            <tbody>
-              {cut(rows.filter((r) => r.classSection === cs)).map((r) => (
-                <tr key={r.id}>
-                  <td className="n">{r.position ? ordinal(r.position) : ""}</td>
-                  <td className="mtb-mono">{r.id}</td>
-                  <td>{r.name}</td>
-                  {grouped && <td>{examsGroupShort(r.group)}</td>}
-                  <td className="n">{marksText(r)}</td>
-                  <td className="n">{r.percent === null ? "—" : formatPercent(r.percent)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-      ))}
-      <p className="exams-doc-key">Positions 1 to {top} by combined % within each section; equal percentages share a position, so more than {top} students can be listed. Marks are the totals of every exam.</p>
-      <div className="exams-doc-signs">
-        <div>Controller of examinations</div>
-        <div />
-        <div>Principal</div>
-      </div>
+      <p className="exams-doc-key">{partsTitle(data)}. Marks are the totals of every exam.</p>
     </article>
   );
 }
 
-/** Students who failed the combined result, by section (the old cumulative failed students list). */
+/** Students who failed the combined result, by section (the old "Comulative Failed Students" list). */
 function CombinedFailed({ data, rows, gender, campus, session }: { data: ExamsCombined; rows: ExamsCombinedRow[]; gender: ExamsGender | undefined; campus: CampusCode; session: number }) {
   const sections = [...new Set(rows.map((r) => r.classSection))].sort();
   const grouped = rows.some((r) => r.group);
   return (
-    <article className="exams-doc exams-doc-a4" aria-label="Combined failed list">
-      <DocHead campus={campus} title="Cumulative failed students" sub={[partsTitle(data), genderWord(gender), `Session ${formatSession(session)}`].filter(Boolean).join(" · ")} />
-      {rows.length === 0 ? (
-        <p>No student failed the combined result.</p>
-      ) : (
-        <table>
-          <thead>
-            <tr>
-              <th className="n">Sr#</th>
-              <th>G.R. No.</th>
-              <th>Student</th>
-              {grouped && <th>Group</th>}
-              <th className="n">Obt.</th>
-              <th className="n">Total</th>
-              <th className="n">%age</th>
-              <th className="c">Grade</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sections.flatMap((cs) => [
-              <tr key={`h-${cs}`}>
-                <th colSpan={7 + (grouped ? 1 : 0)}>Section: {cs}</th>
-              </tr>,
-              ...rows
-                .filter((r) => r.classSection === cs)
-                .sort((a, b) => a.rollNo - b.rollNo)
-                .map((r, i) => (
-                  <tr key={r.id}>
-                    <td className="n">{i + 1}</td>
-                    <td className="mtb-mono">{r.id}</td>
-                    <td>{r.name}</td>
-                    {grouped && <td>{examsGroupShort(r.group)}</td>}
-                    <td className="n">{r.max ? (r.obtained ?? 0) : "—"}</td>
-                    <td className="n">{r.max ? r.max : "—"}</td>
-                    <td className="n">{r.percent === null ? "—" : formatPercent(r.percent)}</td>
-                    <td className="c">{r.grade ?? "—"}</td>
-                  </tr>
-                )),
-            ])}
-          </tbody>
-        </table>
-      )}
-      <p className="exams-doc-key">A fail in any exam, or a combined % below the pass mark, is a fail overall. Obt. and Total are the marks of every exam added up.</p>
-      <div className="exams-doc-signs">
-        <div>Class teacher</div>
-        <div>Controller of examinations</div>
-        <div>Principal</div>
-      </div>
-    </article>
+    <>
+      {(sections.length ? sections : [""]).map((cs) => (
+        <article key={cs || "none"} className="exams-doc exams-doc-a4" aria-label="Cumulative failed students">
+          <DocHead campus={campus} title="Cumulative Failed Students" />
+          <Fields items={[["Class", classWord(data.classShort)], ["Exam", "Cumulative Exam"], ["Session", sessionLong(session)]]} style={{ justifyContent: "space-between" }} />
+          <Fields items={[cs && ["Section", splitSection(cs).sec || cs], gender && ["Gender", genderWord(gender)]]} />
+          {rows.length === 0 ? (
+            <p>No student failed the combined result.</p>
+          ) : (
+            <table>
+              <thead>
+                <tr>
+                  <th className="c">Sr.#</th>
+                  <th className="c">GRNo.</th>
+                  <th className="c">Student Name</th>
+                  {grouped && <th className="c">Group</th>}
+                  <th className="c">Obt.</th>
+                  <th className="c">Total</th>
+                  <th className="c">%age</th>
+                  <th className="c">Grade</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows
+                  .filter((r) => r.classSection === cs)
+                  .sort((a, b) => a.rollNo - b.rollNo || a.name.localeCompare(b.name))
+                  .map((r, i) => (
+                    <tr key={r.id}>
+                      <td className="c">{i + 1}</td>
+                      <td className="c">{r.id}</td>
+                      <td>{r.name}</td>
+                      {grouped && <td className="c">{examsGroupShort(r.group)}</td>}
+                      <td className="c">{r.max ? (r.obtained ?? 0) : ""}</td>
+                      <td className="c">{r.max ? r.max : ""}</td>
+                      <td className="c">{pctText(r.percent ?? 0)}</td>
+                      <td className="c">{r.grade ?? ""}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          )}
+          <p className="exams-doc-key">{partsTitle(data)}. A fail in any exam, or a combined % below the pass mark, is a fail overall.</p>
+        </article>
+      ))}
+    </>
   );
 }

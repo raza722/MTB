@@ -1,5 +1,5 @@
 import { feeSetupApi, feeSetupQueries, newIdempotencyKey, type FeeCandidate, type FeeCandidatesData } from "@mtb/api";
-import { amountInWords, formatCount, formatDate, formatRs, formatSession } from "@mtb/domain";
+import { formatCount, formatDate, formatRs, formatSession } from "@mtb/domain";
 import { AmountInput, AnimatedNumber, Banner, Button, Checkbox, DataTable, DatePicker, EmptyState, Input, Radio, Select, SidePanel, StatCard, StatusBadge, useToast, type Column } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
@@ -7,83 +7,40 @@ import { z } from "zod";
 import { campusLabel } from "../../../app/shell/campus";
 import { Page, PageHeader, RequirePermission } from "../../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../../app/session";
-import { errorField, errorText, feeToday, FeesNav, LoadError, PaperSize } from "../shared";
+import { errorField, errorText, feeToday, FeesNav, FeesDocHead, LoadError, PaperSize } from "../shared";
+import { FeeSlip } from "../receipt/FeeSlip";
 
-/** A5 slip handed to the candidate with the test roll slip: one line per head, total and paid. */
+/**
+ * The slip handed to the candidate, laid out as the old "Candidate Fee Slip" (SCHOOLS/COLLEGES FEE SLIP · Fee Payment
+ * Report) at the top of an A4 page: the application number as GR No:, the receipt (or old bank challan) number as V.No.,
+ * one line per head, Total Amount and Paid Amount.
+ */
 export function CandidateSlip({ c }: { c: FeeCandidate }) {
+  const extra = [
+    c.paymentMethod === "BANK" ? `Paid at the bank, challan ${c.bankChallanNo ?? ""}` : c.paymentMethod === "CASH" ? "Cash" : "",
+    c.receivedBy ? `Received by ${c.receivedBy}` : "",
+    c.paidBy ? `Paid by ${c.paidBy}` : "",
+    c.testDate ? `Entrance test ${formatDate(c.testDate)}` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
   return (
-    <div data-theme="light" className="fees-slip" aria-label={`Candidate fee slip ${c.receiptNo ?? ""}`}>
-      <div className="flex items-start justify-between gap-4 border-b border-border-strong pb-2">
-        <div className="grid">
-          <span className="text-title-2 text-brand-ink">MTB</span>
-          <span className="font-medium">{c.campusName}</span>
-        </div>
-        <div className="grid justify-items-end text-right">
-          <span className="text-title-3">Candidate fee slip</span>
-          {/* Candidate fees taken in the old system have no receipt number. */}
-          <span className="tabular-nums">{c.receiptNo ?? "—"}</span>
-        </div>
-      </div>
-      <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-6 gap-y-1">
-        <dt className="text-ink-muted">Candidate</dt>
-        <dd className="m-0 font-medium">{c.name}</dd>
-        <dt className="text-ink-muted">Father</dt>
-        <dd className="m-0">{c.father}</dd>
-        <dt className="text-ink-muted">Application</dt>
-        <dd className="m-0 tabular-nums">{c.applicationNo}</dd>
-        <dt className="text-ink-muted">Class applied for</dt>
-        <dd className="m-0">{c.classApplied}</dd>
-        {c.testDate && (
-          <>
-            <dt className="text-ink-muted">Entrance test</dt>
-            <dd className="m-0">{formatDate(c.testDate)}</dd>
-          </>
-        )}
-        <dt className="text-ink-muted">Paid on</dt>
-        <dd className="m-0">
-          {c.paidOn ? formatDate(c.paidOn) : "—"}
-          {c.paymentMethod === "BANK" ? ` · at the bank, challan ${c.bankChallanNo ?? ""}` : c.paymentMethod === "CASH" ? " · cash" : ""}
-        </dd>
-        {c.paidBy && (
-          <>
-            <dt className="text-ink-muted">Paid by</dt>
-            <dd className="m-0">{c.paidBy}</dd>
-          </>
-        )}
-      </dl>
-      <table className="w-full border-collapse tabular-nums">
-        <thead>
-          <tr className="border-b border-border-strong text-left text-[11px] uppercase tracking-wide text-ink-muted">
-            <th className="py-1 font-medium">Description</th>
-            <th className="py-1 text-right font-medium">Fee</th>
-            <th className="py-1 text-right font-medium">Paid</th>
-          </tr>
-        </thead>
-        <tbody>
-          {c.lines.map((l) => (
-            <tr key={l.head} className="border-b border-border">
-              <td className="py-1.5">{l.title}</td>
-              <td className="py-1.5 text-right">{formatRs(l.amount)}</td>
-              <td className="py-1.5 text-right">{formatRs(l.paid)}</td>
-            </tr>
-          ))}
-        </tbody>
-        <tfoot>
-          <tr>
-            <td className="pt-2 text-right font-semibold">Total amount</td>
-            <td className="pt-2 text-right font-semibold">{formatRs(c.amount)}</td>
-            <td />
-          </tr>
-          <tr>
-            <td className="text-right font-semibold">Paid amount</td>
-            <td />
-            <td className="text-right text-[15px] font-semibold">{formatRs(c.received)}</td>
-          </tr>
-        </tfoot>
-      </table>
-      <span className="text-small italic text-ink-muted">{amountInWords(c.received)}</span>
-      {c.receivedBy && <span className="text-small text-ink-muted">Received by {c.receivedBy}</span>}
-      <span className="text-small text-ink-muted">Note: fee once paid is not refundable. Bring this slip to the entrance test.</span>
+    <div data-theme="light">
+      <FeeSlip
+        label={`Candidate fee slip ${c.receiptNo ?? ""}`}
+        campus={c.campus}
+        campusName={c.campusName}
+        name={c.name}
+        classSection={c.classApplied}
+        grNo={c.applicationNo}
+        date={c.paidOn ?? ""}
+        vNo={c.receiptNo ?? c.bankChallanNo ?? ""}
+        withFine={false}
+        rows={c.lines.filter((l) => l.paid > 0 || l.amount > 0).map((l) => ({ key: l.head, description: l.title, amount: l.amount }))}
+        paid={c.received}
+        notes={["Once fee paid then not refundable in any case."]}
+        extra={extra}
+      />
     </div>
   );
 }
@@ -469,18 +426,10 @@ export function CandidatesPage() {
           <div className="fees-print-only mtb-print-area fees-print-a4">
             <PaperSize size="A4L" />
             <div className="fees-doc" data-theme="light" style={{ width: "277mm" }}>
-              <div className="fees-doc-head">
-                <div>
-                  <h1>Candidate fee collection</h1>
-                  <p>
-                    {campusLabel(ctx.campus)} · Session {formatSession(ctx.session)}
+              <FeesDocHead title={"Candidate fee collection"} sub={<>{campusLabel(ctx.campus)} · Session {formatSession(ctx.session)}
                     {from || to ? ` · ${from ? formatDate(from) : "start"} to ${to ? formatDate(to) : formatDate(feeToday())}` : ""}
                     {cashier ? ` · ${cashier}` : ""}
-                    {cls ? ` · ${cls}` : ""}
-                  </p>
-                </div>
-                <p>Printed {formatDate(feeToday())}</p>
-              </div>
+                    {cls ? ` · ${cls}` : ""}</>} right={<>Printed {formatDate(feeToday())}</>} />
               <table>
                 <thead>
                   <tr>

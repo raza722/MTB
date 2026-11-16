@@ -66,7 +66,7 @@ function MovementPanel({ m, open, onClose, onRestore }: { m: StudentMovement | n
         {notice && (
           <div className="grid gap-2">
             <span className="mtb-label">Notice to parents</span>
-            <PrintSheet paper="A5" label="Notice to parents" zoom={0.6}>
+            <PrintSheet paper="A4" label="Notice to parents" zoom={0.6}>
               <StatusNotice m={m} {...(p ? { mobile: p.guardian.mobile } : {})} />
             </PrintSheet>
           </div>

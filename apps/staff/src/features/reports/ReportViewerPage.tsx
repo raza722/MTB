@@ -221,7 +221,7 @@ function Viewer({ def, search, setSearch }: { def: ReportCatalogueItem; search: 
         const onScreen = !search.job && run.data && JSON.stringify(draft) === JSON.stringify(applied) ? run.data : undefined;
         if (format === "EXCEL") {
           const data = onScreen ?? (await reportsApi.jobResult(j.id));
-          downloadExcel(data, ctx.campus);
+          downloadExcel(data, ctx.campus, def.filters);
           toast({ title: `Excel file saved · ${def.name}`, message: `${formatCount(data.rows.length)} rows. Opens in Excel; also kept in Downloads for 7 days.` });
         } else if (onScreen) setTimeout(() => window.print(), 100);
         else setSearch({ job: j.id, print: 1 });
@@ -413,7 +413,7 @@ function Viewer({ def, search, setSearch }: { def: ReportCatalogueItem; search: 
         </>
       )}
 
-      {result && <ReportDocument result={result} landscape={def.paper === "A4_LANDSCAPE"} />}
+      {result && <ReportDocument result={result} landscape={def.paper === "A4_LANDSCAPE"} campus={ctx.campus} filters={def.filters} />}
       <ScheduleEditor open={scheduleOpen} onClose={() => setScheduleOpen(false)} schedule={null} preset={{ reportId: def.id, filters: draft }} />
     </ReportsShell>
   );

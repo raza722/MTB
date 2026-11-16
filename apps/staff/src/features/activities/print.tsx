@@ -7,6 +7,7 @@ import {
   type ActivitiesCertificate,
   type ActivitiesCertType,
   type ActivitiesEventDetail,
+  type ActivitiesEventKind,
   type ActivitiesEventSummary,
   type ActivitiesFeeHead,
   type ActivitiesSportsListIdle,
@@ -18,89 +19,110 @@ import {
 import { formatDate, formatRs, formatSession } from "@mtb/domain";
 import { Urdu } from "@mtb/ui";
 import type { ReactNode } from "react";
-import { campusLabel } from "../../app/shell/campus";
+import { campusPlace, CREST_SRC, Letterhead, SCHOOL_NAME } from "../../app/print/letterhead";
 import { ordinal, printedOn, valueShort } from "./shared";
 
-const CITY: Partial<Record<CampusCode, string>> = { KC: "Sadiqabad", HC: "Lahore" };
-const campusLine = (c: CampusCode) => `${campusLabel(c)}${CITY[c] ? `, ${CITY[c]}` : ""}`;
 
-export function DocHead({ campus, title, titleUr, sub }: { campus: CampusCode; title: string; titleUr?: string; sub: ReactNode }) {
+/**
+ * The old letterhead (crest, "MTB-Madrasat-ul-Banat Schools and Colleges, Khalid Campus, Sadikabad") with the title
+ * under it. The old printouts had no Urdu title, so `titleUr` is not printed.
+ */
+export function DocHead({ campus, title, sub }: { campus: CampusCode; title: string; titleUr?: string; sub: ReactNode }) {
   return (
     <header className="act-doc-head">
-      <div className="flex items-center gap-3">
-        <span className="act-seal">MTB</span>
-        <div>
-          <h1>MTB Schools and Colleges</h1>
-          <p>{campusLine(campus)}</p>
-        </div>
-      </div>
-      <div className="act-doc-title">
-        <strong>{title}</strong>
-        {titleUr && <Urdu size="small">{titleUr}</Urdu>}
-        <p>{sub}</p>
-      </div>
+      <Letterhead campus={campus} title={title} sub={sub} titleCase="as-is" />
     </header>
   );
 }
 
 // ------------------------------------------------------------------ Certificates (A4 landscape)
 
-const CERT_TITLE: Record<ActivitiesCertType, [string, string]> = {
-  MERIT: ["Certificate of merit", "سندِ امتیاز"],
-  PARTICIPATION: ["Certificate of participation", "سندِ شرکت"],
-  APPRECIATION: ["Certificate of appreciation", "سندِ تحسین"],
-  SCHOLARSHIP: ["Scholarship award", "سندِ وظیفہ"],
+const CERT_TITLE: Record<ActivitiesCertType, string> = {
+  MERIT: "Merit Certificate",
+  PARTICIPATION: "Participation Certificate",
+  APPRECIATION: "Appreciation Certificate",
+  SCHOLARSHIP: "Scholarship Award",
 };
 
-/** One certificate. A reprint (the certificate was printed before) says "Duplicate". */
-export function CertificateDoc({ cert, duplicate }: { cert: ActivitiesCertificate; duplicate?: boolean }) {
-  const [title, titleUr] = CERT_TITLE[cert.type];
-  const inCharge = cert.type === "APPRECIATION" ? "Class teacher" : cert.type === "SCHOLARSHIP" ? "Scholarship committee" : "Teacher in charge";
+/**
+ * One certificate, laid out as the old merit certificates (A4 portrait, the crest and school name over the campus, the
+ * title badge, then the details on ruled lines and the two notes at the foot). The old system had three variants and
+ * the certificate picks the matching one:
+ *  - sports (a sports event, or a player or captain): "participated in", "and played as … House:", signed by the Incharge Sports;
+ *  - drawing (an event named "… drawing …"): "participated in the event of", "He / She was placed :", signed by the
+ *    Vice Principal;
+ *  - any other: "participated in", "He / She was placed", signed by the Principal only.
+ * A reprint (the certificate was printed before) says "Duplicate".
+ */
+/** `kind`: the event's kind, when known, picks the sports variant for a sports event. */
+export function CertificateDoc({ cert, duplicate, kind }: { cert: ActivitiesCertificate; duplicate?: boolean; kind?: ActivitiesEventKind | undefined }) {
+  const title = CERT_TITLE[cert.type];
+  const sports = kind === "SPORTS" || cert.role === "PLAYER" || cert.role === "CAPTAIN";
+  const drawing = !sports && /drawing/i.test(`${cert.eventTitle} ${cert.item ?? ""}`);
+  const event = cert.item && !cert.eventTitle.toLowerCase().includes(cert.item.toLowerCase()) ? `${cert.eventTitle} (${cert.item})` : cert.eventTitle;
+  const appreciation = cert.type === "APPRECIATION" || cert.type === "SCHOLARSHIP";
+  const left = sports ? "INCHARGE SPORTS" : drawing ? "VICE PRINCIPAL" : null;
+  const line = (label: ReactNode, value: ReactNode, extra?: ReactNode) => (
+    <div className="act-oc-row">
+      <span>{label}</span>
+      <span className="act-oc-line">{value}</span>
+      {extra}
+    </div>
+  );
   return (
     <article className="act-cert" aria-label={`${title}, ${cert.studentName}`}>
       {duplicate && <span className="act-doc-mark">DUPLICATE</span>}
-      <div className="act-cert-frame">
-        <div className="act-cert-inner">
-          <div className="act-cert-school">
-            <span className="act-seal">MTB</span>
-            <div>
-              <h1>MTB Schools and Colleges</h1>
-              <p>{campusLine(cert.campus)}</p>
-            </div>
-          </div>
-          <div className="grid justify-items-center gap-1">
-            <h2 className="act-cert-title">{title}</h2>
-            <Urdu size="title">{titleUr}</Urdu>
-          </div>
-          <p className="act-cert-body">
-            This is to certify that
-            <span className="act-cert-name">{cert.studentName}</span>
-            {cert.relation} {cert.father}, Class <bdi dir="ltr">{cert.classSection}</bdi>
-            {cert.houseName ? `, ${cert.houseName}` : ""}, {cert.wording}
-            {cert.role && cert.role !== "PARTICIPANT" && cert.type !== "SCHOLARSHIP" ? ` (${ACTIVITIES_ROLE_LABEL[cert.role]})` : ""}
-          </p>
-          <div className="act-cert-signs">
-            <div>{inCharge}</div>
-            <div className="grid justify-items-center border-0" style={{ borderTop: 0 }}>
-              {cert.position ? <span className="act-cert-place">{ordinal(cert.position)}</span> : <span className="act-seal">MTB</span>}
-            </div>
-            <div>Principal</div>
-          </div>
-          <div className="act-cert-meta">
-            <span>
-              Certificate no. <bdi dir="ltr">{cert.certNo}</bdi> · Session {formatSession(cert.session)}
+      <div className="act-oc-frame">
+        <div className="act-oc-head">
+          <div className="act-oc-school">{SCHOOL_NAME.replace(" and ", " & ")}</div>
+          <img src={CREST_SRC} alt="" className="act-oc-crest" />
+          <div className="act-oc-campus">{campusPlace(cert.campus).replace(",", "")}</div>
+          <div className="act-oc-badge">{title}</div>
+        </div>
+        <div className="act-oc-body">
+          <div className="act-oc-row act-oc-top">
+            <b>Certificate No:</b>
+            <span className="act-oc-line">
+              <bdi dir="ltr">{cert.certNo}</bdi>
             </span>
-            <span>
-              Issued <bdi dir="ltr">{formatDate(cert.issuedOn)}</bdi>
-              {duplicate ? ` · Duplicate printed ${printedOn()}` : ""}
-            </span>
+            <b>Session :</b>
+            <span className="act-oc-line">{`${cert.session}-${cert.session + 1}`}</span>
           </div>
+          {line("It is certified that Mr/Ms:", cert.studentName)}
+          {line("s/d of:", cert.father)}
+          {line("Class & Section:", <bdi dir="ltr">{cert.classSection}</bdi>)}
+          {appreciation ? line("for :", cert.wording) : line(drawing ? "participated in the event of :" : "participated in :", event)}
+          {sports &&
+            line(
+              "and played as :",
+              cert.role ? ACTIVITIES_ROLE_LABEL[cert.role] : "",
+              <>
+                <span style={{ paddingLeft: "8mm" }}>House:</span>
+                <span className="act-oc-line">{cert.houseName ?? ""}</span>
+              </>,
+            )}
+          {!appreciation && line(drawing ? "He / She was placed :" : "He / She was placed", cert.position ? ordinal(cert.position) : "")}
+          {!appreciation && <div className="act-oc-row">in the competition.</div>}
+        </div>
+        <div className="act-oc-signs">
+          <div>{left && <span>{left}</span>}</div>
+          <div>
+            <span>PRINCIPAL</span>
+          </div>
+        </div>
+        <div className="act-oc-notes">
+          <div>This certificate:</div>
+          <div>* is issued without any alteration/overwriting.</div>
+          <div>* may be referred to the issuing authority for verification, if required.</div>
+        </div>
+        <div className="act-oc-meta">
+          Issued <bdi dir="ltr">{formatDate(cert.issuedOn)}</bdi>
+          {duplicate ? ` · Duplicate printed ${printedOn()}` : ""}
         </div>
       </div>
     </article>
   );
 }
-
 // ------------------------------------------------------------------ Scholarship award letter (A4)
 
 export function AwardLetter({ award, letterNo }: { award: ActivitiesAward; letterNo?: string | undefined }) {
@@ -198,77 +220,89 @@ function awardHeadText(a: ActivitiesAward, head: ActivitiesFeeHead): string {
 
 // ------------------------------------------------------------------ Merit list (A4)
 
+/**
+ * The scholarship merit list, laid out as the old "Scholarship List First" (A4 landscape): the letterhead and
+ * "Dated:", then Sr. No., Form No., Name, Last Class Marks, Scholarship type, Previous Institute and the
+ * "Scholarships" heads (A/C, Annual, TU.FEE). The class and the result (selected, waiting list) the new process needs
+ * follow the name and the heads. The old contact number column is not kept for test candidates.
+ */
 export function MeritListDoc({ test, feeHeads }: { test: ActivitiesTestDetail; feeHeads?: ActivitiesFeeHead[] | undefined }) {
   const rows = test.candidates.filter((c) => c.percent !== null);
   // The suggested award, head by head (the scheme's heads; the admission fee for applicants only).
   const perHead = test.schemeBasis === "PERCENT" && feeHeads !== undefined;
   const headText = (c: (typeof rows)[number], head: ActivitiesFeeHead) =>
     !c.withinSeats || c.suggestedValue === null ? "" : feeHeads!.includes(head) || (head === "ADMISSION" && c.isApplicant) ? `${c.suggestedValue} %` : "0 %";
+  const heads: Array<[ActivitiesFeeHead, string]> = [
+    ["ADMISSION", "A/C"],
+    ["ANNUAL", "Annual"],
+    ["TUITION", "TU.FEE"],
+  ];
+  const dated = (test.date ?? new Date().toISOString().slice(0, 10)).split("-").reverse().join(" - ");
   return (
-    <article className="act-doc" aria-label={`Merit list, ${test.title}`}>
+    <article className="act-doc act-doc-land" aria-label={`Merit list, ${test.title}`}>
       {test.status === "MARKING" || test.status === "REGISTRATION" ? <span className="act-doc-mark">PROVISIONAL</span> : null}
-      <DocHead campus={test.campus} title="Scholarship merit list" titleUr="میرٹ لسٹ" sub={`${test.testNo} · Session ${formatSession(test.session)}`} />
-      <p className="m-0 mb-1 font-semibold">{test.title}</p>
-      <p className="m-0 mb-3 text-small text-ink-muted">
+      <DocHead campus={test.campus} title={`Dated:      ${dated}`} sub={`${test.title} · ${test.testNo} · Session ${formatSession(test.session)}`} />
+      <p className="m-0 mb-2 text-small text-ink-muted">
         {test.source === "EXAM" ? `From the declared result: ${test.examName ?? ""}` : `Test on ${test.date ? formatDate(test.date) : "—"}${test.venue ? `, ${test.venue}` : ""}`} · {test.schemeName} · pass mark {test.passPercent}% ·{" "}
         {test.seats === null ? "every qualifier" : `${test.seats} seats`}
       </p>
-      <table>
+      <table className="act-sl">
         <thead>
           <tr>
-            <th className="n">Rank</th>
+            <th colSpan={7} style={{ border: 0 }} />
+            <th colSpan={perHead ? 3 : 1}>Scholarships</th>
+            <th style={{ border: 0 }} />
+          </tr>
+          <tr>
+            <th style={{ width: "12mm" }}>Sr. No.</th>
+            <th style={{ width: "16mm" }}>Form No.</th>
             <th>Name</th>
-            <th>Father</th>
-            <th>Class</th>
-            <th>Student or applicant</th>
-            <th>Previous school</th>
-            <th className="n">Marks</th>
-            <th className="n">%</th>
-            <th>Result</th>
+            <th style={{ width: "22mm" }}>Class</th>
+            <th style={{ width: "20mm" }}>Last Class Marks</th>
+            <th>Scholarship type</th>
+            <th>Previous Institute</th>
             {perHead ? (
-              PRINT_HEADS.map(([h, label]) => (
-                <th key={h} className="n">
+              heads.map(([h, label]) => (
+                <th key={h} style={{ width: "18mm" }}>
                   {label}
                 </th>
               ))
             ) : (
               <th>Award</th>
             )}
+            <th style={{ width: "22mm" }}>Result</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((c) => (
             <tr key={c.id}>
-              <td className="n">{c.rank}</td>
+              <td className="c">{c.rank}</td>
+              <td className="c">{c.rollNo}</td>
               <td>{c.name}</td>
-              <td>{c.father}</td>
-              <td>{c.classSection}</td>
-              <td>{c.isApplicant ? "Applicant" : "Student"}</td>
-              <td>{c.previousSchool ?? (c.isApplicant ? "" : "MTB")}</td>
-              <td className="n">
+              <td>
+                {c.classSection}
+                {c.isApplicant ? " (applicant)" : ""}
+              </td>
+              <td className="c">
                 {c.obtained} / {test.maxMarks}
               </td>
-              <td className="n">{c.percent?.toFixed(1)}</td>
-              <td>{c.withinSeats ? "Selected" : c.qualifies ? "Waiting list" : "Below pass mark"}</td>
+              <td className="c">{test.schemeName}</td>
+              <td>{c.previousSchool ?? (c.isApplicant ? "" : "MTB")}</td>
               {perHead ? (
-                PRINT_HEADS.map(([h]) => (
-                  <td key={h} className="n">
+                heads.map(([h]) => (
+                  <td key={h} className="c">
                     {headText(c, h)}
                   </td>
                 ))
               ) : (
-                <td>{c.withinSeats && c.suggestedValue !== null ? valueShort(test.schemeBasis, c.suggestedValue) : ""}</td>
+                <td className="c">{c.withinSeats && c.suggestedValue !== null ? valueShort(test.schemeBasis, c.suggestedValue) : ""}</td>
               )}
+              <td>{c.withinSeats ? "Selected" : c.qualifies ? "Waiting list" : "Below pass mark"}</td>
             </tr>
           ))}
         </tbody>
       </table>
       {test.tiedAtCutOff > 0 && <p className="mt-2 text-small">{test.tiedAtCutOff} extra {test.tiedAtCutOff === 1 ? "candidate is" : "candidates are"} included because of a tie at the cut-off.</p>}
-      <div className="act-doc-signs">
-        <div>Exam office</div>
-        <div>Scholarship committee</div>
-        <div>Principal</div>
-      </div>
       <footer className="act-doc-foot">
         <span>
           Printed <bdi dir="ltr">{printedOn()}</bdi>
@@ -422,21 +456,22 @@ const placesText = (rows: ActivitiesSportsListRow[]) =>
     .join(" · ");
 
 /**
- * The sports list (legacy Reports_SportsList): names house by house, then by event and item, with the G.R. number,
- * class, the part played and the place won. Places not given yet print as a blank to fill in by hand on the day.
- * With `idle`, each house ends with its students who took no part, so the list is the full house roster.
+ * The sports list, laid out as the old Reports_SportsList (A4 landscape): the letterhead and "Sports List", then
+ * house by house "House: …" at the left and "Total Students: …" at the right over one table: Sr. #, GR.No, Name,
+ * Class, Section, Participated In, Played as, Position. Rows run event by event and item by item; a place not given
+ * yet prints blank to fill in by hand. With `idle`, each house ends with its students who took no part, so the list
+ * is the full house roster. The old "Interest In Sports", "Contact Number" and "Picture" columns are not kept now.
  */
 export function SportsListDoc({
   campus,
   session,
   title,
-  titleUr,
   heading,
   note,
   rows,
   idle = [],
   itemOrder,
-  signs = ["Teacher in charge", "House masters", "Principal"],
+  signs,
 }: {
   campus: CampusCode;
   session: number;
@@ -455,11 +490,14 @@ export function SportsListDoc({
   for (const r of rows) byHouse.set(r.houseName ?? NO_HOUSE, [...(byHouse.get(r.houseName ?? NO_HOUSE) ?? []), r]);
   for (const s of idle) idleByHouse.set(s.houseName ?? NO_HOUSE, [...(idleByHouse.get(s.houseName ?? NO_HOUSE) ?? []), s]);
   const houses = [...new Set([...byHouse.keys(), ...idleByHouse.keys()])].sort((a, b) => (a === NO_HOUSE ? 1 : b === NO_HOUSE ? -1 : a.localeCompare(b)));
-  const students = new Set(rows.map((r) => r.studentId)).size + idle.length;
+  // "6-Ubaid" prints as Class "6" and Section "Ubaid", as the old list had them in two columns.
+  const split = (cs: string) => {
+    const i = cs.indexOf("-");
+    return i > 0 ? [cs.slice(0, i), cs.slice(i + 1)] : [cs, ""];
+  };
   return (
-    <article className="act-doc" aria-label={`${title}, ${heading}`}>
-      <DocHead campus={campus} title={title} titleUr={titleUr} sub={`Session ${formatSession(session)}`} />
-      <p className="m-0 mb-1 font-semibold">{heading}</p>
+    <article className="act-doc act-doc-land" aria-label={`${title}, ${heading}`}>
+      <DocHead campus={campus} title={title} sub={`${heading} · Session ${formatSession(session)}`} />
       {note && <p className="m-0 mb-2 text-small text-ink-muted">{note}</p>}
       {houses.length === 0 ? (
         <p className="mt-4">No names for this choice.</p>
@@ -467,100 +505,83 @@ export function SportsListDoc({
         houses.map((house) => {
           const list = byHouse.get(house) ?? [];
           const rest = [...(idleByHouse.get(house) ?? [])].sort((a, b) => a.classSection.localeCompare(b.classSection, undefined, { numeric: true }) || a.name.localeCompare(b.name));
-          const took = new Set(list.map((r) => r.studentId)).size;
+          const total = new Set(list.map((r) => r.studentId)).size + rest.length;
           const places = placesText(list);
+          let sr = 0;
           return (
             <section key={house} className="act-list-house">
-              <h2>
-                {house}
+              <div className="act-sl-head">
                 <span>
-                  {took} {took === 1 ? "student" : "students"} took part
-                  {idle.length > 0 ? ` of ${took + rest.length}` : ""}
-                  {places ? ` · ${places}` : ""}
+                  <b>House:</b> <span className="act-sl-line">{house}</span>
                 </span>
-              </h2>
-              <table>
+                {places && <span className="act-sl-places">{places}</span>}
+                <span>
+                  <b>Total Students:</b> <span className="act-sl-line">{total}</span>
+                </span>
+              </div>
+              <table className="act-sl">
                 <thead>
                   <tr>
-                    <th className="n" style={{ width: "8mm" }}>
-                      #
-                    </th>
-                    <th style={{ width: "24mm" }}>G.R. no.</th>
+                    <th style={{ width: "12mm" }}>Sr. #</th>
+                    <th style={{ width: "24mm" }}>GR.No</th>
                     <th>Name</th>
-                    <th>Father</th>
-                    <th style={{ width: "15mm" }}>Class</th>
-                    <th style={{ width: "26mm" }}>Part played</th>
-                    <th style={{ width: "16mm" }}>Place</th>
+                    <th style={{ width: "18mm" }}>Class</th>
+                    <th style={{ width: "26mm" }}>Section</th>
+                    <th>Participated In</th>
+                    <th style={{ width: "24mm" }}>Played as</th>
+                    <th style={{ width: "18mm" }}>Position</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {groupsOf(list, itemOrder).map((g) => [
-                    <tr key={g.key} className="act-list-sub">
-                      <th colSpan={7}>
-                        {oneEvent ? g.item : `${g.eventTitle} · ${g.item}`}
-                        {!oneEvent && (
-                          <span>
-                            <bdi dir="ltr">{formatDate(g.eventDate)}</bdi>
-                          </span>
-                        )}
-                      </th>
-                    </tr>,
-                    ...g.rows.map((r, i) => (
-                      <tr key={`${g.key}|${r.studentId}`}>
-                        <td className="n">{i + 1}</td>
-                        <td>
-                          <bdi dir="ltr">{r.studentId}</bdi>
-                        </td>
-                        <td>{r.name}</td>
-                        <td>{r.father}</td>
-                        <td>
-                          <bdi dir="ltr">{r.classSection}</bdi>
-                        </td>
-                        <td>{ACTIVITIES_ROLE_LABEL[r.role]}</td>
-                        <td>{r.position ? <b>{ordinal(r.position)}</b> : ""}</td>
-                      </tr>
-                    )),
-                  ])}
-                  {rest.length > 0 && (
-                    <tr className="act-list-sub">
-                      <th colSpan={7}>Took no part this session</th>
-                    </tr>
+                  {groupsOf(list, itemOrder).flatMap((g) =>
+                    g.rows.map((r) => {
+                      const [k, sec] = split(r.classSection);
+                      return (
+                        <tr key={`${g.key}|${r.studentId}`}>
+                          <td className="c">{++sr}</td>
+                          <td className="c">
+                            <bdi dir="ltr">{r.studentId}</bdi>
+                          </td>
+                          <td>{r.name}</td>
+                          <td className="c">{k}</td>
+                          <td className="c">{sec}</td>
+                          <td className="c">{oneEvent ? g.item : `${g.eventTitle} · ${g.item}`}</td>
+                          <td className="c">{ACTIVITIES_ROLE_LABEL[r.role]}</td>
+                          <td className="c">{r.position ? ordinal(r.position) : ""}</td>
+                        </tr>
+                      );
+                    }),
                   )}
-                  {rest.map((s, i) => (
-                    <tr key={`idle|${s.studentId}`}>
-                      <td className="n">{i + 1}</td>
-                      <td>
-                        <bdi dir="ltr">{s.studentId}</bdi>
-                      </td>
-                      <td>{s.name}</td>
-                      <td>{s.father}</td>
-                      <td>
-                        <bdi dir="ltr">{s.classSection}</bdi>
-                      </td>
-                      <td />
-                      <td />
-                    </tr>
-                  ))}
+                  {rest.map((s) => {
+                    const [k, sec] = split(s.classSection);
+                    return (
+                      <tr key={`idle|${s.studentId}`}>
+                        <td className="c">{++sr}</td>
+                        <td className="c">
+                          <bdi dir="ltr">{s.studentId}</bdi>
+                        </td>
+                        <td>{s.name}</td>
+                        <td className="c">{k}</td>
+                        <td className="c">{sec}</td>
+                        <td />
+                        <td />
+                        <td />
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </section>
           );
         })
       )}
-      <div className="act-doc-signs">
-        {signs.map((s) => (
-          <div key={s}>{s}</div>
-        ))}
-      </div>
-      <footer className="act-doc-foot">
-        <span>
-          Printed <bdi dir="ltr">{printedOn()}</bdi>
-        </span>
-        <span>
-          {students} {students === 1 ? "student" : "students"} · {rows.length} {rows.length === 1 ? "entry" : "entries"}
-          {oneEvent ? "" : ` · ${new Set(rows.map((r) => r.eventId)).size} events`}
-        </span>
-      </footer>
+      {signs && (
+        <div className="act-doc-signs">
+          {signs.map((s) => (
+            <div key={s}>{s}</div>
+          ))}
+        </div>
+      )}
     </article>
   );
 }

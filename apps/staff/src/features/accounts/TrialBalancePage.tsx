@@ -6,7 +6,7 @@ import { useMemo, useState } from "react";
 import { z } from "zod";
 import { useCtx } from "../../app/session";
 import { campusLabel } from "../../app/shell/campus";
-import { AccountsShell, accToday, asOfFor, Bal, DocFoot, DocHead, LoadError, sessionStartOf, slide, useGo } from "./shared";
+import { AccountsShell, accToday, asOfFor, Bal, DocFoot, DocHead, LoadError, printAmt, sessionStartOf, slide, useGo } from "./shared";
 
 export type TrialDepth = "1" | "2" | "3" | "4" | "5" | "all";
 export type TrialView = "balances" | "movement" | "period";
@@ -23,6 +23,9 @@ export interface TrialSearch {
 const dr = (n: number) => (n > 0 ? n : 0);
 const cr = (n: number) => (n < 0 ? -n : 0);
 const amt = (n: number) => (n ? formatRs(n) : "");
+/** Printed amounts as the old trial balance: "41,739,600.00", zero as "0.00". */
+const money2 = (n: number) => printAmt(n, 2);
+const amt2 = (n: number) => money2(n);
 
 const LEVEL_NAME = ["classes", "groups", "sub-groups", "level 4", "level 5"];
 
@@ -367,15 +370,27 @@ export function TrialBalancePage({ search, setSearch }: { search: TrialSearch; s
       {tb && !fromError && (
         <div className="acc-print-only mtb-print-area" aria-hidden="true">
           <article className="acc-doc">
-            <DocHead
-              title={level === "all" ? "Trial balance" : `Trial balance, level ${level}`}
-              subtitle={`${periodText} · ${view === "period" ? "Movement in the period" : view === "movement" ? "Opening, movement and closing" : `Balances at ${formatDate(tb.asOf)}`} · ${tb.balanced ? "Balanced" : `Out of balance by ${formatRs(Math.abs(tb.difference))}`}`}
-            />
+            <DocHead title="Trial Balance" {...(level === "all" ? {} : { subtitle: `Level ${level}` })} />
+            <div className="acc-doc-dates" style={{ justifyContent: "flex-start" }}>
+              {view === "balances" ? (
+                <span>
+                  <b>As At :</b>
+                  {formatDate(tb.asOf)}
+                </span>
+              ) : (
+                <span>
+                  <b>Date From :</b>
+                  {formatDate(from)}
+                  <b>Date To :</b>
+                  {formatDate(asOf)}
+                </span>
+              )}
+            </div>
             <table>
               <thead>
                 <tr>
                   <th style={{ width: 70 }}>Code</th>
-                  <th>Account</th>
+                  <th>Title</th>
                   {view === "movement" ? (
                     <>
                       <th className="num">Opening</th>
@@ -398,57 +413,54 @@ export function TrialBalancePage({ search, setSearch }: { search: TrialSearch; s
                     <td style={{ paddingLeft: 6 + r.depth * 12 }}>{r.name}</td>
                     {view === "movement" ? (
                       <>
-                        <td className="num">{r.opening ? `${formatRs(Math.abs(r.opening))} ${r.opening > 0 ? "Dr" : "Cr"}` : ""}</td>
-                        <td className="num">{amt(r.debit)}</td>
-                        <td className="num">{amt(r.credit)}</td>
-                        <td className="num">{r.closing ? `${formatRs(Math.abs(r.closing))} ${r.closing > 0 ? "Dr" : "Cr"}` : ""}</td>
+                        <td className="num">{r.opening ? `${money2(Math.abs(r.opening))} ${r.opening > 0 ? "Dr" : "Cr"}` : ""}</td>
+                        <td className="num">{amt2(r.debit)}</td>
+                        <td className="num">{amt2(r.credit)}</td>
+                        <td className="num">{r.closing ? `${money2(Math.abs(r.closing))} ${r.closing > 0 ? "Dr" : "Cr"}` : ""}</td>
                       </>
                     ) : view === "period" ? (
                       <>
-                        <td className="num">{amt(r.debit)}</td>
-                        <td className="num">{amt(r.credit)}</td>
+                        <td className="num">{amt2(r.debit)}</td>
+                        <td className="num">{amt2(r.credit)}</td>
                       </>
                     ) : (
                       <>
-                        <td className="num">{amt(dr(r.closing))}</td>
-                        <td className="num">{amt(cr(r.closing))}</td>
+                        <td className="num">{amt2(dr(r.closing))}</td>
+                        <td className="num">{amt2(cr(r.closing))}</td>
                       </>
                     )}
                   </tr>
                 ))}
-                <tr style={{ fontWeight: 700 }}>
-                  <td colSpan={2} style={{ textAlign: "right" }}>
-                    {view === "period" ? "Grand total" : "Totals"}
+                <tr className="acc-doc-total" style={{ fontWeight: 700 }}>
+                  <td colSpan={2} className="acc-doc-label">
+                    Grand Total :
                   </td>
                   {view === "movement" ? (
                     <>
                       <td className="num">
-                        {formatRs(tb.totals.openingDebit)} Dr / {formatRs(tb.totals.openingCredit)} Cr
+                        {money2(tb.totals.openingDebit)} Dr / {money2(tb.totals.openingCredit)} Cr
                       </td>
-                      <td className="num">{formatRs(tb.totals.debit)}</td>
-                      <td className="num">{formatRs(tb.totals.credit)}</td>
+                      <td className="num">{money2(tb.totals.debit)}</td>
+                      <td className="num">{money2(tb.totals.credit)}</td>
                       <td className="num">
-                        {formatRs(tb.totals.closingDebit)} Dr / {formatRs(tb.totals.closingCredit)} Cr
+                        {money2(tb.totals.closingDebit)} Dr / {money2(tb.totals.closingCredit)} Cr
                       </td>
                     </>
                   ) : view === "period" ? (
                     <>
-                      <td className="num">{formatRs(tb.totals.debit)}</td>
-                      <td className="num">{formatRs(tb.totals.credit)}</td>
+                      <td className="num">{money2(tb.totals.debit)}</td>
+                      <td className="num">{money2(tb.totals.credit)}</td>
                     </>
                   ) : (
                     <>
-                      <td className="num">{formatRs(tb.totals.closingDebit)}</td>
-                      <td className="num">{formatRs(tb.totals.closingCredit)}</td>
+                      <td className="num">{money2(tb.totals.closingDebit)}</td>
+                      <td className="num">{money2(tb.totals.closingCredit)}</td>
                     </>
                   )}
                 </tr>
               </tbody>
             </table>
-            <p className="m-0 mt-2">
-              Group rows are subtotals and are not added into the totals.
-              {view === "period" ? " Only accounts with movement in the period are listed." : ` Difference between the two sides: ${formatRs(Math.abs(tb.difference))}.`}
-            </p>
+            {!tb.balanced && <p className="m-0 mt-2 font-bold">Out of balance by {money2(Math.abs(tb.difference))}</p>}
             <DocFoot />
           </article>
         </div>

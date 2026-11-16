@@ -163,39 +163,45 @@ function CabinetList({ cabinets, subtitle, campus }: { cabinets: LibraryCabinet[
   const cap = rows.reduce((a, c) => a + c.capacity, 0);
   const copies = rows.reduce((a, c) => a + c.copies, 0);
   return (
-    <div className="ops-doc">
-      <DocHead title="Cabinet list" subtitle={subtitle} campus={campus} />
+    <div className="ops-doc ops-lib">
+      {/* The old "Cabinet Info Report": Sr #, Main Class, Subject, Cabinet Title, Books Capacity, Current No. of Books.
+          Cabinets are not filed under a main class and subject now, so those two print blank as the old ones did;
+          the library and how full the cabinet is follow at the right. */}
+      <DocHead title="Cabinet Info Report" subtitle={subtitle} campus={campus} />
       <table>
         <thead>
           <tr>
-            <th className="n">Sr</th>
+            <th>Sr #</th>
+            <th>Main Class</th>
+            <th>Subject</th>
+            <th>Cabinet Title</th>
+            <th>Books Capacity</th>
+            <th>Current No. of Books</th>
             <th>Library</th>
-            <th>Cabinet</th>
-            <th>What it holds</th>
-            <th className="n">Capacity</th>
-            <th className="n">Copies now</th>
             <th className="n">% full</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((c, i) => (
             <tr key={c.id}>
-              <td className="n">{i + 1}</td>
-              <td>{c.libraryName}</td>
+              <td>{i + 1}</td>
+              <td />
+              <td />
               <td>
-                {c.code}
-                {c.active ? "" : " (not in use)"}
+                {c.title} ({c.code}
+                {c.active ? "" : ", not in use"})
               </td>
-              <td>{c.title}</td>
-              <td className="n">{formatCount(c.capacity)}</td>
-              <td className="n">{formatCount(c.copies)}</td>
+              <td>{formatCount(c.capacity)}</td>
+              <td>{formatCount(c.copies)}</td>
+              <td>{c.libraryName}</td>
               <td className="n">{pctFull(c)}%</td>
             </tr>
           ))}
           <tr className="tot">
             <td colSpan={4}>Total ({rows.length} cabinets)</td>
-            <td className="n">{formatCount(cap)}</td>
-            <td className="n">{formatCount(copies)}</td>
+            <td>{formatCount(cap)}</td>
+            <td>{formatCount(copies)}</td>
+            <td />
             <td className="n">{cap ? Math.round((copies / cap) * 100) : 0}%</td>
           </tr>
         </tbody>
@@ -372,7 +378,7 @@ function PolicyCard({ p, i, editable }: { p: LibraryFinePolicy; i: number; edita
 
 function NameList({ rows, kind, campus }: { rows: LibraryNameCount[]; kind: string; campus: string }) {
   return (
-    <div className="ops-doc">
+    <div className="ops-doc ops-lib">
       <DocHead title={`${kind} list`} subtitle={`${rows.length} names, each kept once`} campus={campus} />
       <table>
         <thead>
@@ -403,46 +409,44 @@ function BooksByAuthor({ titles, author, campus }: { titles: LibraryTitle[]; aut
   const groups = [...byAuthor.entries()].sort(([a], [b]) => a.localeCompare(b));
   let sr = 0;
   return (
-    <div className="ops-doc">
-      <DocHead title={author ? `Books by ${author}` : "Books by author"} subtitle={`${groups.length} ${groups.length === 1 ? "author" : "authors"} · ${groups.reduce((a, [, ts]) => a + ts.length, 0)} titles`} campus={campus} />
+    <div className="ops-doc ops-lib">
+      {/* The old "Authors' List": a grey row per author with "Total Books", then Sr #, Book Name, Cabinet Number,
+          Cabinet Name (the subject), Book Placed Date, Status and Total Books for each title. */}
+      <DocHead title="Authors' List" subtitle={`${author ? `${author} · ` : ""}${groups.length} ${groups.length === 1 ? "author" : "authors"} · ${groups.reduce((a, [, ts]) => a + ts.length, 0)} titles`} campus={campus} />
       <table>
         <thead>
           <tr>
-            <th className="n">Sr</th>
-            <th>Title</th>
-            <th>Subject</th>
-            <th>Shelf</th>
-            <th className="n">Copies</th>
-            <th className="n">On shelf</th>
-            <th className="n">On loan</th>
-            <th>Added on</th>
+            <th>Sr #</th>
+            <th>Book Name</th>
+            <th>Cabinet Number</th>
+            <th>Cabinet Name</th>
+            <th>Book Placed Date</th>
+            <th>Status</th>
+            <th>Total Books</th>
           </tr>
         </thead>
         <tbody>
           {groups.map(([name, ts]) => (
             <Fragment key={name}>
-              <tr>
-                <th colSpan={4}>{name}</th>
-                <th colSpan={4} className="n">
-                  Total books: {ts.reduce((a, t) => a + t.copies, 0)}
-                </th>
+              <tr className="ops-group">
+                <td colSpan={4}>{name}</td>
+                <td colSpan={3}>Total Books {ts.reduce((a, t) => a + t.copies, 0)}</td>
               </tr>
               {[...ts]
                 .sort((a, b) => (a.title || a.titleUr).localeCompare(b.title || b.titleUr))
                 .map((t) => (
                   <tr key={`${name}-${t.id}`}>
-                    <td className="n">{++sr}</td>
+                    <td>{++sr}</td>
                     <td>
                       {t.title}
                       {t.volume ? `, vol. ${t.volume}` : ""}
                       {t.titleUr && <span className="ops-doc-urdu">{t.title ? " · " : ""}{t.titleUr}</span>}
                     </td>
-                    <td>{t.category || "—"}</td>
-                    <td>{t.shelves.join(", ") || "Not shelved"}</td>
-                    <td className="n">{t.copies}</td>
-                    <td className="n">{t.available}</td>
-                    <td className="n">{t.onLoan}</td>
+                    <td>{t.shelves.join(", ")}</td>
+                    <td>{t.category || ""}</td>
                     <td>{formatDate(t.addedOn)}</td>
+                    <td>{t.onLoan ? (t.copies > 1 ? `Issued (${t.onLoan} of ${t.copies})` : "Issued") : "Not Issued"}</td>
+                    <td>{t.copies}</td>
                   </tr>
                 ))}
             </Fragment>

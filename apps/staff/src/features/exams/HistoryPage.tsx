@@ -7,7 +7,7 @@ import { useDeferredValue, useState, type CSSProperties } from "react";
 import { campusLabel } from "../../app/shell/campus";
 import { Page, PageHeader } from "../../app/shell/page";
 import { useCtx } from "../../app/session";
-import { DocHead, printedOn } from "./print/docs";
+import { DocHead, printedOn, sessionLong, splitSection } from "./print/docs";
 import { PrintSheet, printNow } from "./print/PrintSheet";
 import { ExamsNav, examsToday, LoadError, markText, ordinal, ResultBadge } from "./shared";
 
@@ -434,53 +434,72 @@ function AcademicHistoryDoc({ data, entries }: { data: ExamsStudentHistory; entr
   );
 }
 
-/** The old Student History Report: student details, counts, then one row per paper. */
+/**
+ * The old Student History Report: GR No. / Name / Father / Group on the left and Section / Session / Class on the
+ * right with ruled lines, the photo box, No. of Tests / Absents / Leaves, then one row per paper.
+ */
 function PaperHistoryDoc({ data, papers, counts, session, from, to }: { data: ExamsStudentHistory; papers: PaperLine[]; counts: { tests: number; absent: number; leave: number }; session: string; from: IsoDate | null; to: IsoDate | null }) {
+  const { cls, sec } = splitSection(data.person.classSection);
+  const line = (label: string, value: string) => (
+    <>
+      <b>{label}</b>
+      <span>{value}</span>
+    </>
+  );
   return (
     <article className="exams-doc exams-doc-a4" aria-label="Student history report">
-      <DocHead campus={data.person.campus} title="Student history report" sub={from || to ? `${from ? formatDate(from) : "Start"} to ${to ? formatDate(to) : printedOn()}` : "Every declared exam"} />
-      <PersonBlock person={data.person} session={session} />
-      <div className="exams-doc-summary" style={{ gridTemplateColumns: "repeat(3, 1fr)", marginTop: 0, marginBottom: "3mm" }}>
-        <div>
-          <span>No. of tests</span>
-          <b>{counts.tests}</b>
+      <DocHead campus={data.person.campus} title="Student History Report" sub={from || to ? `${from ? formatDate(from) : "Start"} to ${to ? formatDate(to) : printedOn()}` : undefined} />
+      <div className="exams-hist-head">
+        <div className="exams-hist-info">
+          {line("GR No.", data.person.id)}
+          {line("Section:", sec)}
+          {line("Name:", data.person.name)}
+          <span />
+          <span />
+          {line("Father:", data.person.father ?? "")}
+          {line("Session:", session ? sessionLong(Number(session)) : "Every session")}
+          {line("Group:", data.person.group ?? "")}
+          {line("Class:", cls)}
         </div>
-        <div>
-          <span>No. of absents</span>
-          <b>{counts.absent}</b>
-        </div>
-        <div>
-          <span>No. of leaves</span>
-          <b>{counts.leave}</b>
-        </div>
+        <div className="exams-hist-photo" aria-hidden />
       </div>
-      <table style={{ fontSize: "9pt" }}>
+      <div className="exams-fields" style={{ justifyContent: "space-between", margin: "1mm 0 1mm" }}>
+        <span>
+          <b>No. of Tests:</b> {counts.tests}
+        </span>
+        <span>
+          <b>No. of Absents:</b> {counts.absent}
+        </span>
+        <span>
+          <b>No. of Leaves:</b> {counts.leave}
+        </span>
+      </div>
+      <table className="exams-hist" style={{ fontSize: "8.5pt" }}>
         <thead>
           <tr>
-            <th>Date</th>
+            <th className="c">Date</th>
             <th>Subject</th>
             <th>Exam</th>
-            <th className="n">Obt. marks</th>
-            <th className="n">Total marks</th>
-            <th className="n">%age</th>
+            <th className="c">Obt. Marks</th>
+            <th className="c">Total Marks</th>
+            <th className="c">%age</th>
             <th className="c">Grade</th>
           </tr>
         </thead>
         <tbody>
           {papers.map((p) => (
             <tr key={p.id}>
-              <td>{formatDate(p.date)}</td>
+              <td className="c">{formatDate(p.date)}</td>
               <td>{p.subject}</td>
               <td>{p.exam}</td>
-              <td className={p.mark === "A" ? "n fail" : "n"}>{sheetMark(p.mark)}</td>
-              <td className="n">{p.max}</td>
-              <td className="n">{p.percent === null ? "" : formatPercent(p.percent)}</td>
+              <td className="c">{sheetMark(p.mark)}</td>
+              <td className="c">{p.max}</td>
+              <td className="c">{p.percent === null ? "" : `${Math.round(p.percent)}%`}</td>
               <td className="c">{p.grade ?? ""}</td>
             </tr>
           ))}
         </tbody>
       </table>
-      <p className="exams-doc-key">A = absent, L = leave (both count as 0%). Declared results only. Printed {printedOn()}.</p>
     </article>
   );
 }

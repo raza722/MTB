@@ -8,6 +8,7 @@ import { campusLabel } from "../../app/shell/campus";
 import { Page, PageHeader } from "../../app/shell/page";
 import { SubNav, type SubNavItem } from "../../app/shell/SubNav";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
+import { campusPlace, footerBoxes } from "../../app/print/letterhead";
 import "./hr.css";
 
 /** Today in Pakistan ("2026-11-06"). Only for form defaults and limits; the server decides. */
@@ -225,11 +226,12 @@ export function downloadCsv(fileName: string, header: string[], rows: Array<Arra
 }
 
 export type PaperKind = "A4" | "A4L" | "A5" | "CARD";
-const PAGE: Record<PaperKind, string> = {
-  A4: "@page { size: A4 portrait; margin: 10mm; }",
-  A4L: "@page { size: A4 landscape; margin: 8mm; }",
-  A5: "@page { size: A5 portrait; margin: 6mm; }",
-  CARD: "@page { size: 86mm 54mm; margin: 0; }",
+/** Paper per document; every paper but the ID card carries the old footer (print time, "Page No x of y"). */
+const PAGE: Record<PaperKind, () => string> = {
+  A4: () => `@page { size: A4 portrait; margin: 10mm 10mm 12mm; ${footerBoxes()} }`,
+  A4L: () => `@page { size: A4 landscape; margin: 8mm 8mm 11mm; ${footerBoxes()} }`,
+  A5: () => `@page { size: A5 portrait; margin: 6mm 6mm 10mm; ${footerBoxes()} }`,
+  CARD: () => "@page { size: 86mm 54mm; margin: 0; }",
 };
 
 /**
@@ -251,7 +253,7 @@ export function usePrint() {
   const area = job
     ? createPortal(
         <div className="mtb-print-area hr-print" data-theme="light">
-          <style>{PAGE[job.paper]}</style>
+          <style>{PAGE[job.paper]()}</style>
           {job.node}
         </div>,
         document.body,
@@ -260,7 +262,7 @@ export function usePrint() {
   return { print: (node: ReactNode, paper: PaperKind) => setJob({ node, paper }), area, printing: job !== null };
 }
 
-/** "Khalid Campus, Sadiqabad" for printed headings. */
-export const campusHeading = (c: CampusCode) => (c === "KC" ? "Khalid Campus, Sadiqabad" : c === "HC" ? "Humaira Campus, Lahore" : campusLabel(c));
+/** "Khalid Campus, Sadikabad" for printed headings (the old letterhead's campus part). */
+export const campusHeading = (c: CampusCode) => campusPlace(c, campusLabel(c));
 
 export const rs = (n: number) => `Rs ${new Intl.NumberFormat("en-US").format(n)}`;

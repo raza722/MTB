@@ -3,13 +3,13 @@ import { formatDate } from "@mtb/domain";
 import { Banner, Button, buttonClassName, Checkbox, cx, DatePicker, EmptyState, IconButton, Input, Modal, Panel, Select, Skeleton, StatusBadge, useToast } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Page, PageHeader, RequireSingleCampus } from "../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { PrintSheet, printNow } from "../students/documents/print";
 import { apiMessage, fieldError, LoadError, stagger } from "../students/shared";
 import { AdmissionsSubNav, DiamondMindsBadge, relationName, sittingWhen, sittingWhenWhere, today } from "./shared";
-import { AttendanceSheet, MarksSheetPrint, TestSlip } from "./slips";
+import { AttendanceSheet, MarksSheetPrint, TestSlip, TestSlipSheet } from "./slips";
 
 type Row = { absent: boolean; marks: Record<string, string> };
 
@@ -351,12 +351,12 @@ function MarksSheet({ testId }: { testId: string }) {
         }
       >
         {printing === "slips" ? (
-          <PrintSheet paper="A5" label="Test slips" zoom={0.6}>
-            {paid.map((a) => (
-              <Fragment key={a.id}>
-                <TestSlip a={a} test={t} />
-              </Fragment>
-            ))}
+          <PrintSheet paper="A4" label="Test slips" zoom={0.55}>
+            <TestSlipSheet>
+              {paid.map((a) => (
+                <TestSlip key={a.id} a={a} test={t} />
+              ))}
+            </TestSlipSheet>
           </PrintSheet>
         ) : printing === "sheet" ? (
           <PrintSheet paper="A4" label="Attendance sheet" zoom={0.55}>

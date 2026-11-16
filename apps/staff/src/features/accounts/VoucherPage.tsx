@@ -1,5 +1,4 @@
 import {
-  ACCOUNTS_MANUAL_TYPES,
   ACCOUNTS_VOUCHER_TYPE_LABEL,
   accountsApi,
   accountsCashBankKind,
@@ -11,6 +10,7 @@ import {
   newIdempotencyKey,
   type AccountsManualType,
   type AccountsVoucher,
+  type AccountsVoucherType,
   type CampusCode,
 } from "@mtb/api";
 import { amountInWords, formatDate, formatDateTime, formatRs, formatSession, formatTime } from "@mtb/domain";
@@ -26,7 +26,6 @@ import {
   Icon,
   IconButton,
   Input,
-  KeyValue,
   Modal,
   Money,
   Panel,
@@ -40,10 +39,10 @@ import {
   type TimelineItem,
 } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useCan, useCtx, useReadOnly, useSessionUser } from "../../app/session";
 import { CAMPUS_LABEL, campusLabel } from "../../app/shell/campus";
-import { AccLink, AccountsShell, accountOptions, accToday, DocFoot, DocHead, errorField, errorText, LoadError, sessionStartOf, TypeChip, useGo, VoucherStatus } from "./shared";
+import { AccLink, AccountsShell, accountOptions, accToday, DocFoot, DocHead, errorField, errorText, LoadError, printAmt, sessionStartOf, TypeChip, useGo, VoucherStatus } from "./shared";
 import { amountOf, draftFrom, emptyDraft, isUsed, newLine, toInput, totalsOf, validateFinal, type Draft, type DraftLine, type HeaderField, type LineErrors, type Prefill } from "./voucher-model";
 
 const CAMPUS_CODES: CampusCode[] = ["KC", "SM", "UC", "MC", "HC"];
@@ -921,102 +920,168 @@ function VoucherForm({ initial, voucher }: { initial: Draft; voucher: AccountsVo
 
 /* ---------------------------------------------------------------- Print */
 
-/** The printed voucher (A4): header, lines, amount in words and signature boxes. */
+/** Old titles (the old reports spelt them "Vouchar"; fixed). System vouchers print as journal vouchers. */
+const PRINT_TITLE: Record<AccountsVoucherType, string> = {
+  JV: "Journal Voucher",
+  CP: "Cash Payment Voucher",
+  CR: "Cash Receipt Voucher",
+  BP: "Bank Payment Voucher",
+  BR: "Bank Receipt Voucher",
+  FEE: "Journal Voucher · Fee Collection",
+  FEE_CANCEL: "Journal Voucher · Receipt Cancellation",
+  OPENING: "Journal Voucher · Opening Balances",
+};
+
+/** The voucher's lines as the old Journal Voucher table: Sr. #, Account Head, Narration, Debit, Credit and "Total :". */
+function VoucherLines({ voucher }: { voucher: AccountsVoucher }) {
+  return (
+    <table>
+      <thead>
+        <tr>
+          <th style={{ width: 44 }}>Sr. #</th>
+          <th style={{ width: 200 }}>Account Head</th>
+          <th>Narration</th>
+          <th className="num" style={{ width: 90, textAlign: "center" }}>
+            Debit
+          </th>
+          <th className="num" style={{ width: 90, textAlign: "center" }}>
+            Credit
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {voucher.lines.map((l, i) => (
+          <tr key={l.id}>
+            <td>{i + 1}</td>
+            <td>{l.accountName}</td>
+            <td>{l.description || (voucher.lines.length <= 2 ? voucher.narration : "")}</td>
+            <td className="num" style={{ textAlign: "center" }}>
+              {printAmt(l.debit ?? 0, 2)}
+            </td>
+            <td className="num" style={{ textAlign: "center" }}>
+              {printAmt(l.credit ?? 0, 2)}
+            </td>
+          </tr>
+        ))}
+        <tr className="acc-doc-total">
+          <td colSpan={3} className="acc-doc-label">
+            Total :
+          </td>
+          <td className="num" style={{ textAlign: "center" }}>
+            {printAmt(voucher.totalDebit, 2)}
+          </td>
+          <td className="num" style={{ textAlign: "center" }}>
+            {printAmt(voucher.totalCredit, 2)}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  );
+}
+
+/**
+ * The printed voucher (A4 portrait), as the old system printed it. Journal vouchers (and the system's fee, cancellation
+ * and opening vouchers): "JV #", "Date:", "Manual Voucher #", the lines table, "Amount In Word :" and Prepared By /
+ * Checked By / Approved By. Cash and bank vouchers: the old label-and-value slip (Date, Voucher Date, Voucher No, Manual
+ * Voucher No, Paid To or Received From Party, Bank, Amount, Amount In Words, Description, Prepared By, Checked By,
+ * Approved By). New: the cheque (bank vouchers), a lines table when a payment or receipt is split over several heads,
+ * and the draft / reversed marks.
+ */
 function VoucherDoc({ voucher }: { voucher: AccountsVoucher }) {
   const side = accountsVoucherSide(voucher.type);
-  const typeLabel = ACCOUNTS_MANUAL_TYPES.includes(voucher.type as AccountsManualType) ? TITLE[voucher.type as AccountsManualType] : ACCOUNTS_VOUCHER_TYPE_LABEL[voucher.type];
   const posted = voucher.status === "POSTED" || voucher.status === "REVERSED";
+  const isBank = voucher.type === "BP" || voucher.type === "BR";
+  // The cash or bank line: the voucher's cash/bank account, else (vouchers from the old system) the one credit line of a
+  // payment or the one debit line of a receipt.
+  const moneySide = voucher.lines.filter((l) => (side === "PAYMENT" ? l.credit : l.debit));
+  const moneyLine = voucher.lines.find((l) => l.accountCode === voucher.cashBankAccount) ?? (moneySide.length === 1 ? moneySide[0] : undefined);
+  const others = voucher.lines.filter((l) => l !== moneyLine);
+  const heads = [...new Set(others.map((l) => l.accountName))].join(", ");
+  const party = voucher.party?.trim() ? (heads && others.length === 1 ? `${voucher.party} (${heads})` : voucher.party) : heads;
+  const marks = (
+    <>
+      {!posted && <div className="acc-doc-draft">{voucher.status === "APPROVED" ? "APPROVED — NOT YET POSTED" : "DRAFT — NOT POSTED"}</div>}
+      {voucher.status === "REVERSED" && <div className="acc-doc-draft">REVERSED BY {voucher.reversal?.voucherNo}</div>}
+    </>
+  );
+  if (!side)
+    return (
+      <div className="acc-print-only mtb-print-area" aria-hidden="true">
+        <article className="acc-doc">
+          <DocHead title={PRINT_TITLE[voucher.type]} />
+          {marks}
+          <div className="acc-jv-top">
+            <div>
+              <b style={{ marginRight: 16 }}>JV #</b>
+              {voucher.voucherNo ?? "Not posted"}
+            </div>
+            <div className="grid justify-items-end gap-2">
+              <span>
+                <b>Date:</b> {formatDate(voucher.date)}
+              </span>
+              <span>
+                <b>Manual Voucher #</b> {voucher.reference ?? ""}
+              </span>
+            </div>
+          </div>
+          <VoucherLines voucher={voucher} />
+          <p className="m-0 mt-2">
+            <b>Amount In Word :</b> {amountInWords(voucher.totalDebit)}
+          </p>
+          {voucher.lines.length > 2 && voucher.narration && <p className="m-0 mt-1">{voucher.narration}</p>}
+          <div className="acc-jv-sign">
+            <div>
+              <b>Prepared By :</b>
+              {voucher.createdBy}
+            </div>
+            <div>
+              <b>Checked By :</b>
+            </div>
+            <div>
+              <b>Approved By :</b>
+              {voucher.approvedBy ?? voucher.postedBy ?? ""}
+            </div>
+          </div>
+          <DocFoot />
+        </article>
+      </div>
+    );
+  const rows: Array<[string, ReactNode]> = [
+    ["Date", formatDate(accToday())],
+    [voucher.type === "CP" ? "Payment Date" : "Voucher Date", formatDate(voucher.date)],
+    ["Voucher No", voucher.voucherNo ?? "Not posted"],
+    [voucher.type === "CP" ? "Manual Voucher #" : "Manual Voucher No", voucher.reference ?? ""],
+    [side === "PAYMENT" ? (voucher.type === "CP" ? "Paid To Party" : "Paid To") : "Received From Party", party],
+    ...(isBank ? ([["Bank", moneyLine?.accountName ?? ""]] as Array<[string, ReactNode]>) : []),
+    ...(isBank && voucher.cheque ? ([["Cheque / Slip No", `${voucher.cheque.number} · ${formatDate(voucher.cheque.date)}`]] as Array<[string, ReactNode]>) : []),
+    ["Amount", printAmt(voucher.totalDebit, 2)],
+    ["Amount In Words", amountInWords(voucher.totalDebit)],
+    ["Description", voucher.narration],
+  ];
   return (
     <div className="acc-print-only mtb-print-area" aria-hidden="true">
       <article className="acc-doc">
-        <DocHead
-          title={typeLabel}
-          subtitle={voucher.campusName}
-          right={
-            <>
-              <div className="mtb-mono text-[14px] font-bold">{voucher.voucherNo ?? "Not posted"}</div>
-              <div>Date: {formatDate(voucher.date)}</div>
-            </>
-          }
-        />
-        {!posted && <div className="acc-doc-draft">{voucher.status === "APPROVED" ? "APPROVED — NOT YET POSTED" : "DRAFT — NOT POSTED"}</div>}
-        {voucher.status === "REVERSED" && <div className="acc-doc-draft">REVERSED BY {voucher.reversal?.voucherNo}</div>}
-        <div className="acc-doc-meta">
-          {voucher.party && (
-            <div>
-              <b>{side === "RECEIPT" ? "Received from" : "Paid to"}:</b> {voucher.party}
+        <DocHead title={PRINT_TITLE[voucher.type]} />
+        {marks}
+        <dl className="acc-vkv">
+          {rows.map(([k, v]) => (
+            <div key={k} style={{ display: "contents" }}>
+              <dt>{k}</dt>
+              <dd>{v}</dd>
             </div>
-          )}
-          {voucher.cheque && (
-            <div>
-              <b>Cheque / reference:</b> {voucher.cheque.number} · {formatDate(voucher.cheque.date)}
-            </div>
-          )}
-          {voucher.reference && (
-            <div>
-              <b>Bill / reference:</b> {voucher.reference}
-            </div>
-          )}
-          <div className="col-span-2">
-            <b>Narration:</b> {voucher.narration}
+          ))}
+          <dt>Prepared By:</dt>
+          <dd>{voucher.createdBy}</dd>
+          <dt>{voucher.type === "CP" ? "Cash Paid By:" : "Checked By:"}</dt>
+          <dd className="acc-vline" />
+          <dt>Approved By:</dt>
+          <dd className="acc-vline">{voucher.approvedBy ?? ""}</dd>
+        </dl>
+        {others.length > 1 && (
+          <div className="mt-6">
+            <VoucherLines voucher={voucher} />
           </div>
-        </div>
-        <table>
-          <thead>
-            <tr>
-              <th style={{ width: 28 }}>#</th>
-              <th style={{ width: 60 }}>Code</th>
-              <th>Account</th>
-              <th>Description</th>
-              <th className="num" style={{ width: 100 }}>
-                Debit
-              </th>
-              <th className="num" style={{ width: 100 }}>
-                Credit
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {voucher.lines.map((l, i) => (
-              <tr key={l.id}>
-                <td>{i + 1}</td>
-                <td>{l.accountCode}</td>
-                <td>{l.accountName}</td>
-                <td>{l.description}</td>
-                <td className="num">{l.debit ? formatRs(l.debit) : ""}</td>
-                <td className="num">{l.credit ? formatRs(l.credit) : ""}</td>
-              </tr>
-            ))}
-            <tr>
-              <td colSpan={4} style={{ textAlign: "right", fontWeight: 600 }}>
-                Total
-              </td>
-              <td className="num" style={{ fontWeight: 600 }}>
-                {formatRs(voucher.totalDebit)}
-              </td>
-              <td className="num" style={{ fontWeight: 600 }}>
-                {formatRs(voucher.totalCredit)}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <p className="m-0 mt-2">
-          <b>Amount in words:</b> {amountInWords(voucher.totalDebit)}
-        </p>
-        <KeyValue
-          className="mt-2"
-          items={[
-            ["Prepared by", `${voucher.createdBy}`],
-            ...(voucher.approvedBy ? [["Approved by", `${voucher.approvedBy}, ${formatDateTime(voucher.approvedAt ?? voucher.updatedAt)}`] as [string, string]] : []),
-            ...(voucher.postedBy ? [["Posted by", `${voucher.postedBy}, ${formatDateTime(voucher.postedAt ?? voucher.updatedAt)}`] as [string, string]] : []),
-          ]}
-        />
-        <div className="acc-doc-sign">
-          <div>Prepared by</div>
-          <div>Checked / approved by</div>
-          <div>Posted by</div>
-          <div>{side === "PAYMENT" ? "Received by (payee)" : side === "RECEIPT" ? "Paid by" : "Principal / head office"}</div>
-        </div>
+        )}
         <DocFoot />
       </article>
     </div>

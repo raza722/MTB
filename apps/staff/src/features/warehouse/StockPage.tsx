@@ -57,37 +57,44 @@ function StockList({ rows, campus }: { rows: WarehouseItem[]; campus: string }) 
 function Ledger({ item, rows, opening, period, campus }: { item: WarehouseItemDetail; rows: WarehouseMovement[]; opening: { on: IsoDate; balance: number } | null; period: string; campus: string }) {
   return (
     <div className="ops-doc">
-      <DocHead title={`Stock ledger: ${item.name}`} subtitle={`${item.code} · ${item.category} · ${period} · ${qtyText(item.onHand, item.unit)} in store now`} campus={campus} />
-      <table>
+      {/* The old "Item History Report": Date (with the time), Item Name, Purchase Qty, Issued Qty, the department and
+          room (one column: the store keeps them as one "from or to"), Balance; the document, what happened and who
+          entered it follow at the right. */}
+      <DocHead title="Item History Report" subtitle={`${item.code} · ${item.category} · ${period} · ${qtyText(item.onHand, item.unit)} in store now`} campus={campus} />
+      <table className="ops-wh">
         <thead>
           <tr>
             <th>Date</th>
+            <th>Item Name</th>
+            <th className="n">Purchase Qty</th>
+            <th className="n">Issued Qty</th>
+            <th>Department / Room</th>
+            <th className="n">Balance</th>
             <th>Document</th>
             <th>What happened</th>
-            <th>From or to</th>
-            <th className="n">In</th>
-            <th className="n">Out</th>
-            <th className="n">Balance</th>
             <th>By</th>
           </tr>
         </thead>
         <tbody>
           {opening && (
             <tr>
-              <td colSpan={6}>Opening balance on {formatDate(opening.on)}</td>
-              <td className="n">{opening.balance}</td>
-              <td />
+              <td colSpan={5}>Opening balance on {formatDate(opening.on)}</td>
+              <td className="n">{opening.balance.toFixed(2)}</td>
+              <td colSpan={3} />
             </tr>
           )}
           {[...rows].reverse().map((m) => (
             <tr key={m.id}>
-              <td>{formatDate(m.date)}</td>
+              <td className="n">
+                {formatDate(m.date)} {new Date(m.at).toLocaleTimeString("en-US", { timeZone: "Asia/Karachi", hour: "numeric", minute: "2-digit" })}
+              </td>
+              <td>{item.name}</td>
+              <td className="n">{m.qtyIn.toFixed(2)}</td>
+              <td className="n">{m.qtyOut.toFixed(2)}</td>
+              <td>{m.party}</td>
+              <td className="n">{m.balance.toFixed(2)}</td>
               <td>{m.docNo}</td>
               <td>{WAREHOUSE_MOVEMENT_LABEL[m.type]}</td>
-              <td>{m.party}</td>
-              <td className="n">{m.qtyIn || ""}</td>
-              <td className="n">{m.qtyOut || ""}</td>
-              <td className="n">{m.balance}</td>
               <td>{m.by}</td>
             </tr>
           ))}

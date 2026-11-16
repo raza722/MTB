@@ -1,11 +1,8 @@
 import {
   examsAnalyse,
-  examsGradeFor,
   examsGroupShort,
   examsOfGender,
-  examsPassMark,
   examsSits,
-  EXAMS_DEFAULT_PASS_RULES,
   EXAMS_DEFAULT_SCALE,
   EXAMS_RESULT_LABEL,
   EXAMS_RESULT_LABEL_UR,
@@ -15,13 +12,12 @@ import {
   type ExamsResultRow,
   type ExamsSubject,
 } from "@mtb/api";
-import { amountInWords, formatDate, formatMobile, formatPercent, formatRs, formatSession, formatWeekday, pakistanToday } from "@mtb/domain";
+import { amountInWords, formatDate, formatPercent, formatSession, formatWeekday, pakistanToday } from "@mtb/domain";
 import { Urdu } from "@mtb/ui";
-import type { ReactNode } from "react";
-import { campusLabel } from "../../../app/shell/campus";
+import type { CSSProperties, ReactNode } from "react";
+import { Letterhead } from "../../../app/print/letterhead";
 import { markText, ordinal } from "../shared";
 
-const CITY: Partial<Record<CampusCode, string>> = { KC: "Sadiqabad", HC: "Lahore" };
 /** Today (Pakistan time) as printed on documents: "07-Nov-2026". */
 export const printedOn = () => formatDate(pakistanToday());
 
@@ -36,41 +32,96 @@ function L({ en, ur, urdu }: { en: string; ur: string; urdu: boolean | undefined
   );
 }
 
-export function DocHead({ campus, title, titleUr, sub, urdu }: { campus: CampusCode; title: string; titleUr?: string; sub: ReactNode; urdu?: boolean }) {
+/**
+ * The old printed heading (shared letterhead): crest, "MTB-Madrasat-ul-Banat Schools and Colleges, Khalid Campus,
+ * Sadikabad", the document's title (underlined where the old report underlined it) and an optional line under it.
+ */
+export function DocHead({ campus, title, titleUr, sub, urdu, underline }: { campus: CampusCode; title: string; titleUr?: string; sub?: ReactNode; urdu?: boolean; underline?: boolean }) {
   return (
-    <header className="exams-doc-head">
-      <div className="flex items-center gap-3">
-        <span className="exams-doc-seal">MTB</span>
-        <div>
-          <h1>MTB Schools and Colleges</h1>
-          <p>
-            {campusLabel(campus)}
-            {CITY[campus] ? `, ${CITY[campus]}` : ""}
-          </p>
-        </div>
-      </div>
-      <div className="exams-doc-title">
-        <strong>{title}</strong>
-        {urdu && titleUr && <Urdu size="small">{titleUr}</Urdu>}
-        <p>{sub}</p>
-      </div>
-    </header>
+    <div className="exams-lh">
+      <Letterhead
+        campus={campus}
+        titleCase="as-is"
+        title={
+          <>
+            <span className={underline ? "exams-u" : undefined}>{title}</span>
+            {urdu && titleUr && (
+              <>
+                {" "}
+                <Urdu size="small">{titleUr}</Urdu>
+              </>
+            )}
+          </>
+        }
+        sub={sub || undefined}
+      />
+    </div>
   );
 }
 
-function Foot({ exam, page }: { exam: ExamDetail; page?: string }) {
+/** "Label: value" pairs on one line, as the old reports printed them under the title; `under` underlines the values. */
+export function Fields({ items, under, style }: { items: Array<[ReactNode, ReactNode] | null | false | "" | undefined>; under?: boolean; style?: CSSProperties }) {
   return (
-    <footer className="exams-doc-foot">
-      <span>
-        Printed <bdi dir="ltr">{printedOn()}</bdi>
-        {exam.status === "DECLARED" ? "" : " · Provisional: not declared"}
-      </span>
-      <span>{page ?? ""}</span>
-    </footer>
+    <div className="exams-fields" style={style}>
+      {items.filter((x): x is [ReactNode, ReactNode] => Boolean(x)).map(([k, v], i) => (
+        <span key={i}>
+          <b>{k}:</b> <span className={under ? "exams-u" : undefined}>{v}</span>
+        </span>
+      ))}
+    </div>
   );
 }
 
-const sessionOf = (exam: ExamDetail) => `Session ${formatSession(exam.session)}`;
+/** A large faint mark across a document whose results are not final. */
+function Provisional({ exam }: { exam: ExamDetail }) {
+  return exam.status === "DECLARED" ? null : <span className="exams-doc-mark">PROVISIONAL</span>;
+}
+
+/** "2026-2027", the old session format. */
+export const sessionLong = (y: number) => `${y}-${y + 1}`;
+
+/** "03 - Nov - 2026", the old result card's date format. */
+export const spacedDate = (d: string) => formatDate(d).replace(/-/g, " - ");
+
+/** "93.2 %", the old percentage format. */
+export const pctText = (p: number | null | undefined, digits = 1) => (p === null || p === undefined ? "" : `${p.toFixed(digits)} %`);
+
+const CLASS_WORD: Record<string, string> = {
+  "1": "One",
+  "2": "Two",
+  "3": "Three",
+  "4": "Four",
+  "5": "Five",
+  "6": "Six",
+  "7": "Seven",
+  "8": "Eight",
+  "9": "Nine",
+  "10": "Ten",
+  "11": "Eleven",
+  "12": "Twelve",
+  FY: "First Year",
+  SY: "Second Year",
+  SEH: "Shoba-e-Hifz",
+};
+
+/** The class as the old reports named it: "9" → "Nine". */
+export const classWord = (short: string) => CLASS_WORD[short] ?? short;
+
+/** "9-Barni" → class "Nine", section "Barni". A programme test's centre is a section with no class. */
+export function splitSection(cs: string, programme?: boolean): { cls: string; sec: string } {
+  const i = cs.indexOf("-");
+  if (programme || i < 0) return { cls: programme ? "" : classWord(cs), sec: programme ? cs : "" };
+  return { cls: classWord(cs.slice(0, i)), sec: cs.slice(i + 1) };
+}
+
+/** "Nine - Barni" (the old "Class & Section"). */
+export const classAndSection = (cs: string, programme?: boolean) => {
+  const { cls, sec } = splitSection(cs, programme);
+  return [cls, sec].filter(Boolean).join(" - ");
+};
+
+/** The exam's class in words ("Nine"), from its first section. */
+const examClass = (exam: ExamDetail) => (exam.programmeId ? "" : splitSection(exam.classes[0] ?? "").cls);
 
 /** "Four Hundred Twenty Nine" (marks, not rupees); half marks end in "and a half". */
 export function marksInWords(n: number): string {
@@ -84,6 +135,12 @@ export const inGroup = (group: string | undefined) => (r: ExamsResultRow) => !gr
 
 /** "Boys", "Girls" or "" for the document's sub-title. */
 export const genderText = (g: ExamsGender | undefined) => (g === "M" ? "Boys" : g === "F" ? "Girls" : "");
+
+/** "Session 2026–27" for document sub-titles. */
+const sessionOf = (exam: ExamDetail) => `Session ${formatSession(exam.session)}`;
+
+/** The class's sections as printed: "Class 7" for several, or the one section. */
+const classText = (exam: ExamDetail, section: string) => (section === "ALL" ? exam.classes.join(", ") : section);
 
 /** " · Boys" style sub-title parts, skipping the empty ones. */
 const subParts = (...parts: Array<string | undefined | false>) => parts.filter(Boolean).join(" · ");
@@ -114,19 +171,40 @@ export function rerank(rows: ExamsResultRow[], perSection: boolean): Map<string,
 /** "04-Nov" from an ISO date. */
 const dayMonth = (d: string | undefined) => (d ? formatDate(d).slice(0, 6) : "");
 
+/** The month of the exam's first paper ("September"), as the old position tables printed it. */
+const examMonth = (exam: ExamDetail) => {
+  const d = exam.subjects.map((s) => s.date).filter(Boolean).sort()[0] ?? exam.startDate;
+  return d ? new Date(`${d.slice(0, 10)}T00:00:00`).toLocaleString("en-US", { month: "long" }) : "";
+};
+
 /** A mark as printed on sheets: the number, A, L, or blank. */
 const sheetMark = (m: ExamsResultRow["marks"][string] | undefined) => (m === null || m === undefined ? "" : String(m));
 
-/** The class's sections as printed: "Class 7" for several, or the one section. */
-const classText = (exam: ExamDetail, section: string) => (section === "ALL" ? exam.classes.join(", ") : section);
+/** A blank line to write on. */
+const Fill = ({ w = "24mm" }: { w?: string }) => <span className="exams-fill" style={{ minWidth: w }} />;
 
-// ------------------------------------------------------------------ Result card (A4, one or two to a page)
+// ------------------------------------------------------------------ Result card: the old "Result Intimation Sheet"
 
+/**
+ * The old result card ("Result Intimation Sheet"): a boxed card with Exam / Session / Date, Name / Father / Gr. No and
+ * Class / Section / Group, the subjects with marks obtained and maximum, the total, %age and grade, position and the
+ * class strength, the remarks and two signature lines. One a page (the old "primary" card) or two side by side on a
+ * landscape page (the old "with column" card).
+ */
 export function ResultCard({ exam, row, urdu, half }: { exam: ExamDetail; row: ExamsResultRow; urdu?: boolean; half?: boolean }) {
-  const rules = exam.passRules ?? EXAMS_DEFAULT_PASS_RULES;
+  const card = <CardBox exam={exam} row={row} urdu={urdu} />;
+  if (half) return card;
+  return (
+    <article className="exams-doc exams-doc-a4 exams-card-page" aria-label={`Result card, ${row.name}`}>
+      {card}
+    </article>
+  );
+}
+
+function CardBox({ exam, row, urdu }: { exam: ExamDetail; row: ExamsResultRow; urdu?: boolean }) {
   const bands = exam.bands ?? EXAMS_DEFAULT_SCALE;
-  const inSection = exam.rows.filter((r) => r.classSection === row.classSection && r.percent !== null && !r.withheld).length;
-  const failed = new Set(row.failedSubjects ?? []);
+  const strength = exam.rows.filter((r) => r.classSection === row.classSection).length;
+  const failedNames = (row.failedSubjects ?? []).map((id) => exam.subjects.find((s) => s.id === id)?.name ?? id).sort((a, b) => a.localeCompare(b));
   // Only the papers of the student's group (classes 9–10).
   const papers = exam.subjects.filter((s) => examsSits(s, row.group));
   const declared = exam.status === "DECLARED";
@@ -137,99 +215,72 @@ export function ResultCard({ exam, row, urdu, half }: { exam: ExamDetail; row: E
       ? `Passed. ${bands.find((b) => b.grade === row.grade)?.remark ?? ""}`.trim()
       : row.result === "INCOMPLETE"
         ? "Some marks are not entered yet."
-        : `${EXAMS_RESULT_LABEL[row.result ?? "FAIL"]}: ${[...failed].map((id) => exam.subjects.find((s) => s.id === id)?.name ?? id).join(", ")}.`;
+        : `${row.result === "SUPPLY" ? EXAMS_RESULT_LABEL.SUPPLY : "Failed"}. ${failedNames.join(",")}`;
+  const { cls, sec } = splitSection(row.classSection, Boolean(exam.programmeId));
+  const date = exam.declaredOn ? spacedDate(exam.declaredOn) : spacedDate(pakistanToday());
+  const info: Array<[ReactNode, ReactNode]> = [
+    [<L key="e" en="Exam" ur="امتحان" urdu={urdu} />, exam.name],
+    [<L key="s" en="Session" ur="سیشن" urdu={urdu} />, sessionLong(exam.session)],
+    [<L key="d" en="Date" ur="تاریخ" urdu={urdu} />, date],
+    [<L key="n" en="Name" ur="نام" urdu={urdu} />, row.name],
+    [<L key="f" en="Father" ur="ولدیت" urdu={urdu} />, row.father ?? ""],
+    [<L key="g" en="Gr. No" ur="جی آر نمبر" urdu={urdu} />, row.id],
+    [<L key="c" en="Class" ur="جماعت" urdu={urdu} />, cls],
+    [<L key="x" en="Section" ur="سیکشن" urdu={urdu} />, sec],
+    [<L key="gp" en="Group" ur="گروپ" urdu={urdu} />, row.group ?? ""],
+  ];
   return (
-    <article className={half ? "exams-doc exams-doc-half" : "exams-doc exams-doc-a4"} style={half ? { width: "190mm", padding: "7mm 10mm", fontSize: "9pt", borderBottom: "0.8pt dashed var(--border-strong)" } : undefined} aria-label={`Result card, ${row.name}`}>
+    <div className="exams-card" aria-label={`Result card, ${row.name}`}>
       {mark && <span className="exams-doc-mark">{mark}</span>}
-      <DocHead campus={exam.campus} title="Result card" titleUr="نتیجہ کارڈ" urdu={urdu} sub={`${exam.name} · ${sessionOf(exam)}`} />
-      <dl className="exams-doc-info">
-        <div>
-          <dt>
-            <L en="Student" ur="نام طالب علم" urdu={urdu} />
-          </dt>
-          <dd>{row.name}</dd>
-        </div>
-        <div>
-          <dt>
-            <L en="Father's name" ur="ولدیت" urdu={urdu} />
-          </dt>
-          <dd>{row.father ?? "—"}</dd>
-        </div>
-        <div>
-          <dt>
-            <L en="G.R. No." ur="جی آر نمبر" urdu={urdu} />
-          </dt>
-          <dd className="mtb-mono">{row.id}</dd>
-        </div>
-        <div>
-          <dt>
-            <L en="Class" ur="جماعت" urdu={urdu} />
-          </dt>
-          <dd>{row.classSection}</dd>
-        </div>
-        <div>
-          <dt>
-            <L en="Roll no." ur="رول نمبر" urdu={urdu} />
-          </dt>
-          <dd>{row.rollNo}</dd>
-        </div>
-        <div>
-          <dt>
-            <L en="Declared" ur="اعلان" urdu={urdu} />
-          </dt>
-          <dd>{exam.declaredOn ? formatDate(exam.declaredOn) : "Not yet"}</dd>
-        </div>
-        {row.group && (
-          <div>
-            <dt>
-              <L en="Group" ur="گروپ" urdu={urdu} />
-            </dt>
-            <dd>{row.group}</dd>
+      <DocHead campus={exam.campus} title="Result Intimation Sheet" titleUr="نتیجہ کارڈ" urdu={urdu} />
+      <div className="exams-card-info">
+        {[0, 3, 6].map((start) => (
+          <div key={start} className="exams-card-line">
+            {info.slice(start, start + 3).map(([k, v], i) => (
+              <div key={i}>
+                <b>{k} :</b>
+                <span>{v}</span>
+              </div>
+            ))}
           </div>
-        )}
+        ))}
         {row.boardRollNo && (
-          <div>
-            <dt>
-              <L en="Board roll no." ur="بورڈ رول نمبر" urdu={urdu} />
-            </dt>
-            <dd className="mtb-mono">{row.boardRollNo}</dd>
+          <div className="exams-card-line">
+            <div>
+              <b>
+                <L en="Board roll no." ur="بورڈ رول نمبر" urdu={urdu} /> :
+              </b>
+              <span>{row.boardRollNo}</span>
+            </div>
           </div>
         )}
-        {!half && row.address && (
-          <div style={{ gridColumn: "span 3" }}>
-            <dt>
-              <L en="Address" ur="پتہ" urdu={urdu} />
-            </dt>
-            <dd style={{ fontWeight: 400 }}>{row.address}</dd>
-          </div>
-        )}
-      </dl>
-      <table>
+      </div>
+      <table className="exams-card-marks">
+        <colgroup>
+          <col style={{ width: "21mm" }} />
+          <col style={{ width: "21mm" }} />
+          <col style={{ width: "22mm" }} />
+          <col style={{ width: "24mm" }} />
+        </colgroup>
         <thead>
           <tr>
-            <th>
+            <th colSpan={2} className="c">
               <L en="Subject" ur="مضمون" urdu={urdu} />
             </th>
-            <th className="n">
-              <L en="Max" ur="کل نمبر" urdu={urdu} />
-            </th>
-            <th className="n">
-              <L en="Obtained" ur="حاصل کردہ" urdu={urdu} />
-            </th>
-            {!half && <th className="n">%</th>}
             <th className="c">
-              <L en="Grade" ur="گریڈ" urdu={urdu} />
+              <L en="Marks Obtained" ur="حاصل کردہ" urdu={urdu} />
+            </th>
+            <th className="c">
+              <L en="Max. Marks" ur="کل نمبر" urdu={urdu} />
             </th>
           </tr>
         </thead>
         <tbody>
           {papers.map((s) => {
             const m = row.marks[s.id];
-            const pct = typeof m === "number" ? (m / s.maxMarks) * 100 : 0;
-            const g = typeof m === "number" ? (examsGradeFor(pct, bands) ?? "") : "F";
             return (
               <tr key={s.id}>
-                <td className={failed.has(s.id) ? "fail" : undefined}>
+                <td colSpan={2}>
                   {s.name}
                   {urdu && s.nameUrdu ? (
                     <>
@@ -238,111 +289,95 @@ export function ResultCard({ exam, row, urdu, half }: { exam: ExamDetail; row: E
                     </>
                   ) : null}
                 </td>
-                <td className="n">{s.maxMarks}</td>
-                <td className={failed.has(s.id) ? "n fail" : "n"}>{markText(m)}</td>
-                {!half && <td className="n">{typeof m === "number" ? formatPercent(pct) : "—"}</td>}
-                <td className="c">{m === null || m === undefined ? "—" : g}</td>
+                <td className="c">{m === null || m === undefined ? "" : markText(m)}</td>
+                <td className="c">{s.maxMarks}</td>
               </tr>
             );
           })}
+          <tr className="exams-card-gap">
+            <td colSpan={4} />
+          </tr>
           <tr>
-            <th>
-              <L en="Total" ur="میزان" urdu={urdu} />
+            <th colSpan={2} className="c">
+              <L en="Total Marks" ur="میزان" urdu={urdu} />
             </th>
-            <th className="n">{row.max}</th>
-            <th className="n">{row.obtained}</th>
-            {!half && <th className="n">{row.percent === null ? "—" : formatPercent(row.percent)}</th>}
-            <th className="c">{row.withheld ? "—" : (row.grade ?? "—")}</th>
+            <td className="c">{row.obtained}</td>
+            <td className="c">{row.max}</td>
+          </tr>
+          <tr>
+            <th className="n">
+              <L en="%age" ur="فیصد" urdu={urdu} /> :
+            </th>
+            <td className="c">{row.percent === null || row.withheld ? "" : pctText(row.percent)}</td>
+            <th className="n">
+              <L en="Grade" ur="گریڈ" urdu={urdu} /> :
+            </th>
+            <td className="c">{row.withheld ? "" : (row.grade ?? "")}</td>
+          </tr>
+          <tr>
+            <th className="n">
+              <L en="Position" ur="پوزیشن" urdu={urdu} />:
+            </th>
+            <td className="c">{row.position && !row.withheld && row.result === "PASS" ? ordinal(row.position) : ""}</td>
+            <th className="n">
+              <L en="Class Total" ur="کل طلبہ" urdu={urdu} />:
+            </th>
+            <td className="c">{strength}</td>
           </tr>
         </tbody>
       </table>
-      {!row.withheld && row.percent !== null && (
-        <p className="m-0 mt-2" style={{ fontSize: "9pt" }}>
+      <div className="exams-card-remarks">
+        <b>
+          <L en="Remarks" ur="کیفیت" urdu={urdu} />
+        </b>
+        <span>
+          {remark}
+          {urdu && row.result ? (
+            <>
+              {" "}
+              <Urdu size="small">{EXAMS_RESULT_LABEL_UR[row.result]}</Urdu>
+            </>
+          ) : null}
+        </span>
+      </div>
+      {row.teacherRemark && (
+        <div className="exams-card-remarks">
           <b>
-            <L en="Marks in words" ur="حاصل کردہ نمبر الفاظ میں" urdu={urdu} />:
-          </b>{" "}
-          {marksInWords(row.obtained)} out of {marksInWords(row.max)}
-        </p>
-      )}
-      <div className="exams-doc-summary">
-        <div>
-          <span>
-            <L en="Percentage" ur="فیصد" urdu={urdu} />
-          </span>
-          <b>{row.percent === null || row.withheld ? "—" : formatPercent(row.percent)}</b>
-        </div>
-        <div>
-          <span>
-            <L en="Position in section" ur="سیکشن میں پوزیشن" urdu={urdu} />
-          </span>
-          <b>{row.position && !row.withheld ? `${ordinal(row.position)} of ${inSection}` : "—"}</b>
-        </div>
-        <div>
-          <span>
-            <L en="Position in class" ur="جماعت میں پوزیشن" urdu={urdu} />
-          </span>
-          <b>{row.classPosition && !row.withheld ? ordinal(row.classPosition) : "—"}</b>
-        </div>
-        <div>
-          <span>
-            <L en="Result" ur="نتیجہ" urdu={urdu} />
-          </span>
-          <b className={row.result === "FAIL" ? "fail" : undefined}>
-            {row.result ? EXAMS_RESULT_LABEL[row.result] : "—"}
-            {urdu && row.result ? (
-              <>
-                {" "}
-                <Urdu size="small">{EXAMS_RESULT_LABEL_UR[row.result]}</Urdu>
-              </>
-            ) : null}
+            <L en="Teacher's remarks" ur="استاد کے تاثرات" urdu={urdu} />
           </b>
+          <span>{row.teacherRemark}</span>
         </div>
-      </div>
-      <p className="m-0 mt-3">
-        <b>
-          <L en="Remarks" ur="کیفیت" urdu={urdu} />:
-        </b>{" "}
-        {remark}
-      </p>
-      <p className="m-0 mt-1">
-        <b>
-          <L en="Teacher's remarks" ur="استاد کے تاثرات" urdu={urdu} />:
-        </b>{" "}
-        {row.teacherRemark ?? <span style={{ color: "var(--ink-muted)" }}>____________________________________________</span>}
-      </p>
-      {!half && (
-        <p className="exams-doc-key">
-          Grades: {bands.map((b) => `${b.grade} ${b.min}–${b.max}%`).join(" · ")}. Pass mark {rules.subjectPassPercent}% in each subject and {rules.overallPassPercent}% overall.
-        </p>
       )}
-      <div className="exams-doc-signs" style={half ? { marginTop: "8mm" } : undefined}>
-        <div>
-          <L en="Class teacher" ur="کلاس ٹیچر" urdu={urdu} />
-        </div>
-        <div>
-          <L en="Controller of examinations" ur="ناظم امتحانات" urdu={urdu} />
-        </div>
-        <div>
-          <L en="Principal" ur="پرنسپل" urdu={urdu} />
-        </div>
+      <div className="exams-card-signs">
+        <span>
+          <b>
+            <L en="Controller/Superintendent" ur="ناظم امتحانات" urdu={urdu} /> :
+          </b>
+          <i />
+        </span>
+        <span>
+          <b>
+            <L en="Principal" ur="پرنسپل" urdu={urdu} /> :
+          </b>
+          <i />
+        </span>
       </div>
-      {!half && <Foot exam={exam} />}
-    </article>
+    </div>
   );
 }
 
-/** Two compact cards on each A4 sheet. */
+/** Two cards side by side on each landscape A4 sheet (the old "Result Card Primery With Column"). */
 export function HalfCards({ exam, rows, urdu }: { exam: ExamDetail; rows: ExamsResultRow[]; urdu?: boolean }) {
   const pairs: ExamsResultRow[][] = [];
   for (let i = 0; i < rows.length; i += 2) pairs.push(rows.slice(i, i + 2));
   return (
     <>
       {pairs.map((p) => (
-        <div key={p[0]!.id} className="exams-doc exams-doc-a4" style={{ padding: 0 }}>
+        <article key={p[0]!.id} className="exams-doc exams-doc-land exams-card-pair" aria-label="Result cards, two a page">
           {p.map((r) => (
             <ResultCard key={r.id} exam={exam} row={r} urdu={urdu} half />
           ))}
-        </div>
+        </article>
       ))}
     </>
   );
@@ -353,6 +388,11 @@ export function HalfCards({ exam, rows, urdu }: { exam: ExamDetail; rows: ExamsR
 /** Who a master sheet lists: everyone, re-sit (supply) holders only, or failed students only. */
 export type MasterWho = "resit" | "failed";
 
+/**
+ * The old class master sheet / supply holder sheet: "Master Sheet For Session 2026-2027", Class / Section / Exam,
+ * then Sr.#, G.R.No, Student Name, (Section), Grp, one column per subject with the heading turned on its side, a
+ * Max. Marks row, Obt., %, Grd, Pos and Failed Subjects.
+ */
 export function MasterSheet({
   exam,
   section,
@@ -375,56 +415,74 @@ export function MasterSheet({
   const rows = exam.rows
     .filter((r) => (section === "ALL" || r.classSection === section) && inGroup(group)(r) && examsOfGender(gender)(r) && (who === "resit" ? r.result === "SUPPLY" : who === "failed" ? r.result === "FAIL" : true))
     .sort((a, b) => (order === "position" ? (b.percent ?? -1) - (a.percent ?? -1) || a.name.localeCompare(b.name) : a.classSection.localeCompare(b.classSection) || a.rollNo - b.rollNo));
-  const rules = exam.passRules ?? EXAMS_DEFAULT_PASS_RULES;
-  const complete = rows.filter((r) => r.percent !== null && !r.withheld);
-  const count = (code: string) => complete.filter((r) => r.result === code).length;
   const grouped = Boolean(exam.groups?.length);
   const board = exam.category === "BOARD" && rows.some((r) => r.boardRollNo);
+  const all = section === "ALL";
   // With groups, each student's total is out of their own papers.
   const maxes = new Set(rows.map((r) => r.max));
   // Each subject's average and average % over the students listed who sit it.
   const stats = examsAnalyse({ ...exam, rows }, "ALL").subjects;
   const subjectName = (id: string) => exam.subjects.find((s) => s.id === id)?.name ?? id;
-  const lead = 4 + (board ? 1 : 0) + (section === "ALL" ? 1 : 0) + (grouped ? 1 : 0);
-  const trail = 6 + (contact ? 1 : 0);
-  const title = who === "resit" ? "Supply holder sheet" : who === "failed" ? "Failed students' master sheet" : "Master sheet";
+  const lead = 3 + (board ? 1 : 0) + (all ? 1 : 0) + (grouped ? 1 : 0);
+  const trail = 5 + (contact ? 1 : 0);
+  const title = who === "resit" ? "Supply Holder Sheet" : who === "failed" ? "Failed Students Master Sheet" : "Master Sheet";
+  const programme = Boolean(exam.programmeId);
+  const { cls, sec } = splitSection(all ? (exam.classes[0] ?? "") : section, programme);
   return (
-    <article className="exams-doc exams-doc-land" aria-label={title}>
-      <DocHead campus={exam.campus} title={title} sub={subParts(exam.name, classText(exam, section), group && group !== "ALL" ? group : "", genderText(gender), sessionOf(exam))} />
+    <article className="exams-doc exams-doc-land exams-master" aria-label={title}>
+      <Provisional exam={exam} />
+      <DocHead campus={exam.campus} title={`${title} For Session ${sessionLong(exam.session)}`} underline />
+      <Fields
+        under
+        items={[
+          !programme && ["Class", cls],
+          (!all || programme) && [programme ? "Centre" : "Section", all ? "All" : sec],
+          ["Exam", exam.name],
+          group && group !== "ALL" && ["Group", group],
+          gender && ["Gender", genderText(gender)],
+        ]}
+      />
       <table>
         <thead>
           <tr>
-            <th className="n">Roll</th>
-            <th>G.R. No.</th>
-            {board && <th>Board roll no.</th>}
-            <th>Student</th>
-            <th>Father's name</th>
-            {section === "ALL" && <th>Sec.</th>}
-            {grouped && <th>Grp</th>}
+            <th className="c">Sr.#</th>
+            <th className="c">G.R.No</th>
+            {board && <th className="c">Board Roll No</th>}
+            <th className="c" style={{ width: "36mm" }}>
+              Student Name
+            </th>
+            {all && <th className="c">{programme ? "Centre" : "Section"}</th>}
+            {grouped && (
+              <th className="c">
+                <span className="exams-vert">Grp</span>
+              </th>
+            )}
             {exam.subjects.map((s) => (
-              <th key={s.id} className="n">
-                {s.name.length > 10 ? s.name.slice(0, 9) + "." : s.name}
-                <br />
-                <span style={{ fontWeight: 400 }}>/{s.maxMarks}</span>
-                {s.date && (
-                  <>
-                    <br />
-                    <span style={{ fontWeight: 400 }}>{formatDate(s.date).slice(0, 6)}</span>
-                  </>
-                )}
+              <th key={s.id} className="c exams-vert-th">
+                <span className="exams-vert">{s.name}</span>
               </th>
             ))}
-            <th className="n">
-              Total
-              <br />
-              <span style={{ fontWeight: 400 }}>/{maxes.size === 1 ? [...maxes][0] : "own"}</span>
+            {["Obt.", "%", "Grd", "Pos"].map((t) => (
+              <th key={t} className="c">
+                <span className="exams-vert">{t}</span>
+              </th>
+            ))}
+            <th className="c" style={{ width: "42mm" }}>
+              Failed Subjects
             </th>
-            <th className="n">%</th>
-            <th className="c">Grade</th>
-            <th className="n">Pos.</th>
-            <th>Result</th>
-            <th>Failed subjects</th>
-            {contact && <th>Contact</th>}
+            {contact && <th className="c">Contact</th>}
+          </tr>
+          <tr>
+            <th colSpan={lead} className="n">
+              Max. Marks:
+            </th>
+            {exam.subjects.map((s) => (
+              <th key={s.id} className="c">
+                {s.maxMarks}
+              </th>
+            ))}
+            <th className="c">{maxes.size === 1 ? [...maxes][0] : ""}</th>
+            <th colSpan={trail - 1} />
           </tr>
         </thead>
         <tbody>
@@ -433,101 +491,164 @@ export function MasterSheet({
               <td colSpan={lead + exam.subjects.length + trail}>{who === "resit" ? "No student has a re-sit." : who === "failed" ? "No student failed." : "No students."}</td>
             </tr>
           )}
-          {rows.map((r) => (
+          {rows.map((r, i) => (
             <tr key={r.id}>
-              <td className="n">{r.rollNo}</td>
-              <td className="mtb-mono">{r.id}</td>
-              {board && <td className="mtb-mono">{r.boardRollNo ?? ""}</td>}
+              <td className="c">{order === "position" || all || !r.rollNo ? i + 1 : r.rollNo}</td>
+              <td>{r.id}</td>
+              {board && <td>{r.boardRollNo ?? ""}</td>}
               <td>{r.name}</td>
-              <td>{r.father ?? ""}</td>
-              {section === "ALL" && <td>{r.classSection}</td>}
-              {grouped && <td>{examsGroupShort(r.group)}</td>}
+              {all && <td className="c">{splitSection(r.classSection, programme).sec || r.classSection}</td>}
+              {grouped && <td className="c">{examsGroupShort(r.group)}</td>}
               {exam.subjects.map((s) => {
                 // A paper outside the student's group prints blank (not taken, not failed).
-                if (!examsSits(s, r.group)) return <td key={s.id} className="n" />;
-                const m = r.marks[s.id];
-                const low = typeof m !== "number" || m < examsPassMark(s.maxMarks, rules);
+                if (!examsSits(s, r.group)) return <td key={s.id} className="c" />;
                 return (
-                  <td key={s.id} className={low && m !== null && m !== undefined ? "n fail" : "n"}>
-                    {m === null || m === undefined ? "" : m === "A" ? "A" : m === "L" ? "L" : m}
+                  <td key={s.id} className="c">
+                    {sheetMark(r.marks[s.id])}
                   </td>
                 );
               })}
-              <td className="n">{maxes.size === 1 ? r.obtained : `${r.obtained}/${r.max}`}</td>
-              <td className="n">{r.percent === null ? "" : r.percent.toFixed(1)}</td>
+              <td className="c">{r.obtained}</td>
+              <td className="c">{pctText(r.percent)}</td>
               <td className="c">{r.withheld ? "" : (r.grade ?? "")}</td>
-              <td className="n">{r.withheld ? "" : ((section === "ALL" ? r.classPosition : r.position) ?? "")}</td>
-              <td>{r.result ? EXAMS_RESULT_LABEL[r.result] : ""}</td>
-              <td style={{ fontSize: "7.5pt" }}>{(r.failedSubjects ?? []).map(subjectName).join(", ")}</td>
-              {contact && <td className="mtb-mono">{r.guardianMobile ? formatMobile(r.guardianMobile) : ""}</td>}
+              <td className="c">{r.withheld ? "" : (all ? r.classPosition : r.position) ? ordinal((all ? r.classPosition : r.position)!) : ""}</td>
+              <td className="wrap">{(r.failedSubjects ?? []).map(subjectName).join(",")}</td>
+              {contact && <td className="c">{r.guardianMobile ?? ""}</td>}
             </tr>
           ))}
           {rows.length > 0 && (
             <>
-              <tr>
+              <tr className="exams-nob">
                 <th colSpan={lead} className="n">
                   Average
                 </th>
                 {stats.map((s) => (
-                  <th key={s.subjectId} className="n">
-                    {s.average === null ? "" : s.average.toFixed(1)}
-                  </th>
+                  <td key={s.subjectId} className="c">
+                    {s.average === null ? "" : Math.round(s.average)}
+                  </td>
                 ))}
-                <th colSpan={trail} />
+                <td colSpan={trail} />
               </tr>
-              <tr>
+              <tr className="exams-nob">
                 <th colSpan={lead} className="n">
-                  %age
+                  %Age:
                 </th>
                 {stats.map((s) => (
-                  <th key={s.subjectId} className="n">
-                    {s.averagePercent === null ? "" : formatPercent(s.averagePercent)}
-                  </th>
+                  <td key={s.subjectId} className="c">
+                    {s.averagePercent === null ? "" : Math.round(s.averagePercent)}
+                  </td>
                 ))}
-                <th colSpan={trail} />
+                <td colSpan={trail} />
               </tr>
             </>
           )}
         </tbody>
       </table>
-      <div className="exams-doc-summary" style={{ gridTemplateColumns: "repeat(5, 1fr)" }}>
-        <div>
-          <span>Appeared</span>
-          <b>{complete.length}</b>
-        </div>
-        <div>
-          <span>Passed</span>
-          <b>{count("PASS")}</b>
-        </div>
-        <div>
-          <span>Re-sit</span>
-          <b>{count("SUPPLY")}</b>
-        </div>
-        <div>
-          <span>Failed</span>
-          <b>{count("FAIL")}</b>
-        </div>
-        <div>
-          <span>Pass rate</span>
-          <b>{complete.length ? formatPercent((count("PASS") / complete.length) * 100) : "—"}</b>
-        </div>
-      </div>
-      <p className="exams-doc-key">
-        A = absent, L = leave. Marks in red are below the pass mark ({rules.subjectPassPercent}%). Position is {section === "ALL" ? "in the class" : "in the section"}; equal percentages share a position.
-        {grouped ? ` Grp = group (${(exam.groups ?? []).map((g) => `${examsGroupShort(g)} ${g}`).join(", ")}); a blank paper is one the group doesn't take, and the total is out of the student's own papers.` : ""}
-        {` Average and %age are over the students listed who sit each paper${order === "position" ? "; students are listed by percentage" : ""}.`}
-      </p>
-      <div className="exams-doc-signs" style={{ marginTop: "10mm", ...(section !== "ALL" ? { gridTemplateColumns: "repeat(4, 1fr)" } : {}) }}>
-        {section !== "ALL" && <div>Class in-charge</div>}
-        <div>Prepared by</div>
-        <div>Controller of examinations</div>
-        <div>Principal</div>
-      </div>
     </article>
   );
 }
 
-// ------------------------------------------------------------------ Position list (top N or everyone)
+// ------------------------------------------------------------------ Position tables (the old "Top Three / Top Ten Positions")
+
+export interface PositionRow {
+  id: string;
+  name: string;
+  /** Section (class-wise table) or school. */
+  section?: string;
+  /** Previous school (Diamond Minds). */
+  school?: string;
+  group?: string;
+  obtained: number | null;
+  max: number;
+  percent: number | null;
+  position: number | null;
+}
+
+/**
+ * The old position table: the heading line (Session / Exam / Class / Month), a ruled column header, then either one
+ * boxed list (class-wise) or an "Exam Title" box and a "Section :" box over each section's rows (section-wise).
+ */
+export function PositionTable({
+  fields,
+  blocks,
+  examTitle,
+  showSection,
+  showSchool,
+  sectionLabel = "Section",
+}: {
+  fields: Array<[ReactNode, ReactNode] | null | false | "" | undefined>;
+  blocks: Array<{ section: string; rows: PositionRow[] }>;
+  /** Section-wise: the "Exam Title" box over the sections. */
+  examTitle?: string;
+  showSection?: boolean;
+  showSchool?: boolean;
+  sectionLabel?: string;
+}) {
+  const grouped = blocks.some((b) => b.rows.some((r) => r.group));
+  const cols = 5 + (showSection ? 1 : 0) + (showSchool ? 1 : 0) + (grouped ? 1 : 0);
+  const sectionWise = blocks.length > 1 || Boolean(blocks[0]?.section);
+  const tag = (label: string, value: string, key: string) => (
+    <tr key={key} className="exams-pos-tag">
+      <th>{label}</th>
+      <td className="c">
+        <b className="exams-u">{value}</b>
+      </td>
+      <td colSpan={cols - 2} className="exams-nob" />
+    </tr>
+  );
+  const gap = (key: string) => (
+    <tr key={key} className="exams-pos-gap">
+      <td colSpan={cols} />
+    </tr>
+  );
+  return (
+    <>
+      <Fields items={fields} style={{ justifyContent: "space-between" }} />
+      <table className="exams-pos">
+        <thead>
+          <tr>
+            <th className="c">G.R.No</th>
+            <th className="c">Student Name</th>
+            {showSection && <th className="c">{sectionLabel}</th>}
+            {showSchool && <th className="c">Previous School Name</th>}
+            {grouped && <th className="c">Group</th>}
+            <th className="c">Marks</th>
+            <th className="c">%Age</th>
+            <th className="c">Position</th>
+          </tr>
+        </thead>
+        <tbody>
+          {gap("top")}
+          {examTitle && sectionWise && [tag("Exam Title", examTitle, "exam"), gap("exam-gap")]}
+          {blocks.flatMap((b) => [
+            ...(sectionWise && b.section ? [tag("Section :", b.section, `s-${b.section}`), gap(`g-${b.section}`)] : []),
+            ...(b.rows.length === 0
+              ? [
+                  <tr key={`e-${b.section}`}>
+                    <td colSpan={cols}>No complete results.</td>
+                  </tr>,
+                ]
+              : b.rows.map((r) => (
+                  <tr key={`${b.section}-${r.id}`}>
+                    <td className="c nw">{r.id}</td>
+                    <td>{r.name}</td>
+                    {showSection && <td>{r.section ?? ""}</td>}
+                    {showSchool && <td className="c">{r.school ?? ""}</td>}
+                    {grouped && <td className="c">{r.group ?? ""}</td>}
+                    <td className="c nw">{r.max ? `${r.obtained ?? 0} / ${r.max}` : ""}</td>
+                    <td className="c nw">{pctText(r.percent)}</td>
+                    <td className="c">{r.position ? ordinal(r.position) : ""}</td>
+                  </tr>
+                ))),
+            gap(`after-${b.section}`),
+          ])}
+        </tbody>
+      </table>
+    </>
+  );
+}
+
+const topWord = (n: number) => (n === 3 ? "Three" : n === 5 ? "Five" : n === 10 ? "Ten" : n === 20 ? "Twenty" : String(n));
 
 export function PositionList({
   exam,
@@ -548,7 +669,7 @@ export function PositionList({
   /** One block per section, each with its own top N by section position. */
   perSection?: boolean;
 }) {
-  const grouped = Boolean(exam.groups?.length);
+  const programme = Boolean(exam.programmeId);
   const base = exam.rows
     .filter((r) => (section === "ALL" || r.classSection === section) && r.percent !== null && !r.withheld && inGroup(group)(r) && examsOfGender(gender)(r))
     .sort((a, b) => (b.percent ?? 0) - (a.percent ?? 0) || a.name.localeCompare(b.name));
@@ -560,76 +681,47 @@ export function PositionList({
     const cutRank = top > 0 && list[top - 1] ? pos(list[top - 1]!) : Infinity;
     return top > 0 ? list.filter((r, i) => i < top || pos(r) === cutRank) : list;
   };
+  const toRow = (r: ExamsResultRow): PositionRow => ({
+    id: r.id,
+    name: r.name,
+    section: splitSection(r.classSection, programme).sec || r.classSection,
+    group: r.group ? examsGroupShort(r.group) : undefined,
+    obtained: r.obtained,
+    max: r.max,
+    percent: r.percent,
+    position: pos(r),
+  });
   // Section-wise, like the old "top three positions" table: positions 1 to N of each section (ties share a position).
   const blocks = perSection
-    ? (section === "ALL" ? exam.classes : [section]).map((cs) => ({ cs, rows: base.filter((r) => r.classSection === cs && (top <= 0 || pos(r) <= top)).sort((a, b) => pos(a) - pos(b) || a.name.localeCompare(b.name)) }))
-    : [{ cs: "", rows: cut(base) }];
-  const extra = perSection ? 0 : Math.max(0, blocks[0]!.rows.length - (top > 0 ? top : blocks[0]!.rows.length));
-  const showSection = !perSection && section === "ALL";
-  const head = (
-    <tr>
-      <th className="n">Position</th>
-      <th>G.R. No.</th>
-      <th>Student</th>
-      <th>Father's name</th>
-      {showSection && <th>Section</th>}
-      {grouped && <th>Grp</th>}
-      <th className="n">Marks</th>
-      <th className="n">%age</th>
-      <th className="c">Grade</th>
-    </tr>
-  );
-  const body = (list: ExamsResultRow[]) =>
-    list.map((r) => (
-      <tr key={r.id}>
-        <td className="n">{ordinal(pos(r))}</td>
-        <td className="mtb-mono">{r.id}</td>
-        <td>{r.name}</td>
-        <td>{r.father ?? ""}</td>
-        {showSection && <td>{r.classSection}</td>}
-        {grouped && <td>{examsGroupShort(r.group)}</td>}
-        <td className="n">
-          {r.obtained}/{r.max}
-        </td>
-        <td className="n">{formatPercent(r.percent ?? 0)}</td>
-        <td className="c">{r.grade}</td>
-      </tr>
-    ));
-  const title = top > 0 ? `Top ${top === 3 ? "three" : top} positions${perSection ? " (section-wise)" : ""}` : "Position list";
+    ? (section === "ALL" ? exam.classes : [section]).map((cs) => ({
+        section: splitSection(cs, programme).sec || cs,
+        rows: base
+          .filter((r) => r.classSection === cs && (top <= 0 || pos(r) <= top))
+          .sort((a, b) => pos(a) - pos(b) || a.name.localeCompare(b.name))
+          .map(toRow),
+      }))
+    : [{ section: "", rows: cut(base).map(toRow) }];
+  const title = top > 0 ? `Top ${topWord(top)} Positions (${perSection ? "Section-Wise" : section === "ALL" ? "Class-Wise" : "Section-Wise"})` : `Position List (${section === "ALL" && !perSection ? "Class-Wise" : "Section-Wise"})`;
   return (
     <article className="exams-doc exams-doc-a4" aria-label="Position list">
-      <DocHead campus={exam.campus} title={title} sub={subParts(exam.name, classText(exam, section), group && group !== "ALL" ? group : "", genderText(gender), sessionOf(exam))} />
-      {perSection ? (
-        blocks.map((b) => (
-          <section key={b.cs} style={{ marginBottom: "4mm", breakInside: "avoid" }}>
-            <p style={{ margin: "0 0 1mm", fontWeight: 600 }}>Section: {b.cs}</p>
-            {b.rows.length === 0 ? (
-              <p style={{ margin: 0, color: "var(--ink-muted)" }}>No complete results.</p>
-            ) : (
-              <table>
-                <thead>{head}</thead>
-                <tbody>{body(b.rows)}</tbody>
-              </table>
-            )}
-          </section>
-        ))
-      ) : (
-        <table>
-          <thead>{head}</thead>
-          <tbody>{body(blocks[0]!.rows)}</tbody>
-        </table>
-      )}
-      <p className="exams-doc-key">
-        Positions by percentage{bySection ? " within each section" : " in the class"}; equal percentages share a position
-        {perSection && top > 0 ? `, so positions 1 to ${top} can list more than ${top} students` : extra > 0 ? `, so ${extra} more ${extra === 1 ? "student is" : "students are"} listed at the cut-off` : ""}.
-        {ranks ? ` Positions are among the ${genderText(gender).toLowerCase()} listed only.` : gender ? " Positions are the exam's positions (boys and girls together)." : ""}
-      </p>
-      <div className="exams-doc-signs">
-        <div>Controller of examinations</div>
-        <div />
-        <div>Principal</div>
-      </div>
-      <Foot exam={exam} />
+      <Provisional exam={exam} />
+      <DocHead campus={exam.campus} title={title} underline />
+      <PositionTable
+        fields={[
+          ["Session", <b key="s">{sessionLong(exam.session)}</b>],
+          !perSection && ["Exam", <b key="e">{exam.name}</b>],
+          !programme && ["Class", <b key="c">{examClass(exam)}</b>],
+          section !== "ALL" && !perSection && ["Section", <b key="x">{splitSection(section, programme).sec}</b>],
+          group && group !== "ALL" && ["Group", <b key="g">{group}</b>],
+          gender && ["Gender", <b key="gn">{genderText(gender)}</b>],
+          ["Month", <b key="m">{examMonth(exam)}</b>],
+        ]}
+        blocks={blocks}
+        examTitle={perSection ? exam.name : undefined}
+        showSection={!perSection && section === "ALL"}
+        sectionLabel={programme ? "Centre" : "Section"}
+      />
+      {ranks && <p className="exams-doc-key">Positions are among the {genderText(gender).toLowerCase()} listed only.</p>}
     </article>
   );
 }
@@ -642,7 +734,7 @@ export type AwardCols = "marks" | "sign" | "split" | "monthly";
 export const AWARD_COLS: Array<{ value: AwardCols; label: string }> = [
   { value: "marks", label: "Signature, marks and remarks" },
   { value: "sign", label: "Signature and obtained" },
-  { value: "split", label: "Signature, subjective, objective, total" },
+  { value: "split", label: "Signature, subjective, objective, total (term/semester)" },
   { value: "monthly", label: "Monthly sheet: date columns, total, average" },
 ];
 
@@ -658,20 +750,43 @@ interface AwardProps {
   dates?: number | undefined;
 }
 
-/** A blank line to write on. */
-const Fill = ({ w = "24mm" }: { w?: string }) => <span className="exams-fill" style={{ minWidth: w }} />;
+/** "__/__/__" or the paper's date. */
+const DateBlank = ({ subject }: { subject: ExamsSubject | null }) => (subject?.date ? <>{formatDate(subject.date)}</> : <>____/____/____</>);
+
+/** The old award list footer: Present / Absent, Blank Sheets / Answer Sheets, Invigilator / Checker, Rechecker, HOD Sign. */
+function Tally({ subject, compact }: { subject: ExamsSubject | null; compact?: boolean }) {
+  const line = (label: string, value?: ReactNode) => (
+    <span>
+      <b>{label}</b>
+      {value ? <span className="exams-u">{value}</span> : <Fill w={compact ? "26mm" : "32mm"} />}
+    </span>
+  );
+  return (
+    <div className={compact ? "exams-tally exams-tally-compact" : "exams-tally"}>
+      {line("Present:")}
+      {line("Absent:")}
+      {line("Blank Sheets:")}
+      {line("Answer Sheets:")}
+      {line("Invigilator:", subject?.supervisor)}
+      {line("Checker:")}
+      <span />
+      {line("Rechecker:")}
+      <span />
+      {line("HOD Sign:")}
+    </div>
+  );
+}
 
 /** Award (script marking) list for one section and paper: the teacher's copy to mark against. */
 export function AwardList(props: AwardProps) {
   return (
     <article className="exams-doc exams-doc-a4" aria-label="Award list">
       <AwardBody {...props} />
-      <Foot exam={props.exam} page={`${props.subject?.name ?? "Paper not filled in"} · ${props.section}`} />
     </article>
   );
 }
 
-/** Two copies of the same list side by side on one A4 sheet, with compact rows (signature and obtained). */
+/** Two copies of the same list side by side on one A4 sheet (the old section-wise "Script Marking List"). */
 export function AwardPair(props: AwardProps) {
   return (
     <article className="exams-doc exams-doc-a4 exams-award-pair" aria-label="Award list, two copies">
@@ -681,95 +796,138 @@ export function AwardPair(props: AwardProps) {
   );
 }
 
-function AwardBody({ exam, section, subject, teacher, gender, cols = "marks", dates = 5, compact }: AwardProps & { compact?: boolean }) {
+function AwardBody({ exam, section, subject, gender, cols = "marks", dates = 5, compact }: AwardProps & { compact?: boolean }) {
   // Only the students whose group sits this paper (everyone when the paper is left blank).
   const rows = exam.rows.filter((r) => r.classSection === section && (!subject || examsSits(subject, r.group)) && examsOfGender(gender)(r)).sort((a, b) => a.rollNo - b.rollNo);
   const grouped = Boolean(exam.groups?.length);
   const monthly = cols === "monthly";
   const nDates = Math.min(6, Math.max(3, dates));
-  const showFather = cols === "marks" && !compact;
-  const title = monthly ? "Monthly script marking list" : "Script marking list (award list)";
-  return (
-    <div>
-      {compact ? (
-        <div className="exams-award-head">
-          <b>Script marking list</b>
+  const programme = Boolean(exam.programmeId);
+  const { cls, sec } = splitSection(section, programme);
+  const secText = [sec || section, genderText(gender)].filter(Boolean).join(" ");
+  const subjectText = subject ? `${subject.name}${subject.groups?.length ? ` (${subject.groups.join(", ")})` : ""}` : <Fill w="22mm" />;
+  const maxText = subject ? subject.maxMarks : <Fill w="14mm" />;
+
+  if (compact)
+    return (
+      <div className="exams-award-copy">
+        <div className="exams-award-title">Script Marking List</div>
+        <div className="exams-award-grid">
           <span>
-            {campusLabel(exam.campus)} · {exam.name} · {sessionOf(exam)}
+            <b>Exam:</b> {exam.name}
+          </span>
+          <span>
+            <b>Session:</b> {sessionLong(exam.session)}
+          </span>
+          <span>
+            <b>Class:</b> {cls}
+          </span>
+          <span>
+            <b>Section:</b> {secText}
+          </span>
+          <span />
+          <span>
+            <b>Total Students:</b> {rows.length}
           </span>
         </div>
+        <div className="exams-award-line">
+          <span>
+            <b>Date:</b> <DateBlank subject={subject} />
+          </span>
+          <span>
+            <b>Subject:</b> {subjectText}
+          </span>
+          <span>
+            <b>Max Marks:</b> {maxText}
+          </span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th className="c">Sr#</th>
+              <th className="c">Student Name</th>
+              {grouped && <th className="c">Group</th>}
+              <th className="c" style={{ width: "19mm" }}>
+                Sign.
+              </th>
+              <th className="c" style={{ width: "10mm" }}>
+                Obt.
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={r.id}>
+                <td className="c">{i + 1}</td>
+                <td>
+                  {r.id} - {r.name}
+                </td>
+                {grouped && <td>{examsGroupShort(r.group)}</td>}
+                <td />
+                <td />
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <Tally subject={subject} compact />
+      </div>
+    );
+
+  return (
+    <div className="exams-award-doc">
+      <DocHead campus={exam.campus} title={monthly ? "Monthly Script Marking List" : "Script Marking List"} />
+      {monthly ? (
+        <div className="exams-award-info">
+          <Fields under items={[["Exam", exam.name]]} style={{ justifyContent: "center" }} />
+          <Fields items={[["Class", cls], ["Section", secText], ["Total Students", rows.length]]} style={{ justifyContent: "center" }} />
+          <Fields items={[["Month", subject?.date ? new Date(`${subject.date}T00:00:00`).toLocaleString("en-US", { month: "long" }) : <Fill key="m" w="26mm" />], ["Subject", subjectText], ["Max Marks", maxText]]} style={{ justifyContent: "center" }} />
+        </div>
       ) : (
-        <DocHead campus={exam.campus} title={title} sub={subParts(exam.name, sessionOf(exam), genderText(gender))} />
+        <div className="exams-award-info">
+          <Fields under items={[["Exam", exam.name], ["Session", sessionLong(exam.session)]]} />
+          <Fields under items={[["Class", cls], ["Section", secText]]} />
+          <Fields under items={[["Total Students", rows.length]]} />
+          <Fields items={[["Date", <DateBlank key="d" subject={subject} />], ["Subject", subjectText], ["Max Marks", maxText]]} />
+        </div>
       )}
-      <dl className="exams-doc-info" style={{ gridTemplateColumns: compact ? "1fr 1fr" : "repeat(4, 1fr)", fontSize: compact ? "8pt" : undefined }}>
-        <div>
-          <dt>Class and section</dt>
-          <dd>{section}</dd>
-        </div>
-        <div>
-          <dt>Subject</dt>
-          <dd>{subject ? `${subject.name}${subject.groups?.length ? ` (${subject.groups.join(", ")})` : ""}` : <Fill />}</dd>
-        </div>
-        <div>
-          <dt>Maximum marks</dt>
-          <dd>{subject ? subject.maxMarks : <Fill w="14mm" />}</dd>
-        </div>
-        <div>
-          <dt>{monthly ? "Month" : "Paper date"}</dt>
-          <dd>{!monthly && subject?.date ? formatDate(subject.date) : <Fill w="18mm" />}</dd>
-        </div>
-        {!compact && (
-          <div style={{ gridColumn: "span 2" }}>
-            <dt>Teacher</dt>
-            <dd>{subject ? (teacher ?? "—") : <Fill w="40mm" />}</dd>
-          </div>
-        )}
-        <div style={compact ? undefined : { gridColumn: "span 2" }}>
-          <dt>Total students</dt>
-          <dd>{rows.length}</dd>
-        </div>
-      </dl>
-      <table>
+      <table className="exams-award">
         <thead>
           <tr>
-            <th className="n">{compact ? "Sr#" : "Roll"}</th>
-            {compact ? (
-              <th>Student</th>
-            ) : (
-              <>
-                <th>G.R. No.</th>
-                <th>Student</th>
-              </>
+            {!monthly && <th className="c">Sr #</th>}
+            <th className="c">GR No.</th>
+            <th className="c">Student Name</th>
+            {grouped && <th className="c">{monthly ? "G" : "Group"}</th>}
+            {!monthly && (
+              <th className="c" style={{ width: "24mm" }}>
+                Sign.
+              </th>
             )}
-            {showFather && <th>Father's name</th>}
-            {grouped && <th>Grp</th>}
-            {!monthly && <th style={{ width: compact ? "18mm" : "24mm" }}>Sign.</th>}
             {cols === "marks" && (
               <>
                 <th className="c" style={{ width: "20mm" }}>
-                  Marks{subject ? ` /${subject.maxMarks}` : ""}
+                  Marks
                 </th>
-                <th style={{ width: "26mm" }}>Remarks</th>
+                <th className="c" style={{ width: "26mm" }}>
+                  Remarks
+                </th>
               </>
             )}
             {cols === "sign" && (
-              <th className="c" style={{ width: compact ? "11mm" : "20mm" }}>
+              <th className="c" style={{ width: "20mm" }}>
                 Obt.
               </th>
             )}
             {cols === "split" &&
               ["Subjective", "Objective", "Total"].map((t) => (
-                <th key={t} className="c" style={{ width: "18mm" }}>
+                <th key={t} className="c" style={{ width: "20mm" }}>
                   {t}
                 </th>
               ))}
             {monthly && (
               <>
                 {Array.from({ length: nDates }, (_, i) => (
-                  <th key={i} className="c" style={{ width: "14mm" }}>
+                  <th key={i} className="c" style={{ width: "15mm" }}>
                     Date
-                    <br />
-                    <span style={{ fontWeight: 400 }}>__/__</span>
                   </th>
                 ))}
                 <th className="c" style={{ width: "13mm" }}>
@@ -785,19 +943,10 @@ function AwardBody({ exam, section, subject, teacher, gender, cols = "marks", da
         <tbody>
           {rows.map((r, i) => (
             <tr key={r.id}>
-              <td className="n">{compact ? i + 1 : r.rollNo}</td>
-              {compact ? (
-                <td>
-                  <span className="mtb-mono">{r.id}</span> – {r.name}
-                </td>
-              ) : (
-                <>
-                  <td className="mtb-mono">{r.id}</td>
-                  <td>{r.name}</td>
-                </>
-              )}
-              {showFather && <td>{r.father ?? ""}</td>}
-              {grouped && <td>{examsGroupShort(r.group)}</td>}
+              {!monthly && <td className="c">{i + 1}</td>}
+              <td className="c nw">{r.id}</td>
+              <td>{r.name}</td>
+              {grouped && <td className="c">{examsGroupShort(r.group)}</td>}
               {!monthly && <td />}
               {cols === "marks" && (
                 <>
@@ -813,112 +962,62 @@ function AwardBody({ exam, section, subject, teacher, gender, cols = "marks", da
                   <td />
                 </>
               )}
-              {monthly && (
-                <>
-                  {Array.from({ length: nDates + 2 }, (_, k) => (
-                    <td key={k} />
-                  ))}
-                </>
-              )}
+              {monthly &&
+                Array.from({ length: nDates + 2 }, (_, k) => (
+                  <td key={k} />
+                ))}
             </tr>
           ))}
         </tbody>
       </table>
-      {monthly ? (
-        <>
-          <table style={{ marginTop: "4mm" }} aria-label="Syllabus covered">
-            <tbody>
-              <tr>
-                <th style={{ width: "22mm" }}>Date</th>
-                {Array.from({ length: nDates }, (_, i) => (
-                  <td key={i} />
-                ))}
-              </tr>
-              <tr>
-                <th>Syllabus</th>
-                {Array.from({ length: nDates }, (_, i) => (
-                  <td key={i} style={{ height: "16mm" }} />
-                ))}
-              </tr>
-            </tbody>
-          </table>
-          <p className="exams-doc-key">Write the date over each column on the day of the test, and A for absent or L for leave.</p>
-          <div className="exams-doc-signs" style={{ marginTop: "10mm" }}>
-            <div>Subject teacher</div>
-            <div>Checker</div>
-            <div>Re-checker</div>
-          </div>
-        </>
-      ) : compact ? (
-        <div className="exams-tally">
-          {["Present", "Absent", "Blank sheets", "Answer sheets", "Invigilator", "Checker", "Re-checker", "HOD sign"].map((t) => (
-            <span key={t}>
-              {t}: {t === "Invigilator" && subject?.supervisor ? <b>{subject.supervisor}</b> : <Fill w="20mm" />}
-            </span>
-          ))}
-        </div>
-      ) : (
-        <>
-          <div className="exams-doc-summary" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
-            {["Present", "Absent", "Blank sheets", "Answer sheets"].map((t) => (
-              <div key={t}>
-                <span>{t}</span>
-                <b>&nbsp;</b>
-              </div>
-            ))}
-          </div>
-          <p className="exams-doc-key">Write A for absent and L for leave — never leave a box empty. Hand the list to the exam office with the scripts.</p>
-          <div className="exams-doc-signs" style={{ gridTemplateColumns: "repeat(4, 1fr)", gap: "6mm" }}>
-            <div>
-              {subject?.supervisor && (
-                <b style={{ display: "block", color: "var(--ink)" }}>{subject.supervisor}</b>
-              )}
-              Invigilator
-            </div>
-            <div>Checker</div>
-            <div>Re-checker</div>
-            <div>Head of department</div>
-          </div>
-        </>
-      )}
+      {!monthly && <Tally subject={subject} />}
     </div>
   );
 }
 
-// ------------------------------------------------------------------ Envelope labels (answer-script packets)
+// ------------------------------------------------------------------ Envelope tags (answer-script packets)
 
+/** The old "Exam Envelops Tag": a small boxed table per packet, two across and six down on A4. */
 export function EnvelopeLabels({ exam, sections, subjectId }: { exam: ExamDetail; sections: string[]; /** One paper only (the day's paper), or every paper. */ subjectId?: string | undefined }) {
   const subjects = exam.subjects.filter((s) => !subjectId || s.id === subjectId);
-  const labels = sections.flatMap((cs) => subjects.map((s) => ({ cs, s, p: exam.papers?.find((x) => x.classSection === cs && x.subjectId === s.id) })));
+  const programme = Boolean(exam.programmeId);
+  const labels = subjects.flatMap((s) => sections.map((cs) => ({ cs, s, p: exam.papers?.find((x) => x.classSection === cs && x.subjectId === s.id) })));
   const pages: (typeof labels)[] = [];
-  for (let i = 0; i < labels.length; i += 8) pages.push(labels.slice(i, i + 8));
+  for (let i = 0; i < labels.length; i += 12) pages.push(labels.slice(i, i + 12));
   return (
     <>
       {pages.map((page, i) => (
-        <article key={i} className="exams-doc exams-doc-a4" aria-label={`Envelope labels, sheet ${i + 1}`}>
+        <article key={i} className="exams-doc exams-doc-a4" aria-label={`Envelope tags, sheet ${i + 1}`}>
           <div className="exams-label-sheet">
             {page.map(({ cs, s, p }) => (
-              <div key={`${cs}-${s.id}`} className="exams-label">
-                <span style={{ fontSize: "8.5pt", color: "var(--ink-muted)" }}>
-                  MTB Schools and Colleges · {campusLabel(exam.campus)}
-                </span>
-                <strong>
-                  {s.name} · {cs}
-                </strong>
-                <span>
-                  {exam.name} · {sessionOf(exam)}
-                </span>
-                <span>
-                  {s.date ? `${formatWeekday(s.date)} ${formatDate(s.date)}` : "Date not set"}
-                  {s.startTime ? ` · ${s.startTime}` : ""}
-                </span>
-                <span>
-                  Scripts: <b>{p?.candidates ?? 0}</b> · Maximum marks: <b>{s.maxMarks}</b>
-                </span>
-                <span>Teacher: {p?.teacher ?? "—"}</span>
-                <span>Invigilator: {s.supervisor ?? "—"}</span>
-                <span style={{ marginTop: "2mm", fontSize: "8.5pt", color: "var(--ink-muted)" }}>Sealed by ____________ Received by ____________</span>
-              </div>
+              <table key={`${cs}-${s.id}`} className="exams-tag">
+                <tbody>
+                  <tr>
+                    <th>Exam:</th>
+                    <td>{exam.name}</td>
+                  </tr>
+                  <tr>
+                    <th>Session:</th>
+                    <td>{sessionLong(exam.session)}</td>
+                  </tr>
+                  <tr>
+                    <th>Class &amp; Section</th>
+                    <td>{classAndSection(cs, programme)}</td>
+                  </tr>
+                  <tr>
+                    <th>Subject</th>
+                    <td>{s.name}</td>
+                  </tr>
+                  <tr>
+                    <th>No. of Students</th>
+                    <td>{p?.candidates ?? exam.rows.filter((r) => r.classSection === cs && examsSits(s, r.group)).length}</td>
+                  </tr>
+                  <tr>
+                    <th>Issue Date:</th>
+                    <td>{s.date ? formatDate(s.date) : printedOn()}</td>
+                  </tr>
+                </tbody>
+              </table>
             ))}
           </div>
         </article>
@@ -940,43 +1039,36 @@ export function RollSlips({ exam, section, urdu }: { exam: ExamDetail; section: 
           <div className="exams-slip-sheet">
             {page.map((r) => (
               <div key={r.id} className="exams-slip">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <span className="exams-doc-seal" style={{ width: "10mm", height: "10mm", fontSize: "8pt" }}>
-                      MTB
-                    </span>
-                    <div>
-                      <b>Roll number slip</b>
-                      {urdu && (
-                        <>
-                          {" "}
-                          · <Urdu size="small">رول نمبر سلپ</Urdu>
-                        </>
-                      )}
-                      <div style={{ fontSize: "8.5pt", color: "var(--ink-muted)" }}>
-                        {exam.name} · {campusLabel(exam.campus)}
-                      </div>
+                <Letterhead
+                  campus={exam.campus}
+                  variant="slip"
+                  titleCase="as-is"
+                  title={
+                    <>
+                      Roll Number Slip{urdu && <> · <Urdu size="small">رول نمبر سلپ</Urdu></>} · {exam.name}
+                    </>
+                  }
+                  right={
+                    <div style={{ textAlign: "right" }}>
+                      <div style={{ fontSize: "8.5pt" }}>Roll no.</div>
+                      <b style={{ fontSize: "16pt" }}>
+                        {section}/{String(r.rollNo).padStart(2, "0")}
+                      </b>
                     </div>
-                  </div>
-                  <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: "8.5pt", color: "var(--ink-muted)" }}>Roll no.</div>
-                    <b style={{ fontSize: "16pt" }}>
-                      {section}/{String(r.rollNo).padStart(2, "0")}
-                    </b>
-                  </div>
-                </div>
+                  }
+                />
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "2mm" }}>
                   <span>
-                    <span style={{ color: "var(--ink-muted)" }}>Student: </span>
-                    <b>{r.name}</b>
+                    <b>Student: </b>
+                    {r.name}
                   </span>
                   <span>
-                    <span style={{ color: "var(--ink-muted)" }}>Father: </span>
-                    {r.father ?? "—"}
+                    <b>Father: </b>
+                    {r.father ?? ""}
                   </span>
                   <span>
-                    <span style={{ color: "var(--ink-muted)" }}>G.R. No.: </span>
-                    <span className="mtb-mono">{r.id}</span>
+                    <b>G.R. No.: </b>
+                    {r.id}
                   </span>
                 </div>
                 <table style={{ fontSize: "8.5pt" }}>
@@ -998,7 +1090,7 @@ export function RollSlips({ exam, section, urdu }: { exam: ExamDetail; section: 
                     </tr>
                   </tbody>
                 </table>
-                <div className="flex justify-between" style={{ fontSize: "8.5pt", color: "var(--ink-muted)" }}>
+                <div className="flex justify-between" style={{ fontSize: "8.5pt" }}>
                   <span>Bring this slip to every paper. Arrive 15 minutes early.</span>
                   <span>Controller of examinations ____________</span>
                 </div>
@@ -1078,7 +1170,6 @@ export function DateSheetDoc({ exam, urdu }: { exam: ExamDetail; urdu?: boolean 
         <div>Controller of examinations</div>
         <div>Principal</div>
       </div>
-      <Foot exam={exam} />
     </article>
   );
 }
@@ -1146,7 +1237,6 @@ export function FailedList({ exam, section, group, gender }: { exam: ExamDetail;
         <div>Controller of examinations</div>
         <div>Principal</div>
       </div>
-      <Foot exam={exam} />
     </article>
   );
 }
@@ -1192,39 +1282,55 @@ export function TeacherReport({ exam, section, gender }: { exam: ExamDetail; sec
         </tbody>
       </table>
       <p className="exams-doc-key">Pass rate below 70% is shown in red. Average is the class's average mark as a % of the paper's maximum.</p>
-      <Foot exam={exam} />
     </article>
   );
 }
 
 // ------------------------------------------------------------------ Absent report (one section a page)
 
-/** Each paper's mark or A/L for one section, with each student's absences and fine, and the absences per paper. */
+/**
+ * The old "Absent Report" (Test Absent): Session / Exam / Month / Class, then Sr.#, G.R.No, Student Name, each paper's
+ * date with the mark or A (L for leave), the number of absences and the fine. One section a page, A4 landscape.
+ */
 export function AbsentReport({ exam, section, gender }: { exam: ExamDetail; section: string; gender?: ExamsGender }) {
   const rows = exam.rows.filter((r) => r.classSection === section && examsOfGender(gender)(r)).sort((a, b) => a.rollNo - b.rollNo);
   const papers = [...exam.subjects].sort((a, b) => (a.date ?? "9").localeCompare(b.date ?? "9"));
   const fine = exam.absenceFine ?? 0;
   const absentIn = (r: ExamsResultRow) => papers.filter((s) => r.marks[s.id] === "A").length;
-  const totalAbsent = rows.reduce((a, r) => a + absentIn(r), 0);
-  const leaves = rows.reduce((a, r) => a + papers.filter((s) => r.marks[s.id] === "L").length, 0);
+  // Two papers on one day: the subject goes under the date so the columns can be told apart.
+  const days = papers.map((s) => s.date ?? "");
+  const shared = (d: string) => !d || days.filter((x) => x === d).length > 1;
   return (
-    <article className="exams-doc exams-doc-a4" aria-label={`Absent report, ${section}`}>
-      <DocHead campus={exam.campus} title="Absent report" sub={subParts(exam.name, section, genderText(gender), sessionOf(exam))} />
-      <table style={{ fontSize: papers.length > 7 ? "8pt" : "9pt" }}>
+    <article className="exams-doc exams-doc-land" aria-label={`Absent report, ${section}`}>
+      <DocHead campus={exam.campus} title="Absent Report" />
+      <Fields
+        items={[
+          ["Session", sessionLong(exam.session)],
+          ["Exam", exam.name],
+          ["Month", examMonth(exam)],
+          ["Class", classAndSection(section, Boolean(exam.programmeId))],
+          gender && ["Gender", genderText(gender)],
+        ]}
+      />
+      <table className="exams-absent" style={{ width: "auto", fontSize: papers.length > 12 ? "7.5pt" : "8.5pt" }}>
         <thead>
           <tr>
-            <th className="n">Sr#</th>
-            <th>G.R. No.</th>
-            <th>Student</th>
+            <th className="c">Sr.#</th>
+            <th className="c">G.R.No</th>
+            <th className="c">Student Name</th>
             {papers.map((s) => (
               <th key={s.id} className="c">
-                {dayMonth(s.date) || "—"}
-                <br />
-                <span style={{ fontWeight: 400 }}>{s.name.length > 9 ? `${s.name.slice(0, 8)}.` : s.name}</span>
+                {dayMonth(s.date) || s.name}
+                {s.date && shared(s.date) && (
+                  <>
+                    <br />
+                    <span style={{ fontWeight: 400 }}>{s.name.length > 9 ? `${s.name.slice(0, 8)}.` : s.name}</span>
+                  </>
+                )}
               </th>
             ))}
-            <th className="n">Absent</th>
-            <th className="n">Fine</th>
+            <th className="c">Total</th>
+            <th className="c">Fine</th>
           </tr>
         </thead>
         <tbody>
@@ -1232,47 +1338,26 @@ export function AbsentReport({ exam, section, gender }: { exam: ExamDetail; sect
             const n = absentIn(r);
             return (
               <tr key={r.id}>
-                <td className="n">{i + 1}</td>
-                <td className="mtb-mono">{r.id}</td>
+                <td className="c">{i + 1}</td>
+                <td>{r.id}</td>
                 <td>{r.name}</td>
                 {papers.map((s) => {
                   // A paper outside the student's group prints blank; a mark not entered yet shows a dash.
                   if (!examsSits(s, r.group)) return <td key={s.id} className="c" />;
                   const m = r.marks[s.id];
                   return (
-                    <td key={s.id} className={m === "A" ? "c fail" : "c"}>
+                    <td key={s.id} className="c">
                       {m === null || m === undefined ? "—" : String(m)}
                     </td>
                   );
                 })}
-                <td className="n">{n}</td>
-                <td className="n">{n * fine}</td>
+                <td className="c">{n}</td>
+                <td className="c">{n * fine}</td>
               </tr>
             );
           })}
-          <tr>
-            <th colSpan={3} className="n">
-              Total absent per paper
-            </th>
-            {papers.map((s) => (
-              <th key={s.id} className="c">
-                {rows.filter((r) => r.marks[s.id] === "A").length}
-              </th>
-            ))}
-            <th className="n">{totalAbsent}</th>
-            <th className="n">{totalAbsent * fine}</th>
-          </tr>
         </tbody>
       </table>
-      <p className="exams-doc-key">
-        A = absent, L = leave. {fine > 0 ? `Fine ${formatRs(fine)} for each paper missed without leave; leave is never fined.` : "This exam type has no absence fine."} {leaves > 0 ? `${leaves} ${leaves === 1 ? "paper was" : "papers were"} missed on leave.` : ""}
-      </p>
-      <div className="exams-doc-signs">
-        <div>Class teacher</div>
-        <div>Controller of examinations</div>
-        <div>Principal</div>
-      </div>
-      <Foot exam={exam} page={section} />
     </article>
   );
 }
@@ -1362,7 +1447,6 @@ export function SubjectPerformance({ exam, section, gender }: { exam: ExamDetail
         </table>
       </div>
       <p className="exams-doc-key">Absent counts absent and leave. Failures are students who sat the paper and scored below the pass mark; pass %age is of everyone with a mark.</p>
-      <Foot exam={exam} />
     </article>
   );
 }
@@ -1398,43 +1482,33 @@ export function HifzSheet({ exam, section, filled }: { exam: ExamDetail; section
   const sum = (r: ExamsResultRow, papers: ExamsSubject[]) => (papers.every((s) => (r.marks[s.id] ?? null) === null) ? "" : papers.reduce((a, s) => a + (typeof r.marks[s.id] === "number" ? (r.marks[s.id] as number) : 0), 0));
   return (
     <article className="exams-doc exams-doc-land" aria-label={`Hifz marking sheet, ${section}`} style={{ fontSize: "7.5pt" }}>
-      <DocHead campus={exam.campus} title="Script marking list (Shoba-e-Hifz)" titleUr="شعبہ حفظ" urdu sub={subParts(exam.name, sessionOf(exam))} />
-      <dl className="exams-doc-info" style={{ gridTemplateColumns: "repeat(5, 1fr)" }}>
-        <div>
-          <dt>Class and section</dt>
-          <dd>{section}</dd>
-        </div>
-        <div>
-          <dt>Teacher</dt>
-          <dd>{teacher ?? <Fill w="36mm" />}</dd>
-        </div>
-        <div>
-          <dt>Date</dt>
-          <dd>{date ? formatDate(date) : <Fill />}</dd>
-        </div>
-        <div>
-          <dt>Total marks</dt>
-          <dd>{exam.totalMax}</dd>
-        </div>
-        <div>
-          <dt>Students</dt>
-          <dd>{rows.length}</dd>
-        </div>
-      </dl>
+      <DocHead campus={exam.campus} title="Script Marking List" />
+      <div className="exams-award-info">
+        <Fields items={[["Class", splitSection(section).cls], ["Exam", exam.name]]} style={{ justifyContent: "space-between", paddingRight: "40mm" }} />
+        <Fields
+          items={[
+            ["Section", `${splitSection(section).sec} - ${sessionLong(exam.session)}`],
+            ["Teacher", teacher ?? <Fill key="t" w="36mm" />],
+            ["Date", date ? formatDate(date).replace(/-/g, " ") : <Fill key="d" />],
+            ["Total Marks", exam.totalMax],
+          ]}
+          style={{ justifyContent: "space-between" }}
+        />
+      </div>
       <table>
         <thead>
           <tr>
             <th rowSpan={2} className="n">
               #
             </th>
-            <th rowSpan={2}>G.R. No.</th>
+            <th rowSpan={2}>GR #</th>
             <th rowSpan={2}>Name</th>
-            <th rowSpan={2}>Father's name</th>
+            <th rowSpan={2}>Father Name</th>
             <th rowSpan={2} style={{ width: "26mm" }}>
-              Decided syllabus
+              Decided Syllabus
             </th>
             <th rowSpan={2} style={{ width: "26mm" }}>
-              Completed syllabus
+              Completed Syllabus
             </th>
             {cols.map((c) =>
               c.grouped ? (
@@ -1449,7 +1523,7 @@ export function HifzSheet({ exam, section, filled }: { exam: ExamDetail; section
                 </th>
               ),
             )}
-            {["T. marks", "Position", "Grade", "Attendance"].map((t) => (
+            {["T.Marks", "Position", "Grade", "Attendance"].map((t) => (
               <th key={t} rowSpan={2} className="c">
                 <span className="exams-vert">{t}</span>
               </th>
@@ -1509,12 +1583,6 @@ export function HifzSheet({ exam, section, filled }: { exam: ExamDetail; section
           ))}
         </tbody>
       </table>
-      <div className="exams-doc-signs">
-        <div>Teacher</div>
-        <div>Head of Shoba-e-Hifz</div>
-        <div>Principal</div>
-      </div>
-      <Foot exam={exam} page={section} />
     </article>
   );
 }

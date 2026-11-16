@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Fragment, useEffect, useState } from "react";
 import { useCtx, useReadOnly } from "../../../app/session";
-import { feeToday, PaperSize, useCanAny } from "../shared";
+import { feeToday, FeesDocHead, PaperSize, useCanAny } from "../shared";
 import { AddChargePanel, CancelChargeModal } from "./ChargePanels";
 
 const DOC_LABEL: Record<LedgerDocType, string> = { CHARGE: "Charge", LATE_FINE: "Late fine", RECEIPT: "Receipt", CANCELLATION: "Cancellation", UNAPPLIED: "Unapplied salary deduction" };
@@ -137,13 +137,7 @@ export function LedgerTable({ grNo, defaultSession, student }: { grNo: string; d
       {printing && <PaperSize size="A4" />}
       {student && (
         <div className="fees-print-only">
-          <div className="fees-doc-head" style={{ display: "flex" }}>
-            <div>
-              <h1 style={{ margin: 0, fontSize: "13pt" }}>MTB {student.campusName}</h1>
-              <p style={{ margin: 0 }}>{cardView ? "Student fee card" : "Student fee statement"} · {sessionText}</p>
-            </div>
-            <p style={{ margin: 0 }}>Printed {formatDate(feeToday())}</p>
-          </div>
+          <FeesDocHead campus={student.campus} campusName={student.campusName} title={cardView ? "Student Fee Card" : "Student Fee Statement"} sub={<>{sessionText}</>} />
           <dl className="m-0 mb-3 grid grid-cols-[auto_1fr_auto_1fr] gap-x-4 gap-y-1">
             <dt className="text-ink-muted">Name</dt>
             <dd className="m-0 font-medium">{student.name}</dd>

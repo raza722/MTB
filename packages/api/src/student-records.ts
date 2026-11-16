@@ -397,7 +397,7 @@ export const STUDENT_DOC_LABEL: Record<StudentDocType, string> = {
 /** Paper each document prints on. */
 export const STUDENT_DOC_PAPER: Record<StudentDocType, string> = {
   ID_CARD: "ID card size (CR80), 10 to an A4 sheet",
-  ADMISSION_SLIP: "A5",
+  ADMISSION_SLIP: "Half A4, two to a sheet",
   LEAVING_CERT: "A4",
   CHARACTER_CERT: "A4",
   DOB_CERT: "A4",

@@ -548,7 +548,7 @@ function TitlePanel({ id, setup, onClose, onEdit }: { id: string; setup: Library
 function ShelfList({ titles, setup, libraryId, campus }: { titles: LibraryTitle[]; setup: LibrarySetup; libraryId: string; campus: string }) {
   const libraries = setup.libraries.filter((l) => !libraryId || l.id === libraryId);
   return (
-    <div className="ops-doc">
+    <div className="ops-doc ops-lib">
       <DocHead title="Shelf list, cabinet by cabinet" subtitle="Every title with its shelves and copies, library by library." campus={campus} />
       {libraries.map((lib) => {
         const cabs = setup.cabinets.filter((c) => c.libraryId === lib.id && titles.some((t) => t.shelves.some((s) => s.startsWith(`${c.code} ·`))));
@@ -609,44 +609,46 @@ function CopiesByCabinet({ rows, subtitle, campus }: { rows: LibraryCopyRow[]; s
   const byCabinet = new Map<string, LibraryCopyRow[]>();
   for (const r of rows) byCabinet.set(r.cabinetId ?? "", [...(byCabinet.get(r.cabinetId ?? "") ?? []), r]);
   return (
-    <div className="ops-doc">
-      <DocHead title="Copies by cabinet" subtitle={`${subtitle} · ${rows.length} copies`} campus={campus} />
+    <div className="ops-doc ops-lib">
+      <DocHead title="Book Information Cabinet Wise" subtitle={`${subtitle} · ${rows.length} copies`} campus={campus} />
       {[...byCabinet.values()].map((list) => {
         const first = list[0]!;
         return (
           <section key={first.cabinetId ?? "none"}>
-            <h2>
-              {first.cabinetId ? `${first.libraryName} · ${first.cabinetCode} · ${first.cabinetTitle}` : "Not on a shelf"} · total copies {list.length}
+            {/* The old "Cabinet # From … To …" and "Total Books" line over each cabinet's table. */}
+            <h2 className="ops-doc-pair">
+              <span>Cabinet # {first.cabinetId ? `${first.cabinetCode} · ${first.cabinetTitle} (${first.libraryName})` : "Not on a shelf"}</span>
+              <span>Total Books {list.length}</span>
             </h2>
             <table>
               <thead>
                 <tr>
-                  <th className="n">Sr</th>
-                  <th>Accession no.</th>
-                  <th>Title</th>
-                  <th>Subject</th>
-                  <th>Shelf</th>
-                  <th>Placed on</th>
+                  <th>Sr #</th>
+                  <th>Accession #</th>
+                  <th>Book Name</th>
+                  <th>Book Type</th>
+                  <th>Order In Cabinet</th>
+                  <th>Book Placed Date</th>
+                  <th>Book Wasted Date</th>
+                  <th>Book Wasted Approved By</th>
                   <th>Status</th>
-                  <th>Written off on</th>
-                  <th>Approved by</th>
                 </tr>
               </thead>
               <tbody>
                 {list.map((r, i) => (
                   <tr key={r.copyId}>
-                    <td className="n">{i + 1}</td>
+                    <td>{i + 1}</td>
                     <td>{r.accessionNo}</td>
                     <td>
                       {r.title}
                       {r.titleUr && <span className="ops-doc-urdu">{r.title ? " · " : ""}{r.titleUr}</span>}
                     </td>
-                    <td>{r.category || "—"}</td>
-                    <td>{r.shelfLabel || "—"}</td>
-                    <td>{r.placedOn ? formatDate(r.placedOn) : "—"}</td>
-                    <td>{LIBRARY_COPY_STATUS_LABEL[r.status]}</td>
+                    <td>{r.category || ""}</td>
+                    <td>{r.shelfLabel || ""}</td>
+                    <td>{r.placedOn ? formatDate(r.placedOn) : ""}</td>
                     <td>{r.writtenOffOn ? formatDate(r.writtenOffOn) : ""}</td>
                     <td>{r.approvedBy}</td>
+                    <td>{LIBRARY_COPY_STATUS_LABEL[r.status]}</td>
                   </tr>
                 ))}
               </tbody>
@@ -662,53 +664,55 @@ function CopiesByCabinet({ rows, subtitle, campus }: { rows: LibraryCopyRow[]; s
 function GeneralBooksList({ titles, price, subtitle, campus }: { titles: LibraryTitle[]; price: Map<string, number>; subtitle: string; campus: string }) {
   const copies = titles.reduce((a, t) => a + t.copies, 0);
   return (
-    <div className="ops-doc">
-      <DocHead title="General books list" subtitle={subtitle} campus={campus} />
-      <dl className="ops-doc-kv">
-        <dt>Total titles</dt>
-        <dd>{formatCount(titles.length)}</dd>
-        <dt>Total copies</dt>
-        <dd>{formatCount(copies)}</dd>
-      </dl>
-      <table>
+    <div className="ops-doc ops-lib">
+      {/* The old "Book Info" (General Books Report): Total Books, then its columns in its order; the publisher and the
+          copy count the catalogue keeps follow at the right. The old "Book Condition" is kept per copy now, so it
+          prints blank here. */}
+      <DocHead title="Book Info" subtitle={subtitle} campus={campus} />
+      <p style={{ margin: "0 0 2mm 14mm", fontWeight: 700 }}>
+        Total Books: {formatCount(titles.length)} <span style={{ fontWeight: 400 }}>({formatCount(copies)} copies)</span>
+      </p>
+      <table className="ops-small">
         <thead>
           <tr>
-            <th className="n">Sr</th>
-            <th>Title</th>
-            <th>Subject</th>
-            <th className="n">Vol.</th>
-            <th>Language</th>
-            <th>Authors</th>
+            <th>Sr #</th>
+            <th>Book Title</th>
+            <th>Book Type Title</th>
+            <th>Volume #</th>
+            <th>Language Type</th>
+            <th>Author Name</th>
+            <th>Book Condition</th>
             <th>Edition</th>
+            <th>Purchased Cost</th>
+            <th>Publisher Country</th>
+            <th>Published Year</th>
+            <th>Current Status</th>
+            <th>Total Pages</th>
             <th>Publisher</th>
-            <th>Country</th>
-            <th className="n">Year</th>
-            <th className="n">Pages</th>
             <th className="n">Copies</th>
-            <th className="n">On shelf</th>
-            <th className="n">Price</th>
           </tr>
         </thead>
         <tbody>
           {titles.map((t, i) => (
             <tr key={t.id}>
-              <td className="n">{i + 1}</td>
+              <td>{i + 1}</td>
               <td>
                 {t.title}
                 {t.titleUr && <span className="ops-doc-urdu">{t.title ? " · " : ""}{t.titleUr}</span>}
               </td>
-              <td>{t.category || "—"}</td>
-              <td className="n">{t.volume ?? ""}</td>
+              <td>{t.category || ""}</td>
+              <td>{t.volume ?? ""}</td>
               <td>{languageLabel(t.language)}</td>
               <td>{t.authors.join(", ")}</td>
+              <td />
               <td>{t.edition}</td>
-              <td>{t.publisher}</td>
+              <td>{price.has(t.id) ? formatRs(price.get(t.id)!) : ""}</td>
               <td>{t.publisherCountry}</td>
-              <td className="n">{t.year ?? ""}</td>
-              <td className="n">{t.pages ?? ""}</td>
+              <td>{t.year ?? ""}</td>
+              <td>{t.onLoan ? `Issued${t.copies > 1 ? ` (${t.onLoan} of ${t.copies})` : ""}` : "Not Issued"}</td>
+              <td>{t.pages ?? ""}</td>
+              <td>{t.publisher}</td>
               <td className="n">{t.copies}</td>
-              <td className="n">{t.available}</td>
-              <td className="n">{price.has(t.id) ? formatRs(price.get(t.id)!) : ""}</td>
             </tr>
           ))}
         </tbody>
@@ -768,28 +772,31 @@ function CopiesByCabinetModal({ setup, subject, libraryId, onPrint, onClose }: {
 
 function TitleCount({ titles, campus }: { titles: LibraryTitle[]; campus: string }) {
   return (
-    <div className="ops-doc">
-      <DocHead title="Copies per title" subtitle={`${titles.length} titles, ${titles.reduce((a, t) => a + t.copies, 0)} copies`} campus={campus} />
+    <div className="ops-doc ops-lib">
+      {/* The old "Book Title Wise Count": Sr #, Book Title, Book Count; the shelf, loan and out-of-use counts follow. */}
+      <DocHead title="Book Title Wise Count" subtitle={`${titles.length} titles, ${titles.reduce((a, t) => a + t.copies, 0)} copies`} campus={campus} />
       <table>
         <thead>
           <tr>
-            <th>Title</th>
-            <th>Subject</th>
-            <th className="n">Copies</th>
+            <th>Sr #</th>
+            <th>Book Title</th>
+            <th>Book Count</th>
             <th className="n">On shelf</th>
             <th className="n">On loan</th>
             <th className="n">Out of use</th>
+            <th>Subject</th>
           </tr>
         </thead>
         <tbody>
-          {titles.map((t) => (
+          {titles.map((t, i) => (
             <tr key={t.id}>
+              <td>{i + 1}</td>
               <td>{t.title || t.titleUr}</td>
-              <td>{t.category || "—"}</td>
-              <td className="n">{t.copies}</td>
+              <td>{t.copies}</td>
               <td className="n">{t.available}</td>
               <td className="n">{t.onLoan}</td>
               <td className="n">{t.outOfUse}</td>
+              <td>{t.category || ""}</td>
             </tr>
           ))}
         </tbody>

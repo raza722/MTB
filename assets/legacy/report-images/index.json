@@ -1,0 +1,362 @@
+{
+ "mtb1-d9eb22fc.png": [
+  "Reports/AcademicHistory.rdlc",
+  "Reports/AcademicHistory2.rdlc",
+  "Reports/Admission Slip 2.rdlc",
+  "Reports/Admission Slip Student.rdlc",
+  "Reports/AdmissionDetailDateWise.rdlc",
+  "Reports/AdmissionNew.rdlc",
+  "Reports/AdmissionSlip.rdlc",
+  "Reports/AdmissionTestSlip.rdlc",
+  "Reports/App Users List.rdlc",
+  "Reports/Appreciation Letter.rdlc",
+  "Reports/AuthorsList.rdlc",
+  "Reports/BookHistory.rdlc",
+  "Reports/BookInfo.rdlc",
+  "Reports/BookInfoCabinetWise.rdlc",
+  "Reports/BookTitleWiseCount.rdlc",
+  "Reports/CabinetInfo.rdlc",
+  "Reports/CandidateFeeSubmissionDatewise.rdlc",
+  "Reports/CandidateRegistration.rdlc",
+  "Reports/CharacterCertificate.rdlc",
+  "Reports/Comulative Result Monthly Test.rdlc",
+  "Reports/Daily Fee Account.rdlc",
+  "Reports/Daily Fee Cancellation.rdlc",
+  "Reports/Daily Fee Submittion New.rdlc",
+  "Reports/Daily fee Submittion Candidate.rdlc",
+  "Reports/Fee Account bw Date.rdlc",
+  "Reports/FeeSlipNew.rdlc",
+  "Reports/Leaving Certificate.rdlc",
+  "Reports/LevelWise TimeTable.rdlc",
+  "Reports/Metric_CharacterCertificate.rdlc",
+  "Reports/Post.rdlc",
+  "Reports/Purchase Report.rdlc",
+  "Reports/RawMaterial CurrentStock.rdlc",
+  "Reports/Report_StudentAttendance_SMSLog.rdlc",
+  "Reports/Result Card Primery - Backup (2).rdlc",
+  "Reports/Result Card Primery - Backup (3).rdlc",
+  "Reports/Result Card Primery - Backup.rdlc",
+  "Reports/Result Card Primery.rdlc",
+  "Reports/Sale Report.rdlc",
+  "Reports/Section Master Sheet TimeTable.rdlc",
+  "Reports/StaffBookIssuance.rdlc",
+  "Reports/StaffPerformance - Backup.rdlc",
+  "Reports/StaffPerformance.rdlc",
+  "Reports/StaffRecord.rdlc",
+  "Reports/Student Card.rdlc",
+  "Reports/Student Count Summery.rdlc",
+  "Reports/Student Monthly Attendance.rdlc",
+  "Reports/StudentBookIssuance.rdlc",
+  "Reports/UniversityMasterSheetExam.rdlc",
+  "Reports/UniversityMasterSheetExamADP.rdlc",
+  "Reports/UniversityMasterSheetExamADPMidSemester.rdlc",
+  "Reports/UniversityMasterSheetExamMidSemester.rdlc"
+ ],
+ "logo2-f9f9db18.png": [
+  "Reports/Admission Form.rdlc",
+  "Reports/Annual Fund.rdlc",
+  "Reports/Appointment Letter.rdlc",
+  "Reports/Class Monthly Fee.rdlc",
+  "Reports/Daily Fee Balance.rdlc",
+  "Reports/Daily Fee Submission.rdlc",
+  "Reports/Daily Fee Submittion New.rdlc",
+  "Reports/Employee Profile.rdlc",
+  "Reports/Employee_Salary_CardNew.rdlc",
+  "Reports/Fee Card.rdlc",
+  "Reports/Fee Defaulter.rdlc",
+  "Reports/Fee Slip.rdlc",
+  "Reports/Fund Defaulter.rdlc",
+  "Reports/Living Certificate.rdlc",
+  "Reports/Monthly Result.rdlc",
+  "Reports/Result Class.rdlc",
+  "Reports/Staff Attendance Count.rdlc",
+  "Reports/Staff Attendance.rdlc",
+  "Reports/Staff Full Salary.rdlc",
+  "Reports/Staff Leave.rdlc",
+  "Reports/Staff Loan.rdlc",
+  "Reports/Staff Salary.rdlc",
+  "Reports/Staff Time IN OUT Detail.rdlc"
+ ],
+ "iiuiSchool-09ab2e64.png": [
+  "Reports/Admission Form.rdlc",
+  "Reports/Annual Fund.rdlc",
+  "Reports/Appointment Letter.rdlc",
+  "Reports/Class Monthly Fee.rdlc",
+  "Reports/Daily Fee Balance.rdlc",
+  "Reports/Daily Fee Submission.rdlc",
+  "Reports/Daily Fee Submittion New.rdlc",
+  "Reports/Employee Profile.rdlc",
+  "Reports/Employee_Salary_CardNew.rdlc",
+  "Reports/Fee Card.rdlc",
+  "Reports/Fee Defaulter.rdlc",
+  "Reports/Fee Slip.rdlc",
+  "Reports/Individual fee Ledger.rdlc",
+  "Reports/Living Certificate.rdlc",
+  "Reports/Monthly Result.rdlc",
+  "Reports/Result Class.rdlc",
+  "Reports/Staff Attendance Count.rdlc",
+  "Reports/Staff Attendance.rdlc",
+  "Reports/Staff Full Salary.rdlc",
+  "Reports/Staff Leave.rdlc",
+  "Reports/Staff Loan.rdlc",
+  "Reports/Staff Salary.rdlc",
+  "Reports/Staff Time IN OUT Detail.rdlc"
+ ],
+ "Arabpackages-1dce9af4.png": [
+  "Reports/Employee Profile.rdlc",
+  "Reports/Employee_Salary_CardNew.rdlc",
+  "Reports/Salary Card.rdlc",
+  "Reports/Staff Attendance Count.rdlc",
+  "Reports/Staff Attendance.rdlc",
+  "Reports/Staff Full Salary.rdlc",
+  "Reports/Staff Leave.rdlc",
+  "Reports/Staff Loan.rdlc",
+  "Reports/Staff Monthly Hrs Attendance.rdlc",
+  "Reports/Staff Salary.rdlc",
+  "Reports/Staff Time IN OUT Detail.rdlc"
+ ],
+ "headerfinlafinal-ced866dc.png": [
+  "Reports/Annual Fund.rdlc",
+  "Reports/Daily Fee Balance.rdlc",
+  "Reports/Daily Fee Submission.rdlc",
+  "Reports/Daily Fee Submittion New.rdlc",
+  "Reports/Fee Card.rdlc",
+  "Reports/Fee Defaulter.rdlc",
+  "Reports/Living Certificate.rdlc"
+ ],
+ "ID000000-a38d58a7.png": [
+  "Reports/Employe Salary Card.rdlc",
+  "Reports/Salary Card.rdlc",
+  "Reports/Staff Attendance.rdlc",
+  "Reports/Staff Leave.rdlc",
+  "Reports/Staff Loan.rdlc",
+  "Reports/Staff Salary.rdlc"
+ ],
+ "Untitled-842b571a.png": [
+  "Account_Reports/Bank Payment Vouchar.rdlc",
+  "Account_Reports/Bank Receipt Vouchar.rdlc",
+  "Account_Reports/Cash Payments Vouchar.rdlc",
+  "Account_Reports/Cash Recipent Vouchar.rdlc"
+ ],
+ "HEADER1-bf1ab559.png": [
+  "Reports/Annual Fund.rdlc",
+  "Reports/Fee Card.rdlc",
+  "Reports/Fee Defaulter.rdlc",
+  "Reports/Living Certificate.rdlc"
+ ],
+ "elixirheadernew-aaee8490.png": [
+  "Reports/Annual Fund.rdlc",
+  "Reports/Fee Card.rdlc",
+  "Reports/Fee Defaulter.rdlc",
+  "Reports/Living Certificate.rdlc"
+ ],
+ "banner-000b0bc8.png": [
+  "Reports/CharacterCertificate.rdlc",
+  "Reports/MeritCertificate - Copy.rdlc",
+  "Reports/MeritCertificate.rdlc",
+  "Reports/MeritCertificateNew.rdlc"
+ ],
+ "banner1-df4517e0.png": [
+  "Reports/CharacterCertificate.rdlc",
+  "Reports/MeritCertificate - Copy.rdlc",
+  "Reports/MeritCertificate.rdlc",
+  "Reports/MeritCertificateNew.rdlc"
+ ],
+ "ID4c83f39ad65870dab5a9950feecba978-4c83f39a.jpg": [
+  "Reports/Leaving Certificate.rdlc",
+  "Reports/MeritCertificate - Copy.rdlc",
+  "Reports/MeritCertificate.rdlc",
+  "Reports/MeritCertificateNew.rdlc"
+ ],
+ "banner-8f27a5dd.png": [
+  "Reports/Leaving Certificate.rdlc",
+  "Reports/MeritCertificate - Copy.rdlc",
+  "Reports/MeritCertificate.rdlc",
+  "Reports/MeritCertificateNew.rdlc"
+ ],
+ "logo1-cd603a60.png": [
+  "Reports/Purchase Report.rdlc",
+  "Reports/RawMaterial CurrentStock.rdlc",
+  "Reports/Sale Report.rdlc",
+  "Reports/rpt_TotalSaleAstimate.rdlc"
+ ],
+ "HEADER-5895d0ed.png": [
+  "Reports/Annual Fund.rdlc",
+  "Reports/Fee Card.rdlc",
+  "Reports/Fee Defaulter.rdlc"
+ ],
+ "BA_boys-2513d720.png": [
+  "Reports/BAgirls_charactercertificate.rdlc",
+  "Reports/BaBoysCharacterCertificate.rdlc",
+  "Reports/XXXXBaBoysCharacterCertificate.rdlc"
+ ],
+ "ID1boysBA-65a8b7fe.png": [
+  "Reports/BAgirls_charactercertificate.rdlc",
+  "Reports/BaBoysCharacterCertificate.rdlc",
+  "Reports/XXXXBaBoysCharacterCertificate.rdlc"
+ ],
+ "IDB19ACB8ECF9507BD9286BE7DB73CFB0DC8E5F28D5BEBF0DAD5pimgpsh_thumbnail_win_distr-85013683.jpg": [
+  "Reports/MeritCertificate - Copy.rdlc",
+  "Reports/MeritCertificate.rdlc",
+  "Reports/MeritCertificateNew.rdlc"
+ ],
+ "logomtb-da936505.png": [
+  "Reports/MeritCertificate - Copy.rdlc",
+  "Reports/MeritCertificate.rdlc",
+  "Reports/MeritCertificateNew.rdlc"
+ ],
+ "niEKa6BiA-37314444.png": [
+  "Reports/MeritCertificate - Copy.rdlc",
+  "Reports/MeritCertificate.rdlc",
+  "Reports/MeritCertificateNew.rdlc"
+ ],
+ "fleurdelisgoldandblackborderfreebordersandclipartcomTqr97vclipart-abe09a1c.png": [
+  "Reports/MeritCertificate - Copy.rdlc",
+  "Reports/MeritCertificate.rdlc",
+  "Reports/MeritCertificateNew.rdlc"
+ ],
+ "bordergreenfreestockphotoillustrationofablankgreenframeRRE5L2clipart-66dff50e.png": [
+  "Reports/MeritCertificate - Copy.rdlc",
+  "Reports/MeritCertificate.rdlc",
+  "Reports/MeritCertificateNew.rdlc"
+ ],
+ "goldborderpnggoldfleurdeliscornerBlByOLclipart-65027781.png": [
+  "Reports/MeritCertificate - Copy.rdlc",
+  "Reports/MeritCertificate.rdlc",
+  "Reports/MeritCertificateNew.rdlc"
+ ],
+ "banner1-6d6d1878.png": [
+  "Reports/MeritCertificate - Copy.rdlc",
+  "Reports/MeritCertificate.rdlc",
+  "Reports/MeritCertificateNew.rdlc"
+ ],
+ "banner3-0768315e.png": [
+  "Reports/MeritCertificate - Copy.rdlc",
+  "Reports/MeritCertificate.rdlc",
+  "Reports/MeritCertificateNew.rdlc"
+ ],
+ "Meritcertificatebannernew-1e5b5e28.png": [
+  "Reports/MeritCertificate - Copy.rdlc",
+  "Reports/MeritCertificate.rdlc",
+  "Reports/MeritCertificateNew.rdlc"
+ ],
+ "Meritcertificatebanner-5df9aca4.png": [
+  "Reports/MeritCertificate - Copy.rdlc",
+  "Reports/MeritCertificate.rdlc",
+  "Reports/MeritCertificateNew.rdlc"
+ ],
+ "boysBA-2abd4060.png": [
+  "Reports/BaBoysCharacterCertificate.rdlc",
+  "Reports/XXXXBaBoysCharacterCertificate.rdlc"
+ ],
+ "BOY-934d1383.png": [
+  "Reports/BaBoysCharacterCertificate.rdlc",
+  "Reports/XXXXBaBoysCharacterCertificate.rdlc"
+ ],
+ "BA_boysnew-5073c493.png": [
+  "Reports/BaBoysCharacterCertificate.rdlc",
+  "Reports/XXXXBaBoysCharacterCertificate.rdlc"
+ ],
+ "logo3-e522c1f5.png": [
+  "Reports/CharacterCertificate.rdlc",
+  "Reports/Fsc.boys_CharacterCertificate.rdlc"
+ ],
+ "dglab-ef112458.png": [
+  "Reports/Employe Salary Card.rdlc",
+  "Reports/Staff Attendance.rdlc"
+ ],
+ "ID2boys_fsc-07a12fc1.png": [
+  "Reports/Fsc.boys_CharacterCertificate.rdlc",
+  "Reports/Fsc.girls_CharacterCertificate.rdlc"
+ ],
+ "femalecollegestudentsicon14067-eb4acb39.png": [
+  "Reports/AdmissionNew.rdlc"
+ ],
+ "mtblogo-75bc33b0.jpg": [
+  "Reports/Attendance Register.rdlc"
+ ],
+ "BA_girls-aa1893f2.png": [
+  "Reports/BAgirls_charactercertificate.rdlc"
+ ],
+ "BA_girls1-0e9bd798.png": [
+  "Reports/BAgirls_charactercertificate.rdlc"
+ ],
+ "girlsBA-0ded88cd.png": [
+  "Reports/BAgirls_charactercertificate.rdlc"
+ ],
+ "logo2-1adac46e.png": [
+  "Reports/CharacterCertificate.rdlc"
+ ],
+ "logo-8f1e34fc.png": [
+  "Reports/Fee Slip.rdlc"
+ ],
+ "fsc_boys-1b70d509.png": [
+  "Reports/Fsc.boys_CharacterCertificate.rdlc"
+ ],
+ "boys_fsc-95d9566a.png": [
+  "Reports/Fsc.boys_CharacterCertificate.rdlc"
+ ],
+ "BOY2-c470a247.png": [
+  "Reports/Fsc.boys_CharacterCertificate.rdlc"
+ ],
+ "Asset3-d2bb88d8.png": [
+  "Reports/Fsc.boys_CharacterCertificate.rdlc"
+ ],
+ "Asset31-9d0cf3a6.png": [
+  "Reports/Fsc.boys_CharacterCertificate.rdlc"
+ ],
+ "Asset1-f9c2a4a1.png": [
+  "Reports/Fsc.boys_CharacterCertificate.rdlc"
+ ],
+ "Asset301-1af62345.png": [
+  "Reports/Fsc.boys_CharacterCertificate.rdlc"
+ ],
+ "fsc_grlsCopy-113cb2be.png": [
+  "Reports/Fsc.girls_CharacterCertificate.rdlc"
+ ],
+ "fsc_grls-92183c39.png": [
+  "Reports/Fsc.girls_CharacterCertificate.rdlc"
+ ],
+ "girls_fsc-717711f5.png": [
+  "Reports/Fsc.girls_CharacterCertificate.rdlc"
+ ],
+ "ID34aa7b3f3054c3b524aafec571ceeb52_certificateborderdesigncertificateborderclipart_22001700-d5c0fa53.jpg": [
+  "Reports/Leaving Certificate.rdlc"
+ ],
+ "CertificateBorder2A4Arvin61r58-211c1af1.png": [
+  "Reports/Leaving Certificate.rdlc"
+ ],
+ "FormalCertificateBorder1PNGOrange-4a3b05f3.png": [
+  "Reports/Leaving Certificate.rdlc"
+ ],
+ "url-8d2fae87.jpg": [
+  "Reports/Result Class.rdlc"
+ ],
+ "images1-8a70d382.png": [
+  "Reports/Result Class.rdlc"
+ ],
+ "logo-ed905712.jpg": [
+  "Reports/Result Class.rdlc"
+ ],
+ "border-00c488a4.png": [
+  "Reports/rpt_SchoolLeavingCertificate.rdlc"
+ ],
+ "borders-cfb30384.png": [
+  "Reports/rpt_SchoolLeavingCertificate.rdlc"
+ ],
+ "border3-a62c7dca.png": [
+  "Reports/rpt_SchoolLeavingCertificate.rdlc"
+ ],
+ "cover-4122aa0b.png": [
+  "Reports/rpt_SchoolLeavingCertificate.rdlc"
+ ],
+ "IDAA14AE36F15005FD446FC5D5484FD9E7F2B7C9C90ABB767343pimgpsh_fullsize_distr-0c0e41aa.png": [
+  "Reports/rpt_SchoolLeavingCertificate.rdlc"
+ ],
+ "custom_block1_img-7549d91b.jpg": [
+  "Reports/Student Card.rdlc"
+ ],
+ "studentcard-e64dd6a0.png": [
+  "Reports/Student Card.rdlc"
+ ]
+}

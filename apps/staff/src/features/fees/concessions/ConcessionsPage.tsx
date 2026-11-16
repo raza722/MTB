@@ -42,7 +42,7 @@ import { z } from "zod";
 import { campusLabel } from "../../../app/shell/campus";
 import { Page, PageHeader, RequirePermission } from "../../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../../app/session";
-import { addDaysIso, DecisionBadge, errorField, errorText, feeToday, FeesNav, lakhTick, LoadError, monthEndIso, PaperSize, pctText, slide, useCanAny, useFeeClasses } from "../shared";
+import { addDaysIso, DecisionBadge, errorField, errorText, feeToday, FeesNav, FeesDocHead, lakhTick, LoadError, monthEndIso, PaperSize, pctText, slide, useCanAny, useFeeClasses } from "../shared";
 
 const TYPE_COLOR: Record<FeeConcessionType, string> = {
   SIBLING: "var(--chart-1)",
@@ -727,16 +727,8 @@ export function ConcessionsPage() {
           <div className="fees-print-only mtb-print-area fees-print-a4">
             <PaperSize size="A4" />
             <div className="fees-doc" data-theme="light">
-              <div className="fees-doc-head">
-                <div>
-                  <h1>Concessions and scholarships</h1>
-                  <p>
-                    {campusLabel(ctx.campus)} · Session {formatSession(ctx.session)}
-                    {cls ? ` · ${classList.nameOf(cls)}${section ? `-${section}` : ""}` : ""}
-                  </p>
-                </div>
-                <p>Printed {formatDate(feeToday())}</p>
-              </div>
+              <FeesDocHead title={"Concessions and scholarships"} sub={<>{campusLabel(ctx.campus)} · Session {formatSession(ctx.session)}
+                    {cls ? ` · ${classList.nameOf(cls)}${section ? `-${section}` : ""}` : ""}</>} right={<>Printed {formatDate(feeToday())}</>} />
               {sum && (
                 <>
                   <h2>

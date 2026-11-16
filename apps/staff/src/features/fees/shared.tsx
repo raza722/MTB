@@ -4,7 +4,8 @@ import { Banner, Button, Menu, MenuItem, StatusBadge } from "@mtb/ui";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, type CSSProperties, type ReactNode } from "react";
 import { SubNav, type SubNavItem } from "../../app/shell/SubNav";
-import { useCan } from "../../app/session";
+import { useCan, useCtx } from "../../app/session";
+import { footerBoxes, Letterhead } from "../../app/print/letterhead";
 import "./fees.css";
 
 /** The fee office's pages, shown under every fee page's header. */
@@ -218,4 +219,18 @@ export const pctText = (v: number | null | undefined) => (v === null || v === un
 /** Wraps Western numbers and dates inside Urdu text. */
 export function Ltr({ children }: { children: ReactNode }) {
   return <bdi dir="ltr">{children}</bdi>;
+}
+
+/**
+ * The top of a printed fee report: the old letterhead (crest, "MTB-Madrasat-ul-Banat Schools and Colleges, <campus>",
+ * the report's title), what the report covers under it, and the old page footer ("Print DateTime …", "Page No x of y").
+ */
+export function FeesDocHead({ title, sub, right, campus, campusName }: { title: ReactNode; sub?: ReactNode; right?: ReactNode; campus?: string; campusName?: string }) {
+  const ctx = useCtx();
+  return (
+    <div className="fees-doc-lh">
+      <style>{`@page fees-a4 { ${footerBoxes()} } @page { ${footerBoxes()} }`}</style>
+      <Letterhead campus={campus ?? ctx.campus} {...(campusName ? { campusName } : {})} title={title} {...(sub ? { sub } : {})} {...(right ? { right: <span className="fees-doc-lh-right">{right}</span> } : {})} />
+    </div>
+  );
 }

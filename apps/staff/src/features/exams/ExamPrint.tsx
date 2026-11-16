@@ -61,17 +61,17 @@ export interface ExamPrintSearch {
 }
 
 export const EXAM_DOCS: Array<{ id: ExamDoc; label: string; detail: string; paper: ExamPaper; results: boolean }> = [
-  { id: "card", label: "Result cards", detail: "One student or a whole section, A4. English or English with Urdu headings.", paper: "A4", results: true },
+  { id: "card", label: "Result cards", detail: "Result intimation sheet: one student or a whole section, one a page or two side by side. English or English with Urdu headings.", paper: "A4", results: true },
   { id: "master", label: "Master sheet", detail: "Every student × subject with total, %, grade, position, failed subjects and subject averages. Also the supply holder sheet. A4 landscape.", paper: "A4L", results: true },
   { id: "positions", label: "Position list", detail: "Top 3, 5, 10, 20 or everyone, for the class or the top of each section.", paper: "A4", results: true },
   { id: "failed", label: "Re-sit and failed list", detail: "Students below the pass rules by section, with marks, grade and the subjects to re-sit.", paper: "A4", results: true },
   { id: "subjects", label: "Subject performance", detail: "Highest, lowest, absent, average, failures and pass % per subject, with grade counts. A4 landscape.", paper: "A4L", results: true },
   { id: "teachers", label: "Subject teacher report", detail: "Average and pass rate of each teacher's papers.", paper: "A4", results: true },
-  { id: "absent", label: "Absent report", detail: "Each paper's mark or A, absences and fine per student, one section a page.", paper: "A4", results: false },
+  { id: "absent", label: "Absent report", detail: "Each paper's mark or A, absences and fine per student, one section a page. A4 landscape.", paper: "A4L", results: false },
   { id: "award", label: "Award list", detail: "Script marking list: one section or every section, one subject or every subject. Signature, subjective/objective or monthly columns.", paper: "A4", results: false },
   { id: "hifz", label: "Hifz marking sheet", detail: "Shoba-e-Hifz sheet: syllabus, Manzil and Dua parts with totals, position and grade. A4 landscape.", paper: "A4L", results: false },
   { id: "slips", label: "Roll number slips", detail: "Admit slips with the date sheet, three to a page.", paper: "A4", results: false },
-  { id: "envelopes", label: "Envelope labels", detail: "Labels for the answer-script packets, eight to a page. Every paper or the day's paper.", paper: "A4", results: false },
+  { id: "envelopes", label: "Envelope labels", detail: "Tags for the answer-script packets, twelve to a page. Every paper or the day's paper.", paper: "A4", results: false },
   { id: "datesheet", label: "Date sheet", detail: "For parents, in English or with Urdu headings.", paper: "A4", results: false },
 ];
 
@@ -152,7 +152,7 @@ export function ExamPrint({ search, onSearch }: { search: ExamPrintSearch; onSea
       break;
     case "envelopes": {
       const n = sections.length * (search.subject && search.subject !== "ALL" ? 1 : exam.subjects.length);
-      count = Math.ceil(n / 8);
+      count = Math.ceil(n / 12);
       body = <EnvelopeLabels exam={exam} sections={sections} subjectId={search.subject && search.subject !== "ALL" ? subject.id : undefined} />;
       break;
     }
@@ -208,7 +208,7 @@ export function ExamPrint({ search, onSearch }: { search: ExamPrintSearch; onSea
             {doc.id === "card" && (
               <>
                 <Select label="Student" value={student?.id ?? ""} onChange={(e) => set({ student: e.target.value || undefined })} options={[{ value: "", label: `Everyone (${rowsInSection.length} cards)` }, ...rowsInSection.map((r) => ({ value: r.id, label: `${r.rollNo}. ${r.name}` }))]} />
-                <Segmented aria-label="Cards per page" value={search.layout ?? "full"} onChange={(v) => set({ layout: v === "half" ? "half" : undefined })} options={[{ value: "full", label: "One per page" }, { value: "half", label: "Two per page" }]} />
+                <Segmented aria-label="Cards per page" value={search.layout ?? "full"} onChange={(v) => set({ layout: v === "half" ? "half" : undefined })} options={[{ value: "full", label: "One per page" }, { value: "half", label: "Two side by side" }]} />
               </>
             )}
             {groupFilter && (
@@ -307,7 +307,7 @@ export function ExamPrint({ search, onSearch }: { search: ExamPrintSearch; onSea
             They show as a dash. A and L are counted once entered.
           </Banner>
         )}
-        <PrintSheet paper={doc.paper} label={`${doc.label} preview`}>
+        <PrintSheet paper={doc.id === "card" && search.layout === "half" ? "A4L" : doc.paper} footer={!(doc.id === "card" || doc.id === "envelopes" || pair || doc.id === "slips")} label={`${doc.label} preview`}>
           {body}
         </PrintSheet>
       </div>

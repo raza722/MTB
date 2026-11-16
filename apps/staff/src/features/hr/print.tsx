@@ -2,18 +2,18 @@ import { HR_PAYMENT_LABEL, hrMonthLabel, type HrBankList, type HrPayrollRun, typ
 import { amountInWords, formatCnic, formatDate, formatMobile, formatRs } from "@mtb/domain";
 import { Urdu } from "@mtb/ui";
 import type { ReactNode } from "react";
-import { campusHeading, cnicOrDash, dateOrDash, employmentLabel, Ltr, mobileOrDash, orDash, sessionOf, today, years } from "./shared";
+import { Letterhead } from "../../app/print/letterhead";
+import { campusHeading, cnicOrDash, employmentLabel, Ltr, orDash, sessionOf, today, years } from "./shared";
 
-/** Heading used by every printed HR document. */
-export function DocHead({ campus, title, sub }: { campus: string; title: ReactNode; sub?: ReactNode }) {
+/**
+ * Heading used by every printed HR document: the old letterhead (crest, "MTB-Madrasat-ul-Banat Schools and Colleges,
+ * Khalid Campus, Sadikabad") with the title under it. `campus` is the campus part ("Khalid Campus, Sadikabad") or
+ * "All campuses".
+ */
+export function DocHead({ campus, title, sub, right }: { campus: string; title: ReactNode; sub?: ReactNode; right?: ReactNode }) {
   return (
     <div className="hr-doc-head">
-      <div>
-        <p>MTB Schools and Colleges · {campus}</p>
-        <h1>{title}</h1>
-        {sub && <p>{sub}</p>}
-      </div>
-      <p>Printed {formatDate(today())}</p>
+      <Letterhead campus={campus === "All campuses" ? "ALL" : campus} title={title} sub={sub} right={right} titleCase="as-is" />
     </div>
   );
 }
@@ -92,94 +92,133 @@ export function ReportDoc({
   );
 }
 
-/** Appointment letter (legacy "Appointment Letter" report), filled from the profile. */
+/**
+ * Appointment letter, laid out as the old "Appointment Letter" report: the letterhead, "Subject :- APPOINTMENT", the
+ * name, parentage and address on ruled lines, the appointment sentence, the pay sentence, TERMS & CONDITIONS 1 and 2,
+ * "Principal" at the right and the date at the left. The old letter always said "temporary basis, with immediate
+ * effect"; this one prints the posting's employment type and start date, and the reference number at the top right.
+ */
 export function AppointmentLetterDoc({ s, principal }: { s: HrStaffProfile; principal: string }) {
   const p = s.postings.find((x) => x.primary) ?? s.postings[0]!;
-  const title = s.gender === "F" ? (s.maritalStatus === "MARRIED" ? "Mrs" : s.maritalStatus === null ? "Ms" : "Miss") : "Mr";
   const plain = s.name.replace(/^(Mr|Ms|Mrs|Dr|Qari)\s+/, "");
+  const basis = p.employmentType === "PROBATION" ? "probation" : employmentLabel[p.employmentType].toLowerCase();
+  const terms =
+    p.employmentType === "PERMANENT"
+      ? "The appointment is permanent; either side may end it with one month's written notice, or one month's salary instead of notice."
+      : `The appointment is on purely ${basis} basis and liable to termination with or without any notice or assigning any reason at any time.`;
   return (
-    <div className="hr-doc hr-letter">
-      <DocHead campus={campusHeading(p.campus)} title="Appointment letter" sub={`Ref: ${s.employeeNo}`} />
-      <p>
-        <strong>Subject: Appointment</strong>
-      </p>
-      <p>
-        {title} {plain}
-        {s.guardianName ? `, ${s.relation} ${s.guardianName}` : ""}
-        {s.address ? `, resident of ${s.address}` : ""}
-        {s.cnic && (
-          <>
-            , CNIC <Ltr>{formatCnic(s.cnic)}</Ltr>
-          </>
-        )}
-        , is appointed as <strong>{p.designation}</strong>
-        {p.department ? ` (${p.department})` : ""} at {p.campusName} on a{" "}
-        {employmentLabel[p.employmentType].toLowerCase()} basis from <strong>{formatDate(p.startDate)}</strong>
-        {p.payScale ? `, in pay scale ${p.payScale}` : ""}.
-      </p>
-      <p>Salary and allowances will be paid as per the school's pay scales and the salary structure on file, on the 5th of each month for the month before.</p>
-      <p>
-        <strong>Terms and conditions</strong>
-      </p>
-      <ol>
-        {p.employmentType === "PROBATION" && <li>The first six months are a probation period{s.probationEnds ? ` (until ${formatDate(s.probationEnds)})` : ""}, after which the appointment is confirmed in writing.</li>}
-        <li>Either side may end the appointment with one month's written notice, or one month's salary instead of notice.</li>
-        <li>School timings, leave and conduct follow the staff rules in force. Leave is applied for through the office or the teacher app.</li>
-        <li>Original documents (CNIC, degrees, experience letters) are shown at joining; copies stay on the staff file.</li>
-        <li>The appointee joins duty on the date above.</li>
-      </ol>
-      <div style={{ display: "flex", justifyContent: "space-between", marginTop: "18mm" }}>
-        <div>
-          <div style={{ borderTop: "0.6pt solid var(--ink)", paddingTop: "1mm", minWidth: "60mm" }}>Received and accepted</div>
-          <div className="hr-doc-small">{s.name}</div>
+    <div className="hr-doc">
+      <DocHead campus={campusHeading(p.campus)} title="" />
+      <div className="hr-letter-old">
+        <div style={{ textAlign: "right", fontSize: "9pt" }}>Ref: {s.employeeNo}</div>
+        <div className="row">
+          <span className="k">Subject :-</span>
+          <span style={{ textDecoration: "underline" }}>APPOINTMENT</span>
         </div>
-        <div style={{ textAlign: "right" }}>
-          <div style={{ borderTop: "0.6pt solid var(--ink)", paddingTop: "1mm", minWidth: "60mm" }}>Principal</div>
-          <div className="hr-doc-small">{principal}</div>
+        <div className="row" style={{ gridTemplateColumns: "26mm 30mm 1fr" }}>
+          <span />
+          <span>Mr/Miss/Mrs.</span>
+          <span className="line">{plain}</span>
         </div>
+        <div className="row">
+          <span className="k">{s.relation === "w/o" ? "W/O" : "S/O, D/O"}</span>
+          <span className="line">{s.guardianName}</span>
+        </div>
+        <div className="row">
+          <span className="k">resident of</span>
+          <span className="line">{[s.address, s.city].filter(Boolean).join(", ")}</span>
+        </div>
+        <p>
+          is hereby appointed as{" "}
+          <span className="blank">
+            {p.designation}
+            {p.department ? ` (${p.department})` : ""}
+          </span>{" "}
+          in this institution on {basis} basis, with effect from {formatDate(p.startDate)}.
+        </p>
+        <p style={{ textIndent: "40mm" }}>Salary / allowances will be paid to him / her as per pay scales enforced in Education Department according to his / her qualification.</p>
+        <p style={{ paddingLeft: "10mm" }}>TERMS &amp; CONDITIONS :-</p>
+        <ol>
+          <li>
+            <span>1.</span>
+            <span>
+              {terms}
+              {p.employmentType === "PROBATION" && s.probationEnds ? ` The probation runs until ${formatDate(s.probationEnds)}.` : ""}
+            </span>
+          </li>
+          <li>
+            <span>2.</span>
+            <span>The candidate appointed in this letter will have to join his / her duties {p.startDate > today() ? `on ${formatDate(p.startDate)}` : "immediately"}.</span>
+          </li>
+        </ol>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 60mm", marginTop: "8mm" }}>
+          <span />
+          <span style={{ fontWeight: 700, textAlign: "center" }}>
+            Principal
+            {principal && principal !== "Principal" && <span style={{ display: "block", fontWeight: 400, fontSize: "9pt" }}>{principal}</span>}
+          </span>
+        </div>
+        <p style={{ paddingLeft: "14mm" }}>
+          Date: <span style={{ fontSize: "10pt" }}>{formatDate(today())}</span>
+        </p>
       </div>
     </div>
   );
 }
 
-/** Employee profile (legacy "Employee Profile" report). */
+/**
+ * Employee profile, laid out as the old "Employee Profile" report: the boxed title, the fields in the old order (name
+ * and Urdu name, date of birth and shift, CNIC and caste, reference, address, contact number, other information,
+ * blood group and city, email and joining date, emergency, emergency contact, salary and working hours) with the photo
+ * box at the right, then "Employee's signature" and "Admin's signature". The postings and qualifications the new
+ * record keeps print after the old fields. Shift and working hours are not kept now, so they print blank.
+ */
 export function ProfileDoc({ s }: { s: HrStaffProfile }) {
   const p = s.postings.find((x) => x.primary) ?? s.postings[0]!;
-  const kv = (items: Array<[string, ReactNode]>) => (
-    <dl className="hr-doc-kv">
-      {items.map(([k, v]) => (
-        <div key={k} style={{ display: "contents" }}>
-          <dt>{k}</dt>
-          <dd>{v}</dd>
-        </div>
-      ))}
-    </dl>
+  const field = (k: string, v: ReactNode, k2?: string, v2?: ReactNode) => (
+    <>
+      <span className="k">{k}</span>
+      <span className="v">{v}</span>
+      <span className="k k2">{k2 ?? ""}</span>
+      <span className="v">{v2 ?? ""}</span>
+    </>
   );
+  const other = [
+    `${s.relation === "w/o" ? "Husband" : "Father"}: ${s.guardianName || "—"}`,
+    `${p.designation}${p.department ? `, ${p.department}` : ""}`,
+    s.employeeNo,
+    s.maritalStatus ? s.maritalStatus.charAt(0) + s.maritalStatus.slice(1).toLowerCase() : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
   return (
     <div className="hr-doc">
-      <DocHead campus={campusHeading(p.campus)} title="Staff profile" sub={`${s.name} · ${s.employeeNo}`} />
-      <h2>Personal</h2>
-      {kv([
-        ["Name", <>{s.name}{s.nameUrdu && <> · <Urdu size="small">{s.nameUrdu}</Urdu></>}</>],
-        [s.relation === "w/o" ? "Husband" : "Father", orDash(s.guardianName)],
-        ["CNIC", <Ltr>{cnicOrDash(s.cnic)}</Ltr>],
-        ["Date of birth", dateOrDash(s.dob)],
-        ["Blood group", orDash(s.bloodGroup)],
-        ["Marital status", s.maritalStatus ? s.maritalStatus.charAt(0) + s.maritalStatus.slice(1).toLowerCase() : "—"],
-        [
-          "Mobile",
+      <DocHead campus={campusHeading(p.campus)} title="" />
+      <span className="hr-boxtitle">Employee Profile</span>
+      <div className="hr-oldform">
+        {field("Name :", s.name, "", s.nameUrdu ? <Urdu size="small">{s.nameUrdu}</Urdu> : "")}
+        <span className="photo" aria-hidden="true">
+          Photo
+        </span>
+        {field("Date Of Birth :", s.dob ? formatDate(s.dob) : "", "Shift :", "")}
+        {field("C.N.I.C number:", s.cnic ? <Ltr>{formatCnic(s.cnic)}</Ltr> : "", "Caste :", s.caste ?? "")}
+        {field("Reference", s.reference ?? "")}
+        {field("Address(Home) :", s.address)}
+        {field(
+          "Contact Number:",
           <Ltr>
-            {mobileOrDash(s.mobile)}
+            {s.mobile ? formatMobile(s.mobile) : ""}
             {s.mobile2 ? `, ${formatMobile(s.mobile2)}` : ""}
           </Ltr>,
-        ],
-        ["Email", s.email ? <Ltr>{s.email}</Ltr> : "—"],
-        ["Address", orDash(s.address)],
-        ["City", orDash(s.city)],
-        ["Emergency contact", s.emergency ? `${s.emergency.name} (${s.emergency.relation}) ${mobileOrDash(s.emergency.mobile)}` : "—"],
-        ["Reference", s.reference ?? "—"],
-        ["Caste", s.caste ?? "—"],
-      ])}
+        )}
+        {field("Other Information :", other)}
+        {field("Blood Group :", s.bloodGroup, "City :", s.city)}
+        {field("Email :", s.email ? <Ltr>{s.email}</Ltr> : "", "Joining Date:", formatDate(s.joiningDate))}
+        {field("Emergency :", s.emergency ? `${s.emergency.name} (${s.emergency.relation})` : "")}
+        {field("Emergency Contact:", s.emergency ? <Ltr>{formatMobile(s.emergency.mobile)}</Ltr> : "")}
+        {/* Salary for pay roles only: the profile carries pay only when the viewer may see it. */}
+        {field("Salary :", s.pay?.basic ? formatRs(s.pay.basic).slice(3) : "", "Working Hrs :", "")}
+      </div>
       <h2>Employment</h2>
       <table>
         <thead>
@@ -210,34 +249,36 @@ export function ProfileDoc({ s }: { s: HrStaffProfile }) {
           ))}
         </tbody>
       </table>
-      {kv([
-        ["Joining date", formatDate(s.joiningDate)],
-        ["Service", `${years(s.serviceYears)}${s.priorServiceYears ? ` (includes ${years(s.priorServiceYears)} earlier MTB service)` : ""}`],
-        ["Teaching", s.teachingLevels.length ? `${s.teachingLevels.join(", ")}${s.subjects.length ? ` · ${s.subjects.join(", ")}` : ""}` : "—"],
-        // Pay roles only: the profile carries pay only when the viewer may see it.
-        ...(s.pay ? ([["Basic pay", `${s.pay.basic ? `${formatRs(s.pay.basic)} a month` : "Not set yet"}${s.pay.payScale ? ` · scale ${s.pay.payScale}` : ""}`]] as Array<[string, ReactNode]>) : []),
-      ])}
-      <h2>Qualifications</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Degree</th>
-            <th>Institution</th>
-            <th>Year</th>
-            <th>Result</th>
-          </tr>
-        </thead>
-        <tbody>
-          {s.qualifications.map((q) => (
-            <tr key={q.id}>
-              <td>{q.degree}</td>
-              <td>{orDash(q.institution)}</td>
-              <td>{q.year ?? "—"}</td>
-              <td>{orDash(q.result)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <p className="hr-doc-small">
+        Service {years(s.serviceYears)}
+        {s.priorServiceYears ? ` (includes ${years(s.priorServiceYears)} earlier MTB service)` : ""}
+        {s.teachingLevels.length ? ` · teaches ${s.teachingLevels.join(", ")}${s.subjects.length ? `: ${s.subjects.join(", ")}` : ""}` : ""}
+      </p>
+      {s.qualifications.length > 0 && (
+        <>
+          <h2>Qualifications</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Degree</th>
+                <th>Institution</th>
+                <th>Year</th>
+                <th>Result</th>
+              </tr>
+            </thead>
+            <tbody>
+              {s.qualifications.map((q) => (
+                <tr key={q.id}>
+                  <td>{q.degree}</td>
+                  <td>{orDash(q.institution)}</td>
+                  <td>{q.year ?? "—"}</td>
+                  <td>{orDash(q.result)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
       {s.experience.length > 0 && (
         <>
           <h2>Earlier experience</h2>
@@ -256,7 +297,14 @@ export function ProfileDoc({ s }: { s: HrStaffProfile }) {
           </table>
         </>
       )}
-      <Signatures labels={["Employee", "Office", "Principal"]} />
+      <div className="hr-oldsign">
+        <div>
+          Employee's
+          <br />
+          signature
+        </div>
+        <div>Admin's signature</div>
+      </div>
     </div>
   );
 }
@@ -306,10 +354,14 @@ export function IdCardDoc({ s }: { s: HrStaffProfile }) {
 export function PayslipDoc({ run, slip, first }: { run: Pick<HrPayrollRun, "campus" | "month" | "status" | "paymentDate">; slip: HrPayslip; first?: boolean }) {
   return (
     <div className={`hr-slip${first ? "" : " hr-break"}`}>
+      {/* The old "Employee Salary Card": letterhead, boxed title, then the salary month and payment. */}
+      <Letterhead campus={campusHeading(run.campus)} variant="slip" />
+      <span className="hr-boxtitle" style={{ margin: "0 auto", width: "70mm" }}>
+        EMPLOYEE SALARY CARD
+      </span>
       <div className="hr-slip-head">
         <div>
-          <strong>Salary slip · {hrMonthLabel(run.month)}</strong>
-          <span>MTB Schools and Colleges · {campusHeading(run.campus)}</span>
+          Salary Month : <strong style={{ display: "inline" }}>{hrMonthLabel(run.month)}</strong>
         </div>
         <span className="hr-slip-note" style={{ textAlign: "right" }}>
           {slip.paidOn ? `Paid ${formatDate(slip.paidOn)} (held, paid later)` : slip.hold ? "Held: not paid with the sheet" : run.status === "PAID" && run.paymentDate ? `Paid ${formatDate(run.paymentDate)}` : "Not paid yet"}
@@ -403,7 +455,7 @@ export function PayslipDoc({ run, slip, first }: { run: Pick<HrPayrollRun, "camp
       )}
       {slip.flags.length > 0 && <span className="hr-slip-note">{slip.flags.join(" ")}</span>}
       <span className="hr-slip-note">Computer-generated slip. Questions about this slip go to the accounts office within seven days.</span>
-      <Signatures labels={["Received by (staff)", "Accountant"]} />
+      <Signatures labels={["Employee's signature", "Admin's signature"]} />
     </div>
   );
 }

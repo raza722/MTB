@@ -16,14 +16,14 @@ const rangeSchema = z
   .object({ from: z.string().min(1, { error: "Choose the first date." }), to: z.string().min(1, { error: "Choose the last date." }) })
   .refine((v) => v.from <= v.to, { path: ["to"], error: "The last date must be on or after the first." });
 
-/** Admission slips two to an A4 sheet (side by side, landscape). */
+/** Admission slips two to an A4 sheet (one above the other, a dashed cut line under each), as the old printout. */
 export function AdmissionSlipSheets({ slips }: { slips: DocInput[] }) {
   const pairs: DocInput[][] = [];
   for (let i = 0; i < slips.length; i += 2) pairs.push(slips.slice(i, i + 2));
   return (
     <>
       {pairs.map((p, i) => (
-        <section key={i} className="mtb-slip-pair" aria-label={`Sheet ${i + 1} of ${pairs.length}`}>
+        <section key={i} className="od-slip-page" aria-label={`Sheet ${i + 1} of ${pairs.length}`}>
           {p.map((d) => (
             <AdmissionSlip key={d.snapshot.grNo} d={d} />
           ))}
@@ -138,7 +138,7 @@ export function AdmissionSlipsPanel({ open, onClose, grNos }: { open: boolean; o
         )}
         {q.isError && <LoadError what="new admissions" error={q.error} onRetry={() => void q.refetch()} />}
         {issued ? (
-          <PrintSheet paper="A4_LANDSCAPE" label="Admission slips" zoom={0.45}>
+          <PrintSheet paper="A4" label="Admission slips" zoom={0.5}>
             <AdmissionSlipSheets slips={preview} />
           </PrintSheet>
         ) : q.isLoading ? (

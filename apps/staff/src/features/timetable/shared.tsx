@@ -20,11 +20,11 @@ import {
   type TimetableSlot,
   type TimetableTeacher,
 } from "@mtb/api";
-import { formatDate, formatSession, pakistanToday, type IsoDate } from "@mtb/domain";
+import { formatSession, pakistanToday, type IsoDate } from "@mtb/domain";
 import { Banner, Button, Icon, Select } from "@mtb/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Fragment, useMemo, type CSSProperties, type ReactNode } from "react";
-import { campusLabel } from "../../app/shell/campus";
+import { footerBoxes, Letterhead } from "../../app/print/letterhead";
 import { Page, PageHeader } from "../../app/shell/page";
 import { SubNav, type SubNavItem } from "../../app/shell/SubNav";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
@@ -332,19 +332,21 @@ export function LessonCell({ title, line, sub, flag }: { title: string; line?: s
   );
 }
 
-/** The heading on every printed timetable page. */
+/**
+ * The heading on every printed timetable page, as the old timetable reports had it: the letterhead with the title,
+ * then the filter at the left and the count at the right in bold ("Class Level: Secondary" … "Total Staff: 19").
+ * The session and bell season the timetable belongs to print small at the far right.
+ */
 export function PrintHead({ board, title, scope, right }: { board: TimetableBoard; title: string; scope: ReactNode; right?: ReactNode }) {
-  const today = useToday();
   return (
     <header className="tt-print-head">
-      <div>
-        <div style={{ fontSize: "9pt", fontWeight: 600 }}>MTB Schools &amp; Colleges · {campusLabel(board.campus)}</div>
-        <h1>{title}</h1>
-        <div>{scope}</div>
-      </div>
-      <div style={{ fontSize: "9pt", textAlign: "right" }}>
-        {right && <div style={{ fontWeight: 600 }}>{right}</div>}
-        Session {formatSession(board.session)} · {SEASON_LABEL[board.schedule.season]} · Printed {formatDate(today)}
+      <Letterhead campus={board.campus} title={title} titleCase="as-is" />
+      <div className="tt-print-sub">
+        <span>{scope}</span>
+        <span>{right}</span>
+        <span className="tt-print-season">
+          Session {formatSession(board.session)} · {SEASON_LABEL[board.schedule.season]}
+        </span>
       </div>
     </header>
   );
@@ -458,7 +460,7 @@ export interface PrintMatrixRow {
  * A printed master sheet (A4 landscape): one row per teacher or section, one column per period
  * (the old "One Day Time Table", "Teacher Wise" and "Class Wise Master Sheet").
  */
-export function PrintMatrix({ board, title, scope, right, rowHeader, columns, rows, note }: { board: TimetableBoard; title: string; scope: ReactNode; right?: ReactNode; rowHeader: string; columns: Array<{ no: number; time?: string }>; rows: PrintMatrixRow[]; note?: string }) {
+export function PrintMatrix({ board, title, scope, right, rowHeader, columns, rows, note, timingRow }: { board: TimetableBoard; title: string; scope: ReactNode; right?: ReactNode; rowHeader: string; columns: Array<{ no: number; time?: string }>; rows: PrintMatrixRow[]; note?: string; timingRow?: boolean }) {
   return (
     <div className="tt-print-page">
       <PrintHead board={board} title={title} scope={scope} right={right} />
@@ -466,36 +468,60 @@ export function PrintMatrix({ board, title, scope, right, rowHeader, columns, ro
         <p>Nothing to print for these filters.</p>
       ) : (
         <table className="tt-print-matrix">
-          <thead>
-            <tr>
-              <th style={{ width: "22pt" }}>Sr.</th>
-              <th className="l" style={{ width: "92pt" }}>
-                {rowHeader}
-              </th>
-              {columns.map((c) => (
-                <th key={c.no}>
-                  {c.no}
-                  {c.time && (
-                    <>
-                      <br />
-                      {c.time}
-                    </>
-                  )}
-                </th>
-              ))}
-            </tr>
-          </thead>
+          {timingRow ? (
+            // The old one-day sheet: "Lect# 1 …" over a "Timing" row with each period's start and end.
+            <thead>
+              <tr>
+                <th style={{ width: "26pt" }}>Sr.#</th>
+                <th style={{ width: "92pt" }}>{rowHeader}</th>
+                {columns.map((c) => (
+                  <th key={c.no}>Lect# {c.no}</th>
+                ))}
+              </tr>
+              <tr>
+                <th />
+                <th>Timing</th>
+                {columns.map((c) => (
+                  <th key={c.no}>
+                    {(c.time ?? "").split("–").map((t, j) => (
+                      <span key={j} style={{ display: "block" }}>
+                        {t}
+                      </span>
+                    ))}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+          ) : (
+            <thead>
+              <tr>
+                <th style={{ width: "26pt" }}>Sr.#</th>
+                <th style={{ width: "92pt" }}>{rowHeader}</th>
+                {columns.map((c) => (
+                  <th key={c.no}>
+                    {c.no}
+                    {c.time && (
+                      <>
+                        <br />
+                        {c.time}
+                      </>
+                    )}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+          )}
           <tbody>
             {rows.map((r, i) => (
               <tr key={r.key}>
                 <td>{i + 1}</td>
-                <th className="l">
+                <th style={timingRow ? undefined : { fontWeight: 400 }}>
                   {r.label}
                   {r.sub && <span style={{ display: "block", fontWeight: 400, fontSize: "7pt" }}>{r.sub}</span>}
                 </th>
                 {columns.map((c, k) => (
-                  <td key={c.no} className="tt-print-small">
-                    {r.cells[k] ? r.cells[k]!.split("\n").map((line, j) => <span key={j}>{line}</span>) : "–"}
+                  <td key={c.no} className={timingRow ? "tt-print-small tt-c" : "tt-print-small"}>
+                    {r.cells[k] ? r.cells[k]!.split("\n").map((line, j) => <span key={j}>{line}</span>) : timingRow ? "-" : ""}
                   </td>
                 ))}
               </tr>
@@ -512,7 +538,7 @@ export function PrintMatrix({ board, title, scope, right, rowHeader, columns, ro
 export function PrintArea({ children }: { children: ReactNode }) {
   return (
     <section className="mtb-print-area tt-print-only" aria-hidden="true">
-      <style>{"@page { size: A4 landscape; margin: 10mm; }"}</style>
+      <style>{`@page { size: A4 landscape; margin: 8mm 8mm 11mm; ${footerBoxes()} }`}</style>
       {children}
     </section>
   );

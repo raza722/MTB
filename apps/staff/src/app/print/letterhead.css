@@ -1,0 +1,20 @@
+/* The old desktop system's letterhead (see letterhead.tsx). Black on white, Calibri/Arial like the old report designs. */
+.mtb-lh { display: grid; grid-template-columns: 16mm 1fr 16mm; align-items: center; gap: 3mm; color: #000; font-family: Calibri, Arial, sans-serif; }
+.mtb-lh-crest { width: 16mm; height: auto; display: block; }
+.mtb-lh-crest-space { width: 16mm; }
+.mtb-lh-text { text-align: center; }
+.mtb-lh-heading { font-size: 15pt; font-weight: 700; line-height: 1.2; }
+.mtb-lh-title { font-size: 12pt; font-weight: 700; margin-top: 1.5mm; text-transform: uppercase; }
+.mtb-lh-sub { font-size: 10pt; font-weight: 700; margin-top: 1mm; }
+.mtb-lh-right { justify-self: end; }
+.mtb-lh-slip { grid-template-columns: 11mm 1fr 11mm; gap: 2mm; }
+.mtb-lh-slip .mtb-lh-crest, .mtb-lh-slip .mtb-lh-crest-space { width: 11mm; }
+.mtb-lh-slip .mtb-lh-heading { font-size: 13pt; }
+.mtb-lh-slip .mtb-lh-title { font-size: 11pt; font-weight: 400; text-transform: none; margin-top: 0.5mm; }
+.mtb-lh-slip .mtb-lh-sub { font-size: 9pt; }
+.mtb-lh-cert { display: flex; flex-direction: column; align-items: center; text-align: center; position: relative; }
+.mtb-lh-cert .mtb-lh-crest { width: 22mm; }
+.mtb-lh-cert .mtb-lh-heading { font-size: 18pt; margin-top: 2mm; }
+.mtb-lh-cert .mtb-lh-title { font-size: 16pt; text-decoration: underline; margin-top: 3mm; }
+.mtb-lh-cert .mtb-lh-right { position: absolute; right: 0; top: 0; }
+.mtb-lh .mtb-lh-title-asis { text-transform: none; }

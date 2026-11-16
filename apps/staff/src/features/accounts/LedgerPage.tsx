@@ -5,7 +5,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useCtx } from "../../app/session";
 import { campusLabel } from "../../app/shell/campus";
-import { accountOptions, AccountsShell, accToday, asOfFor, Bal, balText, DocFoot, DocHead, errorText, lakhTick, LoadError, sessionStartOf, shortDate, slide, TypeChip, useChart } from "./shared";
+import { accountOptions, AccountsShell, accToday, asOfFor, Bal, balText, DocFoot, DocHead, errorText, lakhTick, LoadError, printAmt, printBal, sessionStartOf, shortDate, slide, TypeChip, useChart } from "./shared";
 import { VoucherPeek } from "./VoucherPeek";
 
 export interface LedgerSearch {
@@ -268,32 +268,46 @@ export function LedgerPage({ search, setSearch }: { search: LedgerSearch; setSea
       {printing && l && acc && (
         <div className="acc-print-only mtb-print-area" aria-hidden="true">
           <article className="acc-doc">
-            <DocHead title={allBanks ? "Bank book: all bank accounts" : `${isBank ? "Bank book" : acc.kind === "CASH" ? "Cash book" : "Ledger"}: ${acc.code} ${acc.name}`} subtitle={`${formatDate(from)} to ${formatDate(to)}`} />
+            <DocHead title="ACCOUNT HEAD LEDGER" />
+            <div className="acc-doc-dates">
+              <span>
+                <b>Account :</b>
+                {allBanks ? "All bank accounts" : `${acc.code} ${acc.name}`}
+              </span>
+              <span>
+                <b>Date From :</b>
+                {formatDate(from)}
+                <b>Date To :</b>
+                {formatDate(to)}
+              </span>
+            </div>
             <table>
               <thead>
                 <tr>
-                  <th>Date</th>
-                  <th>Voucher</th>
-                  <th>Bill / ref no.</th>
+                  <th style={{ width: 76 }}>Date</th>
+                  <th style={{ width: 100 }}>Voucher #</th>
+                  <th style={{ width: 80 }}>Manual #</th>
                   {allBanks && <th>Bank account</th>}
-                  <th>Narration</th>
-                  <th className="num">Debit</th>
-                  <th className="num">Credit</th>
-                  <th className="num">Balance</th>
+                  <th>Description</th>
+                  <th className="num" style={{ width: 90, textAlign: "center" }}>
+                    Debit
+                  </th>
+                  <th className="num" style={{ width: 90, textAlign: "center" }}>
+                    Credit
+                  </th>
+                  <th className="num" style={{ width: 100, textAlign: "center" }}>
+                    Balance
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td>{formatDate(from)}</td>
-                  <td />
-                  <td />
-                  {allBanks && <td />}
-                  <td>
-                    <b>Opening balance</b>
+                  <td className="acc-doc-label" colSpan={allBanks ? 5 : 4} style={{ textAlign: "center" }}>
+                    OPENING BALANCE
                   </td>
-                  <td />
-                  <td />
-                  <td className="num">{balText(l.opening)}</td>
+                  <td className="acc-doc-label" />
+                  <td className="acc-doc-label" />
+                  <td className="acc-doc-label num">{printBal(l.opening)}</td>
                 </tr>
                 {l.lines.map((r) => (
                   <tr key={r.key}>
@@ -305,20 +319,18 @@ export function LedgerPage({ search, setSearch }: { search: LedgerSearch; setSea
                       {r.narration}
                       {r.description ? ` — ${r.description}` : ""}
                     </td>
-                    <td className="num">{r.debit ? formatRs(r.debit) : ""}</td>
-                    <td className="num">{r.credit ? formatRs(r.credit) : ""}</td>
-                    <td className="num">{balText(r.balance)}</td>
+                    <td className="num">{printAmt(r.debit ?? 0)}</td>
+                    <td className="num">{printAmt(r.credit ?? 0)}</td>
+                    <td className="num">{printBal(r.balance)}</td>
                   </tr>
                 ))}
-                <tr>
-                  <td colSpan={allBanks ? 5 : 4} style={{ textAlign: "right", fontWeight: 600 }}>
-                    Totals and closing balance
+                <tr className="acc-doc-total">
+                  <td className="acc-doc-label" colSpan={allBanks ? 5 : 4}>
+                    Total :
                   </td>
-                  <td className="num">{formatRs(l.totalDebit)}</td>
-                  <td className="num">{formatRs(l.totalCredit)}</td>
-                  <td className="num" style={{ fontWeight: 600 }}>
-                    {balText(l.closing)}
-                  </td>
+                  <td className="num">{printAmt(l.totalDebit)}</td>
+                  <td className="num">{printAmt(l.totalCredit)}</td>
+                  <td className="acc-doc-label" />
                 </tr>
               </tbody>
             </table>

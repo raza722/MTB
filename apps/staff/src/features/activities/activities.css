@@ -79,7 +79,18 @@
 /* ---------- Printed documents (A4 portrait and landscape) ---------- */
 .act-doc { box-sizing: border-box; width: 210mm; min-height: 297mm; padding: 14mm 16mm; background: var(--surface-raised); color: var(--ink); font-size: 10.5pt; line-height: 1.45; position: relative; }
 .act-doc-land { width: 297mm; min-height: 210mm; padding: 10mm 12mm; font-size: 9pt; }
-.act-doc-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1.4pt solid var(--ink); padding-bottom: 3mm; margin-bottom: 5mm; }
+/* Lists printed with the old footer: the page keeps a bottom margin for it, so the sheet grows with its rows. */
+@media print { .act-print-foot .act-doc { min-height: 0; padding-bottom: 0; } .act-print-foot .act-doc-foot { display: none; } }
+/* Old sports list: "House:" and "Total Students:" over each table, plain black grid. */
+.act-sl-head { display: flex; justify-content: space-between; align-items: baseline; gap: 6mm; margin: 2mm 0 1.5mm; font-size: 10pt; }
+.act-sl-line { display: inline-block; min-width: 26mm; border-bottom: 0.6pt solid #000; padding: 0 2mm; }
+.act-sl-places { font-size: 8.5pt; color: var(--ink-muted); }
+.act-doc table.act-sl th, .act-doc table.act-sl td { border-color: #555; padding: 1mm 1.4mm; }
+.act-doc table.act-sl td bdi { white-space: nowrap; }
+.act-doc table.act-sl th { background: transparent; text-align: center; vertical-align: middle; }
+.act-doc td.c, .act-doc th.c { text-align: center; }
+.act-doc-head { display: block; margin-bottom: 4mm; }
+.act-doc-head .mtb-lh-title { text-transform: none; font-size: 15pt; }
 .act-doc-head h1 { margin: 0; font-size: 15pt; line-height: 1.2; }
 .act-doc-head p { margin: 0; color: var(--ink-muted); font-size: 9pt; }
 .act-seal { width: 15mm; height: 15mm; border-radius: 999px; display: grid; place-content: center; background: var(--brand); color: var(--on-brand); font-weight: 700; font-size: 10pt; flex-shrink: 0; }
@@ -103,7 +114,29 @@
 .act-doc tr.act-list-sub th span { float: right; font-weight: 400; color: var(--ink-muted); }
 
 /* Certificate (A4 landscape) */
-.act-cert { box-sizing: border-box; width: 297mm; height: 210mm; padding: 9mm; background: var(--surface-raised); color: var(--ink); position: relative; }
+.act-cert { box-sizing: border-box; width: 210mm; height: 297mm; padding: 7mm; background: #fff; color: #000; position: relative; font-family: "Times New Roman", Times, serif; }
+/* The old merit certificate (A4 portrait): a patterned green border, crest and school name, campus, title badge, the
+   details on ruled lines, signatures and the two notes. */
+.act-oc-frame { box-sizing: border-box; height: 100%; padding: 10mm 12mm 8mm; border: 5mm solid transparent; border-image: repeating-linear-gradient(45deg, #2e7d32 0 1.2mm, #c8e6c9 1.2mm 2.4mm) 12; display: flex; flex-direction: column; }
+.act-oc-head { display: grid; justify-items: center; gap: 1.5mm; margin-top: 4mm; }
+.act-oc-school { font-size: 21pt; white-space: nowrap; font-weight: 700; letter-spacing: 0.01em; text-align: center; }
+.act-oc-crest { width: 34mm; height: auto; }
+.act-oc-campus { font: 22pt Arial, sans-serif; }
+.act-oc-badge { margin-top: 2mm; padding: 2.5mm 9mm; border-radius: 3mm; background: linear-gradient(#2f7fd6, #0b4fa3); color: #fff; font: 700 20pt Impact, "Arial Narrow", Arial, sans-serif; letter-spacing: 0.04em; text-transform: uppercase; box-shadow: inset 0 0 0 0.6mm #0a3a78; }
+.act-oc-body { display: grid; gap: 4.5mm; margin-top: 8mm; font-size: 14pt; }
+.act-oc-row { display: flex; align-items: flex-end; gap: 3mm; }
+.act-oc-row > span:first-child { white-space: nowrap; }
+.act-oc-line { flex: 1; min-height: 7mm; border-bottom: 0.8pt solid #000; padding-left: 26mm; white-space: nowrap; overflow: hidden; }
+.act-oc-top b { font-size: 12pt; white-space: nowrap; }
+.act-oc-top .act-oc-line { padding-left: 2mm; flex: 0 1 50mm; }
+.act-oc-top .act-oc-line:nth-of-type(1) { margin-right: auto; }
+.act-oc-signs { display: grid; grid-template-columns: 1fr 1fr; margin-top: 14mm; font-size: 11pt; font-weight: 700; }
+.act-oc-signs > div { display: flex; }
+.act-oc-signs > div:first-child { justify-content: flex-start; padding-left: 30mm; }
+.act-oc-signs > div:last-child { justify-content: flex-end; padding-top: 10mm; }
+.act-oc-signs span { display: inline-block; min-width: 40mm; padding-bottom: 6mm; border-bottom: 0.8pt solid #000; text-align: center; }
+.act-oc-notes { margin-top: auto; padding-left: 35mm; font-size: 13pt; line-height: 1.5; }
+.act-oc-meta { margin-top: 2mm; text-align: right; font: 8pt Arial, sans-serif; color: #555; }
 .act-cert-frame { box-sizing: border-box; height: 100%; border: 2.4pt solid var(--brand); padding: 2.4mm; }
 .act-cert-inner { box-sizing: border-box; height: 100%; border: 0.8pt solid var(--brand); padding: 10mm 16mm 8mm; display: grid; grid-template-rows: auto auto 1fr auto auto; justify-items: center; text-align: center; gap: 3mm; }
 .act-cert-school { display: flex; align-items: center; gap: 4mm; }

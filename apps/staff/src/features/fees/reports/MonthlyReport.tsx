@@ -6,7 +6,7 @@ import { useState } from "react";
 import { campusLabel } from "../../../app/shell/campus";
 import { Page, PageHeader, RequirePermission } from "../../../app/shell/page";
 import { useCtx } from "../../../app/session";
-import { FeesNav, lakhTick, LoadError, PaperSize, slide, feeToday } from "../shared";
+import { FeesNav, FeesDocHead, lakhTick, LoadError, PaperSize, slide, feeToday } from "../shared";
 
 const pctOf = (r: { collected: number; target: number }) => (r.target ? (r.collected / r.target) * 100 : 0);
 
@@ -120,14 +120,7 @@ export function MonthlyReport() {
           <div className="fees-print-only mtb-print-area fees-print-a4">
             <PaperSize size="A4" />
             <div className="fees-doc" data-theme="light">
-              <div className="fees-doc-head">
-                <div>
-                  <h1>Collection against target</h1>
-                  <p>
-                    {campusLabel(ctx.campus)} · Session {formatSession(ctx.session)}
-                  </p>
-                </div>
-              </div>
+              <FeesDocHead title={"Collection against target"} sub={<>{campusLabel(ctx.campus)} · Session {formatSession(ctx.session)}</>} />
               <table>
                 <thead>
                   <tr>

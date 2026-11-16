@@ -1,5 +1,7 @@
-import type { ReportResult } from "@mtb/api";
+import { REPORT_SUBTOTAL_KEY, type ReportFilterDef, type ReportResult } from "@mtb/api";
 import { formatDate } from "@mtb/domain";
+import { schoolHeading } from "../../app/print/letterhead";
+import { filterLine, printTitle, serialLabel, titleInCapitals } from "./ReportDocument";
 import { cellText } from "./shell";
 
 /**
@@ -15,29 +17,40 @@ const csvCell = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` 
 
 /**
  * The report as a CSV file that opens in Excel (UTF-8 with a byte-order mark, so Urdu names survive).
- * Numbers are written plain (no "Rs", no commas) so Excel can add them up.
+ * Numbers are written plain (no "Rs", no commas) so Excel can add them up. It opens with the printed report's
+ * heading: the school and campus, the old report's title (in capitals where the old one was) and the line of parameters ("Class : 9   Section : Barni").
  */
-export function toCsv(result: ReportResult): string {
+export function toCsv(result: ReportResult, campus?: string, filters?: ReportFilterDef[]): string {
   const lines: string[] = [];
-  lines.push(csvCell(result.campusHeading));
-  lines.push(csvCell(result.title));
-  lines.push(csvCell(result.subtitle));
+  lines.push(csvCell(campus ? schoolHeading(campus) : result.campusHeading));
+  lines.push(csvCell(titleInCapitals(result) ? printTitle(result).toUpperCase() : printTitle(result)));
+  lines.push(csvCell(filterLine(result.subtitle, filters).map(([l, v]) => (l ? `${l} : ${v}` : v)).join("   ")));
   lines.push(csvCell(`Prepared by ${result.generatedBy} on ${formatDate(result.generatedAt)}`));
   lines.push("");
-  lines.push(result.columns.map((c) => csvCell(c.label)).join(","));
+  // the running number of the printed report ("Sr. No."), counting again after each subtotal line ("Total :")
+  const serial = serialLabel(result);
+  let n = 0;
+  lines.push([...(serial ? [csvCell(serial)] : []), ...result.columns.map((c) => csvCell(c.label))].join(","));
   for (const row of result.rows) {
+    const sub = Boolean(row[REPORT_SUBTOTAL_KEY]);
+    const no = sub ? "Total :" : String(++n);
+    if (sub) n = 0;
     lines.push(
-      result.columns
-        .map((c) => {
+      [
+        ...(serial ? [no] : []),
+        ...result.columns.map((c) => {
           const v = row[c.key];
           if (v === null || v === undefined) return "";
           if (typeof v === "number") return String(v);
           return csvCell(c.kind === "date" ? cellText(v, "date") : v);
-        })
-        .join(","),
+        }),
+      ].join(","),
     );
   }
-  if (result.totals) lines.push(result.columns.map((c, i) => (i === 0 ? "Total" : c.key in result.totals! ? String(result.totals![c.key]) : "")).join(","));
+  if (result.totals)
+    lines.push(
+      [...(serial ? ["Grand Total :"] : []), ...result.columns.map((c, i) => (c.key in result.totals! ? String(result.totals![c.key]) : i === 0 && !serial ? "Grand Total :" : ""))].join(","),
+    );
   for (const n of result.notes ?? []) lines.push(csvCell(n));
   return `﻿${lines.join("\r\n")}`;
 }
@@ -55,6 +68,6 @@ export function download(name: string, content: string, type: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export function downloadExcel(result: ReportResult, campus: string) {
-  download(`${fileBase(result, campus)}.csv`, toCsv(result), "text/csv;charset=utf-8");
+export function downloadExcel(result: ReportResult, campus: string, filters?: ReportFilterDef[]) {
+  download(`${fileBase(result, campus)}.csv`, toCsv(result, campus, filters), "text/csv;charset=utf-8");
 }

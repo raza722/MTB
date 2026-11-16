@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import { campusLabel } from "../../../app/shell/campus";
 import { Page, PageHeader, RequirePermission } from "../../../app/shell/page";
 import { useCtx } from "../../../app/session";
-import { feeToday, FeesNav, HeadPicker, lakhTick, LoadError, PaperSize, pctText, useFeeClasses } from "../shared";
+import { feeToday, FeesNav, FeesDocHead, HeadPicker, lakhTick, LoadError, PaperSize, pctText, useFeeClasses } from "../shared";
 
 interface ClassRow {
   key: string;
@@ -308,17 +308,9 @@ export function ArrearsReport() {
           <div className="fees-print-only mtb-print-area fees-print-a4">
             <PaperSize size="A4" />
             <div className="fees-doc" data-theme="light">
-              <div className="fees-doc-head">
-                <div>
-                  <h1>Arrears by class and student</h1>
-                  <p>
-                    {campusLabel(ctx.campus)} · Session {formatSession(ctx.session)}
+              <FeesDocHead title={"Arrears by class and student"} sub={<>{campusLabel(ctx.campus)} · Session {formatSession(ctx.session)}
                     {filterText ? ` · ${filterText}` : ""}
-                    {includeLeft ? " · including families who left" : ""}
-                  </p>
-                </div>
-                <p>As of {formatDate(q.data?.today ?? feeToday())}</p>
-              </div>
+                    {includeLeft ? " · including families who left" : ""}</>} right={<>As of {formatDate(q.data?.today ?? feeToday())}</>} />
               <table>
                 <thead>
                   <tr>

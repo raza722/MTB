@@ -27,7 +27,7 @@ import { campusLabel } from "../../app/shell/campus";
 import { Page, PageHeader } from "../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { cellText, MarksGrid, parseCell, type GridCol, type GridValues } from "./MarksGrid";
-import { DocHead, printedOn } from "./print/docs";
+import { DocHead, Fields, printedOn, sessionLong } from "./print/docs";
 import { PrintSheet, printNow } from "./print/PrintSheet";
 import { errorText, ExamsNav, examsToday, LoadError, ordinal } from "./shared";
 import { useAutosave } from "./useAutosave";
@@ -896,39 +896,23 @@ function UniAwardList({ sem, courseId, onChange }: { sem: ExamsUniSemester; cour
         </Button>
       </div>
       <PrintSheet paper="A4" label="Award list preview">
-        <article className="exams-doc exams-doc-a4" aria-label="Award list">
-          <DocHead campus={sem.campus} title="Award list (script marking list)" sub={`${sem.programmeShort} · ${sem.label}`} />
-          <dl className="exams-doc-info">
-            <div>
-              <dt>Course</dt>
-              <dd>
-                {course.code} {course.title}
-              </dd>
-            </div>
-            <div>
-              <dt>Teacher</dt>
-              <dd>{course.teacher || "—"}</dd>
-            </div>
-            <div>
-              <dt>Credit hours</dt>
-              <dd>{course.creditHours}</dd>
-            </div>
-            <div>
-              <dt>Supervisor</dt>
-              <dd>{course.supervisor ?? "—"}</dd>
-            </div>
-            <div>
-              <dt>Students</dt>
-              <dd>{sem.rows.length}</dd>
-            </div>
-          </dl>
-          <table>
+        <article className="exams-doc exams-doc-a4 exams-award-doc" aria-label="Award list">
+          <DocHead campus={sem.campus} title="Script Marking List" />
+          <div className="exams-award-info">
+            <Fields under items={[["Exam", split ? "Mid Semester" : "Mid / Final Semester"], ["Session", sessionLong(sem.session)]]} />
+            <Fields under items={[["Class", sem.programmeShort], ["Section", sem.label]]} />
+            <Fields under items={[["Total Students", sem.rows.length], ["Instructor", course.teacher || ""]]} />
+            <Fields items={[["Date", "____/____/____"], ["Subject", `${course.code} ${course.title}`], ["Max Marks", split ? course.midMax : `${course.midMax} / ${course.finalMax}`]]} />
+          </div>
+          <table className="exams-award">
             <thead>
               <tr>
-                <th>Reg. no.</th>
-                <th>Student</th>
-                <th>Father's name</th>
-                <th style={{ width: "22mm" }}>Sign.</th>
+                <th className="c">Sr #</th>
+                <th className="c">GR No.</th>
+                <th className="c">Student Name</th>
+                <th className="c" style={{ width: "24mm" }}>
+                  Sign.
+                </th>
                 {split ? (
                   <>
                     <th className="c">Subjective</th>
@@ -945,11 +929,11 @@ function UniAwardList({ sem, courseId, onChange }: { sem: ExamsUniSemester; cour
               </tr>
             </thead>
             <tbody>
-              {sem.rows.map((r) => (
+              {sem.rows.map((r, i) => (
                 <tr key={r.id}>
-                  <td className="mtb-mono">{r.id}</td>
+                  <td className="c">{i + 1}</td>
+                  <td className="c nw">{r.id}</td>
                   <td>{r.name}</td>
-                  <td>{r.father}</td>
                   <td />
                   <td />
                   <td />
@@ -958,23 +942,17 @@ function UniAwardList({ sem, courseId, onChange }: { sem: ExamsUniSemester; cour
               ))}
             </tbody>
           </table>
-          <div className="exams-doc-summary" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
-            {["Present", "Absent", "Blank sheets", "Answer sheets"].map((t) => (
-              <div key={t}>
-                <span>{t}</span>
-                <b>&nbsp;</b>
-              </div>
-            ))}
-          </div>
-          <p className="exams-doc-key">Write A for absent and L for leave. Printed {printedOn()}.</p>
-          <div className="exams-doc-signs" style={{ gridTemplateColumns: "repeat(4, 1fr)", gap: "6mm" }}>
-            <div>
-              {course.supervisor && <b style={{ display: "block", color: "var(--ink)" }}>{course.supervisor}</b>}
-              Invigilator
-            </div>
-            <div>Checker</div>
-            <div>Rechecker</div>
-            <div>Head of department</div>
+          <div className="exams-tally">
+            {[["Present:", ""], ["Absent:", ""], ["Blank Sheets:", ""], ["Answer Sheets:", ""], ["Invigilator:", course.supervisor ?? ""], ["Checker:", ""], ["", ""], ["Rechecker:", ""], ["", ""], ["HOD Sign:", ""]].map(([k, v], i) =>
+              k ? (
+                <span key={i}>
+                  <b>{k}</b>
+                  {v ? <span className="exams-u">{v}</span> : <span className="exams-fill" style={{ minWidth: "32mm" }} />}
+                </span>
+              ) : (
+                <span key={i} />
+              ),
+            )}
           </div>
         </article>
       </PrintSheet>
@@ -998,52 +976,45 @@ function UniCourseSheet({ sem, courseId, onChange }: { sem: ExamsUniSemester; co
       </div>
       <PrintSheet paper="A4L" label="Course master sheet preview">
         <article className="exams-doc exams-doc-land" aria-label="Course master sheet">
-          <DocHead campus={sem.campus} title={`${sem.programmeShort} master sheet`} sub={`${course.code} ${course.title}`} />
-          <dl className="exams-doc-info">
-            <div>
-              <dt>Session</dt>
-              <dd>{formatSession(sem.session)}</dd>
-            </div>
-            <div>
-              <dt>Subject</dt>
-              <dd>{course.title}</dd>
-            </div>
-            <div>
-              <dt>Instructor</dt>
-              <dd>{course.teacher || "—"}</dd>
-            </div>
-            <div>
-              <dt>Semester</dt>
-              <dd>{ordinal(sem.number)}</dd>
-            </div>
-            <div>
-              <dt>Course code</dt>
-              <dd>
-                {course.code} · {course.creditHours} credit hours
-              </dd>
-            </div>
-            <div>
-              <dt>Exam supervisor</dt>
-              <dd>{course.supervisor ?? "—"}</dd>
-            </div>
-          </dl>
+          <DocHead campus={sem.campus} title={`${sem.programmeShort} Master Sheet`} />
+          <table className="exams-uni-box">
+            <tbody>
+              <tr>
+                <th>Session:</th>
+                <td>{sessionLong(sem.session)}</td>
+                <th>Subject :</th>
+                <td>{course.title}</td>
+                <th>Instructor:</th>
+                <td>{course.teacher || ""}</td>
+              </tr>
+              <tr>
+                <th>Semester:</th>
+                <td>{ordinal(sem.number)}</td>
+                <th>Credit Hours:</th>
+                <td>{course.creditHours}</td>
+                <th>Exam Supervisor:</th>
+                <td>{course.supervisor ?? ""}</td>
+              </tr>
+              <tr>
+                <th>Course Code:</th>
+                <td>{course.code}</td>
+                <td colSpan={4} className="exams-nob" />
+              </tr>
+            </tbody>
+          </table>
           <table>
             <thead>
               <tr>
-                <th rowSpan={2} className="n">
-                  Sr.
-                </th>
-                <th rowSpan={2}>Reg. no.</th>
+                <th rowSpan={2}>Sr #</th>
+                <th rowSpan={2}>GR #</th>
                 <th rowSpan={2}>Name</th>
                 <th colSpan={course.components.length + 2} className="c">
-                  Marks of internal assessment
+                  Marks of Internal Assessment
                 </th>
-                <th rowSpan={2} className="n">
+                <th rowSpan={2} className="c">
                   Final
                 </th>
-                <th rowSpan={2} className="n">
-                  Attendance %
-                </th>
+                <th rowSpan={2}>Attendance Percentage</th>
               </tr>
               <tr>
                 {course.components.map((x) => (
@@ -1051,12 +1022,12 @@ function UniCourseSheet({ sem, courseId, onChange }: { sem: ExamsUniSemester; co
                     {x.label}
                   </th>
                 ))}
-                <th className="n">Mid semester</th>
-                <th className="n">Total</th>
+                <th className="c">Mid Semester</th>
+                <th className="c">Total</th>
               </tr>
               <tr>
                 <th colSpan={3} className="n">
-                  Max. marks
+                  Max. Marks
                 </th>
                 {course.components.map((x) => (
                   <th key={x.typeId} className="n">
@@ -1092,14 +1063,7 @@ function UniCourseSheet({ sem, courseId, onChange }: { sem: ExamsUniSemester; co
               })}
             </tbody>
           </table>
-          <p className="exams-doc-key">
-            A = absent, L = leave (both count as 0). Attendance below {EXAMS_UNI_MIN_ATTENDANCE}% (in red) makes the course an F. Printed {printedOn()}.
-          </p>
-          <div className="exams-doc-signs" style={{ marginTop: "10mm" }}>
-            <div>Course teacher</div>
-            <div />
-            <div>Controller of examinations</div>
-          </div>
+          <p className="exams-doc-key">A = absent, L = leave. Attendance below {EXAMS_UNI_MIN_ATTENDANCE}% makes the course an F.</p>
         </article>
       </PrintSheet>
     </div>
@@ -1192,122 +1156,123 @@ function UniSheet({ sem, variant, onVariant }: { sem: ExamsUniSemester; variant:
         <article className="exams-doc exams-doc-land" aria-label="University master sheet">
           <DocHead
             campus={sem.campus}
-            title={variant === "mid" ? "Mid-semester master sheet" : "Master sheet"}
-            sub={`${sem.programmeShort} · ${sem.label}${variant === "mid" && filtered ? ` · ${assessLabel}${from || to ? ` · ${from ? formatDate(from) : "start"} to ${to ? formatDate(to) : "now"}` : ""}` : ""}`}
+            title={variant === "mid" ? (showSM ? `${sem.programmeShort} Master Sheet Mid Semester` : "Class Mid Semester Report (Section Wise)") : `${sem.programmeShort} Master Sheet`}
+            sub={variant === "mid" && filtered ? `${assessLabel}${from || to ? ` · ${from ? formatDate(from) : "start"} to ${to ? formatDate(to) : "now"}` : ""}` : undefined}
           />
+          <Fields under items={[["Class", sem.programmeShort], ["Section", sem.label], variant === "mid" && !showSM && (from || to) && ["Month", new Date(`${(from ?? to)!}T00:00:00`).toLocaleString("en-US", { month: "long" })]]} />
+          <Fields under items={[["Semester", ordinal(sem.number)]]} />
           {variant === "mid" ? (
             <table>
               <thead>
                 <tr>
-                  <th rowSpan={2} className="n">
-                    Sr.
-                  </th>
-                  <th rowSpan={2}>Reg. no.</th>
-                  <th rowSpan={2}>Student</th>
-                  {sem.courses.map((c) => (
-                    <th key={c.id} colSpan={showSM ? 3 : 1} className="c">
-                      {c.code}
-                    </th>
-                  ))}
-                  <th rowSpan={2} className="n">
-                    Obt.
-                  </th>
-                  <th rowSpan={2} className="n">
-                    %
+                  <th rowSpan={2} className="c">
+                    Sr.#
                   </th>
                   <th rowSpan={2} className="c">
-                    Grd
+                    G.R.No
                   </th>
-                  <th rowSpan={2} className="n">
-                    Pos.
+                  <th rowSpan={2} className="c">
+                    Student Name
                   </th>
-                  <th rowSpan={2}>Contact</th>
-                  <th rowSpan={2}>Remarks</th>
+                  {sem.courses.map((c) => (
+                    <th key={c.id} colSpan={showSM ? 3 : 1} rowSpan={showSM ? 1 : 2} className="c" style={{ fontWeight: 400 }}>
+                      {showSM ? (sem.courses.length > 4 ? c.code : c.title) : <span className="exams-vert">{c.title}</span>}
+                    </th>
+                  ))}
+                  {[showSM ? "Obtain Marks" : "Obt.", "%", "Grd", "Pos"].map((t) => (
+                    <th key={t} rowSpan={2} className="c" style={{ fontWeight: 400 }}>
+                      {showSM ? t : <span className="exams-vert">{t}</span>}
+                    </th>
+                  ))}
+                  <th rowSpan={2} className="c">
+                    Contact
+                  </th>
+                  <th rowSpan={2} className="c">
+                    Remarks
+                  </th>
                 </tr>
                 <tr>
                   {sem.courses.flatMap((c) =>
                     showSM
                       ? [
-                          <th key={`${c.id}s`} className="n">
-                            S
+                          <th key={`${c.id}m`} className="c">
+                            Marks
                           </th>,
-                          <th key={`${c.id}m`} className="n">
-                            M
+                          <th key={`${c.id}s`} className="c">
+                            Sessional Marks
                           </th>,
-                          <th key={`${c.id}t`} className="n">
-                            Tot.
+                          <th key={`${c.id}t`} className="c">
+                            Total
                           </th>,
                         ]
-                      : [
-                          <th key={`${c.id}x`} className="n">
-                            {assess === MID ? "M" : "Obt."}
-                          </th>,
-                        ],
+                      : [],
                   )}
                 </tr>
                 <tr>
                   <th colSpan={3} className="n">
-                    Max. marks
+                    Max. Marks:
                   </th>
                   {sem.courses.flatMap((c, i) => {
                     const x = lines[0]?.cells[i] ?? midCell(c, undefined, assess, from, to);
                     return showSM
                       ? [
-                          <th key={`${c.id}s`} className="n">
-                            {x.sMax}
-                          </th>,
-                          <th key={`${c.id}m`} className="n">
+                          <th key={`${c.id}m`} className="c">
                             {x.mMax}
                           </th>,
-                          <th key={`${c.id}t`} className="n">
+                          <th key={`${c.id}s`} className="c">
+                            {x.sMax}
+                          </th>,
+                          <th key={`${c.id}t`} className="c">
                             {x.max}
                           </th>,
                         ]
                       : [
-                          <th key={`${c.id}x`} className="n">
+                          <th key={`${c.id}x`} className="c">
                             {x.max}
                           </th>,
                         ];
                   })}
-                  <th className="n">{lines[0]?.max ?? ""}</th>
+                  <th className="c">{lines[0]?.max ?? ""}</th>
                   <th colSpan={5} />
                 </tr>
               </thead>
               <tbody>
                 {lines.map((l, i) => (
                   <tr key={l.r.id}>
-                    <td className="n">{i + 1}</td>
-                    <td className="mtb-mono">{l.r.id}</td>
+                    <td className="c">{i + 1}</td>
+                    <td className="c nw">{l.r.id}</td>
                     <td>{l.r.name}</td>
                     {l.cells.flatMap((x, ci) => {
                       const c = sem.courses[ci]!;
                       return showSM
                         ? [
-                            <td key={`${c.id}s`} className="n">
-                              {l.r.marks[c.id] ? x.s : ""}
-                            </td>,
-                            <td key={`${c.id}m`} className="n">
+                            <td key={`${c.id}m`} className="c">
                               {partText(x.m)}
                             </td>,
-                            <td key={`${c.id}t`} className={x.complete && x.max && x.total < examsPassMark(x.max, EXAMS_DEFAULT_PASS_RULES) ? "n fail" : "n"}>
+                            <td key={`${c.id}s`} className="c">
+                              {l.r.marks[c.id] ? x.s : ""}
+                            </td>,
+                            <td key={`${c.id}t`} className="c">
                               {x.complete ? x.total : ""}
                             </td>,
                           ]
                         : [
-                            <td key={`${c.id}x`} className="n">
+                            <td key={`${c.id}x`} className="c">
                               {assess === MID ? partText(x.m) : x.complete ? x.total : ""}
                             </td>,
                           ];
                     })}
-                    <td className="n">{l.obtained}</td>
-                    <td className="n">{l.pct === null ? "" : `${l.pct.toFixed(2)}`}</td>
+                    <td className="c">{l.obtained}</td>
+                    <td className="c">{l.pct === null ? "" : `${l.pct.toFixed(2)} %`}</td>
                     <td className="c">{l.pct === null ? "" : examsGradeFor(l.pct, EXAMS_DEFAULT_SCALE)}</td>
-                    <td className="n">{pos.get(l.r.id) ? ordinal(pos.get(l.r.id)!) : ""}</td>
-                    <td className="mtb-mono">{l.r.guardianMobile ?? ""}</td>
-                    <td style={{ fontSize: "7.5pt" }}>{l.below.join(", ")}</td>
+                    <td className="c">{pos.get(l.r.id) ? ordinal(pos.get(l.r.id)!) : ""}</td>
+                    <td className="c">{l.r.guardianMobile ?? ""}</td>
+                    <td className="c" style={{ fontSize: "7.5pt" }}>
+                      {l.below.join(", ")}
+                    </td>
                   </tr>
                 ))}
-                <tr>
+                <tr className="exams-nob">
                   <th colSpan={3} className="n">
                     Average
                   </th>
@@ -1319,9 +1284,9 @@ function UniSheet({ sem, variant, onVariant }: { sem: ExamsUniSemester; variant:
                   })}
                   <th colSpan={6} />
                 </tr>
-                <tr>
+                <tr className="exams-nob">
                   <th colSpan={3} className="n">
-                    Average %
+                    %Age:
                   </th>
                   {sem.courses.flatMap((c, i) => {
                     const a = avg(i);
@@ -1391,17 +1356,14 @@ function UniSheet({ sem, variant, onVariant }: { sem: ExamsUniSemester; variant:
               </tbody>
             </table>
           )}
-          <p className="exams-doc-key">
-            {variant === "mid"
-              ? `S = internal assessment (${[...new Set(sem.courses.flatMap((c) => c.components.map((x) => x.label)))].join(", ")}), M = mid-semester paper, Tot. = S + M; A = absent, L = leave. Grade on the school scale; equal percentages share a position. Remarks list courses below the pass mark (${EXAMS_DEFAULT_PASS_RULES.subjectPassPercent}%).`
-              : `Grade points on a 4.0 scale; attendance below ${EXAMS_UNI_MIN_ATTENDANCE}% is an F.`}{" "}
-            Printed {printedOn()}.
-          </p>
-          <div className="exams-doc-signs" style={{ marginTop: "10mm" }}>
-            <div>{variant === "mid" ? "Class in-charge" : "Prepared by"}</div>
-            <div>Controller of examinations</div>
-            <div>Principal</div>
-          </div>
+          {variant === "mid" ? (
+            <p className="exams-doc-key">
+              {showSM ? "Marks = mid-semester paper, Sessional Marks = internal assessment; " : ""}A = absent, L = leave. Remarks list courses below the pass mark ({EXAMS_DEFAULT_PASS_RULES.subjectPassPercent}%).
+            </p>
+          ) : (
+            <p className="exams-doc-key">Grade points on a 4.0 scale; attendance below {EXAMS_UNI_MIN_ATTENDANCE}% is an F.</p>
+          )}
+          <p style={{ margin: "8mm 0 0 70mm", fontWeight: 700, fontSize: "9pt" }}>Sign Class Incharge:____________________</p>
         </article>
       </PrintSheet>
     </div>
@@ -1462,80 +1424,73 @@ function UniTranscript({ sem, studentId, view, onChange }: { sem: ExamsUniSemest
       ) : view === "history" ? (
         <PrintSheet paper="A4" label="Student history preview">
           <article className="exams-doc exams-doc-a4" aria-label="Student history">
-            <DocHead campus={t.data.campus} title="Student history" sub={`${t.data.programmeName}`} />
-            <dl className="exams-doc-info">
-              <div>
-                <dt>Registration no.</dt>
-                <dd className="mtb-mono">{t.data.id}</dd>
+            <DocHead campus={t.data.campus} title="Student History Report" />
+            <div className="exams-hist-head">
+              <div className="exams-hist-info">
+                <span className="exams-hist-plain" style={{ gridColumn: "3 / 5" }}>
+                  {semesterId === "ALL" ? t.data.programmeName : (t.data.semesters.find((x) => x.id === semesterId)?.label ?? "")}
+                </span>
+                <b>GR No.</b>
+                <span>{t.data.id}</span>
+                <b>Section:</b>
+                <span>{semesterId === "ALL" ? "" : (t.data.semesters.find((x) => x.id === semesterId)?.label ?? "")}</span>
+                <b>Name:</b>
+                <span>{t.data.name}</span>
+                <span />
+                <span />
+                <b>Father:</b>
+                <span>{t.data.father}</span>
+                <b>Session:</b>
+                <span>{sessionLong(sem.session)}</span>
+                <b>Group:</b>
+                <span>{sem.label}</span>
+                <b>Class:</b>
+                <span>{t.data.programmeShort}</span>
               </div>
-              <div>
-                <dt>Name</dt>
-                <dd>{t.data.name}</dd>
-              </div>
-              <div>
-                <dt>Father's name</dt>
-                <dd>{t.data.father}</dd>
-              </div>
-              <div>
-                <dt>Programme (class)</dt>
-                <dd>{t.data.programmeShort}</dd>
-              </div>
-              <div>
-                <dt>Semester</dt>
-                <dd>{semesterId === "ALL" ? "Every semester" : (t.data.semesters.find((s) => s.id === semesterId)?.label ?? "")}</dd>
-              </div>
-              <div>
-                <dt>Session</dt>
-                <dd>{formatSession(sem.session)}</dd>
-              </div>
-            </dl>
-            <div className="exams-doc-summary" style={{ gridTemplateColumns: "repeat(3, 1fr)", marginBottom: "4mm" }}>
-              <div>
-                <span>No. of tests</span>
-                <b>{counts.tests}</b>
-              </div>
-              <div>
-                <span>No. of absents</span>
-                <b>{counts.absents}</b>
-              </div>
-              <div>
-                <span>No. of leaves</span>
-                <b>{counts.leaves}</b>
-              </div>
+              <div className="exams-hist-photo" aria-hidden />
+            </div>
+            <div className="exams-fields" style={{ justifyContent: "space-between", margin: "1mm 0 1mm" }}>
+              <span>
+                <b>No. of Tests:</b> {counts.tests}
+              </span>
+              <span>
+                <b>No. of Absents:</b> {counts.absents}
+              </span>
+              <span>
+                <b>No. of Leaves:</b> {counts.leaves}
+              </span>
             </div>
             {history.length === 0 ? (
               <p>No assessments match these filters.</p>
             ) : (
-              <table>
+              <table className="exams-hist" style={{ fontSize: "8.5pt" }}>
                 <thead>
                   <tr>
-                    <th>Date</th>
-                    <th>Course</th>
+                    <th className="c">Date</th>
+                    <th>Subject</th>
                     <th>Exam</th>
-                    <th className="n">Obt.</th>
-                    <th className="n">Total</th>
-                    <th className="n">%</th>
+                    <th className="c">Obt. Marks</th>
+                    <th className="c">Total Marks</th>
+                    <th className="c">%age</th>
                     <th className="c">Grade</th>
                   </tr>
                 </thead>
                 <tbody>
                   {history.map((a, i) => (
                     <tr key={`${a.semesterId}-${a.courseCode}-${a.typeId}-${i}`}>
-                      <td>{a.date ? formatDate(a.date) : "—"}</td>
-                      <td>
-                        {a.courseCode} {a.courseTitle}
-                      </td>
+                      <td className="c">{a.date ? formatDate(a.date) : ""}</td>
+                      <td>{a.courseTitle}</td>
                       <td>{a.examType}</td>
-                      <td className={typeof a.obtained === "number" ? "n" : "n fail"}>{a.obtained}</td>
-                      <td className="n">{a.max}</td>
-                      <td className="n">{typeof a.obtained === "number" ? `${Math.round(a.percent)}%` : ""}</td>
+                      <td className="c">{a.obtained}</td>
+                      <td className="c">{a.max}</td>
+                      <td className="c">{typeof a.obtained === "number" ? `${Math.round(a.percent)}%` : ""}</td>
                       <td className="c">{a.grade ?? ""}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             )}
-            <p className="exams-doc-key">A = absent, L = leave (counted as 0). Grade on the school scale for each assessment. Printed {printedOn()}.</p>
+
           </article>
         </PrintSheet>
       ) : (

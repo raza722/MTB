@@ -1,11 +1,12 @@
 import { ApiError, attendanceQueries, CURRENT_SESSION, type RegisterCode } from "@mtb/api";
-import { formatDate, formatPercent, formatSession, pakistanToday, type AttendanceCode, type IsoDate } from "@mtb/domain";
+import { formatPercent, formatSession, pakistanToday, type AttendanceCode, type IsoDate } from "@mtb/domain";
 import { AnimatedNumber, Banner, Button, buttonClassName, EmptyState, StatusBadge, type AttendanceStatus } from "@mtb/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import type { CSSProperties, ReactNode } from "react";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { campusLabel } from "../../app/shell/campus";
+import { footerBoxes, Letterhead } from "../../app/print/letterhead";
 import { Page, PageHeader } from "../../app/shell/page";
 import { SubNav, type SubNavItem } from "../../app/shell/SubNav";
 import "./attendance.css";
@@ -206,22 +207,18 @@ export const stagger = (i: number) => ({ "--i": i }) as CSSProperties;
 export const MARK_ORDER: RegisterCode[] = ["P", "A", "L", "LT"];
 
 /**
- * A printed sheet: appears only when printing, always black on white, with the school's heading and sign-off lines.
- * `landscape` for wide grids (monthly register), portrait for slips and lists.
+ * A printed sheet: appears only when printing, always black on white, with the school's letterhead (as the old
+ * reports printed it), sign-off lines, and the old footer ("Print DateTime …" and "Page No x of y") on every page.
+ * `landscape` for wide grids (monthly register), portrait for slips and lists. `head` replaces the letterhead when a
+ * sheet copies an old report with its own heading; `signatures={[]}` leaves the sign-off lines out.
  */
-export function PrintSheet({ title, scope, landscape, signatures = ["Class teacher", "Principal"], children }: { title: string; scope: string; landscape?: boolean; signatures?: string[]; children: ReactNode }) {
+export function PrintSheet({ title, scope, landscape, signatures = ["Class teacher", "Principal"], head, children }: { title: string; scope: string; landscape?: boolean; signatures?: string[]; head?: ReactNode; children: ReactNode }) {
   const { campus } = useCtx();
+  const page = landscape ? "size: A4 landscape; margin: 10mm 10mm 14mm;" : "size: A4 portrait; margin: 12mm 12mm 16mm;";
   return (
     <section className={`mtb-print-area att-print-only ${landscape ? "att-print-landscape" : "att-print-portrait"}`} aria-hidden="true">
-      <style>{landscape ? "@page { size: A4 landscape; margin: 10mm; }" : "@page { size: A4 portrait; margin: 12mm; }"}</style>
-      <header className="att-print-head">
-        <div>
-          <div className="att-print-school">MTB Schools &amp; Colleges · {campusLabel(campus)}</div>
-          <h1>{title}</h1>
-          <div>{scope}</div>
-        </div>
-        <div className="att-print-date">Printed {formatDate(pakistanToday())}</div>
-      </header>
+      <style>{`@page { ${page}${footerBoxes()} }`}</style>
+      {head ?? <Letterhead campus={campus} campusName={campusLabel(campus)} title={title} sub={scope} />}
       {children}
       {signatures.length > 0 && (
         <div className="att-print-sign">

@@ -51,56 +51,126 @@
 @keyframes exams-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @media (prefers-reduced-motion: reduce) { .exams-bar span { animation: none; } }
 
-/* ---------- Printed documents ---------- */
-.exams-doc { box-sizing: border-box; background: var(--surface-raised); color: var(--ink); font-size: 10.5pt; line-height: 1.4; position: relative; overflow: hidden; }
-.exams-doc-a4 { width: 190mm; min-height: 277mm; padding: 10mm 12mm; }
-.exams-doc-land { width: 277mm; min-height: 190mm; padding: 8mm 10mm; font-size: 8.5pt; }
+/* ---------- Printed documents ----------
+   Like the old desktop system's reports: black on white, Arial, thin black rules, the shared letterhead on top. */
+.exams-doc { box-sizing: border-box; background: #fff; color: #000; font-family: Arial, Helvetica, sans-serif; font-size: 10pt; line-height: 1.3; position: relative; overflow: hidden; }
+.exams-doc-a4 { width: 190mm; min-height: 277mm; padding: 6mm 8mm; }
+.exams-doc-land { width: 277mm; min-height: 190mm; padding: 5mm 7mm; font-size: 8.5pt; }
 .exams-doc-half { min-height: 0; }
-.exams-doc-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1.4pt solid var(--ink); padding-bottom: 3mm; margin-bottom: 4mm; }
-.exams-doc-head h1 { margin: 0; font-size: 14pt; line-height: 1.2; }
-.exams-doc-head p { margin: 0; color: var(--ink-muted); font-size: 9pt; }
-.exams-doc-seal { width: 14mm; height: 14mm; border-radius: 999px; display: grid; place-content: center; background: var(--brand); color: var(--on-brand); font-weight: 700; font-size: 10pt; flex-shrink: 0; }
-.exams-doc-title { text-align: right; }
-.exams-doc-title strong { display: block; font-size: 13pt; }
+.exams-lh { margin-bottom: 3mm; }
+.exams-doc .mtb-lh-title { font-size: 13pt; }
+.exams-doc .mtb-lh-sub { font-weight: 400; }
+.exams-u { text-decoration: underline; text-underline-offset: 2px; }
 .exams-doc table { width: 100%; border-collapse: collapse; }
-.exams-doc th, .exams-doc td { border: 0.6pt solid var(--border-strong); padding: 1.6mm 2mm; text-align: left; vertical-align: middle; }
-.exams-doc-land th, .exams-doc-land td { padding: 1mm 1.4mm; }
-.exams-doc th { background: var(--surface-sunken); font-weight: 600; }
+.exams-doc th, .exams-doc td { border: 0.6pt solid #000; padding: 1.2mm 1.6mm; text-align: left; vertical-align: middle; }
+.exams-doc-land th, .exams-doc-land td { padding: 0.8mm 1.2mm; }
+.exams-doc th { background: none; font-weight: 700; }
 .exams-doc td.n, .exams-doc th.n { text-align: right; font-variant-numeric: tabular-nums; }
 .exams-doc td.c, .exams-doc th.c { text-align: center; }
-.exams-doc .fail { color: var(--danger-ink); font-weight: 600; }
+.exams-doc .fail { color: inherit; font-weight: inherit; }
+.exams-doc .exams-nob th, .exams-doc .exams-nob td, .exams-doc td.exams-nob, .exams-doc th.exams-nob { border: 0; }
 .exams-doc-info { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5mm 6mm; margin-bottom: 4mm; font-size: 10pt; }
-.exams-doc-info dt { color: var(--ink-muted); font-size: 8.5pt; }
-.exams-doc-info dd { margin: 0; font-weight: 600; }
-.exams-doc-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; margin-top: 3mm; border: 0.6pt solid var(--border-strong); }
-.exams-doc-summary div { padding: 2mm; border-right: 0.6pt solid var(--border-strong); }
+.exams-doc-info dt { color: #000; font-weight: 700; font-size: 9pt; }
+.exams-doc-info dd { margin: 0; }
+.exams-doc-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; margin-top: 3mm; border: 0.6pt solid #000; }
+.exams-doc-summary div { padding: 2mm; border-right: 0.6pt solid #000; }
 .exams-doc-summary div:last-child { border-right: 0; }
-.exams-doc-summary span { display: block; font-size: 8.5pt; color: var(--ink-muted); }
-.exams-doc-summary b { font-size: 12pt; }
+.exams-doc-summary span { display: block; font-size: 8.5pt; font-weight: 700; }
+.exams-doc-summary b { font-size: 12pt; font-weight: 400; }
 .exams-doc-signs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10mm; margin-top: 14mm; }
-.exams-doc-signs div { border-top: 0.8pt solid var(--ink); padding-top: 1.5mm; text-align: center; font-size: 9pt; color: var(--ink-muted); }
-.exams-doc-foot { position: absolute; left: 12mm; right: 12mm; bottom: 6mm; display: flex; justify-content: space-between; font-size: 8pt; color: var(--ink-muted); }
-.exams-doc-mark { position: absolute; inset: 0; display: grid; place-content: center; pointer-events: none; font-size: 54pt; font-weight: 700; letter-spacing: 0.16em; color: var(--danger); opacity: 0.1; transform: rotate(-24deg); }
-.exams-doc-key { margin-top: 4mm; font-size: 8.5pt; color: var(--ink-muted); }
-.exams-label-sheet { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; }
-.exams-label { border: 0.8pt dashed var(--border-strong); border-radius: 2mm; padding: 4mm; display: grid; gap: 1mm; break-inside: avoid; min-height: 58mm; }
-.exams-label strong { font-size: 13pt; }
+.exams-doc-signs div { border-top: 0.8pt solid #000; padding-top: 1.5mm; text-align: center; font-size: 9pt; font-weight: 700; }
+.exams-doc-mark { position: absolute; inset: 0; display: grid; place-content: center; pointer-events: none; font-size: 54pt; font-weight: 700; letter-spacing: 0.16em; color: #000; opacity: 0.08; transform: rotate(-24deg); }
+.exams-doc-key { margin-top: 3mm; font-size: 8.5pt; }
+/* "Label: value" pairs under the title. */
+.exams-fields { display: flex; flex-wrap: wrap; gap: 1mm 12mm; margin: 0 0 2.5mm; font-size: 10pt; }
+.exams-fields b { font-weight: 700; }
+/* Old result card ("Result Intimation Sheet"): a boxed card, one a portrait page or two side by side. */
+.exams-card-page { padding-top: 6mm; }
+.exams-card { position: relative; overflow: hidden; box-sizing: border-box; width: 150mm; min-height: 150mm; margin: 0 auto; border: 1.4pt solid #000; padding: 4mm 0 5mm; display: flex; flex-direction: column; font-size: 9.5pt; }
+.exams-card .exams-lh { padding: 0 4mm; }
+.exams-card .mtb-lh-title { font-family: "Times New Roman", Times, serif; font-size: 13pt; }
+.exams-card-info { margin: 2mm 0 5mm; }
+.exams-card-line { display: grid; grid-template-columns: 1.15fr 1fr 1fr; border-bottom: 0.8pt solid #000; padding: 1.2mm 1.5mm; }
+.exams-card-line div { display: grid; grid-template-columns: auto 1fr; gap: 2mm; align-items: baseline; }
+.exams-card-line b { min-width: 13mm; }
+.exams-card-marks { width: auto !important; margin: 0 auto; }
+.exams-card-marks th, .exams-card-marks td { border: 1.2pt solid #000; padding: 1mm 1.2mm; }
+.exams-card-marks thead th { border: 0; vertical-align: bottom; }
+.exams-card-gap td { border: 0 !important; padding: 0 !important; height: 1.2mm; }
+.exams-card-remarks { display: grid; grid-template-columns: auto 1fr; gap: 1.5mm; width: 88mm; margin: 1.5mm auto 0; align-items: center; }
+.exams-card-remarks b { text-align: right; }
+.exams-card-remarks span { border-bottom: 0.8pt solid #000; min-height: 4.5mm; }
+.exams-card-signs { margin-top: auto; padding: 12mm 5mm 0; display: flex; justify-content: space-between; gap: 6mm; font-size: 8pt; }
+.exams-card-signs span { display: flex; align-items: flex-end; gap: 1mm; }
+.exams-card-signs i { display: inline-block; width: 40mm; border-bottom: 0.8pt solid #000; }
+.exams-card-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12mm; align-items: start; padding: 6mm 4mm; }
+.exams-card-pair .exams-card { width: 100%; }
+.exams-card-signs b { white-space: nowrap; }
+.exams-card-pair .exams-card-signs i { width: 30mm; }
+/* Master sheet: subject headings turned on their side. */
+.exams-master table { font-size: 8pt; }
+.exams-master thead th { vertical-align: middle; }
+.exams-master thead tr:first-child th { height: 30mm; }
+.exams-master td { white-space: nowrap; }
+.exams-master td.wrap { white-space: normal; }
+/* Position tables. */
+.exams-pos { font-size: 9.5pt; }
+.exams-doc .exams-pos thead th { border-width: 0; border-top: 0.8pt solid #000; border-bottom: 0.8pt solid #000; padding: 2mm 1.5mm; }
+.exams-doc .exams-pos tbody td { border-color: #555; border-width: 0.8pt; }
+.exams-doc .exams-pos-tag th, .exams-doc .exams-pos-tag td:not(.exams-nob) { border: 0.8pt solid #000; font-size: 8.5pt; }
+.exams-doc .exams-pos-gap td { border: 0; height: 2.5mm; padding: 0; }
+/* Award (script marking) lists. */
+.exams-award-info { display: grid; gap: 0; margin: 0 0 2mm 18mm; }
+.exams-award-info .exams-fields { margin-bottom: 1.5mm; }
+.exams-doc .exams-award th, .exams-doc .exams-award td { padding: 0.9mm 1.4mm; }
+.exams-doc .exams-award thead th { border-width: 0; border-bottom: 1.6pt double #000; }
+.exams-award-pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6mm; align-items: start; font-size: 8.5pt; }
+.exams-doc.exams-award-pair th, .exams-doc.exams-award-pair td { padding: 1.2mm 1mm; }
+.exams-doc.exams-award-pair thead th { border-width: 0; border-bottom: 1.6pt double #000; font-size: 8pt; }
+.exams-award-copy { min-width: 0; }
+.exams-award-line { display: flex; justify-content: space-between; gap: 2mm; margin: 0 0 3mm 4mm; font-size: 8pt; }
+.exams-award-doc .mtb-lh-title { font-size: 15pt; }
+.exams-doc td.nw { white-space: nowrap; }
+.exams-award-title { font-size: 16pt; font-weight: 700; text-align: center; margin-bottom: 2mm; }
+.exams-award-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5mm 3mm; margin: 0 0 3mm 4mm; font-size: 8pt; }
+.exams-fill { display: inline-block; min-width: 24mm; height: 1em; border-bottom: 0.6pt solid #000; vertical-align: bottom; }
+.exams-tally { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5mm 8mm; margin: 3mm 0 0 auto; width: 70%; font-size: 9pt; }
+.exams-tally span { display: flex; align-items: flex-end; justify-content: space-between; gap: 1.5mm; }
+.exams-tally-compact { width: 100%; font-size: 8pt; font-family: "Times New Roman", Times, serif; }
+.exams-vert { display: inline-block; writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; font-weight: 400; }
+/* Envelope tags: twelve to a page. */
+.exams-label-sheet { display: grid; grid-template-columns: 1fr 1fr; gap: 9mm 14mm; align-items: start; }
+.exams-tag { font-family: "Times New Roman", Times, serif; font-weight: 700; font-size: 11.5pt; break-inside: avoid; }
+.exams-doc .exams-tag th, .exams-doc .exams-tag td { padding: 1.2mm 1mm; font-weight: 700; }
+.exams-doc .exams-tag th { width: 32%; white-space: nowrap; }
 .exams-slip-sheet { display: grid; grid-template-columns: 1fr; gap: 6mm; }
-.exams-slip { border: 0.8pt solid var(--border-strong); border-radius: 2mm; padding: 4mm; break-inside: avoid; display: grid; gap: 2mm; }
+.exams-slip { border: 0.8pt solid #000; padding: 4mm; break-inside: avoid; display: grid; gap: 2mm; }
 .exams-blank { height: 7mm; }
-/* Award list, two copies on one sheet; blank lines to write on; vertical column headings. */
-.exams-award-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; align-items: start; padding: 8mm; font-size: 8pt; }
-.exams-award-pair th, .exams-award-pair td { padding: 0.8mm 1mm; }
-.exams-award-pair .exams-doc-info { margin-bottom: 2mm; gap: 1mm 3mm; }
-.exams-award-head { display: grid; gap: 0.5mm; text-align: center; margin-bottom: 2mm; padding-bottom: 1.5mm; border-bottom: 1pt solid var(--ink); }
-.exams-award-head b { font-size: 11pt; }
-.exams-award-head span { color: var(--ink-muted); font-size: 7.5pt; }
-.exams-fill { display: inline-block; min-width: 24mm; height: 1em; border-bottom: 0.6pt solid var(--ink); vertical-align: bottom; }
-.exams-tally { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5mm 4mm; margin-top: 3mm; font-size: 8pt; }
-.exams-tally span { display: flex; align-items: flex-end; gap: 1.5mm; }
-.exams-vert { display: inline-block; writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; }
 /* Per-student cards (consolidated results) and summary boxes. */
 .exams-card-grid { display: grid; grid-template-columns: max-content max-content; gap: 2mm 10mm; margin-top: 4mm; align-items: start; }
+/* Old student history report. */
+.exams-hist-head { display: grid; grid-template-columns: 1fr 24mm; gap: 3mm; align-items: start; margin-bottom: 1mm; }
+.exams-hist-info { display: grid; grid-template-columns: 20mm 1fr 22mm 1fr; gap: 1.6mm 2mm; font-size: 10pt; }
+.exams-hist-info b { text-align: right; }
+.exams-hist-info span { border-bottom: 0.8pt solid #000; padding-left: 2mm; min-height: 4.5mm; }
+.exams-hist-info span:empty { border: 0; }
+.exams-hist-photo { width: 24mm; height: 29mm; border: 0.6pt solid #999; }
+.exams-doc .exams-hist th, .exams-doc .exams-hist td { border: 0; padding: 1.2mm 1.4mm; }
+.exams-doc .exams-hist thead th { border-bottom: 1.6pt double #000; }
+/* Old consolidated result sheet (one student, every exam and the cumulative result). */
+.exams-cons { border: 1.4pt solid #000; min-height: 200mm; padding: 4mm 5mm; display: flex; flex-direction: column; }
+.exams-cons .mtb-lh-title { font-family: "Times New Roman", Times, serif; text-decoration: underline; }
+.exams-cons-info { display: grid; grid-template-columns: auto 1fr auto 1fr auto 1fr; gap: 1.5mm 2mm; margin: 2mm 0 6mm; font-family: "Times New Roman", Times, serif; font-size: 10.5pt; }
+.exams-cons-info b { text-align: right; }
+.exams-doc .exams-cons table { width: auto; align-self: flex-start; margin-left: 12mm; border-collapse: separate; border-spacing: 1mm; }
+.exams-cons > .exams-cons-sum { align-self: flex-start; }
+.exams-cons-signs span { white-space: nowrap; }
+.exams-doc .exams-cons th, .exams-doc .exams-cons td { border: 1pt solid #000; padding: 1mm 1.5mm; font-size: 9pt; }
+.exams-doc .exams-cons .exams-cons-sum { border: 1.6pt solid #000; padding: 1mm; display: inline-block; margin-left: 11mm; }
+.exams-doc .exams-cons .exams-cons-sum table { margin-left: 0; }
+.exams-cons-signs { margin-top: auto; padding-top: 14mm; display: flex; justify-content: space-around; font-weight: 700; font-size: 10pt; }
+.exams-cons-signs span { display: flex; align-items: flex-end; gap: 2mm; }
+.exams-cons-signs i { display: inline-block; width: 45mm; border-bottom: 0.8pt solid #000; }
 
 @media screen {
   .exams-desk { background: var(--surface-sunken); border-radius: var(--radius-lg); padding: 16px; overflow: auto; display: grid; justify-items: center; }
@@ -118,6 +188,14 @@
   .exams-doc { box-shadow: none !important; }
   .exams-desk, .exams-zoom { display: block !important; padding: 0 !important; background: none !important; zoom: 1 !important; overflow: visible !important; }
   .exams-doc + .exams-doc { break-before: page; }
+  .exams-master thead, .exams-pos thead, .exams-award thead { display: table-header-group; }
   .exams-doc-a4, .exams-doc-land { min-height: 0; }
   .exams-doc tr { break-inside: avoid; }
 }
+/* Teacher performance reports: the label/value list under the title. */
+.exams-perf-fields { display: grid; grid-template-columns: max-content 1fr; gap: 1.5mm 2mm; margin: 0 0 3mm 12mm; font-size: 10pt; }
+.exams-perf-fields b { text-align: right; }
+.exams-doc caption { caption-side: top; }
+.exams-hist-info span.exams-hist-plain { border: 0; text-align: center; }
+.exams-doc .mtb-mono { font-family: inherit; }
+.exams-award-line span { white-space: nowrap; }

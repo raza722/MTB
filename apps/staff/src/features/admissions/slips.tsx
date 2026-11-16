@@ -1,15 +1,15 @@
-import { admissionsPapersFor, metaQueries, type AdmissionsApplicant, type AdmissionsFee, type AdmissionsMeritList, type AdmissionsTest } from "@mtb/api";
+import { admissionsPapersFor, type AdmissionsApplicant, type AdmissionsFee, type AdmissionsMeritList, type AdmissionsTest } from "@mtb/api";
 import { formatCnic, formatDate, formatRs, formatSession } from "@mtb/domain";
-import { useQuery } from "@tanstack/react-query";
-import type { ReactNode } from "react";
-import { dateOrBlank, mobileOrDash, orDash, scoreOf, sittingWhen, sittingWhenWhere } from "./shared";
+import { Children, type ReactNode } from "react";
+import { footerBoxes, Letterhead } from "../../app/print/letterhead";
+import "./admissions-print.css";
+import { dateOrBlank, mobileOrDash, orDash, scoreOf, sittingWhenWhere } from "./shared";
 
 /** Printable admissions papers: application form, entrance-test slip, merit list and the test's attendance sheet. */
 
-/** The campus address from Setup › Campuses (as on module 1's letterheads), else the campus name only. */
-function useCampusAddress(campus: string, campusName: string): string {
-  const campuses = useQuery(metaQueries.campuses());
-  return campuses.data?.find((c) => c.code === campus)?.address.trim() || campusName;
+/** The old footer on every printed page: "Print DateTime …" bottom left, "Page No x of y" bottom right. */
+export function PageFoot() {
+  return <style>{`@page { ${footerBoxes()} }`}</style>;
 }
 
 /** "Rs 1,500 paid · KC-CF-2627-000401", "Rs 1,500 paid · challan 12345" (old-system payments have no receipt), "Rs 1,500 due". */
@@ -20,37 +20,36 @@ function feeLine(f: AdmissionsFee): string {
   return `${formatRs(f.amount)} paid${ref ? ` · ${ref}` : ""}`;
 }
 
+/** The old letterhead (crest, "MTB-Madrasat-ul-Banat Schools and Colleges, Khalid Campus, Sadikabad", title), with the
+ * document's number and date at the top right when it has them. */
 function Header({ campus, campusName, title, sub, refNo, date }: { campus: string; campusName: string; title: string; sub?: ReactNode; refNo?: string; date?: string }) {
-  const address = useCampusAddress(campus, campusName);
   return (
-    <>
-      <header className="flex items-center gap-4 border-b-2 border-brand pb-3">
-        <span className="mtb-doc-seal">MTB</span>
-        <div className="grid min-w-0 flex-1 leading-tight">
-          <span className="text-[14pt] font-bold text-brand-ink">MTB Schools and Colleges</span>
-          <span className="font-semibold">{campusName}</span>
-          {address !== campusName && <span className="text-[9pt] text-ink-muted">{address}</span>}
-        </div>
-        {(refNo || date) && (
-          <div className="grid justify-items-end gap-0.5 text-[9pt]">
-            {refNo && (
-              <span>
-                No. <b className="mtb-mono">{refNo}</b>
-              </span>
-            )}
-            {date && (
-              <span>
-                Date <b className="tabular-nums">{formatDate(date)}</b>
-              </span>
-            )}
-          </div>
-        )}
-      </header>
-      <div className="mt-4 grid justify-items-center gap-1 text-center">
-        <h1 className="m-0 text-[15pt] font-bold uppercase tracking-wide">{title}</h1>
-        {sub && <p className="m-0 text-[9.5pt] text-ink-muted">{sub}</p>}
-      </div>
-    </>
+    <div className="mb-1">
+      <Letterhead
+        campus={campus}
+        campusName={campusName}
+        title={title}
+        {...(sub ? { sub } : {})}
+        {...(refNo || date
+          ? {
+              right: (
+                <div className="grid justify-items-end gap-0.5 whitespace-nowrap text-[9pt]">
+                  {refNo && (
+                    <span>
+                      No. <b className="mtb-mono">{refNo}</b>
+                    </span>
+                  )}
+                  {date && (
+                    <span>
+                      Date <b className="tabular-nums">{formatDate(date)}</b>
+                    </span>
+                  )}
+                </div>
+              ),
+            }
+          : {})}
+      />
+    </div>
   );
 }
 
@@ -123,62 +122,103 @@ export function ApplicationForm({ a }: { a: AdmissionsApplicant }) {
   );
 }
 
+/** Whole years between the date of birth and the test (the old slip's Age); blank without a date of birth. */
+function ageOn(dob: string | null | undefined, on: string): string {
+  if (!dob) return "";
+  const [y1, m1, d1] = dob.slice(0, 10).split("-").map(Number);
+  const [y2, m2, d2] = on.slice(0, 10).split("-").map(Number);
+  if (!y1 || !y2) return "";
+  const years = y2 - y1 - ((m2 ?? 0) < (m1 ?? 0) || ((m2 ?? 0) === (m1 ?? 0) && (d2 ?? 0) < (d1 ?? 0)) ? 1 : 0);
+  return years >= 0 ? String(years) : "";
+}
+
+/**
+ * One admission test slip, as the old AdmissionTestSlip report printed it: a ruled box with the crest and heading,
+ * "Admission Test Slip", "Admission Test For Class: Nine", one row of Date, Name, Father Name, Age, Previous School and
+ * Mobile, and "Office Suptt.Sign:" with a line. The seat number (new) is at the top right; the sitting's time and venue
+ * (new) are on the signature row's empty left side. Put slips in a TestSlipSheet: four to an A4 page.
+ */
 export function TestSlip({ a, test }: { a: AdmissionsApplicant; test?: AdmissionsTest | undefined }) {
+  const date = test?.date ?? a.testDate ?? "";
+  const when = [test?.time, test?.venue].filter((x) => x?.trim()).join(" · ");
   return (
-    <article className="mtb-doc mtb-doc-a5 flex flex-col" aria-label={`Test slip ${a.name}`}>
-      <Header campus={a.campus} campusName={a.campusName} title="Entrance test slip" sub={test?.name ?? `${a.classApplied} entrance test`} refNo={a.testRollNo ?? "—"} />
-      <div className="mt-4 flex items-start gap-4">
-        <span className="grid h-[30mm] w-[24mm] shrink-0 place-content-center rounded border border-dashed border-border-strong text-center text-[8pt] text-ink-muted">Paste photo</span>
-        <Table
-          rows={[
-            ["Seat no.", <b className="mtb-mono text-[12pt]">{a.testRollNo ?? "—"}</b>],
-            ["Name", <b>{a.name}</b>],
-            ["Father's name", orDash(a.father)],
-            ["Class", a.classApplied],
-            ["Date and time", test ? sittingWhen(test) : a.testDate ? formatDate(a.testDate) : "—"],
-            ["Venue", test?.venue || a.campusName],
-          ]}
-        />
+    <section className="adm-tslip" aria-label={`Test slip ${a.name}`}>
+      <Letterhead
+        campus={a.campus}
+        campusName={a.campusName}
+        variant="slip"
+        title="Admission Test Slip"
+        sub={`Admission Test For Class: ${a.classApplied}`}
+        {...(a.testRollNo
+          ? {
+              right: (
+                <span className="adm-tslip-seat">
+                  Seat No.
+                  <br />
+                  <b className="text-[11pt]">{a.testRollNo}</b>
+                </span>
+              ),
+            }
+          : {})}
+      />
+      <table>
+        <colgroup>
+          <col style={{ width: "12.5%" }} />
+          <col style={{ width: "24%" }} />
+          <col style={{ width: "19.5%" }} />
+          <col style={{ width: "5%" }} />
+          <col style={{ width: "24%" }} />
+          <col style={{ width: "15%" }} />
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Name</th>
+            <th>Father Name</th>
+            <th>Age</th>
+            <th>Previous School</th>
+            <th>Mobile</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td className="tabular-nums">{date ? formatDate(date) : ""}</td>
+            <td>{a.name}</td>
+            <td>{a.father}</td>
+            <td className="tabular-nums">{ageOn(a.dob, date || new Date().toISOString())}</td>
+            <td>{a.previousSchool ?? ""}</td>
+            <td className="tabular-nums">{a.mobile ?? ""}</td>
+          </tr>
+        </tbody>
+      </table>
+      <div className="adm-tslip-foot">
+        <span className="adm-tslip-when">{when ? `Test: ${when}` : ""}</span>
+        <span>Office Suptt.Sign:</span>
+        <span className="adm-tslip-line" />
       </div>
-      {test && (
-        <table className="mt-3 w-full border-collapse text-[9pt]">
-          <thead>
-            <tr>
-              {["Paper", "Marks", "Time"].map((h) => (
-                <th key={h} className="border border-border bg-surface-sunken px-2 py-1 text-left">
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {admissionsPapersFor(test.subjects, a.stream).map((s) => (
-              <tr key={s.subject}>
-                <td className="border border-border px-2 py-1">{s.subject}</td>
-                <td className="border border-border px-2 py-1 tabular-nums">{s.max}</td>
-                <td className="border border-border px-2 py-1 tabular-nums">{s.durationMins ? `${s.durationMins} min` : "—"}</td>
-              </tr>
-            ))}
-            <tr>
-              <td className="border border-border px-2 py-1 font-semibold">Total{a.stream ? ` (${a.stream})` : ""}</td>
-              <td className="border border-border px-2 py-1 font-semibold tabular-nums">{admissionsPapersFor(test.subjects, a.stream).reduce((x, s) => x + s.max, 0)}</td>
-              <td className="border border-border px-2 py-1 tabular-nums">
-                {admissionsPapersFor(test.subjects, a.stream).every((s) => s.durationMins) ? `${admissionsPapersFor(test.subjects, a.stream).reduce((x, s) => x + (s.durationMins ?? 0), 0)} min` : ""}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      )}
-      <ul className="mt-2 grid list-disc gap-0.5 pl-5 text-[9pt] text-ink-muted">
-        <li>Bring this slip and a pencil, eraser and ruler. Arrive 20 minutes early.</li>
-        <li>Parents wait outside the examination hall.</li>
-        <li>The merit list is displayed within a week and an SMS is sent to the registered mobile.</li>
-      </ul>
-      <footer className="mt-auto flex items-end justify-between gap-6 pt-8">
-        <div className="mtb-doc-sign">Candidate fee: {a.fee?.receiptNo ?? (a.fee?.bankChallanNo ? `challan ${a.fee.bankChallanNo}` : "—")}</div>
-        <div className="mtb-doc-sign">Admissions office</div>
-      </footer>
-    </article>
+    </section>
+  );
+}
+
+/** Test slips four to an A4 page, a dotted cut line under each, with the old page footer. Print it on A4 portrait. */
+export function TestSlipSheet({ children }: { children: ReactNode }) {
+  const slips = Children.toArray(children);
+  const pages: ReactNode[][] = [];
+  for (let i = 0; i < slips.length; i += 4) pages.push(slips.slice(i, i + 4));
+  return (
+    <>
+      <PageFoot />
+      {pages.map((p, i) => (
+        <div key={i} className="adm-tslip-page">
+          {p.map((s, j) => (
+            <div key={j}>
+              {s}
+              <hr className="adm-tslip-cut" />
+            </div>
+          ))}
+        </div>
+      ))}
+    </>
   );
 }
 
@@ -188,51 +228,69 @@ export const meritPercent = (a: AdmissionsApplicant) => (a.testScore === null ||
 /** "Selected", "Waiting list" or "Not selected", by rank against the seats (the waiting band is as many again). */
 export const meritRemark = (rank: number, seats: number) => (rank <= seats ? "Selected" : rank <= seats * 2 ? "Waiting list" : "Not selected");
 
+/** "15.0", as the old list printed marks; blank when there is none. */
+const mark1 = (v: number | null | undefined) => (v === undefined || v === null ? "" : v.toFixed(1));
+
+/**
+ * The merit list as the old "PRE-ENTRANCE TEST MERIT LIST" printed it: heading, "Class : Nine   Merit List : Ist Merit
+ * List", then Sr.#, Name, a column per paper, Total ("74.0/150"), %Age ("49.33 %") and Remarks. The seat number (new) is
+ * a narrow column after Sr.#; the group (new) is under the name; Remarks says Selected, Waiting list, Offered or Admitted.
+ */
 export function MeritListPrint({ m, campus, campusName, title }: { m: AdmissionsMeritList; campus: string; campusName: string; title?: string }) {
   const papers = m.subjects;
+  const seatCol = m.rows.some((r) => r.applicant.testRollNo);
   return (
-    <article className="mtb-doc mtb-doc-a4 flex flex-col" aria-label={`Merit list ${m.classApplied}`}>
-      <Header campus={campus} campusName={campusName} title={`${title ?? "Merit list"} · ${m.classApplied}`} sub={`${m.testName}${m.testDate ? ` · ${formatDate(m.testDate)}` : ""} · ${m.seats} seats · appeared ${m.counts.appeared}, absent ${m.counts.absent}`} />
-      <table className="mt-5 w-full border-collapse text-[9pt]">
+    <article className="adm-merit" aria-label={`Merit list ${m.classApplied}`}>
+      <PageFoot />
+      <Letterhead campus={campus} campusName={campusName} title="PRE-ENTRANCE TEST MERIT LIST" />
+      <div className="adm-merit-meta">
+        <span>
+          <span>Class :</span>
+          <span>{m.classApplied}</span>
+        </span>
+        <span>
+          <span>Merit List :</span>
+          <span>{title ?? ""}</span>
+        </span>
+      </div>
+      <table>
         <thead>
           <tr>
-            {["Rank", "Seat no.", "Name", "Father's name", ...papers.map((p) => `${p.subject} (${p.max})`), "Total", "%", "Remarks"].map((h) => (
-              <th key={h} className="border border-border bg-surface-sunken px-1.5 py-1 text-left">
-                {h}
-              </th>
+            <th style={{ width: "6mm" }}>Sr.#</th>
+            {seatCol && <th style={{ width: "12mm" }}>Seat No.</th>}
+            <th>Name</th>
+            {papers.map((p) => (
+              <th key={p.subject}>{p.subject}</th>
             ))}
+            <th style={{ width: "18mm" }}>Total</th>
+            <th style={{ width: "15mm" }}>%Age</th>
+            <th style={{ width: "22mm" }}>Remarks</th>
           </tr>
         </thead>
         <tbody>
-          {m.rows.map((r) => (
-            <tr key={r.applicant.id} style={r.rank === m.seats ? { borderBottom: "2px solid var(--ink)" } : undefined}>
-              <td className="border border-border px-1.5 py-1 tabular-nums">{r.rank}</td>
-              <td className="border border-border px-1.5 py-1 mtb-mono">{r.applicant.testRollNo ?? "—"}</td>
-              <td className="border border-border px-1.5 py-1 font-medium">
-                {r.applicant.name}
-                {r.applicant.stream && <span className="block text-[7.5pt] font-normal text-ink-muted">{r.applicant.stream}</span>}
-              </td>
-              <td className="border border-border px-1.5 py-1">{orDash(r.applicant.father)}</td>
-              {papers.map((p) => {
-                const v = r.applicant.marks?.[p.subject];
-                return (
-                  <td key={p.subject} className="border border-border px-1.5 py-1 tabular-nums">
-                    {v === undefined || v === null ? "—" : v}
-                  </td>
-                );
-              })}
-              <td className="border border-border px-1.5 py-1 tabular-nums">{scoreOf(r.applicant)}</td>
-              <td className="border border-border px-1.5 py-1 tabular-nums">{meritPercent(r.applicant)?.toFixed(1) ?? "—"}</td>
-              <td className="border border-border px-1.5 py-1">{r.applicant.stage === "OFFERED" || r.applicant.stage === "ADMITTED" ? (r.applicant.stage === "ADMITTED" ? "Admitted" : "Offered") : meritRemark(r.rank, m.seats)}</td>
-            </tr>
-          ))}
+          {m.rows.map((r) => {
+            const a = r.applicant;
+            const max = a.testMax ?? papers.reduce((x, p) => x + p.max, 0);
+            const pct = a.testScore !== null && a.testMax ? (a.testScore / a.testMax) * 100 : 0;
+            return (
+              <tr key={a.id}>
+                <td>{r.rank}</td>
+                {seatCol && <td>{a.testRollNo ?? ""}</td>}
+                <td className="l">
+                  {a.name}
+                  {a.stream && <small>{a.stream}</small>}
+                </td>
+                {papers.map((p) => (
+                  <td key={p.subject}>{mark1(a.marks?.[p.subject])}</td>
+                ))}
+                <td>{a.testScore !== null ? `${a.testScore.toFixed(1)}/${max}` : `0/${max}`}</td>
+                <td>{pct.toFixed(2)} %</td>
+                <td>{a.stage === "OFFERED" || a.stage === "ADMITTED" ? (a.stage === "ADMITTED" ? "Admitted" : "Offered") : meritRemark(r.rank, m.seats)}</td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
-      <p className="mt-3 text-[9pt] text-ink-muted">Ranked by percentage of total marks; ties go to the older applicant, then the earlier application. Selected candidates must complete admission by the date given in their offer.</p>
-      <footer className="mt-auto flex items-end justify-between gap-6 pt-12">
-        <div className="mtb-doc-sign">Admissions office</div>
-        <div className="mtb-doc-sign">Principal</div>
-      </footer>
     </article>
   );
 }
@@ -243,6 +301,7 @@ export function MarksSheetPrint({ test, rows, campusName }: { test: AdmissionsTe
   const absent = rows.filter((a) => a.absentFromTest).length;
   return (
     <article className="mtb-doc mtb-doc-a4 flex flex-col" aria-label={`Marks sheet ${test.name}`}>
+      <PageFoot />
       <Header campus={test.campus} campusName={campusName} title="Entrance test result" sub={`${test.name} · ${sittingWhenWhere(test)}`} />
       <table className="mt-5 w-full border-collapse text-[9pt]">
         <thead>
@@ -290,6 +349,7 @@ export function MarksSheetPrint({ test, rows, campusName }: { test: AdmissionsTe
 export function AdmittedListPrint({ rows, campus, campusName, scope }: { rows: AdmissionsApplicant[]; campus: string; campusName: string; scope: string }) {
   return (
     <article className="mtb-doc mtb-doc-a4l flex flex-col" style={{ minHeight: "180mm" }} aria-label="New admission list">
+      <PageFoot />
       <Header campus={campus} campusName={campusName} title="New admission list" sub={`${scope} · total students ${rows.length}`} />
       <table className="mt-5 w-full border-collapse text-[8.5pt]">
         <thead>
@@ -331,6 +391,7 @@ export function AdmittedListPrint({ rows, campus, campusName, scope }: { rows: A
 export function AttendanceSheet({ test, rows, campusName }: { test: AdmissionsTest; rows: AdmissionsApplicant[]; campusName: string }) {
   return (
     <article className="mtb-doc mtb-doc-a4 flex flex-col" aria-label={`Attendance sheet ${test.name}`}>
+      <PageFoot />
       <Header campus={test.campus} campusName={campusName} title="Entrance test attendance sheet" sub={`${test.name} · ${sittingWhenWhere(test)}`} />
       <table className="mt-5 w-full border-collapse text-[10pt]">
         <thead>

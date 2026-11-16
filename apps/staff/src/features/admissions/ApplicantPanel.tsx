@@ -14,7 +14,7 @@ import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { PrintSheet, printNow } from "../students/documents/print";
 import { apiMessage } from "../students/shared";
 import { dateOrBlank, DiamondMindsBadge, mobileOrDash, offerDeadline, orDash, scoreOf, sittingWhen, sittingWhenWhere, StageBadge, today } from "./shared";
-import { ApplicationForm, TestSlip } from "./slips";
+import { ApplicationForm, TestSlip, TestSlipSheet } from "./slips";
 
 /** One applicant: details, candidate fee, test booking and marks, offer, history, and the next step. */
 export function ApplicantPanel({ id, onClose, onAdmit }: { id: string | null; onClose: () => void; onAdmit: (a: AdmissionsApplicant) => void }) {
@@ -271,8 +271,14 @@ export function ApplicantPanel({ id, onClose, onAdmit }: { id: string | null; on
         }
       >
         {a && (
-          <PrintSheet paper="A5" label={printing === "slip" ? "Test slip" : "Application form"} zoom={0.7}>
-            {printing === "slip" ? <TestSlip a={a} test={test} /> : <ApplicationForm a={a} />}
+          <PrintSheet paper={printing === "slip" ? "A4" : "A5"} label={printing === "slip" ? "Test slip" : "Application form"} zoom={printing === "slip" ? 0.55 : 0.7}>
+            {printing === "slip" ? (
+              <TestSlipSheet>
+                <TestSlip a={a} test={test} />
+              </TestSlipSheet>
+            ) : (
+              <ApplicationForm a={a} />
+            )}
           </PrintSheet>
         )}
       </Modal>

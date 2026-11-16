@@ -1,6 +1,6 @@
 // Shared pieces for the operations modules (library, warehouse with the book shop, transport):
 // the module page shell with sub-navigation, error banners, the person search, print layers and form validation.
-import { ApiError, CURRENT_SESSION, LIBRARY_LANGUAGE_LABEL, operationsQueries, type LibraryLanguage, type OperationsPerson, type OperationsPersonType } from "@mtb/api";
+import { ApiError, CURRENT_SESSION, LIBRARY_LANGUAGE_LABEL, operationsQueries, type LibraryLanguage, type OperationsPerson, type OperationsPersonType, type CampusScope } from "@mtb/api";
 import { formatDate, formatSession, pakistanToday, type IsoDate } from "@mtb/domain";
 import { Banner, Button, cx, Icon, Input, Modal, Segmented, Spinner, StatusBadge } from "@mtb/ui";
 import { useQuery } from "@tanstack/react-query";
@@ -9,7 +9,8 @@ import { createPortal } from "react-dom";
 import type { ZodType } from "zod";
 import { useAppearance } from "../../app/appearance";
 import { useCtx, useReadOnly } from "../../app/session";
-import { campusLabel } from "../../app/shell/campus";
+import { CAMPUS_LABEL, campusLabel } from "../../app/shell/campus";
+import { footerBoxes, Letterhead } from "../../app/print/letterhead";
 import { Page, PageHeader, RequireSingleCampus } from "../../app/shell/page";
 import { SubNav, type SubNavItem } from "../../app/shell/SubNav";
 import "./ops.css";
@@ -306,32 +307,33 @@ export function PrintLayer({ paper, children, onDone }: { paper: "A4" | "A4L" | 
       window.removeEventListener("afterprint", done);
     };
   }, []);
-  const page = paper === "A5" ? "A5 portrait; margin: 6mm" : paper === "A4L" ? "A4 landscape; margin: 10mm" : "A4 portrait; margin: 12mm";
+  // Every paper carries the old footer (print time at the left, "Page No x of y" at the right).
+  const page = paper === "A5" ? "A5 portrait; margin: 6mm 6mm 10mm" : paper === "A4L" ? "A4 landscape; margin: 8mm 8mm 11mm" : "A4 portrait; margin: 10mm 10mm 12mm";
   return createPortal(
     <div className="mtb-print-area ops-print-layer" data-theme="light" data-accent={accent}>
-      <style>{`@page { size: ${page}; }`}</style>
+      <style>{`@page { size: ${page}; ${footerBoxes(undefined, { pageNoLeft: true })} }`}</style>
       {children}
     </div>,
     document.body,
   );
 }
 
-/** Heading of a printed list: school, campus, title, what it covers and when it was printed. */
+/**
+ * Heading of a printed list: the old letterhead (crest, "MTB-Madrasat-ul-Banat Schools and Colleges, Khalid Campus,
+ * Sadikabad"), the title in the old reports' title case and what the list covers. `campus` is the campus name
+ * ("Khalid Campus") or its code. The print time is in the page footer.
+ */
 export function DocHead({ title, subtitle, campus }: { title: string; subtitle?: ReactNode; campus: string }) {
+  const code = (Object.keys(CAMPUS_LABEL) as CampusScope[]).find((k) => k === campus || CAMPUS_LABEL[k] === campus) ?? campus;
   return (
     <header className="ops-doc-head">
-      <div>
-        <p>MTB · {campus}</p>
-        <h1>{title}</h1>
-        {subtitle && <p>{subtitle}</p>}
-      </div>
-      <p>Printed {formatDate(opsToday())}</p>
+      <Letterhead campus={code} title={title} sub={subtitle} titleCase="as-is" />
     </header>
   );
 }
 
 /** Signature lines at the foot of a register (the legacy store reports are signed by these three). */
-export function SignLines({ labels = ["Store keeper", "Sr. Vice Principal", "Principal"] }: { labels?: string[] }) {
+export function SignLines({ labels = ["Store Incharge", "Sr. Vice Principal", "Principal"] }: { labels?: string[] }) {
   return (
     <div className="ops-doc-sign">
       {labels.map((l) => (

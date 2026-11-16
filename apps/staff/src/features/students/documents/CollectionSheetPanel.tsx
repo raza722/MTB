@@ -97,7 +97,7 @@ export function CollectionSheetPanel({ open, onClose }: { open: boolean; onClose
               Preview · {rows.length} {rows.length === 1 ? "student" : "students"} · {rows.filter((r) => r.rollPartI || r.rollPartII).length} with a board roll no.
             </span>
             <PrintSheet paper="A4_LANDSCAPE" label="Collection sheet preview" zoom={0.48} footer={footer}>
-              <CollectionSheet sheet={sheet.data} classLabel={cls?.name ?? q.className} printedAt={footer.replace(/^Printed /, "")} />
+              <CollectionSheet sheet={sheet.data} campus={ctx.campus} classLabel={cls?.name ?? q.className} printedAt={footer.replace(/^Printed /, "")} />
             </PrintSheet>
           </div>
         )}

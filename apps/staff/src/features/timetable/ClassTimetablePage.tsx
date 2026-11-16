@@ -451,10 +451,11 @@ export function ClassTimetablePage({ search, setSearch }: { search: ClassTimetab
                     return (
                       <PrintMatrix
                         board={board}
-                        title={`Class timetables · ${dayLong(day)}`}
-                        scope="Every class on one day: subject and teacher in each period."
-                        right={`Total sections: ${board.sections.length}`}
+                        title="One Day Time Table"
+                        scope={`Day: ${dayLong(day)}`}
+                        right={`Total Sections: ${board.sections.length}`}
                         rowHeader="Class"
+                        timingRow
                         columns={Array.from({ length: max }, (_, k) => {
                           const t = plan.periods.find((x) => x.no === k + 1);
                           return { no: k + 1, ...(t ? { time: `${clockTime(t.start).slice(0, 5)}–${clockTime(t.end).slice(0, 5)}` } : {}) };
@@ -472,9 +473,9 @@ export function ClassTimetablePage({ search, setSearch }: { search: ClassTimetab
                         <PrintMatrix
                           key={k}
                           board={board}
-                          title={`Section-wise master sheet · ${classLabel(k)}`}
-                          scope="Each cell: teacher, subject and the days of that period."
-                          right={`Total sections: ${list.length}`}
+                          title={`Section Wise Master Sheet for Class : ${classLabel(k)}`}
+                          scope=""
+                          right={`Total Sections: ${list.length}`}
                           rowHeader="Section"
                           columns={Array.from({ length: max }, (_, i) => ({ no: i + 1 }))}
                           rows={list.map((s) => ({ key: s.classSection, label: s.classSection, sub: idx.teacher(s.classTeacherId)?.name ?? "", cells: weekCells(board, idx, s.classSection, max) }))}

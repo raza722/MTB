@@ -197,11 +197,13 @@ function DayView({ date, setDate, onImport }: { date: string; setDate: (d: strin
     print(
       <ReportDoc
         campus={campusHeading(ctx.campus as CampusCode)}
-        title={`Staff attendance · ${formatDate(date)}`}
-        sub={filterNote([formatWeekday(date), `${shown.present} present`, `${shown.late} late`, `${shown.absent} absent`, `${shown.leave} on leave`, shown.off ? `${shown.off} day off` : "", `${shown.notMarked} not marked`, filterText])}
-        head={["#", "Emp. no", "Name", "Designation", "Status", "Time in", "Time out", "Note"]}
-        rows={rows.map((r, i) => [i + 1, r.employeeNo, r.name, r.designation, dayStatusText(r), r.timeIn ?? "", r.timeOut ?? "", r.note ?? ""])}
-        signatures={["Office", "Principal"]}
+        // The old "Total Present Staff" / "Staff Attendance Report": Sr. No, Name, Attendance, Time In, Time Out; the
+        // designation, employee number and note follow at the right.
+        title="Staff Attendance Report"
+        sub={filterNote([`Date: ${formatDate(date)} (${formatWeekday(date)})`, `${shown.present} present`, `${shown.late} late`, `${shown.absent} absent`, `${shown.leave} on leave`, shown.off ? `${shown.off} day off` : "", `${shown.notMarked} not marked`, filterText])}
+        head={["Sr. No", "Name", "Attendance", "Time In", "Time Out", "Designation", "Emp. no", "Note"]}
+        rows={rows.map((r, i) => [i + 1, r.name, dayStatusText(r), r.timeIn ?? "", r.timeOut ?? "", r.designation, r.employeeNo, r.note ?? ""])}
+        signatures={[]}
       />,
       "A4",
     );
@@ -459,13 +461,13 @@ function MonthView({ month, setMonth }: { month: string; setMonth: (m: string) =
                 print(
                   <ReportDoc
                     campus={campusHeading(ctx.campus as CampusCode)}
-                    title={`Staff attendance · ${hrMonthLabel(m)}`}
-                    sub={filterNote([desTitle, `${sheetRows.length} staff`, `${d.workingDays} working days`, "P present, LT late, A absent, LV leave, HD half day, H holiday"])}
+                    title="Staff Attendance Report"
+                    sub={filterNote([`Date From: ${formatDate(d.days[0]?.date ?? `${m}-01`)}`, `Date To: ${formatDate(d.days[d.days.length - 1]?.date ?? `${m}-01`)}`, desTitle, `${sheetRows.length} staff`, `${d.workingDays} working days`, "P present, LT late, A absent, LV leave, HD half day, H holiday"])}
                     small
-                    head={["Name", ...d.days.map((x) => x.date.slice(8)), "P", "LT", "A", "LV", "%"]}
+                    head={["Sr. #", "Staff Name", ...d.days.map((x) => x.date.slice(8)), "P", "LT", "A", "LV", "%"]}
                     numeric={[]}
-                    rows={sheetRows.map((r) => [r.name, ...d.days.map((x) => (r.codes[x.date] === "OFF" ? "" : (r.codes[x.date] ?? ""))), r.present, r.late, r.absent, r.leave, r.percent ?? ""])}
-                    signatures={["Office", "Principal"]}
+                    rows={sheetRows.map((r, i) => [i + 1, r.name, ...d.days.map((x) => (r.codes[x.date] === "OFF" ? "" : (r.codes[x.date] ?? ""))), r.present, r.late, r.absent, r.leave, r.percent ?? ""])}
+                    signatures={[]}
                   />,
                   "A4L",
                 )
@@ -608,24 +610,27 @@ function RangeView({ from, to, staffId, set }: { from: string; to: string; staff
       return print(
         <ReportDoc
           campus={campusHeading(ctx.campus as CampusCode)}
-          title={`Time in and out · ${single.name}`}
-          sub={`${heading} · ${sub(x)}`}
-          head={["#", "Date", "Day", "Status", "Time in", "Time out", "Late (min)", "Hours worked"]}
+          title="Staff Attendance Report"
+          sub={filterNote([`Date From: ${formatDate(from)}`, `Date To: ${formatDate(to)}`, `${single.name} · ${sub(x)}`])}
+          head={["Sr. #", "Date", "Day", "Status", "Time In", "Time Out", "Late (min)", "Hours worked"]}
           numeric={[6, 7]}
           rows={dayRows.map((r, i) => [i + 1, formatDate(r.date), formatWeekday(r.date), dayStatusText(r.cell), r.cell.timeIn ?? "", r.cell.timeOut ?? "", r.cell.lateMinutes || "", hoursText(r.cell.workedMinutes)])}
           total={["", "Total", "", `${single.present} present, ${single.late} late, ${single.absent} absent, ${single.leave} leave`, "", "", single.lateMinutes || "", hoursText(single.workedMinutes)]}
-          signatures={["Office", "Principal"]}
+          signatures={[]}
         />,
         "A4",
       );
     print(
       <ReportDoc
         campus={campusHeading(ctx.campus as CampusCode)}
-        title={`Staff attendance · ${heading}`}
-        sub={sub(x)}
+        // The old "Staff Attendance Report" (Staff Time in Out / Staff Monthly Hrs): Date From and Date To under the
+        // title, then Sr. # and Staff Name, one column per day.
+        title="Staff Attendance Report"
+        sub={filterNote([`Date From: ${formatDate(from)}`, `Date To: ${formatDate(to)}`, sub(x)])}
         small
-        head={["Name", ...x.days.map((day) => day.date.slice(8)), "P", "LT", "A", "LV", "HD", times ? "Hours" : "%"]}
-        rows={x.rows.map((r) => [
+        head={["Sr. #", "Staff Name", ...x.days.map((day) => day.date.slice(8)), "P", "LT", "A", "LV", "HD", times ? "Hours" : "%"]}
+        rows={x.rows.map((r, i) => [
+          i + 1,
           r.name,
           ...x.days.map((day) => {
             const c = r.cells[day.date];
@@ -646,7 +651,7 @@ function RangeView({ from, to, staffId, set }: { from: string; to: string; staff
           r.halfDay,
           times ? hoursText(r.workedMinutes) : (r.percent ?? ""),
         ])}
-        signatures={["Office", "Principal"]}
+        signatures={[]}
       />,
       "A4L",
     );

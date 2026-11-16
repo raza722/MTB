@@ -654,7 +654,7 @@ function Members({ houses, unassigned, canManage }: { houses: ActivitiesHouse[];
 // ------------------------------------------------------------------ Sports list (print)
 
 const listTitle = (kind: ActivitiesEventKind | ""): [string, string] =>
-  kind === "SPORTS" ? ["Sports list", "کھیلوں کی فہرست"] : kind === "" ? ["Activities list", "ہم نصابی سرگرمیوں کی فہرست"] : [`${ACTIVITIES_EVENT_KIND_LABEL[kind]} list`, "شرکاء کی فہرست"];
+  kind === "SPORTS" ? ["Sports List", "کھیلوں کی فہرست"] : kind === "" ? ["Activities list", "ہم نصابی سرگرمیوں کی فہرست"] : [`${ACTIVITIES_EVENT_KIND_LABEL[kind]} list`, "شرکاء کی فہرست"];
 
 /**
  * The session's sports list (legacy Reports_SportsList): pick a house (or every house), a class and the kind of event,
@@ -706,7 +706,6 @@ function SportsListDialog({
         {...(note ? { note } : {})}
         rows={d.rows}
         idle={d.idle}
-        signs={["Sports in charge", "House masters", "Principal"]}
       />
     );
 
@@ -800,7 +799,8 @@ function SportsListDialog({
       </Modal>
       {printing && (
         <PrintLayer
-          paper="A4"
+          paper="A4L"
+          footer
           onDone={() => {
             setPrinting(null);
             onClose();

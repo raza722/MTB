@@ -32,7 +32,7 @@ import { useEffect, useMemo, useState } from "react";
 import { campusLabel } from "../../../app/shell/campus";
 import { Page, PageHeader, RequirePermission } from "../../../app/shell/page";
 import { useCan, useCtx, useReadOnly, useSessionUser } from "../../../app/session";
-import { addDaysIso, errorText, feeToday, FeesNav, lakhTick, LoadError, PaperSize, slide, useFeeClasses } from "../shared";
+import { addDaysIso, errorText, feeToday, FeesNav, FeesDocHead, lakhTick, LoadError, PaperSize, slide, useFeeClasses } from "../shared";
 
 type Preset = "TODAY" | "YESTERDAY" | "MONTH" | "CUSTOM";
 
@@ -587,16 +587,8 @@ export function CollectionReport({ search = {} }: { search?: CollectionSearch })
           <div className="fees-print-only mtb-print-area fees-print-a4">
             <PaperSize size={byHead && !head ? "A4L" : "A4"} />
             <div className="fees-doc" data-theme="light">
-              <div className="fees-doc-head">
-                <div>
-                  <h1>{title}</h1>
-                  <p>
-                    {campusLabel(ctx.campus)} · fee collection report
-                    {[cashier, method ? PAYMENT_METHOD_LABEL[method] : "", headTitle, cls ? `${classList.nameOf(cls)}${section ? `-${section}` : ""}` : "", gender === "F" ? "Girls" : gender === "M" ? "Boys" : ""].filter(Boolean).map((x) => ` · ${x}`).join("")}
-                  </p>
-                </div>
-                <p>Printed {formatDate(feeToday())}</p>
-              </div>
+              <FeesDocHead title={title} sub={<>{campusLabel(ctx.campus)} · fee collection report
+                    {[cashier, method ? PAYMENT_METHOD_LABEL[method] : "", headTitle, cls ? `${classList.nameOf(cls)}${section ? `-${section}` : ""}` : "", gender === "F" ? "Girls" : gender === "M" ? "Boys" : ""].filter(Boolean).map((x) => ` · ${x}`).join("")}</>} right={<>Printed {formatDate(feeToday())}</>} />
               <table>
                 <tbody>
                   <tr>

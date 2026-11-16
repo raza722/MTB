@@ -12,28 +12,30 @@ const STATUS_LABEL: Record<NonNullable<LibraryLoansQuery["status"]>, string> = {
 
 function Register({ rows, title, subtitle, campus }: { rows: LibraryLoan[]; title: string; subtitle: string; campus: string }) {
   return (
-    <div className="ops-doc">
+    <div className="ops-doc ops-lib">
       <DocHead title={title} subtitle={`${subtitle} · ${rows.length} loans`} campus={campus} />
       <table>
         <thead>
+          {/* The old "Book History" labels: Sr #, GR #, name, class, author, issuance, submission due and submission
+              dates; the book, accession number and fine the new register keeps sit in between and at the end. */}
           <tr>
-            <th className="n">Sr</th>
-            <th>G.R. / staff no.</th>
-            <th>Borrower</th>
-            <th>Class or post</th>
-            <th>Book</th>
-            <th>Author</th>
-            <th>Accession</th>
-            <th>Issued</th>
-            <th>Due</th>
-            <th>Returned</th>
+            <th>Sr #</th>
+            <th>GR #</th>
+            <th>Name</th>
+            <th>Class / Post</th>
+            <th>Book Name</th>
+            <th>Author Name</th>
+            <th>Accession #</th>
+            <th>Issuance Date</th>
+            <th>Submission Due Date</th>
+            <th>Submission Date</th>
             <th className="n">Fine</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((l, i) => (
             <tr key={l.id}>
-              <td className="n">{i + 1}</td>
+              <td>{i + 1}</td>
               <td>{l.borrowerId}</td>
               <td>{l.borrowerName}</td>
               <td>{l.borrowerDetail}</td>
@@ -42,7 +44,7 @@ function Register({ rows, title, subtitle, campus }: { rows: LibraryLoan[]; titl
               <td>{l.accessionNo}</td>
               <td>{formatDate(l.issuedOn)}</td>
               <td>{formatDate(l.dueOn)}</td>
-              <td>{l.returnedOn ? formatDate(l.returnedOn) : l.daysLate > 0 ? `Overdue ${l.daysLate} d` : "Out"}</td>
+              <td>{l.returnedOn ? formatDate(l.returnedOn) : l.daysLate > 0 ? `Not Returned (${l.daysLate} d late)` : "Not Returned"}</td>
               <td className="n">{l.fine > 0 ? `${formatRs(l.fine)}${l.returnedOn ? ` (${LIBRARY_FINE_STATUS_LABEL[l.fineStatus].toLowerCase()})` : ""}` : "—"}</td>
             </tr>
           ))}

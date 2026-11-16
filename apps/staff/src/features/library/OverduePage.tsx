@@ -104,7 +104,7 @@ function ReminderModal({ rows, onClose, onSent }: { rows: LibraryLoan[]; onClose
 
 function OverdueList({ rows, campus }: { rows: LibraryLoan[]; campus: string }) {
   return (
-    <div className="ops-doc">
+    <div className="ops-doc ops-lib">
       <DocHead title="Overdue books" subtitle={`${rows.length} books · fines to date ${formatRs(rows.reduce((a, r) => a + r.fine, 0))}`} campus={campus} />
       <table>
         <thead>

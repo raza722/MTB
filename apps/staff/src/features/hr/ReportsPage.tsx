@@ -15,6 +15,29 @@ export type HrReport = "strength" | "salary" | "salary-history" | "attendance" |
 
 type ExperienceRow = HrExperienceReport["rows"][number];
 
+/**
+ * Service as the old experience report printed it, "10 Years, 6 Months, 9 Days", counted from the joining date to the
+ * till date. When the counted service differs from it (a break and a rejoining), the counted years print instead.
+ */
+function serviceText(from: string, to: string, counted: number): string {
+  const [y1, m1, d1] = from.split("-").map(Number) as [number, number, number];
+  const [y2, m2, d2] = to.split("-").map(Number) as [number, number, number];
+  let y = y2 - y1;
+  let m = m2 - m1;
+  let d = d2 - d1;
+  if (d < 0) {
+    m -= 1;
+    d += new Date(Date.UTC(y2, m2 - 1, 0)).getUTCDate();
+  }
+  if (m < 0) {
+    y -= 1;
+    m += 12;
+  }
+  if (y < 0) return "";
+  if (Math.abs(y + m / 12 + d / 365 - counted) > 0.1) return years(counted);
+  return `${y} Years, ${m} Months, ${d} Days`;
+}
+
 /** 9,540 minutes → "159:00" (hours and minutes worked, from time in and out). */
 const hoursWorked = (min: number) => (min ? `${Math.floor(min / 60)}:${String(min % 60).padStart(2, "0")}` : "");
 
@@ -339,17 +362,19 @@ function ExperienceReport() {
             onPrint={() =>
               d &&
               print(
+                // The old "Staff Experience" report: Level Name and Till Date under the title, these ten columns, A4
+                // portrait, no signatures. The pay columns print blank for roles that may not see pay (as the old did).
                 <ReportDoc
                   campus={ctx.campus === "ALL" ? "All campuses" : campusHeading(ctx.campus)}
-                  title="Staff experience"
-                  sub={sub}
-                  small={pay}
-                  head={["#", "Emp. no", "Name", "Designation", "Scale", "Joined", "At MTB", "Earlier", "Total", ...(pay ? ["Basic now", "Increment", "New basic"] : [])]}
-                  numeric={[6, 7, 8, 9, 10, 11]}
-                  rows={d.rows.map((r, i) => [i + 1, r.employeeNo, r.name, r.designation, r.payScale ?? "", formatDate(r.joiningDate), r.mtbYears.toFixed(1), r.priorYears.toFixed(1), r.totalYears.toFixed(1), ...(pay ? [basicRs(r.basic), r.incrementDue ? formatRs(r.incrementDue) : "—", r.basic && r.newBasic ? formatRs(r.newBasic) : "—"] : [])])}
-                  signatures={["Office", "Principal"]}
+                  title="Staff Experience"
+                  sub={<span className="hr-sub-pair"><span>Level Name : {level || "All"}{gender ? ` (${gender === "F" ? "Women" : "Men"})` : ""}</span><span>Till Date : {formatDate(d.asOf)}</span></span>}
+                  small
+                  head={["Sr #", "Reg. #", "Name", "DOJ", "Experience", "Extra Exp.", "Scale", "Prev. Salary", "Increment", "New Salary"]}
+                  numeric={[6, 7, 8, 9]}
+                  rows={d.rows.map((r, i) => [i + 1, r.employeeNo, r.name, formatDate(r.joiningDate), serviceText(r.joiningDate, d.asOf, r.mtbYears), `${r.priorYears ? `${r.priorYears.toFixed(1)} ` : ""}Years`, r.payScale ?? "", pay && r.basic ? formatRs(r.basic).slice(3) : "", pay && r.incrementDue ? formatRs(r.incrementDue).slice(3) : "", pay && r.basic && r.newBasic ? formatRs(r.newBasic).slice(3) : ""])}
+                  signatures={[]}
                 />,
-                pay ? "A4L" : "A4",
+                "A4",
               )
             }
           />

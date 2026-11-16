@@ -91,14 +91,32 @@ button.acc-month:focus-visible { outline: 2px solid var(--focus-ring); outline-o
 /* Printable documents: vouchers, ledgers, statements on A4 */
 .acc-print-only { display: none; }
 @page acc-a4 { size: A4 portrait; margin: 12mm; }
-.acc-doc { font-size: 12px; line-height: 16px; color: var(--ink); background: var(--surface-raised); }
+.acc-doc { font-family: Arial, sans-serif; font-size: 12px; line-height: 16px; color: #000; background: var(--surface-raised); }
 .acc-doc h1 { margin: 0; font-size: 18px; line-height: 24px; }
 .acc-doc h2 { margin: 0; font-size: 14px; line-height: 20px; }
 .acc-doc table { width: 100%; border-collapse: collapse; }
 .acc-doc th, .acc-doc td { border: 1px solid var(--border-strong); padding: 4px 6px; text-align: left; vertical-align: top; }
-.acc-doc th { background: var(--surface-sunken); font-weight: 600; }
+.acc-doc th { font-weight: 700; text-align: center; }
+.acc-doc th, .acc-doc td { border-color: #808080; }
+/* Old ledger / trial balance: "Date From : … Date To : …" and "Account : …" lines, a right-aligned "Total :" row */
+.acc-doc .acc-doc-dates { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; margin: 4px 0 8px; font-weight: 700; font-size: 12px; }
+.acc-doc .acc-doc-dates span b { margin-right: 10px; }
+.acc-doc .acc-doc-dates span + span b { margin-left: 18px; }
+.acc-doc td.acc-doc-label { border: 0; text-align: right; font-weight: 700; }
+.acc-doc tr.acc-doc-total td.num { font-weight: 700; }
+/* Old voucher slip: label / value rows (bank and cash vouchers), signature row (journal voucher) */
+.acc-doc .acc-vkv { display: grid; grid-template-columns: 40mm 1fr; row-gap: 3mm; margin: 6mm 0 0 18mm; max-width: 140mm; font-size: 12px; }
+.acc-doc .acc-vkv dt { margin: 0; }
+.acc-doc .acc-vkv dd { margin: 0; font-size: 11px; }
+.acc-doc .acc-vkv dd.acc-vline { border-bottom: 1.5px solid #000; width: 50mm; min-height: 14px; }
+.acc-doc .acc-jv-top { display: flex; justify-content: space-between; align-items: flex-start; margin: 6px 0 8px; font-size: 12px; }
+.acc-doc .acc-jv-sign { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin: 40px 40px 0 60px; }
+.acc-doc .acc-jv-sign b { display: block; font-size: 16px; margin-bottom: 8px; }
+.acc-doc .acc-jv-sign div:last-child { text-align: right; }
 .acc-doc td.num, .acc-doc th.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.acc-doc .acc-doc-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding-bottom: 8px; margin-bottom: 10px; border-bottom: 2px solid var(--ink); }
+.acc-doc .acc-doc-head { margin-bottom: 10px; }
+.acc-doc .mtb-lh-title { text-transform: none; }
+.acc-doc .mtb-lh-sub { font-weight: 400; }
 .acc-doc .acc-doc-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 24px; margin: 10px 0; }
 .acc-doc .acc-doc-sign { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-top: 48px; }
 .acc-doc .acc-doc-sign div { border-top: 1px solid var(--ink); padding-top: 4px; text-align: center; font-size: 11px; }

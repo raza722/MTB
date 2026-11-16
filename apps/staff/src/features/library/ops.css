@@ -38,7 +38,21 @@
 /* ---------- Printable documents (A4 lists, A5 shop receipt, route sheets) ---------- */
 .ops-print-layer { display: none; }
 .ops-doc { box-sizing: border-box; width: 100%; padding: 0; background: var(--surface-raised); color: var(--ink); font-size: 9.5pt; line-height: 1.4; }
-.ops-doc-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; border-bottom: 1.2pt solid var(--ink); padding-bottom: 3mm; margin-bottom: 4mm; }
+.ops-doc-head { margin-bottom: 3mm; }
+/* The old library and store reports: Times New Roman, black grid lines, bold headers on white. */
+.ops-print-layer .ops-doc { color: #000; font-family: Arial, sans-serif; }
+.ops-print-layer .ops-doc.ops-lib { font-family: "Times New Roman", Times, serif; }
+.ops-print-layer .ops-doc th, .ops-print-layer .ops-doc td { border-color: #b0b0b0; }
+.ops-print-layer .ops-doc th { background: transparent; font-weight: 700; }
+.ops-doc tr.ops-group td { background: #d3d3d3; font-weight: 700; }
+.ops-doc table.ops-small { font-size: 7.5pt; }
+.ops-doc table.ops-small th, .ops-doc table.ops-small td { padding: 0.6mm 1mm; }
+.ops-doc-pair { display: flex; justify-content: center; gap: 30mm; font-weight: 700; }
+.ops-doc tr.ops-group-light td { background: #f2f2f2; }
+.ops-req-head { display: flex; flex-wrap: wrap; gap: 2mm 8mm; }
+.ops-print-layer .ops-doc table.ops-lib { font-family: "Times New Roman", Times, serif; }
+/* The old store signatures: a line over each bold title, pushed to the foot of the page. */
+.ops-print-layer .ops-doc-sign div { color: #000; font: 700 10pt Arial, sans-serif; border-top-color: #000; }
 .ops-doc-head h1 { margin: 0; font-size: 14pt; }
 .ops-doc-head p { margin: 0; color: var(--ink-muted); font-size: 8.5pt; }
 .ops-doc h2 { font-size: 10.5pt; margin: 4mm 0 2mm; }

@@ -133,7 +133,7 @@ export function CountsPage() {
 function Discrepancies({ d, campus }: { d: LibraryCountDetail; campus: string }) {
   const rows = d.rows.filter((r) => r.result !== "FOUND" && r.result !== "ON_LOAN");
   return (
-    <div className="ops-doc">
+    <div className="ops-doc ops-lib">
       <DocHead title={`Stock count: ${d.name}`} subtitle={`Cabinets ${d.cabinets} · started ${formatDate(d.startedOn)} by ${d.startedBy} · ${d.scanned} scanned of ${d.expected} expected`} campus={campus} />
       <table>
         <thead>

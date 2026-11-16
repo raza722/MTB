@@ -1,13 +1,9 @@
 import {
   ApiError,
   examsApi,
-  examsGradeFor,
   examsGroupShort,
-  examsPassMark,
   examsQueries,
   examsSits,
-  EXAMS_DEFAULT_PASS_RULES,
-  EXAMS_DEFAULT_SCALE,
   type ExamDetail,
   type ExamsParticipant,
   type ExamsParticipantInput,
@@ -26,7 +22,7 @@ import { z } from "zod";
 import { campusLabel } from "../../app/shell/campus";
 import { Page, PageHeader } from "../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
-import { DocHead, printedOn } from "./print/docs";
+import { DocHead, Fields, pctText, PositionTable, printedOn, sessionLong } from "./print/docs";
 import { PrintSheet, printNow, type ExamPaper } from "./print/PrintSheet";
 import { errorText, ExamsNav, examsToday, LoadError, ordinal } from "./shared";
 
@@ -757,46 +753,54 @@ function ParticipantList({ prog, exam, lines, centres }: { prog: ExamsProgramme;
   );
 }
 
-function ResultSheet({ prog, exam, lines, centre, oneCentre }: { prog: ExamsProgramme; exam: ExamDetail; lines: Line[]; centre: string; oneCentre: boolean }) {
-  // Position within the centre for one centre's sheet, across every centre otherwise.
-  const pos = (r: ExamsResultRow | undefined) => (oneCentre ? r?.position : r?.classPosition) ?? null;
-  const rules = exam.passRules ?? EXAMS_DEFAULT_PASS_RULES;
-  const bands = exam.bands ?? EXAMS_DEFAULT_SCALE;
+/** The old "MTB Diamond Mind Test" sheet: the master sheet layout with the participant's school after the name. */
+function ResultSheet({ prog, exam, lines, centre }: { prog: ExamsProgramme; exam: ExamDetail; lines: Line[]; centre: string; oneCentre: boolean }) {
   const name = (id: string) => exam.subjects.find((s) => s.id === id)?.name ?? id;
   const sorted = [...lines].sort((a, b) => a.p.name.localeCompare(b.p.name));
+  const lead = 5;
   return (
-    <article className="exams-doc exams-doc-land" aria-label="Diamond Minds result sheet">
+    <article className="exams-doc exams-doc-land exams-master" aria-label="Diamond Minds result sheet">
       {exam.status !== "DECLARED" && <span className="exams-doc-mark">PROVISIONAL</span>}
-      <DocHead campus={prog.campus} title="Diamond Minds result sheet" sub={`${exam.name} · ${centre} · Session ${formatSession(prog.session)}`} />
+      <DocHead campus={prog.campus} title="MTB Diamond Mind Test" underline />
+      <Fields under items={[["Class", prog.name], ["Section", centre], ["Exam", exam.name]]} style={{ justifyContent: "center" }} />
       <table>
         <thead>
           <tr>
-            <th className="n">Sr.</th>
-            <th>Reg. no.</th>
-            <th>Name</th>
-            <th>School name</th>
-            <th>Grp</th>
-            {exam.subjects.map((s) => (
-              <th key={s.id} className="n">
-                {s.name.length > 10 ? s.name.slice(0, 9) + "." : s.name}
-              </th>
-            ))}
-            <th className="n">Obt.</th>
-            <th className="n">%</th>
-            <th className="c">Grd</th>
-            <th className="n">Pos.</th>
-            <th>Failed subjects</th>
-          </tr>
-          <tr>
-            <th colSpan={5} className="n">
-              Max. marks
+            <th className="c">Sr.#</th>
+            <th className="c">G.R.No</th>
+            <th className="c" style={{ width: "34mm" }}>
+              Student Name
+            </th>
+            <th className="c" style={{ width: "34mm" }}>
+              School Name
+            </th>
+            <th className="c">
+              <span className="exams-vert">Grp</span>
             </th>
             {exam.subjects.map((s) => (
-              <th key={s.id} className="n">
+              <th key={s.id} className="c">
+                <span className="exams-vert">{s.name}</span>
+              </th>
+            ))}
+            {["Obt.", "%", "Grd", "Pos"].map((t) => (
+              <th key={t} className="c">
+                <span className="exams-vert">{t}</span>
+              </th>
+            ))}
+            <th className="c" style={{ width: "40mm" }}>
+              Failed Subjects
+            </th>
+          </tr>
+          <tr>
+            <th colSpan={lead} className="n">
+              Max. Marks:
+            </th>
+            {exam.subjects.map((s) => (
+              <th key={s.id} className="c">
                 {s.maxMarks}
               </th>
             ))}
-            <th className="n">{exam.subjects.filter((s) => !s.groups?.length || s.groups.includes(exam.groups?.[0] ?? "")).reduce((a, s) => a + s.maxMarks, 0)}</th>
+            <th className="c">{exam.subjects.filter((s) => !s.groups?.length || s.groups.includes(exam.groups?.[0] ?? "")).reduce((a, s) => a + s.maxMarks, 0)}</th>
             <th colSpan={4} />
           </tr>
         </thead>
@@ -805,90 +809,59 @@ function ResultSheet({ prog, exam, lines, centre, oneCentre }: { prog: ExamsProg
             const r = l.row;
             return (
               <tr key={l.p.regNo}>
-                <td className="n">{i + 1}</td>
-                <td className="mtb-mono">{l.p.regNo}</td>
-                <td>{l.p.name}</td>
-                <td>{l.p.previousSchool}</td>
-                <td>{examsGroupShort(l.p.group)}</td>
+                <td className="c">{i + 1}</td>
+                <td>{l.p.regNo}</td>
+                <td className="wrap">{l.p.name}</td>
+                <td className="wrap c">{l.p.previousSchool}</td>
+                <td className="c">{examsGroupShort(l.p.group)}</td>
                 {exam.subjects.map((s) => {
-                  if (!examsSits(s, l.p.group)) return <td key={s.id} className="n" />;
+                  if (!examsSits(s, l.p.group)) return <td key={s.id} className="c" />;
                   const m = r?.marks[s.id];
-                  const low = typeof m === "number" ? m < examsPassMark(s.maxMarks, rules) : m === "A" || m === "L";
                   return (
-                    <td key={s.id} className={low ? "n fail" : "n"}>
+                    <td key={s.id} className="c">
                       {m === null || m === undefined ? "" : m}
                     </td>
                   );
                 })}
-                <td className="n">{r ? r.obtained : ""}</td>
-                <td className="n">{!r ? "" : r.percent != null ? `${r.percent.toFixed(1)}` : "—"}</td>
-                <td className="c">{!r ? "" : r.percent != null ? (r.grade ?? examsGradeFor(r.percent, bands) ?? "—") : "—"}</td>
-                <td className="n">{!r ? "" : pos(r) ? ordinal(pos(r)!) : "—"}</td>
-                <td style={{ fontSize: "7.5pt" }}>{(r?.failedSubjects ?? []).map(name).join(", ")}</td>
+                <td className="c">{r ? r.obtained : ""}</td>
+                <td className="c">{r ? pctText(r.percent) : ""}</td>
+                <td className="c">{r?.percent != null ? (r.grade ?? "") : ""}</td>
+                <td className="c">{r?.classPosition ? ordinal(r.classPosition) : ""}</td>
+                <td className="wrap">{(r?.failedSubjects ?? []).map(name).join(",")}</td>
               </tr>
             );
           })}
         </tbody>
       </table>
-      <p className="exams-doc-key">
-        {(exam.groups?.length ? `Grp = group (${exam.groups.map((g) => `${examsGroupShort(g)} ${g}`).join(", ")}); ` : "")}a blank paper is one the group doesn't sit. Marks in red are below the pass mark ({rules.subjectPassPercent}%); A = absent. Position is {oneCentre ? "within the centre" : "across every centre"}; equal percentages share a position. Printed {printedOn()}.
-      </p>
-      <div className="exams-doc-signs" style={{ marginTop: "8mm" }}>
-        <div>Prepared by</div>
-        <div>Controller of examinations</div>
-        <div>Principal</div>
-      </div>
     </article>
   );
 }
 
+/** The old "Top Ten Positions (Class-Wise)" of the Diamond Minds test. */
 function TopTen({ prog, exam, lines, centre }: { prog: ExamsProgramme; exam: ExamDetail; lines: Line[]; centre: string }) {
   // Positions are dense (1, 1, 2 …) across every centre; the first ten positions are listed, ties kept.
   const ranked = lines.filter((l) => l.row?.percent != null && !l.row.withheld && (l.row.classPosition ?? 99) <= 10).sort((a, b) => (a.row!.classPosition ?? 0) - (b.row!.classPosition ?? 0) || a.p.name.localeCompare(b.p.name));
+  const date = exam.subjects.map((s) => s.date).filter(Boolean).sort()[0] ?? exam.startDate;
   return (
     <article className="exams-doc exams-doc-a4" aria-label="Diamond Minds top ten">
       {exam.status !== "DECLARED" && <span className="exams-doc-mark">PROVISIONAL</span>}
-      <DocHead campus={prog.campus} title="Top ten positions" sub={`${exam.name} · ${centre} · Session ${formatSession(prog.session)}`} />
+      <DocHead campus={prog.campus} title="Top Ten Positions (Class-Wise)" underline />
       {ranked.length === 0 ? (
         <p>No complete results match these filters.</p>
       ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>Reg. no.</th>
-              <th>Name</th>
-              <th>Centre</th>
-              <th>Previous school</th>
-              <th>Group</th>
-              <th className="n">Marks</th>
-              <th className="n">%</th>
-              <th className="n">Position</th>
-            </tr>
-          </thead>
-          <tbody>
-            {ranked.map((l) => (
-              <tr key={l.p.regNo}>
-                <td className="mtb-mono">{l.p.regNo}</td>
-                <td>{l.p.name}</td>
-                <td>{l.centre}</td>
-                <td>{l.p.previousSchool}</td>
-                <td>{examsGroupShort(l.p.group)}</td>
-                <td className="n">
-                  {l.row!.obtained} / {l.row!.max}
-                </td>
-                <td className="n">{formatPercent(l.row!.percent ?? 0)}</td>
-                <td className="n">{ordinal(l.row!.classPosition ?? 0)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <PositionTable
+          fields={[
+            ["Session", <b key="s">{sessionLong(prog.session)}</b>],
+            ["Exam", <b key="e">{exam.name}</b>],
+            ["Class", <b key="c">{prog.name}</b>],
+            centre !== "Every centre" && ["Centre", <b key="x">{centre}</b>],
+            ["Month", <b key="m">{date ? new Date(`${date.slice(0, 10)}T00:00:00`).toLocaleString("en-US", { month: "long" }) : ""}</b>],
+          ]}
+          blocks={[{ section: "", rows: ranked.map((l) => ({ id: l.p.regNo, name: l.p.name, section: l.centre, school: l.p.previousSchool, group: l.p.group ? examsGroupShort(l.p.group) : undefined, obtained: l.row!.obtained, max: l.row!.max, percent: l.row!.percent, position: l.row!.classPosition ?? null })) }]}
+          showSection
+          showSchool
+        />
       )}
-      <p className="exams-doc-key">Equal percentages share a position, so more than ten participants can be listed. Printed {printedOn()}.</p>
-      <div className="exams-doc-signs">
-        <div>Controller of examinations</div>
-        <div />
-        <div>Principal</div>
-      </div>
     </article>
   );
 }

@@ -58,9 +58,32 @@
 }
 
 .hr-doc { box-sizing: border-box; width: 100%; background: var(--surface-raised); color: var(--ink); font-size: 9.5pt; line-height: 1.4; }
-.hr-doc-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; border-bottom: 1.2pt solid var(--ink); padding-bottom: 3mm; margin-bottom: 4mm; }
-.hr-doc-head h1 { margin: 0; font-size: 13pt; }
-.hr-doc-head p { margin: 0; color: var(--ink-muted); font-size: 8.5pt; }
+/* The old letterhead (app/print/letterhead) with the title in the old reports' title case. */
+.hr-doc-head { margin-bottom: 3mm; }
+.hr-doc-head .mtb-lh-title { text-transform: none; font-size: 14pt; }
+.hr-doc { font-family: Calibri, Arial, sans-serif; }
+.hr-sub-pair { display: flex; justify-content: center; gap: 30mm; font-weight: 400; }
+.hr-print .hr-doc, .hr-print .hr-slip { color: #000; }
+.hr-print .hr-doc th, .hr-print .hr-doc td { border-color: #a0a0a0; }
+/* Old "Employee Profile" / appointment letter layout. */
+.hr-boxtitle { display: block; width: 80mm; margin: 0 0 3mm 36mm; padding: 1.5mm 0; border: 1pt solid #000; text-align: center; font: 700 11pt Arial, sans-serif; }
+.hr-oldform { position: relative; padding-right: 36mm; display: grid; grid-template-columns: 36mm 1fr 30mm 1fr; column-gap: 2mm; row-gap: 2.2mm; font: 10pt Arial, sans-serif; align-items: baseline; }
+.hr-oldform .k { color: #000; }
+.hr-oldform .v { font-weight: 700; font-size: 9pt; }
+.hr-oldform .k2 { text-align: right; }
+.hr-oldform .photo { position: absolute; right: 0; top: 0; width: 30mm; height: 34mm; border: 0.6pt solid #a0a0a0; display: grid; place-items: center; color: #808080; font-size: 8pt; }
+.hr-oldsign { display: flex; justify-content: space-between; margin-top: 12mm; font: 700 10pt Arial, sans-serif; text-align: center; }
+.hr-oldsign > div { border-top: 1pt solid #000; padding-top: 1mm; min-width: 34mm; }
+.hr-oldsign > div + div { min-width: 60mm; margin-right: 15mm; }
+.hr-letter-old { font: 11.5pt Arial, sans-serif; line-height: 1.75; padding: 0 12mm; }
+.hr-letter-old .row { display: grid; grid-template-columns: 26mm 1fr; align-items: end; column-gap: 2mm; }
+.hr-letter-old .row .k { text-align: right; }
+.hr-letter-old .line { border-bottom: 1pt solid #000; min-height: 6mm; padding-left: 1mm; }
+.hr-letter-old .blank { display: inline-block; min-width: 30mm; border-bottom: 1pt solid #000; text-align: center; }
+.hr-letter-old p { margin: 2mm 0; }
+.hr-letter-old ol { margin: 2mm 0 0; padding: 0; list-style: none; }
+.hr-letter-old li { display: grid; grid-template-columns: 22mm 1fr; margin-bottom: 2mm; }
+.hr-letter-old li > span:first-child { padding-left: 6mm; }
 .hr-doc h2 { font-size: 10.5pt; margin: 4mm 0 2mm; }
 .hr-doc table { width: 100%; border-collapse: collapse; margin-bottom: 3mm; }
 .hr-doc th, .hr-doc td { border: 0.5pt solid var(--border-strong); padding: 1mm 1.6mm; text-align: left; vertical-align: top; }

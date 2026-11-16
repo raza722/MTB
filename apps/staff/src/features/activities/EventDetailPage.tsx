@@ -291,11 +291,11 @@ function EventView({ ev }: { ev: ActivitiesEventDetail }) {
       </ConfirmDialog>
       {editing && <EventPanel event={ev} onClose={() => setEditing(false)} />}
       {printing && (
-        <PrintLayer paper="A4" onDone={() => setPrinting(false)}>
+        <PrintLayer paper="A4L" footer onDone={() => setPrinting(false)}>
           <SportsListDoc
             campus={ev.campus}
             session={ev.session}
-            title={ev.kind === "SPORTS" ? "Sports list" : "Participants list"}
+            title={ev.kind === "SPORTS" ? "Sports List" : "Participants List"}
             titleUr={ev.kind === "SPORTS" ? "کھیلوں کی فہرست" : "شرکاء کی فہرست"}
             heading={`${ev.title} · ${formatLongDate(ev.date)} · ${ev.venue}`}
             note={

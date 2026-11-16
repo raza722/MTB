@@ -8,10 +8,16 @@
 }
 .fees-voucher-copy { box-sizing: border-box; padding: 3mm 4mm; display: grid; align-content: start; gap: 2mm; position: relative; }
 .fees-voucher-copy + .fees-voucher-copy { border-left: 0.8pt dashed var(--border-strong); }
-.fees-voucher-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 3mm; border-bottom: 1.2pt solid var(--ink); padding-bottom: 1.5mm; }
-.fees-voucher-head strong { display: block; font-size: 10.5pt; line-height: 1.2; }
+.fees-voucher-head { display: flex; justify-content: space-between; align-items: baseline; gap: 3mm; font-size: 10pt; }
+.fees-voucher-copyname { font-size: 10.5pt; }
+.fees-voucher-bankname { display: block; font-size: 12pt; line-height: 1.2; }
+.fees-voucher .mtb-lh-slip .mtb-lh-heading { font-size: 9.5pt; }
+.fees-voucher-dates { display: flex; justify-content: space-between; font-weight: 700; }
+.fees-voucher tr.fees-voucher-sub th { text-align: right; color: var(--ink); font-size: 8.4pt; }
+.fees-voucher tr.fees-voucher-total th { text-align: right; color: var(--ink); border-top: 1pt solid var(--ink); font-size: 9pt; }
+.fees-voucher-stamp { text-align: center; font-size: 7.4pt; }
 .fees-voucher-tag { border: 0.8pt solid var(--ink); border-radius: 1mm; padding: 0.4mm 1.6mm; font-size: 7pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
-.fees-voucher-bank { background: var(--surface-sunken); border-radius: 1mm; padding: 1.5mm 2mm; display: grid; gap: 0.3mm; }
+.fees-voucher-bank { text-align: center; display: grid; gap: 0.3mm; font-size: 9.5pt; }
 .fees-voucher-kv { display: grid; grid-template-columns: auto 1fr; gap: 0.4mm 3mm; margin: 0; }
 .fees-voucher-kv dt { color: var(--ink-muted); }
 .fees-voucher-kv dd { margin: 0; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
@@ -30,6 +36,9 @@
 .fees-doc-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; border-bottom: 1.2pt solid var(--ink); padding-bottom: 3mm; margin-bottom: 4mm; }
 .fees-doc-head h1 { margin: 0; font-size: 13pt; }
 .fees-doc-head p { margin: 0; color: var(--ink-muted); font-size: 8.5pt; }
+.fees-doc-lh { margin-bottom: 4mm; }
+.fees-doc-lh .mtb-lh-sub { font-weight: 400; }
+.fees-doc-lh-right { font-size: 8.5pt; white-space: nowrap; }
 .fees-doc table { width: 100%; border-collapse: collapse; margin-bottom: 4mm; }
 .fees-doc th, .fees-doc td { border: 0.5pt solid var(--border-strong); padding: 1.2mm 1.8mm; text-align: left; }
 .fees-doc th { background: var(--surface-sunken); font-weight: 600; }
@@ -40,6 +49,30 @@
 
 /* ---------- Candidate fee slip (A5) ---------- */
 .fees-slip { box-sizing: border-box; width: 148mm; padding: 7mm; background: var(--surface-raised); color: var(--ink); font-size: 10pt; line-height: 1.4; display: grid; gap: 3mm; border: 1px solid var(--border); }
+
+/* ---------- Fee slip: the old "SCHOOLS/COLLEGES FEE SLIP · Fee Payment Report" at the top of an A4 page ---------- */
+.fees-fslip { position: relative; box-sizing: border-box; width: 118mm; margin: 0 auto; padding: 4mm 3mm 3mm; background: #fff; color: #000; font-family: "Times New Roman", Times, serif; font-size: 8pt; line-height: 1.3; overflow: hidden; }
+.fees-fslip .mtb-lh { grid-template-columns: 12mm 1fr 12mm; }
+.fees-fslip .mtb-lh-crest, .fees-fslip .mtb-lh-crest-space { width: 12mm; }
+.fees-fslip .mtb-lh-heading { font-size: 12pt; }
+.fees-fslip .mtb-lh-title { font-family: "Times New Roman", Times, serif; font-size: 10.5pt; }
+.fees-fslip-red { text-align: center; color: #f00; font-weight: 700; font-size: 12pt; margin: 2.5mm 0 1.5mm; }
+.fees-fslip-fields { display: grid; align-items: end; column-gap: 2.5mm; margin: 0 1mm 3mm; }
+.fees-fslip-row1 { grid-template-columns: 11mm 1fr 20mm 1fr; }
+.fees-fslip-row2 { grid-template-columns: 11mm 0.8fr 8mm 1fr 8mm 1fr; }
+.fees-fslip-fields b { padding-bottom: 1.5mm; white-space: nowrap; }
+.fees-fslip-val { border-bottom: 0.4mm solid #808080; text-align: center; padding: 0 0.5mm 2.5mm; min-height: 4mm; overflow-wrap: anywhere; }
+.fees-fslip-table { width: 100%; border-collapse: collapse; }
+.fees-fslip-table th, .fees-fslip-table td { border: 0.4mm solid #808080; padding: 1mm 0.8mm 3mm; text-align: center; vertical-align: top; font-family: Arial, sans-serif; }
+.fees-fslip-table thead th, .fees-fslip-table th.r { font-family: "Times New Roman", Times, serif; font-weight: 700; }
+.fees-fslip-table th.r { text-align: right; }
+.fees-fslip-table td.l { text-align: left; font-family: "Times New Roman", Times, serif; }
+.fees-fslip-table td.l small { display: block; font-size: 7pt; }
+.fees-fslip-extra { font-size: 7pt; margin: 1mm 0.5mm 0; }
+.fees-fslip-notes p { margin: 1mm 0.5mm 0; }
+.fees-fslip-notes p + p { margin-top: 3mm; }
+.fees-fslip-stamp { text-align: center; margin: 3mm 0 0; }
+.fees-fslip-mark { position: absolute; inset: 0; display: grid; place-content: center; pointer-events: none; font-family: Arial, sans-serif; font-size: 40pt; font-weight: 700; letter-spacing: 0.18em; opacity: 0.16; transform: rotate(-24deg); }
 
 /* ---------- Screen-only preview desk ---------- */
 @media screen {
@@ -65,4 +98,6 @@
   .fees-voucher-sheet { break-inside: avoid; }
   .fees-doc tr { break-inside: avoid; }
   .fees-print-only { display: block; }
+  /* The candidate slip printed from inside the side panel: pin it to the top of the page, centred. */
+  .fees-print-only.mtb-receipt-print { position: fixed !important; left: 0 !important; top: 0 !important; width: 100vw !important; }
 }

@@ -187,7 +187,7 @@ export function StatusChangePanel({ open, onClose, grNo: fixedGrNo, initialKind 
             </Banner>
           )}
           {(done.kind === "STRUCK_OFF" || done.kind === "EXPELLED") && (
-            <PrintSheet paper="A5" label="Notice to parents" zoom={0.62}>
+            <PrintSheet paper="A4" label="Notice to parents" zoom={0.62}>
               <StatusNotice m={done} {...(p ? { mobile: p.guardian.mobile } : {})} />
             </PrintSheet>
           )}

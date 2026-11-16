@@ -20,6 +20,9 @@ export function CertificatesPage({ eventId, onEvent }: { eventId: string | undef
   const readOnly = useReadOnly();
   const canManage = useCan("activities.manage") && !readOnly;
   const log = useQuery(activitiesQueries.certificates(ctx));
+  // Event kinds, so a sports event's certificate prints the old sports variant.
+  const events = useQuery(activitiesQueries.events(ctx));
+  const kindOf = (c: ActivitiesCertificate) => events.data?.find((e) => e.id === c.eventId)?.kind;
   const [printing, setPrinting] = useState<ActivitiesCertificate[] | null>(null);
   const [selected, setSelected] = useState<Set<unknown>>(new Set());
   const [page, setPage] = useState(1);
@@ -129,9 +132,9 @@ export function CertificatesPage({ eventId, onEvent }: { eventId: string | undef
       </Panel>
       {reprint.isError && <Banner tone="danger">{errorText(reprint.error)}</Banner>}
       {printing && (
-        <PrintLayer paper="A4L" onDone={() => setPrinting(null)}>
+        <PrintLayer paper="A4" onDone={() => setPrinting(null)}>
           {printing.map((c) => (
-            <CertificateDoc key={c.id} cert={c} duplicate={c.prints > 1} />
+            <CertificateDoc key={c.id} cert={c} duplicate={c.prints > 1} kind={kindOf(c)} />
           ))}
         </PrintLayer>
       )}
@@ -307,10 +310,10 @@ function IssuePanel({ eventId, onEvent, onPrint }: { eventId: string | undefined
           </div>
         </div>
         <div className="grid content-start gap-2">
-          <span className="mtb-label">Preview (A4 landscape)</span>
+          <span className="mtb-label">Preview (A4)</span>
           {draft ? (
             <DocPreview zoom={0.42} label="Certificate preview">
-              <CertificateDoc cert={draft} />
+              <CertificateDoc cert={draft} kind={ev.data?.kind} />
             </DocPreview>
           ) : (
             <div className="mtb-card">

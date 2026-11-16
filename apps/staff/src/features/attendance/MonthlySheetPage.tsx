@@ -4,6 +4,7 @@ import { AttendanceLegend, Button, EmptyState, Panel, Select, Skeleton, StatCard
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState, type CSSProperties } from "react";
+import { Letterhead } from "../../app/print/letterhead";
 import { RequireSingleCampus } from "../../app/shell/page";
 import { useCtx, useReadOnly } from "../../app/session";
 import { AttendanceShell, monthLabel, pctMeter, pctText, PrintSheet, QueryError, sessionMonths, teacherText, useSections, useSessionSpan } from "./shared";
@@ -232,82 +233,192 @@ export function MonthlySheetPage({ search, setSearch }: { search: MonthlySearch;
           {readOnly ? "Registers of an ended session stay read-only." : "In the old software this register printed with empty boxes to fill by hand; here it fills itself from the day's registers, holidays included."}
         </p>
 
-        {sheet && (
-          <PrintSheet
-            landscape
-            title={`Attendance register · ${sheet.classSection} · ${monthLabel(sheet.month)}`}
-            scope={
-              blank
-                ? `Class teacher ${teacherText(sheet.classTeacher)} · Total students ${sheet.students.length} · Lessons delivered this month ______ · previous month ______ · total ______`
-                : `Class teacher ${teacherText(sheet.classTeacher)} · Total students ${sheet.students.length} · ${delivered} · Class attendance ${pctText(sheet.totals.percent)}`
-            }
-            signatures={["Class teacher", "Vice principal", "Principal"]}
-          >
-            <table>
-              <thead>
-                <tr>
-                  <th rowSpan={2}>Roll</th>
-                  <th rowSpan={2}>G.R. No.</th>
-                  <th rowSpan={2} className="l">
-                    Student
-                  </th>
-                  <th rowSpan={2} className="l">
-                    Father
-                  </th>
-                  {sheet.days.map((d) => (
-                    <th key={d.date} rowSpan={2} className={d.kind === "OFF" ? "shade" : d.kind === "CLOSED" ? "hatch" : undefined}>
-                      {Number(d.date.slice(8))}
-                    </th>
-                  ))}
-                  {!blank && <th colSpan={5}>This month</th>}
-                  <th colSpan={3}>Attended</th>
-                </tr>
-                <tr>
-                  {!blank && (
-                    <>
-                      <th>P</th>
-                      <th>A</th>
-                      <th>L</th>
-                      <th>LT</th>
-                      <th>%</th>
-                    </>
-                  )}
-                  <th>This month</th>
-                  <th>Previous month</th>
-                  <th>Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sheet.students.map((s) => (
-                  <tr key={s.grNo}>
-                    <td>{s.rollNo || ""}</td>
-                    <td>{s.grNo}</td>
-                    <td className="l">{s.name}</td>
-                    <td className="l">{s.father}</td>
-                    {sheet.days.map((d) => (
-                      <td key={d.date} className={d.kind === "OFF" ? "shade" : d.kind === "CLOSED" ? "hatch" : undefined}>
-                        {blank ? "" : (s.codes[d.date] ?? "")}
-                      </td>
-                    ))}
-                    {!blank && (
-                      <>
-                        <td>{s.totals.present}</td>
-                        <td>{s.totals.absent}</td>
-                        <td>{s.totals.leave}</td>
-                        <td>{s.totals.late}</td>
-                        <td>{pctText(s.totals.percent)}</td>
-                      </>
-                    )}
-                    <td>{blank ? "" : s.totals.present + s.totals.late}</td>
-                    <td>{blank ? "" : s.previousMonth.attended}</td>
-                    <td>{blank ? "" : s.sessionToDate.attended}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </PrintSheet>
-        )}
+        {sheet && (blank ? <BlankRegisterPrint sheet={sheet} /> : <AttendanceReportPrint sheet={sheet} />)}
       </RequireSingleCampus>
     </AttendanceShell>
+  );
+}
+
+const codeClass = (c?: string) => (c === "A" ? "att-old-a" : undefined);
+
+/** "7" and "B" from "7-B" (section names may contain dashes). */
+function splitClass(classSection: string) {
+  const i = classSection.indexOf("-");
+  return i < 0 ? { cls: classSection, section: "" } : { cls: classSection.slice(0, i), section: classSection.slice(i + 1) };
+}
+
+/**
+ * The month filled in, as the old "Student Attendance Report": the class's school days across the top (weekday over
+ * the date), each student's mark per day, total attended (T.A) and the percentage.
+ */
+function AttendanceReportPrint({ sheet }: { sheet: AttendanceMonthlySheet }) {
+  // The days a register was taken, as the old report listed them.
+  const days = sheet.days.filter((d) => d.kind === "SCHOOL" && ((sheet.dayTotals[d.date]?.marked ?? 0) > 0 || sheet.students.some((s) => s.codes[d.date])));
+  const first = sheet.days[0]?.date;
+  const last = sheet.days[sheet.days.length - 1]?.date;
+  const { cls, section } = splitClass(sheet.classSection);
+  return (
+    <PrintSheet
+      landscape
+      title="Student Attendance Report"
+      scope=""
+      signatures={[]}
+      head={
+        <header className="att-old-head">
+          <h1>Student Attendance Report</h1>
+          <p>
+            <b>Date From:</b> <span>{first ? formatDate(first) : ""}</span> <b>Date To:</b> <span>{last ? formatDate(last) : ""}</span>
+          </p>
+          <p>
+            <b>
+              {cls}
+              {section ? ` - ${section}` : ""}
+            </b>
+          </p>
+        </header>
+      }
+    >
+      <table className="att-old-table">
+        <thead>
+          <tr>
+            <th rowSpan={2}>Sr. #</th>
+            <th rowSpan={2}>G.R.No</th>
+            <th rowSpan={2} className="att-old-name">
+              Name
+            </th>
+            {days.map((d) => (
+              <th key={d.date} className="att-old-day">
+                {d.weekday}
+              </th>
+            ))}
+            <th rowSpan={2}>T.A</th>
+            <th rowSpan={2}>%age</th>
+          </tr>
+          <tr>
+            {days.map((d) => (
+              <th key={d.date} className="att-old-day">
+                {formatDate(d.date).slice(0, 6).replace("-", " ")}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {sheet.students.map((s, i) => (
+            <tr key={s.grNo}>
+              <td>{i + 1}</td>
+              <td className="att-old-gr">{s.grNo}</td>
+              <td className="l">
+                {s.name}
+                {s.father ? ` - ${s.father}` : ""}
+              </td>
+              {days.map((d) => (
+                <td key={d.date} className={codeClass(s.codes[d.date])}>
+                  {s.codes[d.date] ?? ""}
+                </td>
+              ))}
+              <td>{s.totals.present + s.totals.late}</td>
+              <td>{pctText(s.totals.percent)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </PrintSheet>
+  );
+}
+
+/**
+ * The blank register to fill by hand, as the old "Attendance Register": class, section, total students and month,
+ * lines for lessons delivered and the vice principal's and class in-charge's signatures, one box per day.
+ */
+function BlankRegisterPrint({ sheet }: { sheet: AttendanceMonthlySheet }) {
+  const ctx = useCtx();
+  const { cls, section } = splitClass(sheet.classSection);
+  const line = <span className="att-old-line" />;
+  return (
+    <PrintSheet
+      landscape
+      title="Attendance Register"
+      scope=""
+      signatures={[]}
+      head={
+        <header className="att-reg-head">
+          <Letterhead campus={ctx.campus} campusName={sheet.campusName} title="Attendance Register" titleCase="as-is" />
+          <div className="att-reg-fields">
+            <span>
+              <b>Class:</b> {cls}
+            </span>
+            <span>
+              <b>Section:</b> {section}
+            </span>
+            <span>
+              <b>Total Students:</b> {sheet.students.length}
+            </span>
+            <span>
+              <b>Month:</b> {monthLabel(sheet.month)}
+            </span>
+            <span className="att-reg-signs">
+              <span>
+                <b>Sign. Vice Principal:</b> {line}
+              </span>
+              <span>
+                <b>Sign. Class Incharge:</b> {line}
+              </span>
+            </span>
+          </div>
+          <div className="att-reg-fields">
+            <span>
+              <b>Lessons Delivered This Month:</b> {line}
+            </span>
+            <span>
+              <b>Lessons Delivered Previous Month:</b> {line}
+            </span>
+            <span>
+              <b>Total Lessons Delivered:</b> {line}
+            </span>
+            <span>
+              <b>Date:</b> {line}
+            </span>
+          </div>
+        </header>
+      }
+    >
+      <table className="att-old-table">
+        <thead>
+          <tr>
+            <th rowSpan={2}>Sr.#</th>
+            <th rowSpan={2}>GRNo.</th>
+            <th rowSpan={2}>Student Name</th>
+            <th rowSpan={2}>Father Name</th>
+            {sheet.days.map((d) => (
+              <th key={d.date} rowSpan={2} className={d.kind === "OFF" ? "shade" : d.kind === "CLOSED" ? "hatch" : undefined}>
+                {Number(d.date.slice(8))}
+              </th>
+            ))}
+            <th colSpan={3}>Attendances</th>
+          </tr>
+          <tr>
+            <th>This Month</th>
+            <th>Previous Month</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sheet.students.map((s, i) => (
+            <tr key={s.grNo}>
+              <td>{i + 1}</td>
+              <td>{s.grNo}</td>
+              <td className="l">{s.name}</td>
+              <td className="l">{s.father}</td>
+              {sheet.days.map((d) => (
+                <td key={d.date} className={d.kind === "OFF" ? "shade" : d.kind === "CLOSED" ? "hatch" : undefined} />
+              ))}
+              <td />
+              <td />
+              <td />
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </PrintSheet>
   );
 }

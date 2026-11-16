@@ -13,7 +13,7 @@ import { BlankAdmissionForm } from "../students/documents/templates";
 import { apiMessage, fieldError } from "../students/shared";
 import { ChildExtrasFields, childExtrasSchema, EMPTY_EXTRAS, extrasBody, FamilyExtrasFields, familyExtrasSchema, type ExtrasForm } from "./extras";
 import { AdmissionsSubNav, feeOrDash, sittingWhen, sittingWhenWhere, today } from "./shared";
-import { ApplicationForm, TestSlip } from "./slips";
+import { ApplicationForm, TestSlip, TestSlipSheet } from "./slips";
 
 const CHILD_FIELDS = ["name", "dob", "classApplied", "bForm", "birthCertificateNo", "religion", "disability", "identificationMark"];
 const FAMILY_FIELDS = ["father", "fatherCnic", "mobile", "address", "email", "homePhone", "city", "tempAddress", "emergencyName", "emergencyMobile1", "emergencyMobile2"];
@@ -392,8 +392,14 @@ export function NewApplicationPage({ enquiryId }: { enquiryId: string }) {
         }
       >
         {done && (
-          <PrintSheet paper="A5" label="Application papers" zoom={0.7}>
-            {printing === "slip" ? <TestSlip a={done} test={setup.data?.tests.find((t) => t.id === done.testId)} /> : <ApplicationForm a={done} />}
+          <PrintSheet paper={printing === "slip" ? "A4" : "A5"} label="Application papers" zoom={printing === "slip" ? 0.55 : 0.7}>
+            {printing === "slip" ? (
+              <TestSlipSheet>
+                <TestSlip a={done} test={setup.data?.tests.find((t) => t.id === done.testId)} />
+              </TestSlipSheet>
+            ) : (
+              <ApplicationForm a={done} />
+            )}
           </PrintSheet>
         )}
       </Modal>

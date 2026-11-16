@@ -67,32 +67,47 @@
 .rpt-blank { display: inline-block; min-width: 96px; }
 .rpt-code { font-family: var(--font-mono, monospace); font-size: 12px; }
 
-/* ---------- Printing: the report document only, on A4 ---------- */
+/* ---------- Printing: the report document only, on A4 ----------
+ * Laid out like the old desktop reports (their .rdlc designs): the letterhead (letterhead.css), the parameter line in
+ * 9pt with bold labels, the table in 8pt Arial with grey ruled cells and a bold header row repeated on every page.
+ * The page size, margins and the "Print DateTime / Page No x of y" footer come from ReportDocument's @page rule. */
 .rpt-print-only { display: none; }
-@page rpt-a4 { size: A4 portrait; margin: 12mm; }
-@page rpt-a4l { size: A4 landscape; margin: 10mm; }
-.rpt-doc { font-size: 11px; line-height: 15px; color: var(--ink); background: var(--surface-raised); }
-.rpt-doc h1 { margin: 0; font-size: 16px; line-height: 22px; }
-.rpt-doc h2 { margin: 0; font-size: 13px; line-height: 18px; font-weight: 600; }
-.rpt-doc-head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; padding-bottom: 8px; margin-bottom: 10px; border-bottom: 2px solid var(--ink); }
+.rpt-doc { font: 8pt/1.25 Arial, Helvetica, sans-serif; color: #000; background: #fff; }
+.rpt-doc .mtb-lh { margin-bottom: 1.5mm; }
+.rpt-params { display: flex; flex-wrap: wrap; justify-content: space-around; gap: 1mm 8mm; margin: 0 0 2mm; font-size: 9pt; }
+.rpt-params b { font-weight: 700; }
 .rpt-doc table { width: 100%; border-collapse: collapse; }
-.rpt-doc th, .rpt-doc td { border: 1px solid var(--border-strong); padding: 3px 5px; text-align: left; vertical-align: top; }
-.rpt-doc th { background: var(--surface-sunken); font-weight: 600; }
-.rpt-doc td.num, .rpt-doc th.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.rpt-doc tfoot td { font-weight: 600; background: var(--surface-sunken); }
-.rpt-doc tr.rpt-subtotal td { font-weight: 600; background: var(--surface-sunken); }
+.rpt-doc th, .rpt-doc td { border: 1px solid #808080; padding: 1.2mm 1.2mm; text-align: left; vertical-align: middle; }
+.rpt-doc th { font-weight: 700; text-align: center; background: none; }
+.rpt-doc thead tr { border-top: 1.5px solid #808080; border-bottom: 1.5px solid #808080; }
+.rpt-doc td.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.rpt-doc td.mid { text-align: center; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.rpt-doc td.nw { white-space: nowrap; }
+.rpt-doc th.sr, .rpt-doc td.sr { width: 1%; text-align: center; white-space: nowrap; }
+.rpt-doc tfoot td { font-weight: 700; }
+.rpt-doc tfoot td.sr { text-align: right; }
+.rpt-doc tr.rpt-subtotal td { font-weight: 700; background: #efefef; }
 .rpt-doc td.rpt-blank-cell { min-width: 30mm; height: 7mm; }
+.rpt-doc td[lang="ur"] { font-family: var(--font-urdu); font-size: 10pt; text-align: right; }
+.rpt-note { margin: 2mm 0 0; font-size: 8pt; }
+/* The old master sheet's narrow headings, turned on their side. */
+.rpt-doc th.vert { vertical-align: bottom; padding: 1mm 0.5mm; }
+.rpt-doc th.vert span { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; display: inline-block; max-height: 32mm; font-weight: 400; }
+/* A table on its side (subject performance): the figure names down the left in bold. */
+.rpt-doc table.rpt-side tbody th { text-align: left; white-space: nowrap; }
+/* The old "Address Post" labels: bold captions, ruled values, a cut line between labels. */
+.rpt-labels { display: grid; gap: 0; }
+.rpt-label { display: grid; grid-template-columns: 42mm 1fr; column-gap: 4mm; row-gap: 1mm; margin: 0; padding: 4mm 8mm 5mm; border-bottom: 1px dashed #000; font-size: 13pt; break-inside: avoid; }
+.rpt-label dt { font-weight: 700; }
+.rpt-label dd { margin: 0; border-bottom: 1px solid #808080; }
 /* Sign-off sheets (parent-teacher meeting): taller ruled rows to write in, and signature lines under the table. */
-.rpt-doc.rpt-ruled td { height: 9mm; vertical-align: middle; }
+.rpt-doc.rpt-ruled td { height: 9mm; }
 .rpt-doc.rpt-ruled td.rpt-blank-cell { min-width: 42mm; }
-.rpt-signatures { display: flex; justify-content: space-between; gap: 24mm; margin-top: 18mm; font-size: 11px; }
-.rpt-signatures span { flex: 1; max-width: 70mm; border-top: 1px solid var(--ink); padding-top: 4px; text-align: center; }
-.rpt-doc-foot { display: flex; justify-content: space-between; margin-top: 10px; font-size: 10px; color: var(--ink-muted); }
+.rpt-signatures { display: flex; justify-content: space-between; gap: 24mm; margin-top: 18mm; font-size: 9pt; font-weight: 700; }
+.rpt-signatures span { flex: 1; max-width: 60mm; border-top: 1px solid #000; padding-top: 1mm; text-align: center; }
 @media print {
   .rpt-print-only { display: block !important; }
-  .rpt-print-only.rpt-portrait { page: rpt-a4; }
-  .rpt-print-only.rpt-landscape { page: rpt-a4l; }
-  .rpt-doc { background: none; }
   .rpt-doc thead { display: table-header-group; }
+  .rpt-doc tfoot { display: table-row-group; }
   .rpt-doc tr { break-inside: avoid; }
 }

@@ -153,7 +153,7 @@ export function AdmitPanel({ applicant: a, open, onClose }: { applicant: Admissi
           )}
           {issueSlip.error && <Banner tone="danger">{apiMessage(issueSlip.error)}</Banner>}
           {slip && (
-            <PrintSheet paper="A5" label="Admission slip" zoom={0.62}>
+            <PrintSheet paper="A4" label="Admission slip" zoom={0.62}>
               <AdmissionSlip d={{ type: "ADMISSION_SLIP", serialNo: slip.serialNo, issuedOn: slip.issuedOn, issuedBy: slip.issuedBy, details: slip.details, snapshot: slip.snapshot }} />
             </PrintSheet>
           )}

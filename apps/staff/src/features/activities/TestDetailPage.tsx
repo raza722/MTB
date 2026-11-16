@@ -158,7 +158,7 @@ function TestView({ test: t, tab, onTab }: { test: ActivitiesTestDetail; tab: Te
         error={action.isError ? errorText(action.error) : undefined}
       />
       {printing && (
-        <PrintLayer paper="A4" onDone={() => setPrinting(false)}>
+        <PrintLayer paper="A4L" footer onDone={() => setPrinting(false)}>
           <MeritListDoc test={t} feeHeads={printHeads} />
         </PrintLayer>
       )}

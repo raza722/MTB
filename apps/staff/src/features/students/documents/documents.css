@@ -88,10 +88,216 @@
   .mtb-collect tr { break-inside: avoid; }
 }
 
-/* Admission slips two to an A4 sheet (landscape, side by side). */
-.mtb-slip-pair { display: flex; gap: 6mm; align-items: flex-start; }
+
+/* ============================================================================================================
+   The old desktop system's student documents ("od-"): black on white, Times/Arial as its report designs used.
+   ============================================================================================================ */
+.od { color: #000; background: #fff; font-family: "Times New Roman", Times, serif; }
+.od .mtb-lh { margin-bottom: 2mm; }
+.od-serif { font-family: "Times New Roman", Times, serif; }
+.od-ref { font: 8.5pt Arial, sans-serif; white-space: nowrap; text-align: right; display: block; }
+.od-ref-line { margin-top: -1mm; }
+.od-fill { display: inline-block; border-bottom: 0.3mm dashed #000; text-align: center; padding: 0 2mm; line-height: 1.25; min-width: 25mm; }
+.od-fill-grow { min-width: 60mm; }
+.od-fill-bold { font-weight: 700; }
+.od-silhouette { width: 100%; height: 100%; fill: #bdbdbd; display: block; }
+.od-photo { display: grid; place-items: end center; border: 0.3mm solid #000; background: #fff; overflow: hidden; }
+.od-box { display: inline-grid; place-content: center; width: 20mm; height: 5.5mm; border: 0.3mm solid #000; margin: 0 4mm 0 2mm; vertical-align: middle; font-size: 9pt; }
+.od-grid { width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; }
+.od-grid th, .od-grid td { border: 0.3mm solid #000; padding: 1.2mm 1.5mm; vertical-align: middle; }
+.od-grid th { font-weight: 700; text-align: center; }
+.od-grid .c { text-align: center; }
+.od-grid .l { text-align: left; }
+.od-grid-light th, .od-grid-light td { border-color: #bdbdbd; }
+
+/* ---- ID card: "Students Identity Card", thick rounded black border ---- */
+.od-card { border: 1.1mm solid #000; border-radius: 3.5mm; background: #fff; color: #000; display: block; padding: 2mm 3mm 1.5mm; font-family: "Times New Roman", serif; }
+.od-card-title { font: 700 10.5pt Arial, sans-serif; display: inline-block; border-bottom: 0.6mm solid #000; padding: 0 1mm 0.3mm; margin-bottom: 1.6mm; }
+.od-card-rows { display: grid; grid-template-columns: auto 1fr auto 1fr; column-gap: 1.5mm; row-gap: 2.1mm; align-items: end; font-size: 6.8pt; }
+.od-card-l { font-weight: 700; line-height: 1.1; max-width: 12mm; }
+.od-card-v { border-bottom: 0.35mm solid #000; text-align: center; min-height: 3.2mm; line-height: 1.2; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.od-card-wide { grid-column: span 3; }
+.od-card-addr { text-align: left; }
+.od-card-serial { position: absolute; right: 2.5mm; bottom: 0.6mm; font: 4.6pt Arial, sans-serif; color: #444; }
+.od-card-back { padding: 1.5mm 3mm 1.5mm; }
+.od-card-pics { display: grid; grid-template-columns: 1fr 1fr; height: 31mm; align-items: center; justify-items: center; }
+.od-card-pics .od-silhouette { width: 26mm; height: 30mm; }
+.od-card-crest { height: 30mm; width: auto; }
+.od-card-foot { display: grid; grid-template-columns: auto 22mm 1fr; column-gap: 2mm; row-gap: 1.5mm; align-items: end; font: 6.4pt Arial, sans-serif; margin-top: 2mm; }
+.od-card-foot .od-card-l { font-weight: 700; }
+.od-card-sign { border-bottom: 0.35mm solid #000; height: 3mm; margin-left: 6mm; }
+.od-card-holder { margin-left: 6mm; max-width: none; }
+
+/* ---- Admission slip: top half of an A4 sheet, dashed cut line under it ---- */
+.od-slip { width: 190mm; height: 137mm; padding: 4mm 0 0; font-family: Arial, sans-serif; font-size: 10.5pt; display: flex; flex-direction: column; border-bottom: 0.3mm dashed #9e9e9e; }
+.od-slip .mtb-lh-title { font-family: "Times New Roman", serif; font-size: 15pt; }
+.od-slip-session { display: flex; justify-content: center; gap: 10mm; font-size: 12.5pt; margin: 6mm 0 4mm; }
+.od-slip .od-grid td { height: 8mm; }
+.od-slip-h { text-align: center; font-size: 12.5pt; font-weight: 700; margin: 7mm 0 3mm; }
+.od-slip-section { margin: 0 0 0 18mm; }
+.od-slip-signs { margin-top: auto; margin-bottom: 9mm; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14mm; font-weight: 700; font-size: 10pt; }
+.od-slip-signs span { padding-bottom: 9mm; border-bottom: 0.3mm solid #bdbdbd; text-align: center; }
+.od-slip-signs span:last-child { font-family: "Times New Roman", serif; }
+.od-slip-page { display: grid; gap: 3mm; }
+
+/* ---- School/college leaving certificate ---- */
+.od-slc { width: 190mm; padding: 0; }
+.od-slc-frame { border: 4.5mm double #f4a460; outline: 0.4mm solid #f4a460; outline-offset: -7mm; padding: 9mm 11mm 6mm; font-size: 10.5pt; }
+.od-slc-head { display: grid; grid-template-columns: 17mm 1fr 25mm; gap: 3mm; align-items: start; }
+.od-slc-crest { width: 17mm; }
+.od-slc-name { font-weight: 700; font-size: 13.5pt; text-align: center; line-height: 1.2; }
+.od-slc-contact { display: flex; justify-content: space-between; gap: 6mm; margin-top: 1.5mm; }
+.od-slc-c { font-family: Arial, sans-serif; font-size: 9.5pt; }
+.od-slc-ref { display: grid; justify-items: end; gap: 1mm; margin-top: 1.5mm; }
+.od-slc-photo { width: 25mm; height: 29mm; }
+.od-slc-title { text-align: center; font-size: 13pt; font-weight: 700; margin: 2mm 0 2mm; }
+.od-slc-rows { display: grid; gap: 1.6mm; }
+.od-slc-row { display: flex; align-items: end; gap: 3mm; }
+.od-slc-rows { grid-template-columns: minmax(0, 1fr); }
+.od-slc-row .od-fill { border-bottom: 0.4mm solid #000; flex: 1 1 0; min-width: 0 !important; }
+.od-slc-l { flex: 0 0 43mm; }
+.od-slc-lw { flex-basis: 46mm; }
+.od-slc-l2 { flex: 0 0 auto; margin-left: 4mm; }
+.od-slc-cat { display: inline-flex; align-items: center; margin-left: 8mm; }
+.od-slc-foot { display: flex; justify-content: space-between; padding: 7mm 6mm 0 12mm; font-size: 10.5pt; }
+
+/* ---- Provisional/character certificates ---- */
+.od-cc { padding: 9mm 9mm; font-size: 12pt; line-height: 1.3; }
+.od-cc-boxed { border: 0.35mm solid #000; }
+.od-cc-head { display: grid; grid-template-columns: 34mm 1fr; column-gap: 12mm; row-gap: 5mm; align-items: center; }
+.od-cc-crest { border: 0.4mm solid #000; padding: 1.5mm; display: grid; place-items: center; }
+.od-cc-crest img { width: 100%; }
+.od-cc-school { font-weight: 700; font-size: 21pt; line-height: 1.15; }
+.od-cc-ref { border: 0.4mm solid #000; height: 20mm; display: grid; align-content: start; justify-items: center; padding-top: 3mm; font: 9pt Arial, sans-serif; gap: 1mm; }
+.od-cc-ref b { font-size: 11pt; }
+.od-cc-title { font-size: 17.5pt; text-align: center; white-space: nowrap; }
+.od-cc-session { text-align: center; margin: 4mm 0 2mm 20mm; }
+.od-cc-body { display: grid; gap: 0; text-align: justify; }
+.od-cc-body p { margin: 0; line-height: 2.55; }
+.od-cc-body-tight p { line-height: 2.45; }
+.od-cc-body .od-fill { min-width: 20mm; }
+.od-cc-body .od-fill-grow { min-width: 100mm; }
+.od-cc-foot { margin-top: auto; padding: 0 0 18mm; display: flex; justify-content: space-between; align-items: end; }
+.od-cc-foot-swap { padding: 0 0 22mm 14mm; }
+.od-cc-ref-small { position: absolute; left: 4mm; top: 3mm; font: 8pt Arial, sans-serif; }
+.od-arch { width: 100%; height: auto; display: block; margin-top: 2mm; }
+.od-arch-text { font: 700 7.6px "Times New Roman", serif; fill: #000; }
+.od-arch-city { font: 700 7.2px "Times New Roman", serif; fill: #222; }
+.od-arch-title { font: 700 6px Arial, sans-serif; fill: #333; letter-spacing: 0.15px; }
+
+/* ---- Appreciation letter ---- */
+.od-letter { padding: 6mm 12mm 10mm; }
+.od-letter-title { text-align: center; font-size: 15pt; font-weight: 700; margin: 26mm 0 12mm; }
+.od-letter-body { font-size: 11.5pt; line-height: 2.35; text-align: justify; padding: 0 8mm; }
+.od-letter-body p { margin: 0; }
+.od-letter-gap { margin-top: 8mm !important; }
+.od-letter-foot { margin-top: auto; display: flex; justify-content: space-between; font-size: 11pt; padding-right: 30mm; }
+.od-letter-principal { line-height: 1.6; }
+.od-letter-prepared { font-size: 11pt; margin: 8mm 0 18mm; }
+
+/* ---- Date of birth certificate: "To Whom It May Concern" ---- */
+.od-dob { padding: 6mm 14mm; }
+.od-dob-title { text-align: center; font-size: 17pt; font-weight: 700; text-decoration: underline; margin: 14mm 0 18mm; }
+.od-dob-text { font: 10.5pt/1.35 Arial, sans-serif; margin: 0 0 6mm; }
+.od-dob-table { width: 92%; margin: 0 auto; font-size: 11pt; }
+.od-dob-table th { font-size: 11pt; }
+.od-dob-pic { text-align: left !important; }
+.od-dob-photo { width: 30mm; height: 20mm; padding: 0 !important; }
+.od-dob-photo .od-silhouette { height: 20mm; }
+.od-dob-wish { font-size: 11.5pt; margin: 6mm 0 16mm; }
+.od-dob-foot { display: flex; justify-content: space-between; font-size: 13pt; padding-right: 18mm; }
+.od-dob-date { font: 10.5pt Arial, sans-serif; margin-left: 12mm; }
+.od-dob-prepared { font-size: 13pt; margin: 16mm 0 0; }
+
+/* ---- Expulsion notice and re-admission statement: the top of an A4 sheet, dashed line under ---- */
+.od-notice { width: 190mm; padding: 4mm 2mm 3mm; font-family: Arial, sans-serif; font-size: 11pt; border-bottom: 0.35mm dashed #000; }
+.od-notice-school { text-align: center; font: 700 15pt Calibri, Arial, sans-serif; }
+.od-notice-title { text-align: center; font-size: 13.5pt; font-weight: 700; text-decoration: underline; margin: 2mm 0 1mm; }
+.od-notice-text { margin: 0; line-height: 1.7; }
+.od-notice-table { width: 92%; margin: 6mm auto 7mm; font-family: "Times New Roman", serif; font-size: 10.5pt; }
+.od-notice-table th { width: 19%; }
+.od-notice-table td { text-align: left; }
+.od-notice-reasons { padding-left: 14mm; font-family: "Times New Roman", serif; }
+.od-notice-reasons b { font-size: 10.5pt; }
+.od-notice-reasons p { margin: 1.5mm 0 0; font-size: 13pt; }
+.od-notice-reasons .od-notice-small { font-size: 10pt; }
+.od-notice-signs { display: grid; margin: 14mm 0 8mm; font-family: "Times New Roman", serif; font-weight: 700; }
+.od-notice-signs-2 { grid-template-columns: 1fr 1fr; padding: 0 22mm 0 56mm; gap: 36mm; }
+.od-notice-signs-3 { grid-template-columns: repeat(3, 1fr); gap: 14mm; padding-left: 4mm; font-size: 10.5pt; }
+.od-notice-signs > div { display: grid; gap: 2mm; }
+.od-notice-sign { border-top: 0.4mm solid #bdbdbd; padding-top: 1mm; text-align: center; font-size: 12.5pt; }
+.od-notice-signs-3 .od-notice-sign { font-size: 10.5pt; margin-left: 12mm; }
+.od-notice-date { display: flex; align-items: end; gap: 2mm; margin-left: -12mm; font-size: 12.5pt; }
+.od-notice-signs-3 .od-notice-date { margin-left: 0; }
+.od-notice-dline { flex: 1; border-bottom: 0.4mm solid #bdbdbd; height: 5mm; }
+.od-notice-copy { font-size: 10pt; }
+.od-notice-copy b { font-family: "Times New Roman", serif; }
+.od-notice-copy p { margin: 2mm 0 0; }
+
+/* ---- Collection sheet (Roll No. Slip/Result Card/Certificate Issuance Form) ---- */
+.od-collect { font-family: Arial, sans-serif; }
+.od-collect th, .od-collect td { border-color: #808080 !important; }
+.od-collect thead th { background: none !important; font-weight: 700; font-family: Calibri, Arial, sans-serif; }
+.od-collect-school { font: 700 15pt Calibri, Arial, sans-serif; }
+.od-collect-title { font: 700 12.5pt "Times New Roman", serif; }
+.od-collect-fields { display: flex; justify-content: space-between; gap: 6mm; margin: 4mm 10mm 0; font-size: 10pt; }
+.od-collect-fields .mtb-collect-field { font-weight: 400; min-width: 34mm; }
+.od-collect-gr { font-size: 7.5pt; color: #444; }
+
+/* ---- Admission form filled in (Student Admission Form) ---- */
+.od-rec { font-family: Arial, sans-serif; font-size: 10pt; padding: 8mm 8mm 6mm; }
+.od-rec-top { display: flex; justify-content: space-between; align-items: start; margin-top: 2mm; }
+.od-rec-reg { display: flex; gap: 1.5mm; font-size: 8.5pt; padding-left: 12mm; margin-top: 3mm; }
+.od-rec-photo { width: 25mm; height: 31mm; margin-bottom: -26mm; position: relative; z-index: 1; }
+.od-rec-bar { background: #d3d3d3; font-size: 10.5pt; font-weight: 700; margin: 3mm 27mm 2mm 0; padding: 3mm 1mm; }
+.od-rec-rows { display: grid; grid-template-columns: 35mm 1fr 35mm 1fr; column-gap: 1.5mm; row-gap: 3.6mm; padding-right: 12mm; }
+.od-rec-l { text-align: right; font-weight: 700; }
+.od-rec-v { min-width: 0; overflow-wrap: anywhere; }
+.od-rec-wide { grid-column: span 3; }
+.od-rec-foot { margin-top: auto; padding-top: 6mm; display: grid; grid-template-columns: 1fr 1fr 1fr; align-items: end; font-size: 8pt; }
+.od-rec-foot span:nth-child(2) { text-align: center; font-size: 9pt; }
+.od-rec-foot span:nth-child(3) { text-align: right; }
+.od-rec-fill { display: inline-block; width: 26mm; border-bottom: 0.25mm solid #000; }
+
+/* ---- Blank admission form (two pages) ---- */
+.od-af { font-family: Arial, sans-serif; font-size: 10pt; padding: 6mm 8mm; }
+.od-af-head { background: #f4f4f4; border: 0.3mm solid #000; padding: 3mm 4mm; }
+.od-af-head .mtb-lh-crest { width: 22mm; }
+.od-af-head .mtb-lh { grid-template-columns: 22mm 1fr 22mm; }
+.od-af-head .mtb-lh-title { font: 400 18pt "Times New Roman", serif; margin-top: 4mm; }
+.od-af-session { text-align: right; font-size: 9pt; margin: 1mm 0 0; }
+.od-af-bar { display: inline-block; align-self: start; background: #ff6347; color: #000; font-size: 11pt; font-weight: 700; padding: 1.2mm 3mm; min-width: 76mm; margin: 3mm 0 2mm; }
+.od-af-bar-wide { min-width: 120mm; }
+.od-af-a { display: grid; grid-template-columns: minmax(0, 1fr) 44mm; gap: 6mm; }
+.od-af-main, .od-af-side { display: grid; gap: 1.5mm; align-content: start; }
+.od-af-side .od-af-field > b { min-width: 0; }
+.od-af-field { display: flex; align-items: end; gap: 2mm; min-width: 0; }
+.od-af-field > b { flex: 0 0 auto; min-width: 36mm; font-size: 9.5pt; }
+.od-af-line { flex: 1 1 auto; border-bottom: 0.3mm solid #000; height: 4.6mm; min-width: 6mm; }
+.od-af-line-full { display: block; flex: none; width: 100%; height: 6mm; }
+.od-af-ticks { gap: 4mm; }
+.od-af-ticks > b { min-width: 30mm; }
+.od-af-box { display: inline-block; width: 9mm; height: 5.5mm; border: 0.3mm solid #000; }
+.od-af-dobrow { display: flex; gap: 4mm; align-items: stretch; }
+.od-af-dob { display: flex; gap: 4mm; border: 0.3mm solid #000; padding: 1.5mm 2mm; }
+.od-af-dmy { display: grid; grid-template-columns: repeat(3, 11mm); text-align: center; }
+.od-af-cell { height: 5.5mm; border: 0.3mm solid #000; }
+.od-af-gender { display: grid; gap: 1mm; border: 0.3mm solid #000; padding: 1.5mm 2mm; }
+.od-af-gender-h { text-align: center; }
+.od-af-gender-row { display: flex; align-items: center; gap: 3mm; }
+.od-af-gender-row .od-af-field > b { min-width: 0; }
+.od-af-cellbox { border: 0.3mm solid #000; padding: 0.5mm 2mm; }
+.od-af-two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6mm; }
+.od-af-two .od-af-field > b { min-width: 30mm; }
+.od-af-photo { width: 36mm; height: 40mm; margin-top: 4mm; }
+.od-af-addr { display: grid; gap: 1.5mm; margin-top: 2mm; padding-right: 14mm; }
+.od-af-table { font-size: 9.5pt; margin-bottom: 1mm; }
+.od-af-table th { font-size: 9.5pt; }
+.od-af-empty { height: 7mm; }
+.od-af-att { font-size: 11pt; }
+
 @media print {
-  .mtb-slip-pair > .mtb-doc + .mtb-doc { break-before: auto; }
-  .mtb-slip-pair + .mtb-slip-pair { break-before: page; }
+  .od-slip-page { break-inside: avoid; }
+  .od-slip-page + .od-slip-page { break-before: page; }
+  .od-slip-page > .mtb-doc + .mtb-doc { break-before: auto; }
 }
-.mtb-slip-pair > .mtb-doc-a5 { min-height: 182mm; }

@@ -445,52 +445,44 @@ function RequestDoc({ requests, kindOf: kind, subtitle, campus, single }: { requ
   const r0 = requests[0];
   return (
     <div className="ops-doc">
-      <DocHead title={single && r0 ? `Item request ${r0.no}` : "Request register"} subtitle={subtitle} campus={campus} />
-      {single && r0 && (
-        <dl className="ops-doc-kv">
-          <dt>Department</dt>
-          <dd>{r0.department}</dd>
-          <dt>Room or class</dt>
-          <dd>{r0.room}</dd>
-          <dt>Request no.</dt>
-          <dd>{r0.no}</dd>
-          <dt>Date</dt>
-          <dd>{formatDate(r0.requestedOn)}</dd>
-          <dt>Asked by</dt>
-          <dd>{orDash(r0.requestedBy)}</dd>
-          <dt>Items issued</dt>
-          <dd>{issuedText(r0.status)}</dd>
-        </dl>
-      )}
-      <table>
+      {/* The old "Ware House Items Request Report": Sr #, Variety Name, Type, Quantity, and over each request a grey
+          row "D Name : … R Name : … Items Issued : … Invoice # : … R Date : …". Who asked and the quantity issued
+          follow, as the new process records them. */}
+      <DocHead title="Ware House Items Request Report" subtitle={subtitle} campus={campus} />
+      <table className="ops-lib">
         <thead>
           <tr>
-            <th className="n">Sr</th>
-            <th>Item</th>
-            <th>Kind</th>
-            <th className="n">Asked</th>
-            <th className="n">Issued</th>
+            <th>Sr #</th>
+            <th>Variety Name</th>
+            <th>Type</th>
+            <th>Quantity</th>
+            <th>Issued</th>
           </tr>
         </thead>
         <tbody>
           {requests.map((r) => (
             <Fragment key={r.id}>
-              {!single && (
-                <tr>
-                  <th colSpan={5}>
-                    {r.no} · {formatDate(r.requestedOn)} · {r.department} · {r.room} · asked by {orDash(r.requestedBy)} · items issued: {issuedText(r.status)}
-                  </th>
-                </tr>
-              )}
+              <tr className="ops-group">
+                <td colSpan={5}>
+                  <span className="ops-req-head">
+                    <span>D Name : {r.department}</span>
+                    <span>R Name : {r.room}</span>
+                    <span>Items Issued : {issuedText(r.status)}</span>
+                    <span>Invoice # : {r.no}</span>
+                    <span>R Date : {formatDate(r.requestedOn)}</span>
+                  </span>
+                  <span style={{ fontWeight: 400, fontSize: "8pt" }}>Asked by {orDash(r.requestedBy)}</span>
+                </td>
+              </tr>
               {r.lines.map((l, i) => (
                 <tr key={`${r.id}-${l.itemId}`}>
-                  <td className="n">{i + 1}</td>
+                  <td>{i + 1}</td>
                   <td>{l.itemName}</td>
                   <td>{kind(l.itemId)}</td>
-                  <td className="n">
+                  <td>
                     {formatCount(l.qty)} {l.unit.toLowerCase()}
                   </td>
-                  <td className="n">{formatCount(l.issued)}</td>
+                  <td>{formatCount(l.issued)}</td>
                 </tr>
               ))}
             </Fragment>

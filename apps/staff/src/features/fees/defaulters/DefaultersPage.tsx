@@ -34,7 +34,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { campusLabel } from "../../../app/shell/campus";
 import { Page, PageHeader, RequirePermission } from "../../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../../app/session";
-import { addDaysIso, errorText, feeToday, FeesNav, HeadPicker, LoadError, PaperSize, sessionMonthList, useFeeClasses, type FeeClasses } from "../shared";
+import { addDaysIso, errorText, feeToday, FeesNav, FeesDocHead, HeadPicker, LoadError, PaperSize, sessionMonthList, useFeeClasses, type FeeClasses } from "../shared";
 
 /** Variables a fee reminder can carry (each family's own figures). */
 const ALLOWED_VARS = ["student_name", "class", "amount_due", "due_date", "campus"];
@@ -428,21 +428,13 @@ export function DefaultersPage() {
         <div className="fees-print-only mtb-print-area fees-print-a4">
           <PaperSize size="A4" />
           <div className="fees-doc" data-theme="light">
-            <div className="fees-doc-head">
-              <div>
-                <h1>Defaulters</h1>
-                <p>
-                  {campusLabel(ctx.campus)} · Session {formatSession(ctx.session)}
+            <FeesDocHead title={"Defaulters"} sub={<>{campusLabel(ctx.campus)} · Session {formatSession(ctx.session)}
                   {cls && !sections.length ? ` · ${classList.nameOf(cls)}` : ""}
                   {sections.length ? ` · ${sections.join(", ")}` : ""}
                   {headText ? ` · ${headText}` : ""}
                   {dueFrom || dueTo ? ` · due ${dueFrom ? formatDate(dueFrom) : "…"} to ${dueTo ? formatDate(dueTo) : "today"}` : ""}
                   {months !== "0" ? ` · ${months}+ months overdue` : ""}
-                  {d && d.total > rows.length ? ` · ${formatCount(rows.length)} of ${formatCount(d.total)} students (page ${d.page})` : ""}
-                </p>
-              </div>
-              <p>As of {formatDate(d?.today ?? today)}</p>
-            </div>
+                  {d && d.total > rows.length ? ` · ${formatCount(rows.length)} of ${formatCount(d.total)} students (page ${d.page})` : ""}</>} right={<>As of {formatDate(d?.today ?? today)}</>} />
             <table>
               <thead>
                 <tr>

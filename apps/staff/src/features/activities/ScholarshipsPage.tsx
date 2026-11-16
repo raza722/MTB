@@ -252,7 +252,7 @@ export function ScholarshipsPage({ search, onSearch }: { search: ScholarshipsSea
       {search.award && <AwardPanel id={search.award} onClose={() => onSearch({ award: undefined })} />}
       {search.new && <NewAwardPanel onClose={(id) => onSearch({ new: undefined, ...(id ? { award: id } : {}) })} />}
       {printing && ctx.campus !== "ALL" && (
-        <PrintLayer paper="A4L" onDone={() => setPrinting(false)}>
+        <PrintLayer paper="A4L" footer onDone={() => setPrinting(false)}>
           <ScholarshipListDoc
             awards={rows}
             campus={ctx.campus}

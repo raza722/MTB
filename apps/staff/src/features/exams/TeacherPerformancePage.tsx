@@ -2,11 +2,11 @@ import { EXAMS_LEVEL_LABEL, examsQueries, type CampusCode, type ExamsClassLevel,
 import { formatPercent, formatSession } from "@mtb/domain";
 import { Banner, Button, DataTable, EmptyState, Panel, Segmented, Select, Skeleton } from "@mtb/ui";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { campusLabel } from "../../app/shell/campus";
 import { Page, PageHeader } from "../../app/shell/page";
 import { useCtx } from "../../app/session";
-import { DocHead, printedOn } from "./print/docs";
+import { classAndSection, DocHead, sessionLong, splitSection } from "./print/docs";
 import { PrintSheet, printNow } from "./print/PrintSheet";
 import { ExamsNav, LoadError } from "./shared";
 
@@ -166,16 +166,37 @@ export function TeacherPerformancePage() {
             <article className={view === "detail" ? "exams-doc exams-doc-land" : "exams-doc exams-doc-a4"} aria-label="Teacher performance report">
               <DocHead
                 campus={campus}
-                title={view === "teacher" ? "Teacher / lecturer academic report" : view === "department" ? "Teachers' performance (department-wise)" : "Teachers' performance (class level / subject)"}
-                sub={[view === "teacher" ? teacher : view === "department" ? subjectName : q.teacher ?? "", filterText].filter(Boolean).join(" · ")}
+                title={view === "teacher" ? "Teacher/Lecturer Academic Report" : view === "department" ? "Teachers Performance Report (Department Wise)" : "Teachers Performance Report (Class Level / Subject)"}
+                underline={view !== "department"}
               />
-              {view === "teacher" ? <TeacherTables rows={teacherRows} print /> : view === "department" ? <DepartmentTables rows={deptRows} print /> : <DetailTable rows={rows} print />}
-              <p className="exams-doc-key">Pass % is the share of students with a mark (absent included) at or above the pass mark. Printed {printedOn()}.</p>
-              <div className="exams-doc-signs">
-                <div>Head of department</div>
-                <div>Controller of examinations</div>
-                <div>Principal</div>
+              <div className="exams-perf-fields">
+                {(view === "teacher"
+                  ? [
+                      ["Teacher Name", teacher ?? ""],
+                      ["Exam Type", q.examTypeId ? (opts?.examTypes.find((t) => t.id === q.examTypeId)?.name ?? "") : "Every exam type"],
+                      ["Month", q.month ? monthLabel(q.month) : "Every month"],
+                    ]
+                  : view === "department"
+                    ? [["Department", subjectName]]
+                    : [
+                        ["Teacher Name", q.teacher ?? "Every teacher"],
+                        ["Subject/Level", `${q.subject ? subjectName : "Every subject"}  /  ${q.level ? EXAMS_LEVEL_LABEL[q.level] : "Every level"}`],
+                        ["Session", sessionLong(ctx.session)],
+                      ]
+                ).map(([k, v]) => (
+                  <Fragment key={k}>
+                    <b>{k}:</b>
+                    <span>{v}</span>
+                  </Fragment>
+                ))}
+                {(q.gender || (view !== "teacher" && (q.month || q.examTypeId))) && (
+                  <>
+                    <b>Filters:</b>
+                    <span>{filterText}</span>
+                  </>
+                )}
               </div>
+              {view === "teacher" ? <TeacherTables rows={teacherRows} print /> : view === "department" ? <DepartmentTables rows={deptRows} print /> : <DetailTable rows={rows} print />}
             </article>
           </PrintSheet>
         </div>
@@ -198,20 +219,30 @@ function TeacherTables({ rows, print }: { rows: ExamsTeacherPerfRow[]; print?: b
         return (
           <div key={sn} className={print ? "" : "mtb-table-wrap overflow-x-auto"}>
             <table className={print ? undefined : "mtb-table mtb-table-dense"} style={print ? undefined : { width: "100%" }}>
-              <caption style={{ textAlign: "left", fontWeight: 600, padding: "4px 0" }}>Subject: {sn}</caption>
+              <caption style={{ textAlign: "left", fontWeight: print ? 700 : 600, padding: "4px 0" }}>Subject: {sn}</caption>
               <thead>
+                {print && (
+                  <tr>
+                    <th className="exams-nob" />
+                    <th colSpan={sections.length} className="c">
+                      Class/Section
+                    </th>
+                  </tr>
+                )}
                 <tr>
-                  <th />
+                  <th className={print ? "exams-nob" : undefined} />
                   {sections.map((cs) => (
-                    <th key={cs} className="c" style={{ textAlign: "center" }}>
-                      {cs}
+                    <th key={cs} className="c" style={{ textAlign: "center", fontWeight: print ? 400 : undefined }}>
+                      {print ? classAndSection(cs) : cs}
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <th>Average</th>
+                  <th className={print ? "n" : undefined} style={print ? { fontWeight: 400 } : undefined}>
+                    Average
+                  </th>
                   {sections.map((cs) => (
                     <td key={cs} className="c" style={{ textAlign: "center" }}>
                       {pctText(combine(list.filter((r) => r.classSection === cs)).average)}
@@ -219,7 +250,9 @@ function TeacherTables({ rows, print }: { rows: ExamsTeacherPerfRow[]; print?: b
                   ))}
                 </tr>
                 <tr>
-                  <th>Pass %age</th>
+                  <th className={print ? "n" : undefined} style={print ? { fontWeight: 400 } : undefined}>
+                    Pass %age
+                  </th>
                   {sections.map((cs) => (
                     <td key={cs} className="c" style={{ textAlign: "center" }}>
                       {pctText(combine(list.filter((r) => r.classSection === cs)).pass)}
@@ -249,7 +282,15 @@ function DepartmentTables({ rows, print }: { rows: ExamsTeacherPerfRow[]; print?
         return (
           <div key={t} className={print ? "" : "mtb-table-wrap overflow-x-auto"} style={{ breakInside: "avoid" }}>
             <table className={print ? undefined : "mtb-table mtb-table-dense"} style={print ? undefined : { width: "100%" }}>
-              <caption style={{ textAlign: "left", fontWeight: 600, padding: "4px 0" }}>Teacher: {t}</caption>
+              <caption style={{ textAlign: "left", fontWeight: 600, padding: "4px 0" }}>
+                {print ? (
+                  <>
+                    <b>Teacher Name:</b> <span style={{ fontWeight: 400 }}>{t}</span>
+                  </>
+                ) : (
+                  `Teacher: ${t}`
+                )}
+              </caption>
               <thead>
                 <tr>
                   <th>Class</th>
@@ -263,7 +304,9 @@ function DepartmentTables({ rows, print }: { rows: ExamsTeacherPerfRow[]; print?
               <tbody>
                 {sections.map((cs) => (
                   <tr key={cs}>
-                    <th>{cs}</th>
+                    <th className={print ? "c" : undefined} style={print ? { fontSize: "8pt" } : undefined}>
+                      {print ? classAndSection(cs) : cs}
+                    </th>
                     {mine.map((e) => {
                       const hit = list.filter((r) => r.classSection === cs && r.examId === e.id);
                       return (
@@ -275,9 +318,9 @@ function DepartmentTables({ rows, print }: { rows: ExamsTeacherPerfRow[]; print?
                   </tr>
                 ))}
                 <tr>
-                  <th>Average</th>
+                  <th className={print ? "c" : undefined}>Average</th>
                   {mine.map((e) => (
-                    <th key={e.id} className="c" style={{ textAlign: "center" }}>
+                    <th key={e.id} className="c" style={{ textAlign: "center", fontWeight: print ? 400 : undefined }}>
                       {pctText(combine(list.filter((r) => r.examId === e.id)).pass)}
                     </th>
                   ))}
@@ -300,32 +343,32 @@ function DetailTable({ rows, print }: { rows: ExamsTeacherPerfRow[]; print?: boo
       <table style={{ fontSize: "8pt" }}>
         <thead>
           <tr>
-            <th>Subject</th>
-            <th>Class</th>
-            <th>Exam</th>
-            <th>Section</th>
-            <th className="n">Pass %age</th>
-            <th className="n">Absents</th>
-            <th className="n">Failed</th>
-            <th>Failed students' names</th>
+            <th className="c">Class</th>
+            <th className="c">Subject</th>
+            <th className="c">Exam</th>
+            <th className="c">Section</th>
+            <th className="c">Pass %Age</th>
+            <th className="c">Absents</th>
+            <th className="c">Failed</th>
+            <th className="c">Failed Students Name</th>
           </tr>
         </thead>
         <tbody>
           {teachers.flatMap((t) => [
             <tr key={`h-${t}`}>
-              <th colSpan={8}>Teacher: {t}</th>
+              <th colSpan={8}>Teacher Name : {t}</th>
             </tr>,
             ...sorted
               .filter((r) => teacherOf(r) === t)
               .map((r) => (
                 <tr key={`${r.examId}-${r.classSection}-${r.subjectId}`}>
+                  <td className="c">{splitSection(r.classSection).cls}</td>
                   <td>{r.subjectName}</td>
-                  <td>{r.classSection.split("-")[0]}</td>
-                  <td>{r.examName}</td>
-                  <td>{r.classSection}</td>
-                  <td className="n">{formatPercent(r.passRate)}</td>
-                  <td className="n">{r.absent}</td>
-                  <td className="n">{r.failed}</td>
+                  <td className="c">{r.examName}</td>
+                  <td className="c">{splitSection(r.classSection).sec || r.classSection}</td>
+                  <td className="c">{formatPercent(r.passRate)}</td>
+                  <td className="c">{r.absent}</td>
+                  <td className="c">{r.failed}</td>
                   <td>{r.failedNames.join(", ")}</td>
                 </tr>
               )),

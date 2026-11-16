@@ -1,6 +1,7 @@
 import { Switch } from "@mtb/ui";
 import type { CSSProperties, ReactNode } from "react";
 import { useAppearance } from "../../../app/appearance";
+import { footerBoxes } from "../../../app/print/letterhead";
 import "./documents.css";
 
 /** A4_LANDSCAPE: wide registers and sign-for sheets. A4_LABELS: eight postal labels to an A4 sheet. */
@@ -14,22 +15,22 @@ const PAGE_SIZE: Record<Paper, string> = {
   A4_LABELS: "size: A4 portrait; margin: 10mm;",
 };
 
-const cssText = (s: string) => `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
-
-/** The @page rule; with a footer note the printer adds it bottom left and "Page x of y" bottom right on every page. */
-function pageRule(paper: Paper, footer?: string) {
-  const boxes = footer
-    ? ` @bottom-left { content: ${cssText(footer)}; font-size: 8pt; } @bottom-right { content: "Page " counter(page) " of " counter(pages); font-size: 8pt; }`
-    : "";
+/**
+ * The @page rule. With `footer` the old report footer is printed on every page: "Print DateTime …" bottom left (or
+ * the note given, when it is not "Printed …") and "Page No x of y" bottom right.
+ */
+function pageRule(paper: Paper, footer?: string | boolean) {
+  const note = typeof footer === "string" && !/^Printed /.test(footer) ? footer : undefined;
+  const boxes = footer ? footerBoxes(note) : "";
   return `@page { ${PAGE_SIZE[paper]}${boxes} }`;
 }
 
 /**
  * Wraps printable documents: only this area prints, always in the light theme, on the paper size given.
  * The page rule here overrides the app's default A5 receipt page while the preview is open.
- * On screen the paper sits on a grey desk, zoomed to fit.
+ * On screen the paper sits on a grey desk, zoomed to fit. `footer` (true, or a note) adds the old report footer.
  */
-export function PrintSheet({ paper, label, zoom = 0.72, footer, children }: { paper: Paper; label: string; zoom?: number; footer?: string; children: ReactNode }) {
+export function PrintSheet({ paper, label, zoom = 0.72, footer, children }: { paper: Paper; label: string; zoom?: number; footer?: string | boolean; children: ReactNode }) {
   const { accent } = useAppearance();
   return (
     <div className="mtb-doc-desk" aria-label={label}>
