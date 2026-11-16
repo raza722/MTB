@@ -199,6 +199,19 @@ export interface AdmissionsMeritList {
   };
 }
 
+/** A saved merit list opened again (GET /admissions/merit/lists/{id}): its entries in their saved rank order (frozen),
+ * with each applicant's marks and stage as they are today. `classes` and `saved` are empty; `round` is the list's own. */
+export interface AdmissionsSavedMeritListDetail extends AdmissionsMeritList {
+  id: string;
+  title: string;
+  /** The sitting the list was ranked on; null = every sitting of the class. */
+  testId: string | null;
+  /** The gender the list was ranked on; null = boys and girls. */
+  gender: "F" | "M" | null;
+  savedOn: IsoDate;
+  savedBy: string;
+}
+
 /** A merit list saved as an official round ("1st merit list"). */
 export interface AdmissionsSavedMeritList {
   id: string;
@@ -510,6 +523,8 @@ export const admissionsApi = {
   setup: (ctx: Ctx) => apiFetch<AdmissionsSetup>("/admissions/setup", { query: ctxQuery(ctx) }),
   merit: (ctx: Ctx, classApplied: string, q: AdmissionsMeritQuery = {}) =>
     apiFetch<AdmissionsMeritList>("/admissions/merit", { query: { ...ctxQuery(ctx), class: classApplied, ...(q.testId ? { testId: q.testId } : {}), ...(q.gender ? { gender: q.gender } : {}), ...(q.seats !== undefined ? { seats: String(q.seats) } : {}) } }),
+  /** A saved list, to open and print again. */
+  savedMeritList: (ctx: Ctx, id: string) => apiFetch<AdmissionsSavedMeritListDetail>(`/admissions/merit/lists/${encodeURIComponent(id)}`, { query: ctxQuery(ctx) }),
   /** Save the list as the next numbered round ("2nd merit list"). Applicants already offered are left out of later rounds. */
   saveMeritList: (ctx: Ctx, input: AdmissionsSaveMeritInput, idempotencyKey: string) => apiFetch<AdmissionsSavedMeritList>("/admissions/merit/lists", { method: "POST", body: { ...ctxQuery(ctx), ...input }, idempotencyKey }),
   /** `list` is the merit list on screen (sitting, gender, seats): only applicants inside its seats can be offered. */
@@ -560,6 +575,8 @@ export const admissionsQueries = {
   setup: (ctx: Ctx) => queryOptions({ queryKey: ["admissions", ...ctxKey(ctx), "setup"], queryFn: () => admissionsApi.setup(ctx) }),
   merit: (ctx: Ctx, classApplied: string, q: AdmissionsMeritQuery = {}) =>
     queryOptions({ queryKey: ["admissions", ...ctxKey(ctx), "merit", classApplied, q.testId ?? "", q.gender ?? "", q.seats ?? ""], queryFn: () => admissionsApi.merit(ctx, classApplied, q) }),
+  savedMeritList: (ctx: Ctx, id: string) =>
+    queryOptions({ queryKey: ["admissions", ...ctxKey(ctx), "merit-list", id], queryFn: () => admissionsApi.savedMeritList(ctx, id), enabled: Boolean(id) }),
   enquiries: (ctx: Ctx) => queryOptions({ queryKey: ["admissions", ...ctxKey(ctx), "enquiries"], queryFn: () => admissionsApi.enquiries(ctx) }),
   check: (ctx: Ctx, body: { name: string; father: string; fatherCnic: string; dob: IsoDate | "" }) =>
     queryOptions({

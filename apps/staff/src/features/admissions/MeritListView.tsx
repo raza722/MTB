@@ -40,6 +40,7 @@ export function MeritListView({ ctx, cls, onClassChange }: { ctx: Ctx; cls: stri
   const [titleError, setTitleError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveKey, setSaveKey] = useState(newIdempotencyKey);
+  const [openList, setOpenList] = useState("");
   const data = merit.data;
 
   // A new class or round starts with the round's default title and the class's seats.
@@ -362,6 +363,56 @@ export function MeritListView({ ctx, cls, onClassChange }: { ctx: Ctx; cls: stri
         </div>
       </div>
 
+      {data.saved.length > 0 && (
+        <div className="mtb-table-wrap">
+          <div className="mtb-table-toolbar">
+            <span className="text-small font-medium text-ink">Saved merit lists · {data.classApplied}</span>
+            <span className="text-small text-ink-muted">Open a list to see it as it was saved and print it again.</span>
+          </div>
+          <div className="mtb-table-scroll">
+            <table className="mtb-table">
+              <caption className="mtb-sr-only">Merit lists saved for {data.classApplied} this session</caption>
+              <thead>
+                <tr>
+                  <th scope="col">List</th>
+                  <th scope="col">Sitting</th>
+                  <th scope="col" className="mtb-th-num">Seats</th>
+                  <th scope="col" className="mtb-th-num">On the list</th>
+                  <th scope="col">Saved</th>
+                  <th scope="col">
+                    <span className="mtb-sr-only">Open</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.saved.map((l) => (
+                  <tr key={l.id}>
+                    <td className="font-medium">
+                      {l.title}
+                      <span className="block text-small font-normal text-ink-muted">Round {l.round}</span>
+                    </td>
+                    <td>{l.testId ? (data.tests.find((t) => t.id === l.testId)?.name ?? "One sitting") : "Every sitting"}</td>
+                    <td className="mtb-td-num">{l.seats}</td>
+                    <td className="mtb-td-num">{l.selected.length}</td>
+                    <td>
+                      <span className="mtb-num">{formatDate(l.savedOn)}</span>
+                      <span className="block text-small text-ink-muted">{l.savedBy}</span>
+                    </td>
+                    <td className="text-right">
+                      <Button size="sm" icon="printer" onClick={() => setOpenList(l.id)}>
+                        Open
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      <SavedListModal ctx={ctx} id={openList} onClose={() => setOpenList("")} />
+
       <Modal
         open={printing}
         onClose={() => setPrinting(false)}
@@ -411,5 +462,63 @@ export function MeritListView({ ctx, cls, onClassChange }: { ctx: Ctx; cls: stri
         error={offerError}
       />
     </div>
+  );
+}
+
+/** A saved merit list opened again: frozen ranks, today's marks; boys or girls can be printed on their own, as the old
+ * Merit List screen's Gender filter did. */
+function SavedListModal({ ctx, id, onClose }: { ctx: Ctx; id: string; onClose: () => void }) {
+  const q = useQuery(admissionsQueries.savedMeritList(ctx, id));
+  const [only, setOnly] = useState<"" | "F" | "M">("");
+  useEffect(() => setOnly(""), [id]);
+  const l = q.data;
+  const rows = l ? l.rows.filter((r) => !only || r.applicant.gender === only) : [];
+  const label = only === "M" ? " · boys" : only === "F" ? " · girls" : "";
+  return (
+    <Modal
+      open={Boolean(id)}
+      onClose={onClose}
+      size="lg"
+      title={l ? `${l.title} · ${l.classApplied}` : "Saved merit list"}
+      footer={
+        <>
+          <Button onClick={onClose}>Close</Button>
+          <Button variant="primary" icon="printer" disabled={!l || rows.length === 0} onClick={printNow}>
+            Print
+          </Button>
+        </>
+      }
+    >
+      {q.isError ? (
+        <Banner tone="danger">{q.error instanceof ApiError ? q.error.message : "The list could not be loaded. Try again."}</Banner>
+      ) : !l ? (
+        <Skeleton height={320} />
+      ) : (
+        <div className="grid gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span className="text-small text-ink-muted">
+              Saved <span className="mtb-num">{formatDate(l.savedOn)}</span> by {l.savedBy} · {l.rows.length} on the list, in the order saved · marks and offers as they are today
+            </span>
+            <Segmented
+              aria-label="Print boys or girls"
+              value={only}
+              onChange={(v) => setOnly(v as "" | "F" | "M")}
+              options={[
+                { value: "", label: "Everyone" },
+                { value: "M", label: "Boys" },
+                { value: "F", label: "Girls" },
+              ]}
+            />
+          </div>
+          {rows.length === 0 ? (
+            <EmptyState icon="listChecks" title="Nobody to print" description="No one on this list matches the choice above." />
+          ) : (
+            <PrintSheet paper="A4" label="Merit list" zoom={0.55}>
+              <MeritListPrint m={{ ...l, rows }} campus={ctx.campus} campusName={rows[0]?.applicant.campusName ?? ctx.campus} title={`${l.title}${label}`} />
+            </PrintSheet>
+          )}
+        </div>
+      )}
+    </Modal>
   );
 }
