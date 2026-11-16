@@ -11,6 +11,7 @@
     "dev:portal": "pnpm --filter @mtb/portal dev",
     "dev:all": "turbo run dev --filter=@mtb/staff --filter=@mtb/teacher --filter=@mtb/portal",
     "build": "turbo run build",
+    "preview:all": "turbo run build --concurrency=1 --filter=@mtb/staff --filter=@mtb/teacher --filter=@mtb/portal && turbo run preview --filter=@mtb/staff --filter=@mtb/teacher --filter=@mtb/portal",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck"
   },
