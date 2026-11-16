@@ -83,7 +83,7 @@ export function DataSection() {
           empty={<EmptyState icon="search" title="No students match" description={`Nothing found for "${query || "this filter"}". Check the spelling, or search by G.R. number or father's CNIC.`} />}
           toolbar={
             <>
-              <div className="w-72">
+              <div className="w-full sm:w-72">
                 <Input aria-label="Search students" placeholder="Search by name, G.R. or father" icon="search" value={query} onChange={(e) => setQuery(e.target.value)} />
               </div>
               <div className="flex flex-wrap items-center gap-4">

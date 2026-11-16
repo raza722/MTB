@@ -1,0 +1,86 @@
+/*
+ * MTB addition: how the design system's components behave on phones and tablets.
+ * The design system's own CSS (bundle.css) has no media queries and stays unchanged. Apart from the menu layering, the
+ * phone drawer and the dialog height, every rule here sits inside a max-width query, so wider screens look exactly as
+ * before. Breakpoints match Tailwind's: sm 640px, md 768px, lg 1024px.
+ */
+
+/* Menus open above dialogs, side panels and the phone menu (all at 51), not behind them. */
+.mtb-menu.mtb-menu-floating { z-index: 60; }
+
+/* The phone menu drawer (NavDrawer): slides in from the left, the same surface as the sidebar. */
+.mtb-drawer {
+  position: fixed; top: 0; bottom: 0; left: 0; z-index: 51;
+  display: flex; flex-direction: column; width: min(300px, 86vw);
+  background: var(--surface-raised); border-right: 1px solid var(--border); box-shadow: var(--shadow-lg);
+  padding-bottom: env(safe-area-inset-bottom);
+  animation: mtb-drawer-in 200ms ease;
+}
+.mtb-drawer-header {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  height: 48px; flex: none; padding: 0 var(--space-2) 0 var(--space-4); border-bottom: 1px solid var(--border);
+}
+.mtb-drawer-body { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding-top: var(--space-3); }
+.mtb-drawer-footer { flex: none; padding: var(--space-3) var(--space-4); border-top: 1px solid var(--border); }
+@keyframes mtb-drawer-in { from { transform: translateX(-24px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .mtb-drawer { animation: none; } }
+
+/* Scrolling frames anchor what is inside them. Without this, hidden screen-reader labels (.mtb-sr-only, absolutely
+   positioned) in the right-hand columns of a wide table are placed against a card outside the frame, escape its
+   scrolling and widen the whole page on a phone (Setup → Roles: 114 such labels, page 818px wide on a 375px screen). */
+.mtb-table-wrap, .mtb-table-scroll, .mtb-tabs, .mtb-seg { position: relative; }
+
+/* A plain Tailwind `grid` (no grid-cols-*) has one implicit column that cannot shrink below its widest child, so a
+   long list or a row of fixed pieces inside a card pushes the card and the page wider than the screen (Students →
+   Sections at 768px: 11 cards, content 16px past their edge). One shrinkable column lays out exactly the same when
+   the content fits and lets it wrap or truncate when it does not. Grids that set their own columns (grid-cols-*,
+   a feature's CSS class, an inline style) are not affected: those win over this layer. */
+.grid:not([class*="grid-cols"]) { grid-template-columns: minmax(0, 1fr); }
+
+/* Checkbox and switch labels wrap even inside a long word with no spaces (a real subject reads
+   "Software Pakages(MAPLE/MALTAB/MATHEMATICA)"), instead of running past the card on a tablet. */
+.mtb-check, .mtb-switch { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+
+/* Dialogs never run taller than the visible screen (on phones 100vh includes the hidden address bar). */
+.mtb-modal { max-height: calc(100dvh - 32px); }
+
+/* Segmented controls with many options scroll sideways instead of widening the page. */
+.mtb-seg { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.mtb-seg::-webkit-scrollbar { display: none; }
+.mtb-seg > * { flex: none; }
+
+/* ---------- Phones: below 640px ---------- */
+@media (max-width: 639.98px) {
+  /* Cards: a little less padding so content keeps its width. */
+  .mtb-card-header { flex-wrap: wrap; padding: var(--space-3) var(--space-4); }
+  .mtb-card-body, .mtb-card-pad { padding: var(--space-4); }
+  .mtb-stat { padding: var(--space-4); }
+
+  /* Dialogs and side panels: nearly full screen, phone spacing, footer buttons sharing the row. */
+  .mtb-modal-center { padding: var(--space-2); }
+  .mtb-modal { max-height: calc(100dvh - 16px); }
+  .mtb-panel-header, .mtb-modal-header { padding: var(--space-4); }
+  .mtb-panel-body, .mtb-modal-body { padding: var(--space-4); }
+  .mtb-panel-footer, .mtb-modal-footer {
+    flex-wrap: wrap; padding: var(--space-3) var(--space-4);
+    padding-bottom: max(var(--space-3), env(safe-area-inset-bottom));
+  }
+  .mtb-panel-footer > .mtb-btn, .mtb-modal-footer > .mtb-btn { flex: 1 1 auto; }
+
+  /* Banners: the buttons go under the message instead of squeezing it to a narrow column. */
+  .mtb-banner { flex-wrap: wrap; }
+  .mtb-banner-actions { flex-basis: 100%; flex-wrap: wrap; margin-left: 0; }
+
+  /* Label beside value: on a phone the label goes above its value, so long values (a status badge, a sentence) get
+     the full width instead of pushing the card wider than the screen (SMS → Settings did by 34px). */
+  .mtb-kv { grid-template-columns: minmax(0, 1fr); row-gap: 2px; }
+  .mtb-kv > div:not(:first-child) > dt { margin-top: var(--space-3); }
+  .mtb-kv dt { font-size: 13px; }
+  .mtb-kv dd { min-width: 0; overflow-wrap: anywhere; }
+
+  /* Table toolbars, footers and paging wrap onto a second line rather than overflow. */
+  .mtb-table-toolbar, .mtb-table-footer, .mtb-pagination { flex-wrap: wrap; }
+
+  /* Empty states: less air around the message. */
+  .mtb-empty { padding-left: var(--space-4); padding-right: var(--space-4); }
+}

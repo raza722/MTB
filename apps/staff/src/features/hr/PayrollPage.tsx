@@ -166,7 +166,7 @@ function PayslipPanel({ run, slip, onClose, onPrint }: { run: HrPayrollRun; slip
               <>
                 <span className="text-small text-ink-muted">Pay it now in {HR_PAYMENT_LABEL[slip.paymentMethod].toLowerCase()}. Its loan installments and child fee are recorded with it, and the slip prints the date.</span>
                 <div className="flex flex-wrap items-end gap-3">
-                  <div className="w-48">
+                  <div className="w-full sm:w-48">
                     <DatePicker label="Paid on" required value={releaseDate} onValueChange={setReleaseDate} today={today()} minDate={earliest} error={releaseError} />
                   </div>
                   <Button
@@ -414,7 +414,7 @@ function RunView({ runId }: { runId: string }) {
         footer={{ name: <span className="font-semibold">Total ({lines.length})</span>, gross: <span className="mtb-num font-semibold">{formatRs(lines.reduce((a, l) => a + l.gross, 0))}</span>, ded: <span className="mtb-num font-semibold">{formatRs(lines.reduce((a, l) => a + l.totalDeductions, 0))}</span>, net: <span className="mtb-num font-semibold">{formatRs(lines.reduce((a, l) => a + l.net, 0))}</span> }}
         toolbar={
           <div className="flex w-full flex-wrap items-center gap-3">
-            <div className="w-56">
+            <div className="w-full sm:w-56">
               <Input aria-label="Search" placeholder="Name or employee no." icon="search" value={query} onChange={(e) => setQuery(e.target.value)} />
             </div>
             <DesignationSelect value={des} onChange={setDes} />
@@ -513,7 +513,7 @@ function StructuresView() {
         footer={{ name: <span className="font-semibold">Total ({rows.length})</span>, basic: <span className="mtb-num font-semibold">{formatRs(rows.reduce((a, r) => a + r.basic, 0))}</span>, gross: <span className="mtb-num font-semibold">{formatRs(rows.reduce((a, r) => a + r.gross, 0))}</span>, net: <span className="mtb-num font-semibold">{formatRs(rows.reduce((a, r) => a + r.net, 0))}</span> }}
         toolbar={
           <div className="flex w-full flex-wrap items-center gap-3">
-            <div className="w-64">
+            <div className="w-full sm:w-64">
               <Input aria-label="Search" placeholder="Name, employee no. or designation" icon="search" value={query} onChange={(e) => setQuery(e.target.value)} />
             </div>
             <span className="text-small text-ink-muted">Basic pay plus house rent, conveyance, medical and any special allowance. Click someone to change their pay.</span>

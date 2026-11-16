@@ -72,6 +72,8 @@
 .act-desk { background: var(--surface-sunken); border-radius: var(--radius-lg); padding: 16px; overflow: auto; display: grid; justify-items: center; }
 .act-zoom { zoom: var(--doc-zoom, 0.5); display: grid; gap: 24px; justify-items: center; }
 .act-zoom .act-doc, .act-zoom .act-cert { box-shadow: var(--shadow-md); }
+/* Phones: shrink the preview so an A4 page roughly fits the screen width; the frame still scrolls if it does not. */
+@media screen and (max-width: 639.98px) { .act-zoom { zoom: calc(var(--doc-zoom, 0.5) * 0.6); } .act-desk { padding: 8px; } }
 .act-print-layer { display: none; }
 
 /* ---------- Printed documents (A4 portrait and landscape) ---------- */

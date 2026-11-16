@@ -797,7 +797,7 @@ export function UsersPage({ filter, onFilter }: { filter: SetupUserFilter; onFil
                   }}
                 />
               </div>
-              <div className="w-52">
+              <div className="w-full sm:w-52">
                 <Select
                   aria-label="Role"
                   value={role}

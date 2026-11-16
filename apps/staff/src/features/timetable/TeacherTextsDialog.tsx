@@ -148,7 +148,7 @@ export function TeacherTextsDialog({ date: initialDate, preselect, onClose }: Te
     >
       <div className="grid gap-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <div className="w-48">
+          <div className="w-full sm:w-48">
             <DatePicker label="Day" value={date} today={today} minDate={today} {...(ends ? { maxDate: ends } : {})} onValueChange={(d) => d && d !== date && setDate(d)} />
           </div>
           {data && !data.closed && (

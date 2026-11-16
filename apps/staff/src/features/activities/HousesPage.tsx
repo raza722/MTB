@@ -257,10 +257,10 @@ function Standings({ loading, houses, ledger, monthly }: { loading: boolean; hou
           density="dense"
           toolbar={
             <div className="flex flex-wrap gap-3">
-              <div className="w-52">
+              <div className="w-full sm:w-52">
                 <Select aria-label="House" value={house} onChange={(e) => (setHouse(e.target.value), setPage(1))} options={[{ value: "", label: "Every house" }, ...houses.map((h) => ({ value: h.id, label: h.name }))]} />
               </div>
-              <div className="w-60">
+              <div className="w-full sm:w-60">
                 <Select aria-label="Kind" value={cat} onChange={(e) => (setCat(e.target.value), setPage(1))} options={[{ value: "", label: "Every kind" }, ...CATEGORIES.map((c) => ({ value: c, label: ACTIVITIES_POINTS_CATEGORY_LABEL[c] }))]} />
               </div>
             </div>
@@ -568,13 +568,13 @@ function Members({ houses, unassigned, canManage }: { houses: ActivitiesHouse[];
         toolbar={
           <>
             <div className="flex flex-wrap items-center gap-3">
-              <div className="w-56">
+              <div className="w-full sm:w-56">
                 <Input aria-label="Search students" icon="search" placeholder="Name or G.R. number" value={q} onChange={(e) => (setQ(e.target.value), setPage(1))} />
               </div>
-              <div className="w-48">
+              <div className="w-full sm:w-48">
                 <Select aria-label="House" value={house} onChange={(e) => (setHouse(e.target.value), setPage(1))} options={[{ value: "", label: "Every house" }, ...houses.map((h) => ({ value: h.id, label: h.name })), { value: "NONE", label: "Not in a house" }]} />
               </div>
-              <div className="w-36">
+              <div className="w-full sm:w-36">
                 <Select aria-label="Class" value={cls} onChange={(e) => (setCls(e.target.value), setPage(1))} options={[{ value: "", label: "Every class" }, ...sections.map((s) => ({ value: s, label: s }))]} />
               </div>
             </div>

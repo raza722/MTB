@@ -321,7 +321,7 @@ export function RolesPage() {
         flush
         rise={2}
         actions={
-          <div className="w-64">
+          <div className="w-full sm:w-64">
             <Input aria-label="Search permissions" icon="search" placeholder="Search permissions" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
         }

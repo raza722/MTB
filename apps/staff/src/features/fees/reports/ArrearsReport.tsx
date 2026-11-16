@@ -152,13 +152,13 @@ export function ArrearsReport() {
         </div>
         <div className="flex flex-wrap items-end gap-3">
           <HeadPicker heads={q.data?.heads ?? []} value={heads} onChange={setHeads} />
-          <div className="w-40">
+          <div className="w-full sm:w-40">
             <DatePicker label="Due from" value={dueFrom} onValueChange={setDueFrom} today={feeToday()} maxDate={feeToday()} />
           </div>
-          <div className="w-40">
+          <div className="w-full sm:w-40">
             <DatePicker label="Due to" value={dueTo} onValueChange={setDueTo} today={feeToday()} maxDate={feeToday()} error={dueError} />
           </div>
-          <div className="w-36">
+          <div className="w-full sm:w-36">
             <Select
               label="Class"
               value={cls ?? ""}
@@ -169,7 +169,7 @@ export function ArrearsReport() {
               options={[{ value: "", label: "Every class" }, ...classList.options]}
             />
           </div>
-          <div className="w-32">
+          <div className="w-full sm:w-32">
             <Select label="Section" value={section} disabled={!cls} onChange={(e) => setSection(e.target.value)} options={[{ value: "", label: cls ? "Every section" : "—" }, ...sectionsOf(cls ?? "").map((x) => ({ value: x, label: `${cls}-${x}` }))]} />
           </div>
           <Switch label="Include families who have left (still owing)" checked={includeLeft} onChange={(e) => setIncludeLeft(e.target.checked)} />

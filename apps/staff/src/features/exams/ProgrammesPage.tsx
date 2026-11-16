@@ -186,7 +186,7 @@ function ProgrammeView({ prog, all, search, onSearch }: { prog: ExamsProgramme; 
         actions={
           <div className="flex flex-wrap items-center gap-2">
             {all.length > 1 && (
-              <div className="w-64">
+              <div className="w-full sm:w-64">
                 <Select aria-label="Programme" value={prog.id} onChange={(e) => onSearch({ programme: e.target.value })} options={all.map((p) => ({ value: p.id, label: p.name }))} />
               </div>
             )}
@@ -249,19 +249,19 @@ function ProgrammeView({ prog, all, search, onSearch }: { prog: ExamsProgramme; 
             onRowClick={(p) => setOpen(p)}
             toolbar={
               <div className="flex flex-wrap items-end gap-3">
-                <div className="w-64">
+                <div className="w-full sm:w-64">
                   <Input aria-label="Search participants" icon="search" placeholder="Name or registration no." value={q} onChange={(e) => setQ(e.target.value)} />
                 </div>
-                <div className="w-56">
+                <div className="w-full sm:w-56">
                   <Select aria-label="Centre" value={centre} onChange={(e) => onSearch({ ...search, programme: prog.id, centre: e.target.value || undefined })} options={[{ value: "", label: "Every centre" }, ...prog.centres.map((c) => ({ value: c.id, label: c.name }))]} />
                 </div>
-                <div className="w-36">
+                <div className="w-full sm:w-36">
                   <Select aria-label="Gender" value={gender} onChange={(e) => setGender(e.target.value as "" | "M" | "F")} options={[{ value: "", label: "Girls and boys" }, { value: "F", label: "Girls" }, { value: "M", label: "Boys" }]} />
                 </div>
-                <div className="w-48">
+                <div className="w-full sm:w-48">
                   <Select aria-label="Group" value={group} onChange={(e) => setGroup(e.target.value)} options={[{ value: "", label: "Every group" }, ...groups.map((g) => ({ value: g, label: g }))]} />
                 </div>
-                <div className="w-56">
+                <div className="w-full sm:w-56">
                   <Select aria-label="Present school" value={school} onChange={(e) => setSchool(e.target.value)} options={[{ value: "", label: "Every school" }, ...schools.map((s) => ({ value: s, label: s }))]} />
                 </div>
               </div>
@@ -482,7 +482,7 @@ function ParticipantPanel({ prog, participant, editable, canAdmit, onClose }: { 
               <>
                 <p className="m-0 text-small text-ink-muted">Starts an admission application filled in from this participant (name, father, date of birth, school, address, mobile), marked Diamond Minds.</p>
                 <div className="flex flex-wrap items-end gap-3">
-                  <div className="w-44">
+                  <div className="w-full sm:w-44">
                     <Select label="Applying for" value={classApplied} onChange={(e) => setClassApplied(e.target.value)} options={[...new Set([...classOptions, classApplied])].map((c) => ({ value: c, label: c }))} />
                   </div>
                   <Button icon="admissions" loading={admit.isPending} onClick={() => admit.mutate()}>

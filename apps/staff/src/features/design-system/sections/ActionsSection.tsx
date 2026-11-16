@@ -96,7 +96,7 @@ export function ActionsSection() {
                 </Button>
               </StateCell>
               <StateCell label="block (mobile bar)">
-                <div className="w-56">
+                <div className="w-full sm:w-56">
                   <Button variant="primary" size="touch" block>
                     Submit · 31 P · 2 A · 1 L
                   </Button>

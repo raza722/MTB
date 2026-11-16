@@ -193,16 +193,16 @@ export function HistoryPage({ id, onPick }: { id: string | undefined; onPick: (i
               <div className="grid gap-4">
                 <div className="grid gap-3 rounded-md border border-border p-3">
                   <div className="flex flex-wrap items-end gap-3">
-                    <div className="w-44">
+                    <div className="w-full sm:w-44">
                       <Select label="Session" value={session} onChange={(e) => setSession(e.target.value)} options={[{ value: "", label: "Every session" }, ...sessions.map((s) => ({ value: String(s), label: formatSession(s) }))]} />
                     </div>
-                    <div className="w-48">
+                    <div className="w-full sm:w-48">
                       <Select label="Month" value={monthPicked || ""} onChange={(e) => pickMonth(e.target.value)} options={[{ value: "", label: from || to ? "Dates below" : "Any month" }, ...months.map((m) => ({ value: m, label: monthLabel(m) }))]} />
                     </div>
-                    <div className="w-44">
+                    <div className="w-full sm:w-44">
                       <DatePicker label="From" value={from} onValueChange={setFrom} today={examsToday()} />
                     </div>
-                    <div className="w-44">
+                    <div className="w-full sm:w-44">
                       <DatePicker label="To" value={to} onValueChange={setTo} today={examsToday()} error={badRange ? "Choose a date on or after the first one." : undefined} />
                     </div>
                     {filtered && (

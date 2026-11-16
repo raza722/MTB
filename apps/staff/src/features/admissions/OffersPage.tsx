@@ -201,7 +201,7 @@ export function OffersPage() {
           {...(canEdit && !readOnly ? { selectable: true, selected: ticked, onSelectedChange: setTicked, isRowSelectable: (a: AdmissionsApplicant) => Boolean(a.grNo) } : {})}
           toolbar={
             <div className="flex w-full flex-wrap items-end gap-3">
-              <div className="w-40">
+              <div className="w-full sm:w-40">
                 <Select
                   label="Class"
                   value={cls}
@@ -212,13 +212,13 @@ export function OffersPage() {
                   options={[{ value: "", label: "Every class" }, ...classes.map((c) => ({ value: c, label: classLabel(c) }))]}
                 />
               </div>
-              <div className="w-36">
+              <div className="w-full sm:w-36">
                 <Select label="Section" value={section} disabled={!cls} onChange={(e) => setSection(e.target.value)} options={[{ value: "", label: "Every section" }, ...sections.map((s) => ({ value: s, label: `${cls}-${s}` }))]} />
               </div>
-              <div className="w-44">
+              <div className="w-full sm:w-44">
                 <DatePicker label="Admitted from" value={from} onValueChange={setFrom} />
               </div>
-              <div className="w-44">
+              <div className="w-full sm:w-44">
                 <DatePicker label="Admitted to" value={to} onValueChange={setTo} error={rangeBad ? "Must be on or after the first date." : undefined} />
               </div>
               <span className="pb-2 text-small text-ink-muted">Total students: {admitted.length}</span>

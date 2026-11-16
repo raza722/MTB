@@ -113,7 +113,7 @@ export function TrialBalancePage({ search, setSearch }: { search: TrialSearch; s
     >
       <section className="mtb-card mtb-rise grid gap-4 p-5" aria-label="Options">
         <div className="flex flex-wrap items-end gap-4">
-          <div className="w-44">
+          <div className="w-full sm:w-44">
             <DatePicker
               label="From"
               value={from}
@@ -124,7 +124,7 @@ export function TrialBalancePage({ search, setSearch }: { search: TrialSearch; s
               {...(fromError ? { error: fromError } : {})}
             />
           </div>
-          <div className="w-44">
+          <div className="w-full sm:w-44">
             <DatePicker label="To" value={asOf} onValueChange={(v) => setSearch({ ...search, asOf: v && v !== end ? v : undefined })} today={accToday()} minDate={from <= end ? from : start} maxDate={end} />
           </div>
           <Segmented

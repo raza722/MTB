@@ -108,6 +108,11 @@
   .exams-doc { box-shadow: var(--shadow-md); }
   .exams-zoom .mtb-print-area { display: grid; gap: 20px; justify-items: center; }
 }
+/* Phones: shrink the preview so an A4 page roughly fits the screen width; the frame still scrolls if it does not. */
+@media screen and (max-width: 639.98px) {
+  .exams-zoom { zoom: calc(var(--doc-zoom, 0.7) * 0.6); }
+  .exams-desk { padding: 8px; }
+}
 
 @media print {
   .exams-doc { box-shadow: none !important; }

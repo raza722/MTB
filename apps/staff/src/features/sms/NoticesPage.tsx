@@ -108,10 +108,10 @@ export function NoticesPage({ search, setSearch }: { search: NoticesSearch; setS
             { value: "DRAFT", label: `Drafts and taken down (${counts.DRAFT})` },
           ]}
         />
-        <div className="w-52">
+        <div className="w-full sm:w-52">
           <Select aria-label="For" value={audience} onChange={(e) => setAudience(e.target.value as "" | NoticeAudience)} options={[{ value: "", label: "Everyone" }, { value: "ALL_PARENTS", label: "All parents" }, { value: "CLASS", label: "Selected classes" }, { value: "STAFF", label: "Staff" }]} />
         </div>
-        <div className="w-64">
+        <div className="w-full sm:w-64">
           <Input aria-label="Search notices" icon="search" placeholder="Title or words in the notice" value={query} onChange={(e) => setQuery(e.target.value)} />
         </div>
       </div>

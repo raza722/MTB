@@ -210,15 +210,15 @@ export function PipelineView({ counts, view, onViewChange, showCampus, onOpen }:
     <div className="grid gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="flex flex-wrap items-end gap-4">
-          <div className="w-64">
+          <div className="w-full sm:w-64">
             <Input label="Search" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Name, application no., father, CNIC or mobile" />
           </div>
           {classes.length > 0 && (
-            <div className="w-48">
+            <div className="w-full sm:w-48">
               <Select label="Class applied for" value={cls} onChange={(e) => setCls(e.target.value)} options={[{ value: "", label: "All classes" }, ...classes.map((c) => ({ value: c, label: c }))]} />
             </div>
           )}
-          <div className="w-36">
+          <div className="w-full sm:w-36">
             <Select
               label="Boys or girls"
               value={gender}

@@ -175,7 +175,7 @@ export function ExamsPage() {
         toolbar={
           <>
             <div className="flex flex-wrap items-center gap-3">
-              <div className="w-64">
+              <div className="w-full sm:w-64">
                 <Input aria-label="Search exams" placeholder="Search exam, type or section" icon="search" value={query} onChange={(e) => {
                   setQuery(e.target.value);
                   setPage(1);
@@ -191,7 +191,7 @@ export function ExamsPage() {
                 options={CATEGORY_OPTIONS}
               />
             </div>
-            <div className="w-52">
+            <div className="w-full sm:w-52">
               <Select
                 aria-label="Status"
                 value={status}

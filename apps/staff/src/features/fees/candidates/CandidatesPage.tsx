@@ -383,13 +383,13 @@ export function CandidatesPage() {
           onRowClick={(r) => r.status === "PAID" && setSlip(r)}
           toolbar={
             <div className="flex w-full flex-wrap items-end gap-3">
-              <div className="w-60">
+              <div className="w-full sm:w-60">
                 <Input aria-label="Search" placeholder="Name, application no. or father" icon="search" value={query} onChange={(e) => setQuery(e.target.value)} />
               </div>
-              <div className="w-36">
+              <div className="w-full sm:w-36">
                 <Select aria-label="Class" value={cls} onChange={(e) => setCls(e.target.value)} options={[{ value: "", label: "Every class" }, ...classes.map((c) => ({ value: c, label: c }))]} />
               </div>
-              <div className="w-36">
+              <div className="w-full sm:w-36">
                 <Select
                   aria-label="Status"
                   value={status}
@@ -402,13 +402,13 @@ export function CandidatesPage() {
                   ]}
                 />
               </div>
-              <div className="w-40">
+              <div className="w-full sm:w-40">
                 <Select aria-label="Received by" value={cashier} onChange={(e) => setCashier(e.target.value)} options={[{ value: "", label: "Every cashier" }, ...(d?.cashiers ?? []).map((c) => ({ value: c, label: c }))]} />
               </div>
-              <div className="w-40">
+              <div className="w-full sm:w-40">
                 <DatePicker aria-label="Paid from" placeholder="Paid from" value={from} onValueChange={setFrom} today={feeToday()} maxDate={feeToday()} />
               </div>
-              <div className="w-40">
+              <div className="w-full sm:w-40">
                 <DatePicker aria-label="Paid to" placeholder="Paid to" value={to} onValueChange={setTo} today={feeToday()} maxDate={feeToday()} error={dateError} />
               </div>
               {filtered && (

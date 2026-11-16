@@ -97,11 +97,11 @@ export function CombinedPage() {
         ) : (
           <div className="grid gap-4">
             <div className="flex flex-wrap items-end gap-3">
-              <div className="w-64">
+              <div className="w-full sm:w-64">
                 <Select label="Class" value={group?.classShort ?? ""} onChange={(e) => chooseClass(e.target.value)} options={groups.map((g) => ({ value: g.classShort, label: `${g.className} · ${g.exams.length} ${g.exams.length === 1 ? "exam" : "exams"}` }))} />
               </div>
               {testMonths.length > 0 && (
-                <div className="w-64">
+                <div className="w-full sm:w-64">
                   <Select
                     label="A month's class tests"
                     value={pickedMonth ?? ""}
@@ -227,7 +227,7 @@ export function CombinedPage() {
             <div className="flex flex-wrap items-end gap-3">
               <Segmented aria-label="Document" value={printDoc} onChange={(v) => setPrintDoc(PRINT_DOCS.find((d) => d.value === v)?.value ?? "sheet")} options={PRINT_DOCS} />
               {printDoc === "cards" && (
-                <div className="w-72">
+                <div className="w-full sm:w-72">
                   <Select
                     label="Student"
                     value={visible.some((r) => r.id === cardStudent) ? cardStudent : ""}

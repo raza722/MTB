@@ -55,7 +55,7 @@ export function PrintVouchersPage({ runId }: { runId: string }) {
           <>
             <div className="flex flex-wrap items-end gap-3">
               <Segmented aria-label="Vouchers to print" value={which} onChange={(v) => setWhich(v as "UNPAID" | "ALL")} options={[{ value: "UNPAID", label: "Not yet paid" }, { value: "ALL", label: "All in the run" }]} />
-              <div className="w-40">
+              <div className="w-full sm:w-40">
                 <Select aria-label="Class" value={cls} onChange={(e) => setCls(e.target.value)} options={[{ value: "", label: "Every class" }, ...classes.map((c) => ({ value: c, label: c }))]} />
               </div>
               <span className="text-small text-ink-muted">

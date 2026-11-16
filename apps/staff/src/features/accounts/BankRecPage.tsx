@@ -40,7 +40,7 @@ export function BankRecPage({ search, setSearch }: { search: BankSearch; setSear
             options={banks.isLoading ? [{ value: "", label: "Loading…" }] : list.map((b) => ({ value: b.code, label: [b.name, b.bank.accountNoMasked, b.unmatched ? `${b.unmatched} to match` : "", accountsHasStatement(b) ? "" : "no statement yet"].filter(Boolean).join(" · ") }))}
           />
         </div>
-        <div className="w-48">
+        <div className="w-full sm:w-48">
           <Select label="Statement month" value={month} onChange={(e) => setSearch({ ...search, month: e.target.value })} options={[...(q.data?.months ?? [month])].reverse().map((m) => ({ value: m, label: monthName(m) }))} />
         </div>
         <p className="m-0 ms-auto max-w-md text-small text-ink-muted">

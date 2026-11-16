@@ -5,6 +5,7 @@
 export { Icon, ICON_NAMES, type IconName, type IconProps } from "./icons";
 export { cx, initials } from "./lib/cx";
 export { contrastRatio, formatRatio, parseHex } from "./lib/contrast";
+export { PHONE_QUERY, useMediaQuery, WIDE_QUERY } from "./lib/use-media-query";
 
 export { Button, IconButton, buttonClassName, type ButtonProps, type ButtonSize, type ButtonVariant, type IconButtonProps } from "./components/button";
 export {
@@ -79,11 +80,13 @@ export {
   MenuLabel,
   MenuSeparator,
   Modal,
+  NavDrawer,
   SidePanel,
   Tooltip,
   TooltipProvider,
   type ConfirmDialogProps,
   type ModalProps,
+  type NavDrawerProps,
   type SidePanelProps,
 } from "./components/overlays";
 export { Toast, ToastProvider, useToast, type ToastOptions } from "./components/toast";

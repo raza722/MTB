@@ -127,6 +127,41 @@ export function SidePanel({ open, onClose, title, description, footer, wide, chi
   );
 }
 
+export interface NavDrawerProps {
+  open: boolean;
+  onClose: () => void;
+  /** Read out by screen readers; the visible heading is `header`. */
+  title: string;
+  /** Shown at the top beside the close button (the product name). */
+  header?: ReactNode;
+  footer?: ReactNode;
+  children?: ReactNode;
+}
+
+/**
+ * MTB addition. A left-hand drawer holding the main menu on phones, where there is no room for the sidebar.
+ * Escape, the scrim and the close button all shut it; focus returns to the button that opened it.
+ */
+export function NavDrawer({ open, onClose, title, header, footer, children }: NavDrawerProps) {
+  const returnFocus = useReturnFocus(open);
+  return (
+    <Dialog.Root open={open} onOpenChange={(o) => !o && onClose()}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="mtb-scrim" />
+        <Dialog.Content className="mtb-drawer" aria-describedby={undefined} onCloseAutoFocus={returnFocus}>
+          <Dialog.Title className="mtb-sr-only">{title}</Dialog.Title>
+          <header className="mtb-drawer-header">
+            <div className="min-w-0">{header}</div>
+            <IconButton icon="x" label="Close menu" onClick={onClose} />
+          </header>
+          <div className="mtb-drawer-body">{children}</div>
+          {footer && <footer className="mtb-drawer-footer">{footer}</footer>}
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+
 export interface ConfirmDialogProps {
   open: boolean;
   onClose: () => void;

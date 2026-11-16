@@ -77,10 +77,10 @@ export function MeritPage() {
         ) : (
           <div className="grid gap-4">
             <div className="flex flex-wrap items-end gap-4">
-              <div className="w-64">
+              <div className="w-full sm:w-64">
                 <Input label="Find an exam" icon="search" value={examQuery} onChange={(e) => setExamQuery(e.target.value)} placeholder="Name, type or section" />
               </div>
-              <div className="w-80">
+              <div className="w-full sm:w-80">
                 <Select
                   label="Declared exam"
                   value={exam?.id ?? ""}

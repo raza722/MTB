@@ -292,16 +292,16 @@ export function VouchersPage({ initialRun }: { initialRun?: string }) {
           onRowClick={(v) => setOpen(v.voucherNo)}
           toolbar={
             <div className="flex w-full flex-wrap items-end gap-3">
-              <div className="w-64">
+              <div className="w-full sm:w-64">
                 <Input aria-label="Search vouchers" placeholder="Name, G.R. or voucher number" icon="search" value={query} onChange={(e) => setQuery(e.target.value)} />
               </div>
-              <div className="w-40">
+              <div className="w-full sm:w-40">
                 <Select aria-label="Month" value={month} onChange={(e) => setMonth(e.target.value)} options={[{ value: "", label: "Every month" }, ...(d?.months ?? []).map((m) => ({ value: m, label: feeMonthLabel(m) }))]} />
               </div>
-              <div className="w-36">
+              <div className="w-full sm:w-36">
                 <Select aria-label="Class" value={cls} onChange={(e) => setCls(e.target.value)} options={[{ value: "", label: "Every class" }, ...classList.options]} />
               </div>
-              <div className="w-40">
+              <div className="w-full sm:w-40">
                 <Select
                   aria-label="Status"
                   value={status}

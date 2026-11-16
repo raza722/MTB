@@ -158,7 +158,7 @@ function SalaryRegister() {
     <>
       {(overview.isError || run.isError) && <LoadError what="The salary register" error={overview.error ?? run.error} onRetry={() => void Promise.all([overview.refetch(), run.refetch()])} />}
       <div className="flex flex-wrap items-end gap-3">
-        <div className="w-52">
+        <div className="w-full sm:w-52">
           <Select label="Month" value={chosen?.month ?? ""} onChange={(e) => setMonth(e.target.value)} options={runs.length ? [...runs].reverse().map((m) => ({ value: m.month, label: `${hrMonthLabel(m.month)}${m.run?.status !== "PAID" ? " (not paid yet)" : ""}` })) : [{ value: "", label: "No salary sheets" }]} />
         </div>
         <DesignationSelect label="Designation" value={des} onChange={setDes} />
@@ -223,7 +223,7 @@ function AttendanceSummary() {
     <>
       {q.isError && <LoadError what="The attendance summary" error={q.error} onRetry={() => void q.refetch()} />}
       <div className="flex flex-wrap items-end gap-3">
-        <div className="w-52">
+        <div className="w-full sm:w-52">
           <Select label="Month" value={month} onChange={(e) => setMonth(e.target.value)} options={[...months].reverse().map((m) => ({ value: m, label: hrMonthLabel(m) }))} />
         </div>
         {d && (
@@ -309,13 +309,13 @@ function ExperienceReport() {
   return (
     <>
       <div className="flex flex-wrap items-end gap-3">
-        <div className="w-48">
+        <div className="w-full sm:w-48">
           <DatePicker label="Service counted to" required value={asOf} onValueChange={setAsOf} today={today()} error={errors.asOf ?? (errorField(q.error) === "asOf" ? errorText(q.error) : undefined)} />
         </div>
-        <div className="w-52">
+        <div className="w-full sm:w-52">
           <Select label="Level taught" value={level} onChange={(e) => setLevel(e.target.value)} options={[{ value: "", label: "Every level" }, ...(settings.data?.teachingLevels ?? []).map((l) => ({ value: l, label: l }))]} />
         </div>
-        <div className="w-40">
+        <div className="w-full sm:w-40">
           <Select label="Gender" value={gender} onChange={(e) => setGender(e.target.value as "" | HrGender)} options={[{ value: "", label: "Women and men" }, { value: "F", label: "Women" }, { value: "M", label: "Men" }]} />
         </div>
       </div>
@@ -428,10 +428,10 @@ function SalaryHistoryReport() {
   return (
     <>
       <div className="flex flex-wrap items-end gap-3">
-        <div className="w-44">
+        <div className="w-full sm:w-44">
           <Select label="From month" value={from} onChange={(e) => setFrom(e.target.value)} options={sessionMonths.map((m) => ({ value: m, label: hrMonthLabel(m) }))} error={errors.from} />
         </div>
-        <div className="w-44">
+        <div className="w-full sm:w-44">
           <Select label="To month" value={to} onChange={(e) => setTo(e.target.value)} options={sessionMonths.map((m) => ({ value: m, label: hrMonthLabel(m) }))} error={errors.to} />
         </div>
         <DesignationSelect
@@ -442,7 +442,7 @@ function SalaryHistoryReport() {
             if (v && person && person.designationId !== v) setStaffId("");
           }}
         />
-        <div className="w-64">
+        <div className="w-full sm:w-64">
           <Combobox label="Staff member" value={staffId} onValueChange={setStaffId} options={[{ value: "", label: "Everyone" }, ...staffOptions(staff.data, (s) => !des || s.designationId === des)]} placeholder={staff.isLoading ? "Loading staff…" : "Everyone"} />
         </div>
         {d && (

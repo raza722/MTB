@@ -39,7 +39,8 @@ export function AppShell() {
   );
 
   return (
-    <div className="min-h-dvh bg-surface" data-nav={hideNav ? "hidden" : "shown"}>
+    // On a desktop (1024px and up) the navigation is a sidebar, so the screen moves right by its width (--t-nav-w).
+    <div className="min-h-dvh bg-surface lg:pl-[var(--t-nav-w)]" data-nav={hideNav ? "hidden" : "shown"}>
       <a href="#main" className="mtb-sr-only focus:not-sr-only">
         Skip to content
       </a>

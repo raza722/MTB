@@ -143,7 +143,7 @@ function GradingEditor({ saved, scales, onPick, onSaved }: { saved: ExamsGradeSc
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
       <div className="grid content-start gap-4">
         <div className="flex flex-wrap items-end gap-3">
-          <div className="w-72">
+          <div className="w-full sm:w-72">
             <Select
               label="Grade scale"
               value={saved.id}
@@ -349,7 +349,7 @@ function GradingEditor({ saved, scales, onPick, onSaved }: { saved: ExamsGradeSc
             {save.isError && !conflict && <Banner tone="danger">The rules weren't saved: {errorText(save.error)}</Banner>}
 
             <div className="flex flex-wrap items-end gap-3">
-              <div className="w-36">
+              <div className="w-full sm:w-36">
                 <Input label="Try a percentage" value={probe} inputMode="decimal" suffix="%" onChange={(e) => setProbe(e.target.value)} />
               </div>
               <span className="pb-2.5 text-ink-muted" aria-live="polite">

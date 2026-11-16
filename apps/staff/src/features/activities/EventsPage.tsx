@@ -244,16 +244,16 @@ function ListView({ events, loading }: { events: ActivitiesEventSummary[]; loadi
                 { value: "ALL", label: "All" },
               ]}
             />
-            <div className="w-48">
+            <div className="w-full sm:w-48">
               <Select aria-label="Kind" value={kind} onChange={(e) => setKind(e.target.value)} options={[{ value: "", label: "Every kind" }, ...ACTIVITIES_EVENT_KINDS.map((k) => ({ value: k, label: ACTIVITIES_EVENT_KIND_LABEL[k] }))]} />
             </div>
-            <div className="w-56">
+            <div className="w-full sm:w-56">
               <Select aria-label="Teacher in charge" value={teacher} onChange={(e) => setTeacher(e.target.value)} options={[{ value: "", label: "Every teacher in charge" }, ...teachers.map((t) => ({ value: t, label: t }))]} />
             </div>
-            <div className="w-40">
+            <div className="w-full sm:w-40">
               <DatePicker aria-label="From" placeholder="From" value={from} onValueChange={setFrom} {...dateLimits(starts, ends)} today={today} />
             </div>
-            <div className="w-40">
+            <div className="w-full sm:w-40">
               <DatePicker aria-label="To" placeholder="To" value={to} onValueChange={setTo} {...dateLimits(starts, ends)} today={today} {...(rangeError ? { error: rangeError } : {})} />
             </div>
             {filtered && (

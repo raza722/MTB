@@ -1,6 +1,6 @@
 import { useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
 import { useElementWidth } from "../charts/hooks";
-import { linearScale, niceTicks } from "../charts/scale";
+import { fitAxisLabels, linearScale, niceTicks } from "../charts/scale";
 
 export interface ColumnChartProps<T> {
   data: readonly T[];
@@ -49,6 +49,8 @@ export function ColumnChart<T>({ data, value, target, axisLabel, formatAxis, too
   const barW = Math.max(6, Math.min(44, band * 0.56));
   const cx = (i: number) => M.left + band * (i + 0.5);
   const base = M.top + innerH;
+  // Many or long names (subjects, classes) on a narrow screen: show as many as fit, shortened if need be.
+  const axisLabels = fitAxisLabels(data.map(axisLabel), band, cx, 2, width - 2);
   const hasPartial = Boolean(partial && data.some((d) => partial(d)));
 
   const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
@@ -123,9 +125,11 @@ export function ColumnChart<T>({ data, value, target, axisLabel, formatAxis, too
                   {t !== null && t !== undefined && (
                     <line x1={cx(i) - barW / 2 - 5} x2={cx(i) + barW / 2 + 5} y1={Math.round(y(t)) + 0.5} y2={Math.round(y(t)) + 0.5} style={{ stroke: "var(--ink)", strokeWidth: 2.5, strokeLinecap: "round", ...motion }} />
                   )}
-                  <text x={cx(i)} y={base + 20} textAnchor="middle" className={active === i ? "mtb-chart-label-strong" : undefined}>
-                    {axisLabel(d)}
-                  </text>
+                  {axisLabels[i] && (
+                    <text x={axisLabels[i].x} y={base + 20} textAnchor={axisLabels[i].anchor} className={active === i ? "mtb-chart-label-strong" : undefined}>
+                      {axisLabels[i].text}
+                    </text>
+                  )}
                   <rect
                     x={M.left + band * i}
                     y={0}

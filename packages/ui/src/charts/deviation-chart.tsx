@@ -1,6 +1,6 @@
 import { useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
 import { useElementWidth } from "./hooks";
-import { linearScale, niceTicks } from "./scale";
+import { edgeAnchor, fitAxisLabels, linearScale, niceTicks } from "./scale";
 
 export interface DeviationChartProps<T> {
   data: readonly T[];
@@ -42,7 +42,8 @@ export function DeviationChart<T>({ data, value, axisLabel, reference, reference
   const band = n > 0 ? innerW / n : 0;
   const cx = (i: number) => M.left + band * (i + 0.5);
   const yRef = Math.round(y(reference)) + 0.5;
-  const labelEvery = band < 34 ? 2 : 1;
+  // Real class names can be long ("3Y-ADA- English Boys/Girls 1st") and many: show as many as fit, shortened if need be.
+  const axisLabels = fitAxisLabels(data.map(axisLabel), band, cx, 2, width - 2);
   const lo = values.indexOf(Math.min(...values));
   const hi = values.indexOf(Math.max(...values));
 
@@ -104,23 +105,26 @@ export function DeviationChart<T>({ data, value, axisLabel, reference, reference
               {referenceLabel}
             </text>
           </g>
-          {data.map((d, i) => {
+          {data.map((_, i) => {
             const v = values[i]!;
             const yv = y(v);
             const delay: CSSProperties = { animationDelay: `${180 + i * 45}ms` };
             const labelled = i === lo || i === hi;
+            const valueText = labelled ? format(v) : "";
+            const valueAt = labelled ? edgeAnchor(valueText, cx(i), 2, width - 2) : null;
+            const axis = axisLabels[i];
             return (
               <g key={i}>
                 <line x1={cx(i)} x2={cx(i)} y1={yRef} y2={yv} pathLength={1} className="mtb-chart-stem mtb-chart-draw" style={delay} />
                 <circle cx={cx(i)} cy={yv} r={5} className="mtb-chart-dot mtb-chart-pop" style={{ animationDelay: `${420 + i * 45}ms` }} />
-                {labelled && (
-                  <text x={cx(i)} y={v >= reference ? yv - 12 : yv + 20} textAnchor="middle" className="mtb-chart-label-strong mtb-chart-fade-late">
-                    {format(v)}
+                {valueAt && (
+                  <text x={valueAt.x} y={v >= reference ? yv - 12 : yv + 20} textAnchor={valueAt.anchor} className="mtb-chart-label-strong mtb-chart-fade-late">
+                    {valueText}
                   </text>
                 )}
-                {i % labelEvery === 0 && (
-                  <text x={cx(i)} y={M.top + innerH + 20} textAnchor="middle">
-                    {axisLabel(d)}
+                {axis && (
+                  <text x={axis.x} y={M.top + innerH + 20} textAnchor={axis.anchor}>
+                    {axis.text}
                   </text>
                 )}
                 <rect

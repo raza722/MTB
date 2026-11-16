@@ -177,7 +177,7 @@ export function SubstitutionsPage({ date, onDate }: { date: IsoDate | undefined;
           Today
         </Button>
       )}
-      <div className="w-44">
+      <div className="w-full sm:w-44">
         <DatePicker aria-label="Day" value={day} today={today} {...(sessionDays.starts ? { minDate: sessionDays.starts } : {})} {...(sessionDays.ends ? { maxDate: sessionDays.ends } : {})} onValueChange={(d) => onDate(d && d !== today ? d : undefined)} />
       </div>
       <Button icon="printer" disabled={!cover || !wd} onClick={printSoon}>

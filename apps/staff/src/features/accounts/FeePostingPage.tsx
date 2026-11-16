@@ -114,7 +114,7 @@ export function FeePostingPage({ search, setSearch }: { search: FeePostingSearch
   return (
     <AccountsShell title="Fee posting">
       <section className="mtb-card mtb-rise flex flex-wrap items-end gap-4 p-5" aria-label="Month">
-        <div className="w-48">
+        <div className="w-full sm:w-48">
           <Select label="Month" value={month} onChange={(e) => setSearch({ month: e.target.value })} options={[...months].reverse().map((m) => ({ value: m, label: monthName(m) }))} />
         </div>
         <p className="m-0 max-w-2xl text-small text-ink-muted">

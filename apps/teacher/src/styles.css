@@ -49,6 +49,21 @@ body {
   }
 }
 
+/* Desktop (1024px and up): the five destinations are a sidebar this wide, not a bar along the bottom (BottomNav).
+   Task screens that hide the navigation (taking a register) keep the whole width. */
+:root {
+  --t-nav-w: 0px;
+}
+@media (min-width: 1024px) {
+  :root:has([data-nav="shown"]) {
+    --t-nav-w: 13rem;
+  }
+  /* No bottom bar to clear any more. */
+  :root:has([data-nav="shown"]) .mtb-toaster {
+    bottom: 24px;
+  }
+}
+
 /* "Reduce motion" chosen in More → Appearance, on top of the phone's own setting (base.css). */
 :root[data-motion="reduce"] *,
 :root[data-motion="reduce"] *::before,

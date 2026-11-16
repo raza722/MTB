@@ -134,7 +134,7 @@ export function MeritListView({ ctx, cls, onClassChange }: { ctx: Ctx; cls: stri
       </div>
 
       <div className="flex flex-wrap items-end gap-3">
-        <div className="w-64">
+        <div className="w-full sm:w-64">
           <Select
             label="Test sitting"
             value={testId}
@@ -145,7 +145,7 @@ export function MeritListView({ ctx, cls, onClassChange }: { ctx: Ctx; cls: stri
             options={[{ value: "", label: "Every sitting of the class" }, ...data.tests.map((t) => ({ value: t.id, label: `${t.name} · ${formatDate(t.date)}` }))]}
           />
         </div>
-        <div className="w-40">
+        <div className="w-full sm:w-40">
           <Select
             label="Boys or girls"
             value={gender}
@@ -160,7 +160,7 @@ export function MeritListView({ ctx, cls, onClassChange }: { ctx: Ctx; cls: stri
             ]}
           />
         </div>
-        <div className="w-40">
+        <div className="w-full sm:w-40">
           <Input
             label="Seats on this list"
             inputMode="numeric"
@@ -174,7 +174,7 @@ export function MeritListView({ ctx, cls, onClassChange }: { ctx: Ctx; cls: stri
             {...(seatsText && !seatsOk.success ? { error: seatsOk.error.issues[0]?.message } : {})}
           />
         </div>
-        <div className="w-56">
+        <div className="w-full sm:w-56">
           <Input label="List title" value={title} onChange={(e) => setTitle(e.target.value)} {...(titleError ? { error: titleError } : { help: data.saved.length ? `Last saved: ${data.saved[0]!.title}, ${formatDate(data.saved[0]!.savedOn)}` : "Shown on the printed list." })} />
         </div>
         {canAct && (

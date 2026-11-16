@@ -283,7 +283,7 @@ function DayView({ date, setDate, onImport }: { date: string; setDate: (d: strin
   return (
     <>
       <div className="flex flex-wrap items-end gap-3">
-        <div className="w-48">
+        <div className="w-full sm:w-48">
           <DatePicker label="Day" value={date} onValueChange={(v) => v && setDate(v)} today={today()} maxDate={today()} />
         </div>
         <span className="pb-2 text-small text-ink-muted">
@@ -333,10 +333,10 @@ function DayView({ date, setDate, onImport }: { date: string; setDate: (d: strin
             loading={q.isLoading}
             toolbar={
               <div className="flex w-full flex-wrap items-end gap-3">
-                <div className="w-56">
+                <div className="w-full sm:w-56">
                   <Input aria-label="Search" placeholder="Name or employee no." icon="search" value={query} onChange={(e) => setQuery(e.target.value)} />
                 </div>
-                <div className="w-44">
+                <div className="w-full sm:w-44">
                   <Select
                     aria-label="Show"
                     value={filter}
@@ -416,7 +416,7 @@ function MonthPicker({ month, setMonth }: { month: string; setMonth: (m: string)
   const ctx = useCtx();
   const months = hrSessionMonths(ctx.session).filter((m) => m <= thisMonth());
   return (
-    <div className="w-48">
+    <div className="w-full sm:w-48">
       <Select label="Month" value={months.includes(month) ? month : (months.at(-1) ?? month)} onChange={(e) => setMonth(e.target.value)} options={months.map((m) => ({ value: m, label: hrMonthLabel(m) })).reverse()} />
     </div>
   );
@@ -677,10 +677,10 @@ function RangeView({ from, to, staffId, set }: { from: string; to: string; staff
   return (
     <>
       <div className="flex flex-wrap items-end gap-3">
-        <div className="w-44">
+        <div className="w-full sm:w-44">
           <DatePicker label="From" required value={from} onValueChange={(v) => v && set({ from: v })} today={today()} maxDate={today()} error={err("from")} />
         </div>
-        <div className="w-44">
+        <div className="w-full sm:w-44">
           <DatePicker label="To" required value={to} onValueChange={(v) => v && set({ to: v })} today={today()} maxDate={today()} minDate={from} error={err("to")} />
         </div>
         <DesignationSelect
@@ -691,7 +691,7 @@ function RangeView({ from, to, staffId, set }: { from: string; to: string; staff
             if (v && person && person.designationId !== v) set({ staff: undefined });
           }}
         />
-        <div className="w-64">
+        <div className="w-full sm:w-64">
           <Combobox
             label="Staff member"
             value={staffId}

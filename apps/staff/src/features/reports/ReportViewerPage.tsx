@@ -639,7 +639,7 @@ function ResultView({ result, def, busy }: { result: ReportResult; def: ReportCa
             {...(footer && !find ? { footer } : {})}
             empty={<EmptyState icon="file" title={find ? "No rows match" : "Nothing to show"} description={find ? "Clear the search." : (result.notes?.[0] ?? "No records for these filters. Try a wider date range or another class.")} />}
             toolbar={
-              <div className="w-72">
+              <div className="w-full sm:w-72">
                 <Input aria-label="Find in this report" icon="search" placeholder="Find a name, number or class" value={find} onChange={(e) => setFind(e.target.value)} />
               </div>
             }

@@ -435,20 +435,20 @@ export function LeavePage() {
             rowClassName={(r) => (r.status === "PENDING" ? "mtb-slide-in" : undefined)}
             toolbar={
               <div className="flex w-full flex-wrap items-end gap-3">
-                <div className="w-56">
+                <div className="w-full sm:w-56">
                   <Input aria-label="Search" placeholder="Staff name or number" icon="search" value={query} onChange={(e) => setQuery(e.target.value)} />
                 </div>
-                <div className="w-44">
+                <div className="w-full sm:w-44">
                   <Select aria-label="Status" value={status} onChange={(e) => setStatus(e.target.value as HrLeaveStatus | "")} options={[{ value: "", label: "Every status" }, { value: "PENDING", label: "Waiting" }, { value: "APPROVED", label: "Approved" }, { value: "REJECTED", label: "Rejected" }, { value: "CANCELLED", label: "Cancelled" }]} />
                 </div>
-                <div className="w-44">
+                <div className="w-full sm:w-44">
                   <Select aria-label="Kind" value={type} onChange={(e) => setType(e.target.value)} options={[{ value: "", label: "Every kind" }, ...(d?.types ?? []).map((t) => ({ value: t.id, label: t.name }))]} />
                 </div>
                 <DesignationSelect value={des} onChange={setDes} />
-                <div className="w-40">
+                <div className="w-full sm:w-40">
                   <DatePicker aria-label="From" placeholder="From" value={from} onValueChange={setFrom} today={today()} />
                 </div>
-                <div className="w-40">
+                <div className="w-full sm:w-40">
                   <DatePicker aria-label="To" placeholder="To" value={to} onValueChange={setTo} today={today()} {...(from ? { minDate: from } : {})} error={rangeError} />
                 </div>
                 {filtered && (
@@ -480,7 +480,7 @@ export function LeavePage() {
             loading={balances.isLoading}
             toolbar={
               <div className="flex w-full flex-wrap items-end gap-3">
-                <div className="w-56">
+                <div className="w-full sm:w-56">
                   <Input aria-label="Search" placeholder="Staff name or number" icon="search" value={query} onChange={(e) => setQuery(e.target.value)} />
                 </div>
                 <DesignationSelect value={des} onChange={setDes} />

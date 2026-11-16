@@ -278,27 +278,27 @@ export function StaffDirectoryPage() {
           rowClassName={() => "mtb-slide-in"}
           toolbar={
             <div className="flex w-full flex-wrap items-end gap-3">
-              <div className="w-64">
+              <div className="w-full sm:w-64">
                 <Input aria-label="Search staff" placeholder="Name, employee no., CNIC or mobile" icon="search" value={query} onChange={(e) => setQuery(e.target.value)} />
               </div>
               {ctx.campus === "ALL" && (
-                <div className="w-44">
+                <div className="w-full sm:w-44">
                   <Select aria-label="Campus" value={campus} onChange={(e) => setCampus(e.target.value as CampusCode | "")} options={[{ value: "", label: "Every campus" }, ...(["KC", "SM", "UC", "MC", "HC"] as const).map((c) => ({ value: c, label: campusLabel(c) }))]} />
                 </div>
               )}
-              <div className="w-44">
+              <div className="w-full sm:w-44">
                 <Select aria-label="Department" value={department} onChange={(e) => setDepartment(e.target.value)} options={[{ value: "", label: "Every department" }, ...departments.map(([v, l]) => ({ value: v, label: l })), ...(noDepartment ? [{ value: NO_DEPT, label: "No department" }] : [])]} />
               </div>
-              <div className="w-48">
+              <div className="w-full sm:w-48">
                 <Select aria-label="Designation" value={designation} onChange={(e) => setDesignation(e.target.value)} options={[{ value: "", label: "Every designation" }, ...designations.map(([v, l]) => ({ value: v, label: l }))]} />
               </div>
-              <div className="w-40">
+              <div className="w-full sm:w-40">
                 <Select aria-label="Level taught" value={level} onChange={(e) => setLevel(e.target.value)} options={[{ value: "", label: "Every level" }, ...(settings.data?.teachingLevels ?? []).map((l) => ({ value: l, label: l }))]} />
               </div>
-              <div className="w-40">
+              <div className="w-full sm:w-40">
                 <Select aria-label="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} options={[{ value: "", label: "Every subject" }, ...(settings.data?.subjects ?? []).map((x) => ({ value: x.name, label: x.name }))]} />
               </div>
-              <div className="w-36">
+              <div className="w-full sm:w-36">
                 <Select
                   aria-label="Gender"
                   value={gender}
@@ -310,7 +310,7 @@ export function StaffDirectoryPage() {
                   ]}
                 />
               </div>
-              <div className="w-44">
+              <div className="w-full sm:w-44">
                 <Select
                   aria-label="Status"
                   value={status}
