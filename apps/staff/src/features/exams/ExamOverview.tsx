@@ -247,7 +247,7 @@ function PaperPanel({ exam, paper, editable, onClose }: { exam: ExamDetail; pape
     onSuccess: (data, action) => {
       queryClient.setQueryData(examsQueries.detail(exam.id).queryKey, data);
       void queryClient.invalidateQueries({ queryKey: ["exams"], refetchType: "active" });
-      toast(action === "CHECK" ? { title: "Marked as checked", message: `${live.subjectName} · ${live.classSection}` } : { tone: "info", title: "Sent back to the teacher", message: `${live.teacher ?? "The teacher"} sees your note in the teacher app.` });
+      toast(action === "CHECK" ? { title: "Marked as checked", message: `${live.subjectName} · ${live.classSection}` } : { tone: "info", title: "Sent back to the teacher", message: `${live.teacher ?? "The teacher"} sees your note under Teaching › Marks.` });
       onClose();
     },
   });

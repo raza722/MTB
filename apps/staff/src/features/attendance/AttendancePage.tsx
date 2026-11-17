@@ -70,7 +70,7 @@ export function AttendancePage({ date, onDate }: AttendanceTodayProps) {
     meta: (
       <span className="text-small text-ink-muted">
         {formatLongDate(day)}
-        {isToday ? " · today" : " · an earlier day"} · teachers mark registers in the teacher app
+        {isToday ? " · today" : " · an earlier day"} · teachers mark registers under Teaching
       </span>
     ),
     actions: readOnly ? undefined : (
@@ -159,7 +159,7 @@ export function AttendancePage({ date, onDate }: AttendanceTodayProps) {
           <EmptyState
             icon="calendar"
             title={`No attendance on ${formatLongDate(day)} — ${data.closed.name}`}
-            description={data.closed.kind === "WEEKLY_OFF" ? `${data.closed.name} is the weekly day off. Registers are closed.` : "The school calendar closes registers on this day. Teachers see the same message in the teacher app."}
+            description={data.closed.kind === "WEEKLY_OFF" ? `${data.closed.name} is the weekly day off. Registers are closed.` : "The school calendar closes registers on this day. Teachers see the same message under Teaching."}
             action={
               <Link to="/attendance/calendar" className={buttonClassName({ size: "sm" })}>
                 Open the school calendar

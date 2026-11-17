@@ -38,6 +38,15 @@ export function campusesFor(user: SessionUser | undefined): CampusScope[] {
   return [...new Set(user.roles.map((g) => g.campus))];
 }
 
+/**
+ * The Teaching pages (a teacher's own registers, marks, timetable and leave): the teacher.app right at this campus,
+ * or, while viewing all campuses, at any campus (the pages then ask for one campus).
+ */
+export function canTeach(user: SessionUser | undefined, campus: CampusScope): boolean {
+  if (campus !== "ALL") return can(user, "teacher.app", campus);
+  return Boolean(user?.roles.some((g) => g.permissions.includes("teacher.app") || Object.values(g.campusPermissions ?? {}).some((p) => p?.includes("teacher.app"))));
+}
+
 export function useCan(permission: Permission): boolean {
   const user = useSessionUser();
   const { campus } = useCtx();

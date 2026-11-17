@@ -1,15 +1,15 @@
-import { authApi, can, CURRENT_SESSION, dashboardQueries, metaQueries, newIdempotencyKey, smsStatusApi, smsStatusQueries, type CampusScope, type Permission, type SessionInfo } from "@mtb/api";
+import { authApi, can, CURRENT_SESSION, dashboardQueries, metaQueries, newIdempotencyKey, smsStatusApi, smsStatusQueries, teacherQueries, type CampusScope, type Permission, type SessionInfo } from "@mtb/api";
 import { formatDateTime, formatSession } from "@mtb/domain";
 import { Avatar, Banner, Button, cx, Icon, IconButton, Menu, MenuItem, MenuLabel, MenuSeparator, NavDrawer, PHONE_QUERY, Tooltip, useMediaQuery, useToast, WIDE_QUERY, type IconName, Crest } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
-import { lazy, Suspense, useRef, useState, type ReactNode } from "react";
+import { Fragment, lazy, Suspense, useRef, useState, type ReactNode } from "react";
 import { ReportNotificationItems, useReportNotificationCount } from "../../features/reports/bell";
 import { useAppearance } from "../appearance";
-import { campusesFor, useCan, useCanGroupWide, useCtx, useReadOnly, useRoleLabel, useSessionStatus, useSessionUser, useSetCtx, type SessionStatus } from "../session";
+import { campusesFor, canTeach, useCan, useCanGroupWide, useCtx, useReadOnly, useRoleLabel, useSessionStatus, useSessionUser, useSetCtx, type SessionStatus } from "../session";
 import { campusLabel } from "./campus";
 import { GlobalSearch, SearchTrigger } from "./GlobalSearch";
-import { hasNoStaffAccess, NotForStaffApp } from "./NotForStaffApp";
+import { hasNoAccess, NoAccess } from "./NoAccess";
 
 // Presenter's panel: only loaded in mock mode, so it never ships with the real app.
 const DemoControls = lazy(() => import("./DemoControls"));
@@ -17,6 +17,12 @@ const DemoControls = lazy(() => import("./DemoControls"));
 interface NavItem {
   to:
     | "/dashboard"
+    | "/teaching"
+    | "/teaching/registers"
+    | "/teaching/marks"
+    | "/teaching/timetable"
+    | "/teaching/classes"
+    | "/teaching/leave"
     | "/students"
     | "/admissions"
     | "/attendance"
@@ -38,14 +44,25 @@ interface NavItem {
   icon: IconName;
   /** Shown when the user has this permission (or any one of these). */
   permission?: Permission | Permission[];
+  /** Active only on its own path, not on the pages under it (Teaching › Today is /teaching). */
+  exact?: boolean;
+  /** The Teaching items form their own group in the menu. */
+  group?: "teaching";
 }
 
 /** Active for the item's own path and every sub-page under it (/students/KC-14823, /fees/reports/arrears …). */
-const isActive = (path: string, match: string) => path === match || path.startsWith(`${match}/`);
+const isActive = (path: string, item: NavItem) => path === item.match || path === `${item.match}/` || (!item.exact && path.startsWith(`${item.match}/`));
 
 /** Sidebar order from the brief. Items a role can't use are hidden. */
 const NAV: NavItem[] = [
   { to: "/dashboard", match: "/dashboard", label: "Dashboard", icon: "dashboard", permission: "dashboard.view" },
+  // A teacher's own work (the former teacher app's screens). Teachers who also hold office rights see both.
+  { to: "/teaching", match: "/teaching", label: "Today", icon: "home", permission: "teacher.app", exact: true, group: "teaching" },
+  { to: "/teaching/registers", match: "/teaching/registers", label: "Registers", icon: "listChecks", permission: "teacher.app", group: "teaching" },
+  { to: "/teaching/marks", match: "/teaching/marks", label: "Marks", icon: "exams", permission: "teacher.app", group: "teaching" },
+  { to: "/teaching/timetable", match: "/teaching/timetable", label: "Timetable", icon: "clock", permission: "teacher.app", group: "teaching" },
+  { to: "/teaching/classes", match: "/teaching/classes", label: "My classes", icon: "students", permission: "teacher.app", group: "teaching" },
+  { to: "/teaching/leave", match: "/teaching/leave", label: "Leave", icon: "user", permission: "teacher.app", group: "teaching" },
   { to: "/students", match: "/students", label: "Students", icon: "students", permission: "students.view" },
   { to: "/admissions", match: "/admissions", label: "Admissions", icon: "admissions", permission: "admissions.view" },
   { to: "/attendance", match: "/attendance", label: "Attendance", icon: "attendance", permission: "attendance.view" },
@@ -106,11 +123,38 @@ function NavLink({ item, mode, active, onNavigate }: { item: NavItem; mode: "ful
   );
 }
 
-/** The menu entries this user's role can open. */
+/** The menu entries this user's role can open. Teaching shows at any campus the person teaches at (and on "All campuses"). */
 function useNavItems(): NavItem[] {
   const user = useSessionUser();
   const { campus } = useCtx();
-  return NAV.filter((n) => !n.permission || (Array.isArray(n.permission) ? n.permission : [n.permission]).some((p) => can(user, p, campus)));
+  return NAV.filter((n) => !n.permission || (Array.isArray(n.permission) ? n.permission : [n.permission]).some((p) => (p === "teacher.app" ? canTeach(user, campus) : can(user, p, campus))));
+}
+
+/**
+ * Group headings, only when the menu mixes the Teaching items with office pages: "Teaching" before the first teaching
+ * item and "Office" before the first office page after them. Each heading is 24px plus the 4px gap.
+ */
+const HEADING_STEP = 28;
+function navHeadings(items: NavItem[]): Map<number, string> {
+  const out = new Map<number, string>();
+  const teaching = items.some((n) => n.group === "teaching");
+  const office = items.some((n) => n.group !== "teaching" && n.to !== "/settings" && n.to !== "/dashboard");
+  if (!teaching || !office) return out;
+  const first = items.findIndex((n) => n.group === "teaching");
+  out.set(first, "Teaching");
+  const after = items.findIndex((n, i) => i > first && n.group !== "teaching");
+  if (after >= 0) out.set(after, "Office");
+  return out;
+}
+
+function NavHeading({ label, rail }: { label: string; rail: boolean }) {
+  return rail ? (
+    <div className="grid h-6 place-items-center" role="presentation">
+      <span className="h-px w-8 bg-border" />
+    </div>
+  ) : (
+    <div className="flex h-6 items-end px-3 text-caption font-semibold tracking-wide text-ink-subtle uppercase">{label}</div>
+  );
 }
 
 /**
@@ -122,8 +166,10 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
   const items = useNavItems();
   const wide = useMediaQuery(WIDE_QUERY);
   const rail = collapsed || !wide;
-  // The active highlight is one element that slides to the current item (40px rows, 4px apart).
-  const activeIndex = items.findIndex((n) => isActive(path, n.match));
+  // The active highlight is one element that slides to the current item (40px rows, 4px apart, plus any headings above it).
+  const activeIndex = items.findIndex((n) => isActive(path, n));
+  const headings = navHeadings(items);
+  const headingsAbove = [...headings.keys()].filter((i) => i <= activeIndex).length;
   return (
     <aside className={cx("sticky top-0 hidden h-screen shrink-0 flex-col border-r border-border bg-surface-raised md:flex", rail ? "w-16" : "w-60")} aria-label="Main">
       <div className={cx("flex h-12 items-center border-b border-border", rail ? "justify-center" : "justify-between px-4")}>
@@ -140,9 +186,12 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
         )}
       </div>
       <nav className="relative grid flex-1 content-start gap-1 overflow-y-auto p-2">
-        {activeIndex >= 0 && <span className="mtb-nav-indicator" style={{ transform: `translateY(${activeIndex * 44}px)` }} aria-hidden="true" />}
-        {items.map((item) => (
-          <NavLink key={item.to} item={item} mode={rail ? "rail" : "full"} active={isActive(path, item.match)} />
+        {activeIndex >= 0 && <span className="mtb-nav-indicator" style={{ transform: `translateY(${activeIndex * 44 + headingsAbove * HEADING_STEP}px)` }} aria-hidden="true" />}
+        {items.map((item, i) => (
+          <Fragment key={item.to}>
+            {headings.has(i) && <NavHeading label={headings.get(i)!} rail={rail} />}
+            <NavLink item={item} mode={rail ? "rail" : "full"} active={isActive(path, item)} />
+          </Fragment>
         ))}
       </nav>
     </aside>
@@ -153,6 +202,7 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
 function MobileNav({ open, onClose }: { open: boolean; onClose: () => void }) {
   const path = useRouterState({ select: (s) => s.location.pathname });
   const items = useNavItems();
+  const headings = navHeadings(items);
   const user = useSessionUser();
   const role = useRoleLabel();
   return (
@@ -183,8 +233,11 @@ function MobileNav({ open, onClose }: { open: boolean; onClose: () => void }) {
         <SessionSwitcher />
       </div>
       <nav className="grid content-start gap-1 p-2" aria-label="Main">
-        {items.map((item) => (
-          <NavLink key={item.to} item={item} mode="drawer" active={isActive(path, item.match)} onNavigate={onClose} />
+        {items.map((item, i) => (
+          <Fragment key={item.to}>
+            {headings.has(i) && <NavHeading label={headings.get(i)!} rail={false} />}
+            <NavLink item={item} mode="drawer" active={isActive(path, item)} onNavigate={onClose} />
+          </Fragment>
         ))}
       </nav>
     </NavDrawer>
@@ -269,13 +322,20 @@ function SessionSwitcher() {
 
 function Notifications() {
   const ctx = useCtx();
+  const navigate = useNavigate();
   const canApprove = useCan("approvals.decide");
   const approvals = useQuery({ ...dashboardQueries.approvals(ctx), enabled: canApprove });
-  const summary = useQuery(dashboardQueries.summary(ctx));
+  // The dashboard figures (failed SMS today) only for those who can open the dashboard; anyone else gets a 403.
+  const canDashboard = useCan("dashboard.view");
+  const summary = useQuery({ ...dashboardQueries.summary(ctx), enabled: canDashboard });
   // Report notifications (ready, failed, scheduled report sent) are the user's own, from GET /notifications.
   const canReports = useCan("reports.view");
   const reportUnread = useReportNotificationCount(canReports);
-  const count = (approvals.data?.length ?? 0) + (summary.data?.sms?.failed ? 1 : 0) + reportUnread;
+  // A teacher's own notifications (register reminders, marks returned, leave decisions), at the campus on screen.
+  const canTeachHere = useCan("teacher.app");
+  const teaching = useQuery({ ...teacherQueries.notifications(ctx), enabled: canTeachHere });
+  const teachingUnread = teaching.data?.filter((n) => !n.read).length ?? 0;
+  const count = (approvals.data?.length ?? 0) + (canDashboard && summary.data?.sms?.failed ? 1 : 0) + reportUnread + teachingUnread;
   return (
     <Menu
       label="Notifications"
@@ -297,7 +357,12 @@ function Notifications() {
           {approvals.data.length} approvals waiting for you
         </MenuItem>
       )}
-      {summary.data?.sms && summary.data.sms.failed > 0 && <MenuItem icon="alertCircle">{summary.data.sms.failed} SMS failed today</MenuItem>}
+      {canDashboard && summary.data?.sms && summary.data.sms.failed > 0 && <MenuItem icon="alertCircle">{summary.data.sms.failed} SMS failed today</MenuItem>}
+      {canTeachHere && (
+        <MenuItem icon="bell" onSelect={() => void navigate({ to: "/teaching/notifications" })}>
+          {teachingUnread ? `${teachingUnread} unread teaching ${teachingUnread === 1 ? "notification" : "notifications"}` : "Teaching notifications"}
+        </MenuItem>
+      )}
       {count === 0 && <MenuItem icon="checkCircle">You're all caught up</MenuItem>}
       <ReportNotificationItems enabled={canReports} />
     </Menu>
@@ -350,9 +415,13 @@ function UserMenu() {
  * Sending is switched off in this system anyway (backend module 10, D1): resuming only lifts the paused checks.
  */
 function SmsPausedBanner() {
-  const status = useQuery(smsStatusQueries.status());
   // the kill switch is group-wide: resume needs an all-campus grant (the backend checks it at ALL)
   const canResume = useCanGroupWide("sms.pause");
+  // only for people who write or read messages (a teacher has nothing to do with SMS)
+  const canSmsView = useCan("sms.view");
+  const canSmsSend = useCan("sms.send");
+  const smsUser = canSmsView || canSmsSend || canResume;
+  const status = useQuery({ ...smsStatusQueries.status(), enabled: smsUser });
   const queryClient = useQueryClient();
   const toast = useToast();
   // kept until the call succeeds, so a retry after a lost reply can't record the resume twice
@@ -366,7 +435,7 @@ function SmsPausedBanner() {
     },
   });
   const s = status.data;
-  if (!s?.paused) return null;
+  if (!smsUser || !s?.paused) return null;
   return (
     <Banner
       tone="danger"
@@ -413,9 +482,8 @@ function ReadOnlyBanner() {
 
 export function AppShell({ children }: { children?: ReactNode }) {
   const user = useSessionUser();
-  // A teacher-only account (the Teacher role is the teacher app only, as in the old software) gets a pointer to the
-  // teacher app instead of an empty staff app.
-  if (hasNoStaffAccess(user)) return <NotForStaffApp user={user!} />;
+  // An account with no rights at all gets a plain "no access" page instead of an empty app.
+  if (hasNoAccess(user)) return <NoAccess user={user!} />;
   return <StaffShell>{children}</StaffShell>;
 }
 
@@ -424,6 +492,8 @@ function StaffShell({ children }: { children?: ReactNode }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
   const phone = useMediaQuery(PHONE_QUERY);
+  // Search finds students, families, applicants and receipts: only for those who can see students (a teacher can't).
+  const canSearch = useCan("students.view");
   const toggle = () => {
     setCollapsed((c) => {
       try {
@@ -449,11 +519,15 @@ function StaffShell({ children }: { children?: ReactNode }) {
           <div className="hidden sm:block">
             <SessionSwitcher />
           </div>
-          <div className="mx-auto hidden w-full min-w-0 max-w-md md:block">
-            <SearchTrigger onOpen={() => setSearchOpen(true)} />
-          </div>
+          {canSearch ? (
+            <div className="mx-auto hidden w-full min-w-0 max-w-md md:block">
+              <SearchTrigger onOpen={() => setSearchOpen(true)} />
+            </div>
+          ) : (
+            <div className="mx-auto hidden md:block" aria-hidden="true" />
+          )}
           <div className="ml-auto flex shrink-0 items-center gap-1 md:ml-0 md:gap-3">
-            <IconButton icon="search" label="Search" className="md:hidden" onClick={() => setSearchOpen(true)} />
+            {canSearch && <IconButton icon="search" label="Search" className="md:hidden" onClick={() => setSearchOpen(true)} />}
             <Notifications />
             <UserMenu />
           </div>
@@ -466,7 +540,7 @@ function StaffShell({ children }: { children?: ReactNode }) {
       </div>
       {/* Only on phones: turning a tablet or widening the window shows the sidebar instead. */}
       <MobileNav open={navOpen && phone} onClose={() => setNavOpen(false)} />
-      <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
+      {canSearch && <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />}
       {import.meta.env.VITE_USE_MOCKS !== "false" && (
         <Suspense fallback={null}>
           <DemoControls />

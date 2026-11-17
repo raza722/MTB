@@ -218,7 +218,7 @@ function SectionPicker({ schedule, all, onSaved }: { schedule: BellSchedule; all
     mutationFn: () => timetableApi.assignSections(schedule.id, { sections: [...picked], rowVer: schedule.rowVer }),
     onSuccess: (list) => {
       const mine = list.find((s) => s.id === schedule.id);
-      toast({ title: `${schedule.name}: ${mine?.sections.length ?? picked.size} classes`, message: schedule.active ? "Their timetables, slips and the teacher app show these times now." : "They follow these times when the season is switched." });
+      toast({ title: `${schedule.name}: ${mine?.sections.length ?? picked.size} classes`, message: schedule.active ? "Their timetables, slips and the teachers' Teaching pages show these times now." : "They follow these times when the season is switched." });
       onSaved();
     },
   });
@@ -372,7 +372,7 @@ export function PeriodsPage() {
       const on = all.find((s) => s.active)!;
       setActivate(null);
       refresh();
-      toast({ title: `${SEASON_LABEL[on.season]} in use`, message: `From today, timetables, the teacher app and printed slips show ${SEASON_LABEL[on.season].toLowerCase()}.` });
+      toast({ title: `${SEASON_LABEL[on.season]} in use`, message: `From today, timetables, the teachers' Teaching pages and printed slips show ${SEASON_LABEL[on.season].toLowerCase()}.` });
     },
   });
   const del = useMutation({

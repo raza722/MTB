@@ -27,7 +27,7 @@ function CoverPicker({ board, idx, day, date, need, cover, onClose }: { board: T
     mutationFn: (substituteId: string) => timetableApi.assignCover({ campus: ctx.campus as CampusCode, session: ctx.session, date, slotId: need.slot.id, substituteId, ...(note.trim() ? { note: note.trim() } : {}) }, key),
     onSuccess: (c) => {
       void qc.invalidateQueries({ queryKey: timetableQueries.cover(ctx, date).queryKey });
-      toast({ title: `${c.substituteName} covers ${c.classSection}`, message: `Period ${c.period} on ${formatDate(date)}. It shows in their teacher app now.` });
+      toast({ title: `${c.substituteName} covers ${c.classSection}`, message: `Period ${c.period} on ${formatDate(date)}. It shows on their Teaching › Timetable now.` });
       onClose();
     },
   });

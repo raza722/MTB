@@ -411,7 +411,7 @@ export function TeacherTimetablePage({ search, setSearch }: { search: TeacherTim
                   id="tt-teacher"
                   rise={1}
                   title={`${teacher.name}'s week`}
-                  description={`${teacher.classTeacherOf ? `Class teacher of ${teacher.classTeacherOf}. ` : ""}Teaches ${teacher.subjectIds.map((s) => idx.subject(s).name).join(", ")}. The same timetable shows in the teacher app.${board.schedules.length > 1 ? " Lessons in classes on other timings show their own start time." : ""}`}
+                  description={`${teacher.classTeacherOf ? `Class teacher of ${teacher.classTeacherOf}. ` : ""}Teaches ${teacher.subjectIds.map((s) => idx.subject(s).name).join(", ")}. The same timetable shows on their Teaching › Timetable.${board.schedules.length > 1 ? " Lessons in classes on other timings show their own start time." : ""}`}
                 >
                   {mine.length === 0 ? (
                     <EmptyState icon="calendar" title="No lessons yet" description="Add this teacher to class timetables, or allot subjects in Setup › Teachers." />

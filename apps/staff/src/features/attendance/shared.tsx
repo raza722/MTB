@@ -155,7 +155,7 @@ export function CodeBadge({ code, compact }: { code: AttendanceCode; compact?: b
   );
 }
 
-/** Office staff, the principal and admins can mark a register for a teacher and request changes (teachers use the teacher app). */
+/** Office staff, the principal and admins can mark a register for a teacher and request changes (teachers mark their own under Teaching). */
 export function useCanMark(): boolean {
   return useCan("attendance.mark");
 }

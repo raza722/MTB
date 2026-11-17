@@ -24,6 +24,7 @@ import { Route as AppReportsRouteImport } from './routes/_app/reports'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppSetupRouteImport } from './routes/_app/setup'
 import { Route as AppSmsRouteImport } from './routes/_app/sms'
+import { Route as AppTeachingRouteImport } from './routes/_app/teaching'
 import { Route as AppTimetableRouteImport } from './routes/_app/timetable'
 import { Route as AppTransportRouteImport } from './routes/_app/transport'
 import { Route as AppWarehouseRouteImport } from './routes/_app/warehouse'
@@ -119,6 +120,10 @@ import { Route as AppStudentsDocumentsRouteImport } from './routes/_app/students
 import { Route as AppStudentsLeavingRouteImport } from './routes/_app/students/leaving'
 import { Route as AppStudentsPromotionRouteImport } from './routes/_app/students/promotion'
 import { Route as AppStudentsSectionsRouteImport } from './routes/_app/students/sections'
+import { Route as AppTeachingIndexRouteImport } from './routes/_app/teaching/index'
+import { Route as AppTeachingLeaveRouteImport } from './routes/_app/teaching/leave'
+import { Route as AppTeachingNotificationsRouteImport } from './routes/_app/teaching/notifications'
+import { Route as AppTeachingTimetableRouteImport } from './routes/_app/teaching/timetable'
 import { Route as AppTimetableIndexRouteImport } from './routes/_app/timetable/index'
 import { Route as AppTimetablePeriodsRouteImport } from './routes/_app/timetable/periods'
 import { Route as AppTimetableSubstitutionsRouteImport } from './routes/_app/timetable/substitutions'
@@ -161,8 +166,14 @@ import { Route as AppLibraryCountsIndexRouteImport } from './routes/_app/library
 import { Route as AppLibraryCountsCountIdRouteImport } from './routes/_app/library/counts/$countId'
 import { Route as AppStudentsFamiliesIndexRouteImport } from './routes/_app/students/families/index'
 import { Route as AppStudentsFamiliesFamilyIdRouteImport } from './routes/_app/students/families/$familyId'
+import { Route as AppTeachingClassesIndexRouteImport } from './routes/_app/teaching/classes/index'
+import { Route as AppTeachingClassesClassSectionRouteImport } from './routes/_app/teaching/classes/$classSection'
+import { Route as AppTeachingMarksIndexRouteImport } from './routes/_app/teaching/marks/index'
+import { Route as AppTeachingRegistersIndexRouteImport } from './routes/_app/teaching/registers/index'
+import { Route as AppTeachingRegistersClassSectionRouteImport } from './routes/_app/teaching/registers/$classSection'
 import { Route as AppWarehouseCountsIndexRouteImport } from './routes/_app/warehouse/counts/index'
 import { Route as AppWarehouseCountsCountIdRouteImport } from './routes/_app/warehouse/counts/$countId'
+import { Route as AppTeachingMarksExamIdClassSectionSubjectIdRouteImport } from './routes/_app/teaching/marks/$examId.$classSection.$subjectId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -236,6 +247,11 @@ const AppSetupRoute = AppSetupRouteImport.update({
 const AppSmsRoute = AppSmsRouteImport.update({
   id: '/sms',
   path: '/sms',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTeachingRoute = AppTeachingRouteImport.update({
+  id: '/teaching',
+  path: '/teaching',
   getParentRoute: () => AppRoute,
 } as any)
 const AppTimetableRoute = AppTimetableRouteImport.update({
@@ -715,6 +731,27 @@ const AppStudentsSectionsRoute = AppStudentsSectionsRouteImport.update({
   path: '/students/sections',
   getParentRoute: () => AppRoute,
 } as any)
+const AppTeachingIndexRoute = AppTeachingIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppTeachingRoute,
+} as any)
+const AppTeachingLeaveRoute = AppTeachingLeaveRouteImport.update({
+  id: '/leave',
+  path: '/leave',
+  getParentRoute: () => AppTeachingRoute,
+} as any)
+const AppTeachingNotificationsRoute =
+  AppTeachingNotificationsRouteImport.update({
+    id: '/notifications',
+    path: '/notifications',
+    getParentRoute: () => AppTeachingRoute,
+  } as any)
+const AppTeachingTimetableRoute = AppTeachingTimetableRouteImport.update({
+  id: '/timetable',
+  path: '/timetable',
+  getParentRoute: () => AppTeachingRoute,
+} as any)
 const AppTimetableIndexRoute = AppTimetableIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -936,6 +973,34 @@ const AppStudentsFamiliesFamilyIdRoute =
     path: '/students/families/$familyId',
     getParentRoute: () => AppRoute,
   } as any)
+const AppTeachingClassesIndexRoute = AppTeachingClassesIndexRouteImport.update({
+  id: '/classes/',
+  path: '/classes/',
+  getParentRoute: () => AppTeachingRoute,
+} as any)
+const AppTeachingClassesClassSectionRoute =
+  AppTeachingClassesClassSectionRouteImport.update({
+    id: '/classes/$classSection',
+    path: '/classes/$classSection',
+    getParentRoute: () => AppTeachingRoute,
+  } as any)
+const AppTeachingMarksIndexRoute = AppTeachingMarksIndexRouteImport.update({
+  id: '/marks/',
+  path: '/marks/',
+  getParentRoute: () => AppTeachingRoute,
+} as any)
+const AppTeachingRegistersIndexRoute =
+  AppTeachingRegistersIndexRouteImport.update({
+    id: '/registers/',
+    path: '/registers/',
+    getParentRoute: () => AppTeachingRoute,
+  } as any)
+const AppTeachingRegistersClassSectionRoute =
+  AppTeachingRegistersClassSectionRouteImport.update({
+    id: '/registers/$classSection',
+    path: '/registers/$classSection',
+    getParentRoute: () => AppTeachingRoute,
+  } as any)
 const AppWarehouseCountsIndexRoute = AppWarehouseCountsIndexRouteImport.update({
   id: '/counts/',
   path: '/counts/',
@@ -946,6 +1011,12 @@ const AppWarehouseCountsCountIdRoute =
     id: '/counts/$countId',
     path: '/counts/$countId',
     getParentRoute: () => AppWarehouseRoute,
+  } as any)
+const AppTeachingMarksExamIdClassSectionSubjectIdRoute =
+  AppTeachingMarksExamIdClassSectionSubjectIdRouteImport.update({
+    id: '/marks/$examId/$classSection/$subjectId',
+    path: '/marks/$examId/$classSection/$subjectId',
+    getParentRoute: () => AppTeachingRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -963,6 +1034,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AppSettingsRoute
   '/setup': typeof AppSetupRouteWithChildren
   '/sms': typeof AppSmsRouteWithChildren
+  '/teaching': typeof AppTeachingRouteWithChildren
   '/timetable': typeof AppTimetableRouteWithChildren
   '/transport': typeof AppTransportRouteWithChildren
   '/warehouse': typeof AppWarehouseRouteWithChildren
@@ -1046,6 +1118,9 @@ export interface FileRoutesByFullPath {
   '/students/leaving': typeof AppStudentsLeavingRoute
   '/students/promotion': typeof AppStudentsPromotionRoute
   '/students/sections': typeof AppStudentsSectionsRoute
+  '/teaching/leave': typeof AppTeachingLeaveRoute
+  '/teaching/notifications': typeof AppTeachingNotificationsRoute
+  '/teaching/timetable': typeof AppTeachingTimetableRoute
   '/timetable/periods': typeof AppTimetablePeriodsRoute
   '/timetable/substitutions': typeof AppTimetableSubstitutionsRoute
   '/timetable/teachers': typeof AppTimetableTeachersRoute
@@ -1072,6 +1147,7 @@ export interface FileRoutesByFullPath {
   '/setup/': typeof AppSetupIndexRoute
   '/sms/': typeof AppSmsIndexRoute
   '/students/': typeof AppStudentsIndexRoute
+  '/teaching/': typeof AppTeachingIndexRoute
   '/timetable/': typeof AppTimetableIndexRoute
   '/transport/': typeof AppTransportIndexRoute
   '/warehouse/': typeof AppWarehouseIndexRoute
@@ -1092,6 +1168,8 @@ export interface FileRoutesByFullPath {
   '/hr/staff/$staffId': typeof AppHrStaffStaffIdRoute
   '/library/counts/$countId': typeof AppLibraryCountsCountIdRoute
   '/students/families/$familyId': typeof AppStudentsFamiliesFamilyIdRoute
+  '/teaching/classes/$classSection': typeof AppTeachingClassesClassSectionRoute
+  '/teaching/registers/$classSection': typeof AppTeachingRegistersClassSectionRoute
   '/warehouse/counts/$countId': typeof AppWarehouseCountsCountIdRoute
   '/accounts/vouchers/': typeof AppAccountsVouchersIndexRoute
   '/activities/events/': typeof AppActivitiesEventsIndexRoute
@@ -1101,7 +1179,11 @@ export interface FileRoutesByFullPath {
   '/fees/vouchers/': typeof AppFeesVouchersIndexRoute
   '/library/counts/': typeof AppLibraryCountsIndexRoute
   '/students/families/': typeof AppStudentsFamiliesIndexRoute
+  '/teaching/classes/': typeof AppTeachingClassesIndexRoute
+  '/teaching/marks/': typeof AppTeachingMarksIndexRoute
+  '/teaching/registers/': typeof AppTeachingRegistersIndexRoute
   '/warehouse/counts/': typeof AppWarehouseCountsIndexRoute
+  '/teaching/marks/$examId/$classSection/$subjectId': typeof AppTeachingMarksExamIdClassSectionSubjectIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -1187,6 +1269,9 @@ export interface FileRoutesByTo {
   '/students/leaving': typeof AppStudentsLeavingRoute
   '/students/promotion': typeof AppStudentsPromotionRoute
   '/students/sections': typeof AppStudentsSectionsRoute
+  '/teaching/leave': typeof AppTeachingLeaveRoute
+  '/teaching/notifications': typeof AppTeachingNotificationsRoute
+  '/teaching/timetable': typeof AppTeachingTimetableRoute
   '/timetable/periods': typeof AppTimetablePeriodsRoute
   '/timetable/substitutions': typeof AppTimetableSubstitutionsRoute
   '/timetable/teachers': typeof AppTimetableTeachersRoute
@@ -1213,6 +1298,7 @@ export interface FileRoutesByTo {
   '/setup': typeof AppSetupIndexRoute
   '/sms': typeof AppSmsIndexRoute
   '/students': typeof AppStudentsIndexRoute
+  '/teaching': typeof AppTeachingIndexRoute
   '/timetable': typeof AppTimetableIndexRoute
   '/transport': typeof AppTransportIndexRoute
   '/warehouse': typeof AppWarehouseIndexRoute
@@ -1233,6 +1319,8 @@ export interface FileRoutesByTo {
   '/hr/staff/$staffId': typeof AppHrStaffStaffIdRoute
   '/library/counts/$countId': typeof AppLibraryCountsCountIdRoute
   '/students/families/$familyId': typeof AppStudentsFamiliesFamilyIdRoute
+  '/teaching/classes/$classSection': typeof AppTeachingClassesClassSectionRoute
+  '/teaching/registers/$classSection': typeof AppTeachingRegistersClassSectionRoute
   '/warehouse/counts/$countId': typeof AppWarehouseCountsCountIdRoute
   '/accounts/vouchers': typeof AppAccountsVouchersIndexRoute
   '/activities/events': typeof AppActivitiesEventsIndexRoute
@@ -1242,7 +1330,11 @@ export interface FileRoutesByTo {
   '/fees/vouchers': typeof AppFeesVouchersIndexRoute
   '/library/counts': typeof AppLibraryCountsIndexRoute
   '/students/families': typeof AppStudentsFamiliesIndexRoute
+  '/teaching/classes': typeof AppTeachingClassesIndexRoute
+  '/teaching/marks': typeof AppTeachingMarksIndexRoute
+  '/teaching/registers': typeof AppTeachingRegistersIndexRoute
   '/warehouse/counts': typeof AppWarehouseCountsIndexRoute
+  '/teaching/marks/$examId/$classSection/$subjectId': typeof AppTeachingMarksExamIdClassSectionSubjectIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -1261,6 +1353,7 @@ export interface FileRoutesById {
   '/_app/settings': typeof AppSettingsRoute
   '/_app/setup': typeof AppSetupRouteWithChildren
   '/_app/sms': typeof AppSmsRouteWithChildren
+  '/_app/teaching': typeof AppTeachingRouteWithChildren
   '/_app/timetable': typeof AppTimetableRouteWithChildren
   '/_app/transport': typeof AppTransportRouteWithChildren
   '/_app/warehouse': typeof AppWarehouseRouteWithChildren
@@ -1344,6 +1437,9 @@ export interface FileRoutesById {
   '/_app/students/leaving': typeof AppStudentsLeavingRoute
   '/_app/students/promotion': typeof AppStudentsPromotionRoute
   '/_app/students/sections': typeof AppStudentsSectionsRoute
+  '/_app/teaching/leave': typeof AppTeachingLeaveRoute
+  '/_app/teaching/notifications': typeof AppTeachingNotificationsRoute
+  '/_app/teaching/timetable': typeof AppTeachingTimetableRoute
   '/_app/timetable/periods': typeof AppTimetablePeriodsRoute
   '/_app/timetable/substitutions': typeof AppTimetableSubstitutionsRoute
   '/_app/timetable/teachers': typeof AppTimetableTeachersRoute
@@ -1370,6 +1466,7 @@ export interface FileRoutesById {
   '/_app/setup/': typeof AppSetupIndexRoute
   '/_app/sms/': typeof AppSmsIndexRoute
   '/_app/students/': typeof AppStudentsIndexRoute
+  '/_app/teaching/': typeof AppTeachingIndexRoute
   '/_app/timetable/': typeof AppTimetableIndexRoute
   '/_app/transport/': typeof AppTransportIndexRoute
   '/_app/warehouse/': typeof AppWarehouseIndexRoute
@@ -1390,6 +1487,8 @@ export interface FileRoutesById {
   '/_app/hr/staff/$staffId': typeof AppHrStaffStaffIdRoute
   '/_app/library/counts/$countId': typeof AppLibraryCountsCountIdRoute
   '/_app/students/families/$familyId': typeof AppStudentsFamiliesFamilyIdRoute
+  '/_app/teaching/classes/$classSection': typeof AppTeachingClassesClassSectionRoute
+  '/_app/teaching/registers/$classSection': typeof AppTeachingRegistersClassSectionRoute
   '/_app/warehouse/counts/$countId': typeof AppWarehouseCountsCountIdRoute
   '/_app/accounts/vouchers/': typeof AppAccountsVouchersIndexRoute
   '/_app/activities/events/': typeof AppActivitiesEventsIndexRoute
@@ -1399,7 +1498,11 @@ export interface FileRoutesById {
   '/_app/fees/vouchers/': typeof AppFeesVouchersIndexRoute
   '/_app/library/counts/': typeof AppLibraryCountsIndexRoute
   '/_app/students/families/': typeof AppStudentsFamiliesIndexRoute
+  '/_app/teaching/classes/': typeof AppTeachingClassesIndexRoute
+  '/_app/teaching/marks/': typeof AppTeachingMarksIndexRoute
+  '/_app/teaching/registers/': typeof AppTeachingRegistersIndexRoute
   '/_app/warehouse/counts/': typeof AppWarehouseCountsIndexRoute
+  '/_app/teaching/marks/$examId/$classSection/$subjectId': typeof AppTeachingMarksExamIdClassSectionSubjectIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -1418,6 +1521,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/setup'
     | '/sms'
+    | '/teaching'
     | '/timetable'
     | '/transport'
     | '/warehouse'
@@ -1501,6 +1605,9 @@ export interface FileRouteTypes {
     | '/students/leaving'
     | '/students/promotion'
     | '/students/sections'
+    | '/teaching/leave'
+    | '/teaching/notifications'
+    | '/teaching/timetable'
     | '/timetable/periods'
     | '/timetable/substitutions'
     | '/timetable/teachers'
@@ -1527,6 +1634,7 @@ export interface FileRouteTypes {
     | '/setup/'
     | '/sms/'
     | '/students/'
+    | '/teaching/'
     | '/timetable/'
     | '/transport/'
     | '/warehouse/'
@@ -1547,6 +1655,8 @@ export interface FileRouteTypes {
     | '/hr/staff/$staffId'
     | '/library/counts/$countId'
     | '/students/families/$familyId'
+    | '/teaching/classes/$classSection'
+    | '/teaching/registers/$classSection'
     | '/warehouse/counts/$countId'
     | '/accounts/vouchers/'
     | '/activities/events/'
@@ -1556,7 +1666,11 @@ export interface FileRouteTypes {
     | '/fees/vouchers/'
     | '/library/counts/'
     | '/students/families/'
+    | '/teaching/classes/'
+    | '/teaching/marks/'
+    | '/teaching/registers/'
     | '/warehouse/counts/'
+    | '/teaching/marks/$examId/$classSection/$subjectId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -1642,6 +1756,9 @@ export interface FileRouteTypes {
     | '/students/leaving'
     | '/students/promotion'
     | '/students/sections'
+    | '/teaching/leave'
+    | '/teaching/notifications'
+    | '/teaching/timetable'
     | '/timetable/periods'
     | '/timetable/substitutions'
     | '/timetable/teachers'
@@ -1668,6 +1785,7 @@ export interface FileRouteTypes {
     | '/setup'
     | '/sms'
     | '/students'
+    | '/teaching'
     | '/timetable'
     | '/transport'
     | '/warehouse'
@@ -1688,6 +1806,8 @@ export interface FileRouteTypes {
     | '/hr/staff/$staffId'
     | '/library/counts/$countId'
     | '/students/families/$familyId'
+    | '/teaching/classes/$classSection'
+    | '/teaching/registers/$classSection'
     | '/warehouse/counts/$countId'
     | '/accounts/vouchers'
     | '/activities/events'
@@ -1697,7 +1817,11 @@ export interface FileRouteTypes {
     | '/fees/vouchers'
     | '/library/counts'
     | '/students/families'
+    | '/teaching/classes'
+    | '/teaching/marks'
+    | '/teaching/registers'
     | '/warehouse/counts'
+    | '/teaching/marks/$examId/$classSection/$subjectId'
   id:
     | '__root__'
     | '/'
@@ -1715,6 +1839,7 @@ export interface FileRouteTypes {
     | '/_app/settings'
     | '/_app/setup'
     | '/_app/sms'
+    | '/_app/teaching'
     | '/_app/timetable'
     | '/_app/transport'
     | '/_app/warehouse'
@@ -1798,6 +1923,9 @@ export interface FileRouteTypes {
     | '/_app/students/leaving'
     | '/_app/students/promotion'
     | '/_app/students/sections'
+    | '/_app/teaching/leave'
+    | '/_app/teaching/notifications'
+    | '/_app/teaching/timetable'
     | '/_app/timetable/periods'
     | '/_app/timetable/substitutions'
     | '/_app/timetable/teachers'
@@ -1824,6 +1952,7 @@ export interface FileRouteTypes {
     | '/_app/setup/'
     | '/_app/sms/'
     | '/_app/students/'
+    | '/_app/teaching/'
     | '/_app/timetable/'
     | '/_app/transport/'
     | '/_app/warehouse/'
@@ -1844,6 +1973,8 @@ export interface FileRouteTypes {
     | '/_app/hr/staff/$staffId'
     | '/_app/library/counts/$countId'
     | '/_app/students/families/$familyId'
+    | '/_app/teaching/classes/$classSection'
+    | '/_app/teaching/registers/$classSection'
     | '/_app/warehouse/counts/$countId'
     | '/_app/accounts/vouchers/'
     | '/_app/activities/events/'
@@ -1853,7 +1984,11 @@ export interface FileRouteTypes {
     | '/_app/fees/vouchers/'
     | '/_app/library/counts/'
     | '/_app/students/families/'
+    | '/_app/teaching/classes/'
+    | '/_app/teaching/marks/'
+    | '/_app/teaching/registers/'
     | '/_app/warehouse/counts/'
+    | '/_app/teaching/marks/$examId/$classSection/$subjectId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1970,6 +2105,13 @@ declare module '@tanstack/react-router' {
       path: '/sms'
       fullPath: '/sms'
       preLoaderRoute: typeof AppSmsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/teaching': {
+      id: '/_app/teaching'
+      path: '/teaching'
+      fullPath: '/teaching'
+      preLoaderRoute: typeof AppTeachingRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/timetable': {
@@ -2637,6 +2779,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppStudentsSectionsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/teaching/': {
+      id: '/_app/teaching/'
+      path: '/'
+      fullPath: '/teaching/'
+      preLoaderRoute: typeof AppTeachingIndexRouteImport
+      parentRoute: typeof AppTeachingRoute
+    }
+    '/_app/teaching/leave': {
+      id: '/_app/teaching/leave'
+      path: '/leave'
+      fullPath: '/teaching/leave'
+      preLoaderRoute: typeof AppTeachingLeaveRouteImport
+      parentRoute: typeof AppTeachingRoute
+    }
+    '/_app/teaching/notifications': {
+      id: '/_app/teaching/notifications'
+      path: '/notifications'
+      fullPath: '/teaching/notifications'
+      preLoaderRoute: typeof AppTeachingNotificationsRouteImport
+      parentRoute: typeof AppTeachingRoute
+    }
+    '/_app/teaching/timetable': {
+      id: '/_app/teaching/timetable'
+      path: '/timetable'
+      fullPath: '/teaching/timetable'
+      preLoaderRoute: typeof AppTeachingTimetableRouteImport
+      parentRoute: typeof AppTeachingRoute
+    }
     '/_app/timetable/': {
       id: '/_app/timetable/'
       path: '/'
@@ -2931,6 +3101,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppStudentsFamiliesFamilyIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/teaching/classes/': {
+      id: '/_app/teaching/classes/'
+      path: '/classes'
+      fullPath: '/teaching/classes/'
+      preLoaderRoute: typeof AppTeachingClassesIndexRouteImport
+      parentRoute: typeof AppTeachingRoute
+    }
+    '/_app/teaching/classes/$classSection': {
+      id: '/_app/teaching/classes/$classSection'
+      path: '/classes/$classSection'
+      fullPath: '/teaching/classes/$classSection'
+      preLoaderRoute: typeof AppTeachingClassesClassSectionRouteImport
+      parentRoute: typeof AppTeachingRoute
+    }
+    '/_app/teaching/marks/': {
+      id: '/_app/teaching/marks/'
+      path: '/marks'
+      fullPath: '/teaching/marks/'
+      preLoaderRoute: typeof AppTeachingMarksIndexRouteImport
+      parentRoute: typeof AppTeachingRoute
+    }
+    '/_app/teaching/registers/': {
+      id: '/_app/teaching/registers/'
+      path: '/registers'
+      fullPath: '/teaching/registers/'
+      preLoaderRoute: typeof AppTeachingRegistersIndexRouteImport
+      parentRoute: typeof AppTeachingRoute
+    }
+    '/_app/teaching/registers/$classSection': {
+      id: '/_app/teaching/registers/$classSection'
+      path: '/registers/$classSection'
+      fullPath: '/teaching/registers/$classSection'
+      preLoaderRoute: typeof AppTeachingRegistersClassSectionRouteImport
+      parentRoute: typeof AppTeachingRoute
+    }
     '/_app/warehouse/counts/': {
       id: '/_app/warehouse/counts/'
       path: '/counts'
@@ -2944,6 +3149,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/warehouse/counts/$countId'
       preLoaderRoute: typeof AppWarehouseCountsCountIdRouteImport
       parentRoute: typeof AppWarehouseRoute
+    }
+    '/_app/teaching/marks/$examId/$classSection/$subjectId': {
+      id: '/_app/teaching/marks/$examId/$classSection/$subjectId'
+      path: '/marks/$examId/$classSection/$subjectId'
+      fullPath: '/teaching/marks/$examId/$classSection/$subjectId'
+      preLoaderRoute: typeof AppTeachingMarksExamIdClassSectionSubjectIdRouteImport
+      parentRoute: typeof AppTeachingRoute
     }
   }
 }
@@ -3237,6 +3449,37 @@ const AppSmsRouteChildren: AppSmsRouteChildren = {
 const AppSmsRouteWithChildren =
   AppSmsRoute._addFileChildren(AppSmsRouteChildren)
 
+interface AppTeachingRouteChildren {
+  AppTeachingLeaveRoute: typeof AppTeachingLeaveRoute
+  AppTeachingNotificationsRoute: typeof AppTeachingNotificationsRoute
+  AppTeachingTimetableRoute: typeof AppTeachingTimetableRoute
+  AppTeachingIndexRoute: typeof AppTeachingIndexRoute
+  AppTeachingClassesClassSectionRoute: typeof AppTeachingClassesClassSectionRoute
+  AppTeachingRegistersClassSectionRoute: typeof AppTeachingRegistersClassSectionRoute
+  AppTeachingClassesIndexRoute: typeof AppTeachingClassesIndexRoute
+  AppTeachingMarksIndexRoute: typeof AppTeachingMarksIndexRoute
+  AppTeachingRegistersIndexRoute: typeof AppTeachingRegistersIndexRoute
+  AppTeachingMarksExamIdClassSectionSubjectIdRoute: typeof AppTeachingMarksExamIdClassSectionSubjectIdRoute
+}
+
+const AppTeachingRouteChildren: AppTeachingRouteChildren = {
+  AppTeachingLeaveRoute: AppTeachingLeaveRoute,
+  AppTeachingNotificationsRoute: AppTeachingNotificationsRoute,
+  AppTeachingTimetableRoute: AppTeachingTimetableRoute,
+  AppTeachingIndexRoute: AppTeachingIndexRoute,
+  AppTeachingClassesClassSectionRoute: AppTeachingClassesClassSectionRoute,
+  AppTeachingRegistersClassSectionRoute: AppTeachingRegistersClassSectionRoute,
+  AppTeachingClassesIndexRoute: AppTeachingClassesIndexRoute,
+  AppTeachingMarksIndexRoute: AppTeachingMarksIndexRoute,
+  AppTeachingRegistersIndexRoute: AppTeachingRegistersIndexRoute,
+  AppTeachingMarksExamIdClassSectionSubjectIdRoute:
+    AppTeachingMarksExamIdClassSectionSubjectIdRoute,
+}
+
+const AppTeachingRouteWithChildren = AppTeachingRoute._addFileChildren(
+  AppTeachingRouteChildren,
+)
+
 interface AppTimetableRouteChildren {
   AppTimetablePeriodsRoute: typeof AppTimetablePeriodsRoute
   AppTimetableSubstitutionsRoute: typeof AppTimetableSubstitutionsRoute
@@ -3318,6 +3561,7 @@ interface AppRouteChildren {
   AppSettingsRoute: typeof AppSettingsRoute
   AppSetupRoute: typeof AppSetupRouteWithChildren
   AppSmsRoute: typeof AppSmsRouteWithChildren
+  AppTeachingRoute: typeof AppTeachingRouteWithChildren
   AppTimetableRoute: typeof AppTimetableRouteWithChildren
   AppTransportRoute: typeof AppTransportRouteWithChildren
   AppWarehouseRoute: typeof AppWarehouseRouteWithChildren
@@ -3359,6 +3603,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppSettingsRoute: AppSettingsRoute,
   AppSetupRoute: AppSetupRouteWithChildren,
   AppSmsRoute: AppSmsRouteWithChildren,
+  AppTeachingRoute: AppTeachingRouteWithChildren,
   AppTimetableRoute: AppTimetableRouteWithChildren,
   AppTransportRoute: AppTransportRouteWithChildren,
   AppWarehouseRoute: AppWarehouseRouteWithChildren,

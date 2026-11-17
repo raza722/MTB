@@ -82,7 +82,7 @@ function SectionStaffingEditor({ section, data, readOnly }: { section: SetupSect
             setClassTeacherId(e.target.value || null);
             setError(null);
           }}
-          {...(otherClassTeacher ? { error: `${otherClassTeacher.name} is already class teacher of ${otherClassTeacher.classTeacherOf}. Change ${otherClassTeacher.classTeacherOf} first, or choose someone else.` } : { help: "Marks this section's attendance in the teacher app and signs its result cards." })}
+          {...(otherClassTeacher ? { error: `${otherClassTeacher.name} is already class teacher of ${otherClassTeacher.classTeacherOf}. Change ${otherClassTeacher.classTeacherOf} first, or choose someone else.` } : { help: "Marks this section's attendance under Teaching › Registers and signs its result cards." })}
         >
           {teacherOptions(data.teachers, null, "")}
         </Select>

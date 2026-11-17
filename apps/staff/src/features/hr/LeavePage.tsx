@@ -87,7 +87,7 @@ function NewLeavePanel({ campus, types, onClose }: { campus: CampusCode; types: 
       open
       onClose={onClose}
       title="Record leave"
-      description={`${campusLabel(campus)} · for staff without the teacher app, or leave given on paper`}
+      description={`${campusLabel(campus)} · for leave given on paper; teachers ask under Teaching › Leave`}
       footer={
         <>
           <Button onClick={onClose}>Cancel</Button>
@@ -244,7 +244,7 @@ function LeavePanel({ r, onClose }: { r: HrLeaveRequest; onClose: () => void }) 
         <div className="flex flex-wrap items-center gap-2">
           <LeaveBadge status={r.status} />
           {!r.paid && <StatusBadge status="warning">Unpaid: deducted from salary</StatusBadge>}
-          {r.source === "TEACHER_APP" && <StatusBadge status="neutral" icon="smartphone">From the teacher app</StatusBadge>}
+          {r.source === "TEACHER_APP" && <StatusBadge status="neutral" icon="smartphone">Asked by the teacher</StatusBadge>}
         </div>
         <KeyValue
           items={[
@@ -263,7 +263,7 @@ function LeavePanel({ r, onClose }: { r: HrLeaveRequest; onClose: () => void }) 
             {r.clashes.join("; ")}
           </Banner>
         )}
-        {(mode === "reject" || mode === "cancel") && <Textarea label={mode === "reject" ? "Why is it rejected?" : "Why is it cancelled?"} required={mode === "reject"} rows={3} value={note} onChange={(e) => setNote(e.target.value)} help={mode === "reject" ? "The staff member sees this in the teacher app." : undefined} />}
+        {(mode === "reject" || mode === "cancel") && <Textarea label={mode === "reject" ? "Why is it rejected?" : "Why is it cancelled?"} required={mode === "reject"} rows={3} value={note} onChange={(e) => setNote(e.target.value)} help={mode === "reject" ? "The staff member sees this under Teaching › Leave." : undefined} />}
         {error && <Banner tone="danger">{errorText(error)}</Banner>}
         <Timeline label="Request history" items={r.history.map((h) => ({ id: h.id, date: h.at.slice(0, 10), title: h.text, description: `${h.by}${h.detail ? ` · ${h.detail}` : ""}`, tone: h.text === "Approved" ? ("success" as const) : h.text === "Rejected" ? ("danger" as const) : ("neutral" as const) }))} />
       </div>
@@ -350,7 +350,7 @@ export function LeavePage() {
     { key: "days", header: "Days", align: "right", render: (r) => <span className="mtb-num">{r.days}</span> },
     { key: "left", header: "Left after", align: "right", render: (r) => <span className={`mtb-num ${r.overBalance ? "text-danger-ink" : ""}`}>{r.leftAfter ?? "—"}</span> },
     { key: "status", header: "Status", render: (r) => <LeaveBadge status={r.status} /> },
-    { key: "from", header: "Asked through", render: (r) => <span className="text-small text-ink-muted">{r.source === "TEACHER_APP" ? "Teacher app" : "Office"}</span> },
+    { key: "from", header: "Asked through", render: (r) => <span className="text-small text-ink-muted">{r.source === "TEACHER_APP" ? "Teacher" : "Office"}</span> },
   ];
   const balColumns: Array<Column<HrLeaveBalanceRow>> = [
     { key: "name", header: "Staff", render: (b) => <span className="grid"><span className="font-medium">{b.name}</span><span className="text-small text-ink-muted">{b.employeeNo} · {b.designation}</span></span> },
@@ -469,7 +469,7 @@ export function LeavePage() {
                 )}
               </div>
             }
-            empty={<EmptyState icon="calendar" title={filtered ? "No requests match" : "No leave requests this session"} description={filtered ? "Clear the filters to see them all." : "Requests from the teacher app and the office appear here."} />}
+            empty={<EmptyState icon="calendar" title={filtered ? "No requests match" : "No leave requests this session"} description={filtered ? "Clear the filters to see them all." : "Requests made under Teaching and the office appear here."} />}
           />
         ) : (
           <DataTable

@@ -278,7 +278,7 @@ export function RegisterPage({ classSection, date, onDate }: RegisterPageProps) 
               <Banner tone="neutral" icon="lock" title={`Session ${formatSession(ctx.session)} has ended: this register is read-only.`}>
                 {reg.status === "NOT_MARKED"
                   ? "This register was never submitted."
-                  : `${reg.source === "Office" ? "Marked by the office" : reg.source ? "Submitted in the teacher app" : "Carried over from the old software"} (${reg.students.length} students). It can be read and printed; marks can no longer be changed.`}
+                  : `${reg.source === "Office" ? "Marked by the office" : reg.source ? "Submitted under Teaching" : "Carried over from the old software"} (${reg.students.length} students). It can be read and printed; marks can no longer be changed.`}
               </Banner>
             ) : marking ? (
               <Banner tone="info" title={reg.classTeacher ? `${reg.classTeacher} hasn't marked this register yet.` : "This register hasn't been marked yet."}>
@@ -287,7 +287,7 @@ export function RegisterPage({ classSection, date, onDate }: RegisterPageProps) 
             ) : reg.status === "NOT_MARKED" ? (
               <Banner tone="warning" title="Not marked yet.">
                 {day === today
-                  ? `${reg.classTeacher ? `${reg.classTeacher} marks it` : "The class teacher marks it"} in the teacher app. ${canMark ? "" : "Office staff can mark it for a teacher who is away."}`
+                  ? `${reg.classTeacher ? `${reg.classTeacher} marks it` : "The class teacher marks it"} under Teaching › Registers. ${canMark ? "" : "Office staff can mark it for a teacher who is away."}`
                   : "This register was never submitted."}
               </Banner>
             ) : (
@@ -304,7 +304,7 @@ export function RegisterPage({ classSection, date, onDate }: RegisterPageProps) 
                 }
               >
                 {reg.submittedAt
-                  ? `${reg.source === "Office" ? "Marked by the office" : reg.source ? "Submitted in the teacher app" : "Carried over from the old software"}${reg.submittedBy ? ` by ${reg.submittedBy}` : ""} on ${formatDate(reg.submittedAt)} at ${formatTime(reg.submittedAt)}. `
+                  ? `${reg.source === "Office" ? "Marked by the office" : reg.source ? "Submitted under Teaching" : "Carried over from the old software"}${reg.submittedBy ? ` by ${reg.submittedBy}` : ""} on ${formatDate(reg.submittedAt)} at ${formatTime(reg.submittedAt)}. `
                   : ""}
                 {canMark ? "To correct a mark, use “Request change” on the student." : "Changes are requested by the teacher or the office."}
               </Banner>

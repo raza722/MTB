@@ -134,7 +134,7 @@ export function TeacherTextsDialog({ date: initialDate, preselect, onClose }: Te
       size="lg"
       onClose={() => !send.isPending && onClose()}
       title="Text teachers their day"
-      description="Each teacher gets an SMS with their own periods for the day, including any class they cover. The same day shows in their teacher app."
+      description="Each teacher gets an SMS with their own periods for the day, including any class they cover. The same day shows on their Teaching › Timetable."
       footer={
         <>
           <Button variant="quiet" onClick={onClose} disabled={send.isPending}>
@@ -159,7 +159,7 @@ export function TeacherTextsDialog({ date: initialDate, preselect, onClose }: Te
         </div>
 
         <Banner tone="info" icon="message" title="SMS sending starts with the Messages module; messages are held.">
-          Texts you send now are queued and kept until then. Teachers' periods still show in their teacher app.
+          Texts you send now are queued and kept until then. Teachers' periods still show on their Teaching › Timetable.
         </Banner>
         {q.isError && <QueryError what="Teachers' periods" error={q.error} onRetry={() => void q.refetch()} />}
 
