@@ -47,7 +47,7 @@ const COLUMNS: Array<Column<StateEntry>> = [
         "—"
       ),
   },
-  { key: "live", header: <span className="mtb-sr-only">Live screen</span>, align: "right", width: 190, render: (s) => <LiveLinkButton live={s.live} label={s.live.app === "teacher" ? "Teacher app" : "Open"} /> },
+  { key: "live", header: <span className="mtb-sr-only">Live screen</span>, align: "right", width: 190, render: (s) => <LiveLinkButton live={s.live} label="Open" /> },
 ];
 
 /** Every state in one table: a checklist for reviewers, with a link to the specimen and to the live screen. */

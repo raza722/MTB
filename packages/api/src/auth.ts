@@ -46,6 +46,8 @@ export type Permission =
   | "transport.manage"
   | "reports.view"
   | "teacher.app"
+  | "teacher.marks"
+  | "teacher.leave"
   /** Campus-level setup at the user's own campus: sections, seats, rooms, class and subject teachers, school-day times. */
   | "setup.campus"
   /** Read-only fee card: the Fee ledger tab on a student's profile, nothing else in Fees. */

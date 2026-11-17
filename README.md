@@ -3,8 +3,8 @@
 Replacement for the legacy WinForms desktop app (see `../docs`). One pnpm + Turborepo monorepo; the clickable demo is the real app, running on fictional data.
 
 ```
-apps/staff/          staff web app: every office module (Vite + React 19 + TanStack Router + TanStack Query)
-apps/teacher/        teacher app for phones: today, registers, marks entry, timetable, leave (works offline)
+apps/staff/          the main app for everyone at the school: every office module, and the Teaching section for teachers
+                     (today, registers, marks entry, timetable, classes, leave) (Vite + React 19 + TanStack Router + TanStack Query)
 apps/portal/         parent and student portal: attendance, results, fees, vouchers, receipts, notices (English / Urdu)
 packages/ui/         MTB Campus design system in React: tokens, components, icons, charts, motion
 packages/domain/     pure TypeScript rules: money, dates, CNIC, late fine, amount in words, attendance %
@@ -19,15 +19,14 @@ packages/config/     shared tsconfig
 | App | Port | Start it with | Opens at |
 |---|---|---|---|
 | Staff | 5173 | `pnpm dev` | http://localhost:5173 (goes to the dashboard after sign-in) |
-| Teacher | 5174 | `pnpm dev:teacher` | http://localhost:5174 |
 | Parent & student portal | 5175 | `pnpm dev:portal` | http://localhost:5175 |
 
 ```bash
 pnpm install
-pnpm dev:all          # all three apps at once
+pnpm dev:all          # the staff app and the portal
 pnpm test             # domain rules + token contrast checks
 pnpm typecheck        # every package and app
-pnpm build            # production builds of the three apps (dist/)
+pnpm build            # production builds of the two apps (dist/)
 ```
 
 The design-system page is at http://localhost:5173/design-system (also in the account menu).
@@ -39,10 +38,9 @@ numbers and CNICs are fictional; none come from the legacy screenshots.
 
 **Demo data is kept per app and per browser tab.** Each app stores its demo data in `sessionStorage`, which belongs to one
 origin (port) and one tab: it survives a reload, a new tab starts fresh, and **Demo → Reset demo data** (staff app) puts
-everything back. The three apps run on different ports, so they do not share data in the demo. For example, a change request
-a teacher sends from the teacher app does not appear in the principal's approvals on the staff dashboard, and a receipt
+everything back. The two apps run on different ports, so they do not share data in the demo. For example, a receipt
 posted at the staff fee counter does not appear in the portal. Inside the staff app every module shares one store, so the
-cross-module flows below work end to end. On the real server all three apps read the same database.
+cross-module flows below work end to end. On the real server both apps read the same database.
 
 ### Staff app (port 5173)
 
@@ -81,13 +79,11 @@ Presenter note (409 "changed by someone else" demo): the first save of Sugar Mil
 the Exam office role and Ubaid Campus settings in Setup each meets a change by someone else once and shows the "changed by …
 Reload" banner; after Reload the save works.
 
-### Teacher app (port 5174)
+### Teachers (Teaching, in the staff app)
 
-Sign in with **hina.javed** (Ms Hina Javed, class teacher of 7-B at Khalid Campus) and the demo password from
-`packages/mocks/src/fixtures/users.ts`. The sign-in page has a **Demo account** card that fills the form. The first sign-in
-asks for a new password (8 to 72 characters with a letter and a number, not containing the username). usman.ali shows the
-"no teacher app" screen. Today shows the day's periods (with any cover period), the 7-B register and the marks still to
-enter (Monthly Test – October 2026 · Mathematics · 7-B).
+Teachers sign in to the staff app and see its **Teaching** section only: Today, Registers (the classes they teach),
+Marks (their own papers), Timetable, My classes and Leave. Staff who also teach see Teaching beside their office menus.
+The separate teacher app was retired on 17-Nov-2026.
 
 ### Parent and student portal (port 5175)
 
@@ -119,9 +115,9 @@ in a demo card. English and Urdu can be switched in the portal (top bar and Prof
 | Settings | `/settings` (theme, your account, open decisions, links into Setup) |
 | Sign-in | `/login`, `/login/mfa`, `/login/reset-password` |
 
-Teacher app: `/login` (+ `/mfa`, `/reset-password`), `/today`, `/registers`, `/registers/$classSection`, `/marks`,
-`/marks/$examId/$classSection/$subjectId`, `/timetable`, `/more`, `/more/classes`, `/more/classes/$classSection`,
-`/more/leave`, `/more/notifications`.
+Teaching (staff app): `/teaching`, `/teaching/registers`, `/teaching/registers/$classSection`, `/teaching/marks`,
+`/teaching/marks/$examId/$classSection/$subjectId`, `/teaching/timetable`, `/teaching/classes`,
+`/teaching/classes/$classSection`, `/teaching/leave`, `/teaching/notifications`.
 
 Portal: `/sign-in`, `/sign-in/verify`, `/home`, `/attendance`, `/results`, `/fees`, `/fees/voucher`,
 `/fees/receipts/$receiptNo`, `/notices`, `/profile`.

@@ -107,7 +107,7 @@ export function EmptySection() {
       </Specimen>
 
       <Specimen id="holiday" rise={3} plain>
-        <PhoneFrame label="Teacher app, 7-B register on a holiday" title="7-B register" subtitle={<bdi dir="ltr">Friday {formatDate("2026-12-25")} · 34 students</bdi>}>
+        <PhoneFrame label="Teaching, 7-B register on a holiday" title="7-B register" subtitle={<bdi dir="ltr">Friday {formatDate("2026-12-25")} · 34 students</bdi>}>
           <div className="mtb-card mtb-rise p-2">
             <EmptyState
               icon="calendar"

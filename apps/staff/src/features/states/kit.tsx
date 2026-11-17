@@ -1,7 +1,7 @@
 import { buttonClassName, cx, Icon, Panel, StatusBadge } from "@mtb/ui";
 import { Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
-import { ACCOUNT_LABEL, GROUPS, statesIn, stateById, TEACHER_APP_URL, type GroupId, type LiveLink } from "./catalogue";
+import { ACCOUNT_LABEL, GROUPS, statesIn, stateById, type GroupId, type LiveLink } from "./catalogue";
 
 /** Building blocks for the States page only. */
 
@@ -35,15 +35,6 @@ export function StateGroupSection({ id, children, cols = 2 }: { id: GroupId; chi
 /** The link to where a state happens in the real app. Staff screens open in this tab (the demo data carries over). */
 export function LiveLinkButton({ live, label }: { live: LiveLink; label?: string }) {
   const cls = buttonClassName({ variant: "secondary", size: "sm" });
-  if (live.app === "teacher") {
-    return (
-      <a href={`${TEACHER_APP_URL}${live.path}`} target="_blank" rel="noreferrer" className={cls}>
-        <Icon name="smartphone" size={16} />
-        {label ?? "Open in teacher app"}
-        <span className="mtb-sr-only"> (opens in a new tab)</span>
-      </a>
-    );
-  }
   // No hover preload: this page is public, and preloading a signed-in screen while signed out would bounce to sign-in.
   return (
     <Link to={live.to as never} search={(live.search ?? {}) as never} preload={false} className={cls}>
@@ -71,7 +62,6 @@ export function SignInHint({ live }: { live: LiveLink }) {
           {live.hint}
         </span>
       )}
-      {live.app === "teacher" && <span className="mtb-mono">{TEACHER_APP_URL.replace(/^https?:\/\//, "")}</span>}
     </p>
   );
 }

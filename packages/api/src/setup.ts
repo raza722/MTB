@@ -72,7 +72,7 @@ export const SETUP_MODULES: SetupModuleInfo[] = [
   { code: "TRANSPORT", name: "Transport", description: "Vehicles, routes and students who use them", group: "Campus operations", core: false },
   { code: "SMS", name: "SMS and notifications", description: "Templates, sending, delivery reports", group: "Families and messages", core: false },
   { code: "PORTAL", name: "Parent and student portal", description: "Results, attendance and fees for families", group: "Families and messages", core: false },
-  { code: "TEACHER_APP", name: "Teacher app", description: "Attendance and marks from teachers' phones", group: "Families and messages", core: false },
+  { code: "TEACHER_APP", name: "Teaching", description: "Teachers' own day, registers and timetable in the staff app", group: "Families and messages", core: false },
 ];
 
 /* ------------------------------------------------------------------ Permissions catalogue */
@@ -193,7 +193,14 @@ export const SETUP_PERMISSION_GROUPS: SetupPermissionGroup[] = [
     ],
   },
   { module: "Reports", permissions: [{ code: "reports.view", label: "Open reports" }] },
-  { module: "Teacher app", permissions: [{ code: "teacher.app", label: "Use the teacher app" }] },
+  {
+    module: "Teaching",
+    permissions: [
+      { code: "teacher.app", label: "Teaching: own day, registers of the classes they teach, timetable, classes" },
+      { code: "teacher.marks", label: "Enter marks for own papers (Teaching › Marks)" },
+      { code: "teacher.leave", label: "Ask for own leave (Teaching › Leave)" },
+    ],
+  },
   {
     module: "Setup and security",
     permissions: [

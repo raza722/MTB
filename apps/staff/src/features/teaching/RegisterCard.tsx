@@ -5,7 +5,7 @@ import { Link } from "@tanstack/react-router";
 import type { CSSProperties } from "react";
 import { RegisterStatusBadge } from "./shared";
 
-/** Today's register for a class the teacher is class teacher of: its state and the one action that moves it on. */
+/** Today's register for a class the teacher teaches: its state and the one action that moves it on. */
 export function RegisterCard({ r, rise }: { r: TeacherRegisterCard; rise?: number }) {
   const counts = r.counts;
   const notMarked = r.status === "NOT_MARKED";

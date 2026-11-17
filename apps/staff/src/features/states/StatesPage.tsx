@@ -3,7 +3,7 @@ import { AnimatedNumber, buttonClassName, Icon, Segmented, StatCard } from "@mtb
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState, type CSSProperties } from "react";
 import { useAppearance, type Theme } from "../../app/appearance";
-import { GROUPS, STATES, statesIn, TEACHER_APP_URL } from "./catalogue";
+import { GROUPS, STATES, statesIn } from "./catalogue";
 import { TODAY } from "./demo";
 import { stagger } from "./kit";
 import { ConfirmSection } from "./sections/ConfirmSection";
@@ -14,7 +14,6 @@ import { EmptySection } from "./sections/EmptySection";
 import { IndexSection } from "./sections/IndexSection";
 import { LoadingSection } from "./sections/LoadingSection";
 import { NetworkSection } from "./sections/NetworkSection";
-import { OfflineSection } from "./sections/OfflineSection";
 import { ToastSection } from "./sections/ToastSection";
 import { ValidationSection } from "./sections/ValidationSection";
 import "./states.css";
@@ -49,7 +48,7 @@ const TOC_IDS = TOC.map((t) => t.id);
 function Hero({ theme, setTheme }: { theme: Theme; setTheme: (t: Theme) => void }) {
   const fromBrief = STATES.filter((s) => s.source === "brief").length;
   const added = STATES.length - fromBrief;
-  const screens = new Set(STATES.map((s) => (s.live.app === "staff" ? s.live.to : `teacher:${s.live.path}`))).size;
+  const screens = new Set(STATES.map((s) => s.live.to)).size;
   return (
     <header className="mtb-states-hero mtb-rise" aria-labelledby="states-title">
       <div className="mtb-states-hero-art" aria-hidden="true" />
@@ -66,8 +65,7 @@ function Hero({ theme, setTheme }: { theme: Theme; setTheme: (t: Theme) => void 
             States
           </h1>
           <p className="m-0 text-body-large text-ink-muted">
-            Every state the screens can be in — empty, loading, wrong, done, blocked, offline — on the same components the app uses. Each one says where it appears and links to the live screen. The buttons work: fire the toasts, open the confirmations,
-            take the teacher's phone offline.
+            Every state the screens can be in — empty, loading, wrong, done, blocked — on the same components the app uses. Each one says where it appears and links to the live screen. The buttons work: fire the toasts, open the confirmations.
           </p>
         </div>
         <div className="mtb-states-controls grid gap-3">
@@ -88,11 +86,6 @@ function Hero({ theme, setTheme }: { theme: Theme; setTheme: (t: Theme) => void 
               Sign in to the staff app
               <Icon name="arrowRight" size={16} />
             </Link>
-            <a href={TEACHER_APP_URL} target="_blank" rel="noreferrer" className={buttonClassName({ size: "sm" })}>
-              <Icon name="smartphone" size={16} />
-              Teacher app
-              <span className="mtb-sr-only"> (opens in a new tab)</span>
-            </a>
           </div>
         </div>
       </div>
@@ -101,7 +94,7 @@ function Hero({ theme, setTheme }: { theme: Theme; setTheme: (t: Theme) => void 
           { label: "States on this page", value: STATES.length, icon: "layers" as const, foot: `In ${GROUPS.length} groups` },
           { label: "Asked for in the brief", value: fromBrief, icon: "listChecks" as const, foot: "Section 8, every one covered" },
           { label: "Added by the screens", value: added, icon: "plus" as const, foot: "States the real screens needed" },
-          { label: "Live screens linked", value: screens, icon: "arrowRight" as const, foot: "Staff app and teacher app" },
+          { label: "Live screens linked", value: screens, icon: "arrowRight" as const, foot: "Staff app" },
         ].map((s, i) => (
           <div key={s.label} className="mtb-rise grid" style={stagger(i + 1)}>
             <StatCard label={s.label} icon={s.icon} value={<AnimatedNumber value={s.value} format={(v) => String(Math.round(v))} delay={200 + i * 80} />} foot={s.foot} />
@@ -161,7 +154,6 @@ export function StatesPage() {
         <ConfirmSection />
         <DeniedSection />
         <NetworkSection />
-        <OfflineSection />
         <ContextSection />
         <DarkSection />
         <IndexSection />

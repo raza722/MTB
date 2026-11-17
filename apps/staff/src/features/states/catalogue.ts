@@ -2,7 +2,7 @@
 // and how to reach it. One list feeds the table of contents, the specimens and the index at the bottom.
 import type { IconName } from "@mtb/ui";
 
-export type GroupId = "empty" | "loading" | "validation" | "toasts" | "confirm" | "denied" | "network" | "offline" | "context" | "dark";
+export type GroupId = "empty" | "loading" | "validation" | "toasts" | "confirm" | "denied" | "network" | "context" | "dark";
 
 export interface StateGroup {
   id: GroupId;
@@ -19,15 +19,12 @@ export const GROUPS: StateGroup[] = [
   { id: "confirm", title: "Confirmations", icon: "shield", intro: "Anything that can't be undone restates the figures first. The most serious actions also ask you to type a word." },
   { id: "denied", title: "Permission denied", icon: "lock", intro: "Menus hide what a role can't use. Opening such a page from a link says who you are signed in as and who can grant access." },
   { id: "network", title: "Network errors", icon: "wifiOff", intro: "Say what happened, whether anything was saved, and what to do next." },
-  { id: "offline", title: "Offline and syncing", icon: "cloudOff", intro: "The teacher app keeps working without a signal and always says where the teacher's work is." },
   { id: "context", title: "Read-only and campus", icon: "building", intro: "Every page says which campus and session it shows. Past sessions can be viewed and printed but not changed." },
   { id: "dark", title: "Dark mode", icon: "moon", intro: "Every colour has a light and a dark value, and each text colour is checked for contrast in both. Drag the divider to compare." },
 ];
 
-/** A screen in the staff app (same tab, keeps the demo data) or in the teacher app (new tab). */
-export type LiveLink =
-  | { app: "staff"; to: string; search?: Record<string, string | number>; signInAs?: string; hint?: string }
-  | { app: "teacher"; path: string; signInAs?: string; hint?: string };
+/** A screen in the staff app (same tab, keeps the demo data). Teachers' screens are its Teaching section. */
+export type LiveLink = { app: "staff"; to: string; search?: Record<string, string | number>; signInAs?: string; hint?: string };
 
 export interface StateEntry {
   id: string;
@@ -40,8 +37,6 @@ export interface StateEntry {
   source: "brief" | "added";
 }
 
-/** The teacher app's dev server (brief: http://localhost:5174). Override with VITE_TEACHER_APP_URL when hosted. */
-export const TEACHER_APP_URL = ((import.meta.env.VITE_TEACHER_APP_URL as string | undefined) ?? "http://localhost:5174").replace(/\/$/, "");
 
 const COUNTER = (gr: string, signInAs = "usman.ali", hint?: string): LiveLink => ({ app: "staff", to: "/fees/counter", search: { gr }, signInAs, ...(hint ? { hint } : {}) });
 
@@ -50,7 +45,7 @@ export const STATES: StateEntry[] = [
   { id: "all-dues-cleared", group: "empty", source: "brief", title: "All dues cleared", where: "Fee counter, when the student has nothing to pay (Hamza Khan, KC-15102).", live: COUNTER("KC-15102") },
   { id: "no-duplicates", group: "empty", source: "brief", title: "No possible duplicates to review", where: "Admissions → Possible duplicates, once every suggested pair has been decided.", live: { app: "staff", to: "/admissions/duplicates", signInAs: "sadia.rehman", hint: "Decide the Muhammad Bilal pair first" } },
   { id: "no-opt-outs", group: "empty", source: "brief", title: "No SMS opt-outs", where: "SMS → Opt-outs, when every guardian at the campus gets notices.", live: { app: "staff", to: "/sms/opt-outs", signInAs: "kamran.yousaf", hint: "Remove the listed opt-outs to see it" } },
-  { id: "holiday", group: "empty", source: "added", title: "No attendance today (holiday)", where: "Teacher app register on a public holiday.", live: { app: "teacher", path: "/registers/7-B", signInAs: "hina.javed", hint: "More → Demo → Today is a holiday" } },
+  { id: "holiday", group: "empty", source: "added", title: "No attendance today (holiday)", where: "Teaching › Registers on a public holiday.", live: { app: "staff", to: "/teaching/registers", signInAs: "hina.javed" } },
 
   // Loading
   { id: "dashboard-loading", group: "loading", source: "brief", title: "Dashboard cards", where: "Dashboard, while today's figures load.", live: { app: "staff", to: "/dashboard", signInAs: "sadia.rehman" } },
@@ -59,12 +54,12 @@ export const STATES: StateEntry[] = [
   // Validation
   { id: "mfa-wrong", group: "validation", source: "brief", title: "Wrong two-step code", where: "Sign in → two-step verification, for admin and finance roles.", live: { app: "staff", to: "/login", signInAs: "usman.ali", hint: "Type any wrong code" } },
   { id: "jv-balance", group: "validation", source: "brief", title: "Journal voucher out of balance", where: "Accounts → Vouchers → the draft for October's utility bills.", live: { app: "staff", to: "/accounts/vouchers/jv-draft-1", signInAs: "nadia.shah" } },
-  { id: "marks-max", group: "validation", source: "brief", title: "Marks above the maximum", where: "Teacher app marks entry; the exam office's marks grid shows the same message.", live: { app: "teacher", path: "/marks", signInAs: "hina.javed" } },
+  { id: "marks-max", group: "validation", source: "brief", title: "Marks above the maximum", where: "Teaching › Marks; the exam office's marks grid shows the same message.", live: { app: "staff", to: "/teaching/marks", signInAs: "hina.javed" } },
   { id: "cheque-missing", group: "validation", source: "brief", title: "Missing cheque number", where: "Fee counter → payment method Cheque.", live: COUNTER("KC-14823") },
 
   // Toasts
   { id: "toast-receipt", group: "toasts", source: "brief", title: "Receipt posted", where: "Fee counter, straight after Post receipt.", live: COUNTER("KC-14823") },
-  { id: "toast-attendance", group: "toasts", source: "brief", title: "Attendance submitted", where: "Teacher app, after submitting a register.", live: { app: "teacher", path: "/registers/7-B", signInAs: "hina.javed" } },
+  { id: "toast-attendance", group: "toasts", source: "brief", title: "Attendance submitted", where: "Teaching › Registers, after submitting a register.", live: { app: "staff", to: "/teaching/registers", signInAs: "hina.javed" } },
   { id: "toast-results", group: "toasts", source: "brief", title: "Results declared", where: "Exams → an exam → Declare results.", live: { app: "staff", to: "/exams/ex-ft-2627-c8", signInAs: "sadia.rehman" } },
 
   // Confirmations
@@ -83,7 +78,6 @@ export const STATES: StateEntry[] = [
   { id: "network-conflict", group: "network", source: "added", title: "Someone else saved first", where: "Records two people can edit at once, such as Fees → Fee structure.", live: { app: "staff", to: "/fees/structure", signInAs: "nadia.shah" } },
 
   // Offline
-  { id: "offline-sync", group: "offline", source: "brief", title: "Online, offline, syncing, synced, sync failed", where: "Teacher app: the sync pill at the top of every screen, and a register submitted with no signal.", live: { app: "teacher", path: "/today", signInAs: "hina.javed", hint: "Tap the sync pill → Demo: this phone has no signal" } },
 
   // Context
   { id: "readonly", group: "context", source: "brief", title: "Read-only past session", where: "Every staff page while 2025–26 is chosen in the top bar.", live: { app: "staff", to: "/fees/counter", search: { gr: "KC-14823", session: 2025 }, signInAs: "usman.ali" } },

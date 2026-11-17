@@ -189,7 +189,7 @@ function NewExamForm() {
       }),
     onSuccess: (exam) => {
       void queryClient.invalidateQueries({ queryKey: ["exams"] });
-      toast({ title: "Exam created", message: `${exam.name} · ${exam.classes.join(", ")}. Teachers can now enter marks.` });
+      toast({ title: "Exam created", message: `${exam.name} · ${exam.classes.join(", ")}. Marks can now be entered in Marks entry.` });
       void navigate({ to: "/exams/$examId", params: { examId: exam.id } });
     },
   });

@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { RequirePermission } from "../../../../app/shell/page";
 import { MarksPage } from "../../../../features/teaching";
 
 interface MarksSearch {
@@ -14,6 +15,11 @@ export const Route = createFileRoute("/_app/teaching/marks/")({
   }),
   component: function TeachingMarksRoute() {
     const { exam, cls } = Route.useSearch();
-    return <MarksPage exam={exam} cls={cls} />;
+    // Marks need teacher.marks: in the old software the exam office entered marks, not teachers.
+    return (
+      <RequirePermission permission="teacher.marks" page="Marks">
+        <MarksPage exam={exam} cls={cls} />
+      </RequirePermission>
+    );
   },
 });

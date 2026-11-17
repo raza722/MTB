@@ -59,10 +59,12 @@ const NAV: NavItem[] = [
   // A teacher's own work (the former teacher app's screens). Teachers who also hold office rights see both.
   { to: "/teaching", match: "/teaching", label: "Today", icon: "home", permission: "teacher.app", exact: true, group: "teaching" },
   { to: "/teaching/registers", match: "/teaching/registers", label: "Registers", icon: "listChecks", permission: "teacher.app", group: "teaching" },
-  { to: "/teaching/marks", match: "/teaching/marks", label: "Marks", icon: "exams", permission: "teacher.app", group: "teaching" },
+  // marks only with teacher.marks: in the old software the exam office entered marks, not teachers
+  { to: "/teaching/marks", match: "/teaching/marks", label: "Marks", icon: "exams", permission: "teacher.marks", group: "teaching" },
   { to: "/teaching/timetable", match: "/teaching/timetable", label: "Timetable", icon: "clock", permission: "teacher.app", group: "teaching" },
   { to: "/teaching/classes", match: "/teaching/classes", label: "My classes", icon: "students", permission: "teacher.app", group: "teaching" },
-  { to: "/teaching/leave", match: "/teaching/leave", label: "Leave", icon: "user", permission: "teacher.app", group: "teaching" },
+  // own leave only with teacher.leave: in the old software the office recorded staff leave
+  { to: "/teaching/leave", match: "/teaching/leave", label: "Leave", icon: "user", permission: "teacher.leave", group: "teaching" },
   { to: "/students", match: "/students", label: "Students", icon: "students", permission: "students.view" },
   { to: "/admissions", match: "/admissions", label: "Admissions", icon: "admissions", permission: "admissions.view" },
   { to: "/attendance", match: "/attendance", label: "Attendance", icon: "attendance", permission: "attendance.view" },

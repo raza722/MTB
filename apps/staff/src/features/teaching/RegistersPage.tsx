@@ -23,7 +23,7 @@ function savedView(): "chart" | "table" {
   }
 }
 
-/** /teaching/registers — the class teacher's registers: today, the last ten school days and change requests. */
+/** /teaching/registers — the registers of the classes the teacher teaches: today, the last ten school days and change requests. */
 export function RegistersPage() {
   const ctx = useCtx();
   const q = useQuery(teacherQueries.registers(ctx));
@@ -45,8 +45,8 @@ export function RegistersPage() {
             <div className="mtb-card">
               <EmptyState
                 icon="listChecks"
-                title="You don't take a class register"
-                description="Class teachers take the daily register. Your lessons are in Timetable; if you should have a class, ask the office."
+                title="No class to take a register for"
+                description="You take the daily register of the classes you teach. None is on your timetable at this campus; if one should be, ask the office."
               />
             </div>
           ) : (

@@ -252,7 +252,7 @@ function VoucherSpecimen() {
   );
 }
 
-/* ------------------------------------------------------------------ Marks above the maximum (teacher app keypad) */
+/* ------------------------------------------------------------------ Marks above the maximum (Teaching keypad) */
 
 const MAX = 75;
 const MARK_STUDENTS = ["Ayesha Khan", "Muhammad Bilal", "Areeba Siddiqui"];
@@ -299,7 +299,7 @@ function MarksSpecimen() {
   const digit = "h-11 rounded-md bg-surface-sunken text-title-2 font-medium text-ink tabular-nums hover:bg-surface-hover active:bg-surface-selected";
 
   return (
-    <PhoneFrame label="Teacher app, marks entry" title="Mathematics · 7-B" subtitle={<>First Term · Max marks {MAX}</>}>
+    <PhoneFrame label="Teaching, marks entry" title="Mathematics · 7-B" subtitle={<>First Term · Max marks {MAX}</>}>
       <ul className="m-0 grid list-none gap-1.5 p-0" aria-label="Students">
         {MARK_STUDENTS.map((name, i) => (
           <li key={name} className={cx("mtb-card flex items-center justify-between gap-2 px-3 py-2", i === at && "border-brand")}>
