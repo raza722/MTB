@@ -23,6 +23,11 @@ const router = createRouter({
   defaultPreload: "intent",
   defaultPreloadStaleTime: 0,
   scrollRestoration: true,
+  // Page changes cross-fade the page area (styles in @mtb/ui motion.css). Filters and search params change in place;
+  // the first load and a background tab skip it (a view transition waits for a frame, and a hidden document rejects it).
+  defaultViewTransition: {
+    types: ({ fromLocation, pathChanged }) => (fromLocation && pathChanged && document.visibilityState === "visible" ? ["mtb-page"] : false),
+  },
 });
 
 declare module "@tanstack/react-router" {

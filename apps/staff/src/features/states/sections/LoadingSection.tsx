@@ -1,6 +1,6 @@
 import { Button, Segmented, TabPanel, Tabs, Timeline } from "@mtb/ui";
 import { useRef, useState } from "react";
-import { AYESHA_TIMELINE } from "../../design-system/demo-data";
+import { AYESHA_TIMELINE } from "../demo-data";
 import { Specimen, StateGroupSection, useReplay, type LoadPhase } from "../kit";
 import { DashboardKpis, ProfileHeader, TabSkeleton } from "../screens";
 

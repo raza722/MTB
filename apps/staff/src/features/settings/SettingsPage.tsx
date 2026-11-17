@@ -77,13 +77,7 @@ export function SettingsPage() {
                 { value: "dark", label: "Dark" },
               ]}
             />
-            <p className="m-0 text-small text-ink-muted">
-              Saved on this computer. Colours, type and components follow the{" "}
-              <Link to="/design-system" className="text-brand-ink underline underline-offset-2">
-                MTB Campus design system
-              </Link>
-              .
-            </p>
+            <p className="m-0 text-small text-ink-muted">Saved on this computer.</p>
           </div>
         </Card>
         <Card title="Your account">

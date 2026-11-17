@@ -17,6 +17,29 @@
     text-rendering: optimizeLegibility;
   }
 
+  /* Scrollbars follow the theme (green or navy, light or dark) instead of the browser's grey: a slim rounded thumb
+     in the brand colour that deepens when pointed at. Chrome, Edge and Safari take the ::-webkit rules; Firefox,
+     which has no such rules, takes the two standard properties. Frames that hide their scrollbar keep it hidden. */
+  :root {
+    --scroll-thumb: color-mix(in srgb, var(--brand) 55%, var(--surface-sunken));
+    --scroll-thumb-hover: var(--brand);
+    --scroll-track: color-mix(in srgb, var(--brand-tint) 55%, var(--surface));
+  }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: var(--scroll-track); }
+  ::-webkit-scrollbar-thumb {
+    background: var(--scroll-thumb);
+    border: 2px solid var(--scroll-track);
+    border-radius: 999px;
+    min-height: 40px;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: var(--scroll-thumb-hover); }
+  ::-webkit-scrollbar-thumb:active { background: var(--brand-active); }
+  ::-webkit-scrollbar-corner { background: var(--scroll-track); }
+  @supports not selector(::-webkit-scrollbar) {
+    * { scrollbar-width: thin; scrollbar-color: var(--scroll-thumb) var(--scroll-track); }
+  }
+
   ::selection {
     background: var(--brand-tint);
     color: var(--ink);

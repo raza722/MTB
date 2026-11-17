@@ -77,8 +77,9 @@ export function StatCard({ label, value, icon, tone, delta, deltaLabel, meter, m
     </>
   );
   return onClick ? (
-    <button type="button" className="mtb-stat" onClick={onClick} style={{ textAlign: "left", font: "inherit", cursor: "pointer" }}>
+    <button type="button" className="mtb-stat" onClick={onClick}>
       {body}
+      <Icon name="arrowRight" size={16} className="mtb-stat-go" aria-hidden="true" />
     </button>
   ) : (
     <div className="mtb-stat">{body}</div>

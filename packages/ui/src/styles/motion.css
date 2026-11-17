@@ -13,9 +13,11 @@
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
+/* Entrances move with `translate`, not `transform`: a finished entrance keeps its last frame (fill: both), and a
+   held `transform` would cancel any hover lift on the same element (cards, KPI tiles). */
 @keyframes mtb-rise {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: none; }
+  from { opacity: 0; translate: 0 10px; }
+  to { opacity: 1; translate: none; }
 }
 @keyframes mtb-fade {
   from { opacity: 0; }
@@ -37,8 +39,8 @@
   70%, 100% { transform: scale(3); opacity: 0; }
 }
 @keyframes mtb-slide-in {
-  from { opacity: 0; transform: translateX(-8px); }
-  to { opacity: 1; transform: none; }
+  from { opacity: 0; translate: -8px 0; }
+  to { opacity: 1; translate: none; }
 }
 
 /* Entrance: add .mtb-rise and set --i (0, 1, 2 …) to stagger siblings by 60ms. */

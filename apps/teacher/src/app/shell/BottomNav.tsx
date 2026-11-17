@@ -47,7 +47,7 @@ export function BottomNav() {
               className="group flex min-h-16 flex-col items-center justify-center gap-0.5 rounded-md text-caption text-ink-muted no-underline outline-none focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-focus-ring aria-[current=page]:text-brand-ink lg:min-h-11 lg:flex-row lg:justify-start lg:gap-3 lg:px-3 lg:text-body lg:hover:bg-surface-hover lg:hover:text-ink lg:aria-[current=page]:bg-brand-tint"
               activeOptions={{ exact: it.to === "/today" }}
             >
-              <span className="relative grid h-8 w-14 place-items-center rounded-full transition-colors group-aria-[current=page]:bg-brand-tint lg:h-6 lg:w-6 lg:group-aria-[current=page]:bg-transparent">
+              <span className="mtb-navpill relative grid h-8 w-14 place-items-center rounded-full transition-colors group-aria-[current=page]:bg-brand-tint lg:h-6 lg:w-6 lg:group-aria-[current=page]:bg-transparent">
                 <Icon name={it.icon} size={22} />
                 {it.to === "/registers" && registerDue && <span className="absolute top-1 right-3 size-2 rounded-full bg-status-unpaid ring-2 ring-surface-raised lg:-top-0.5 lg:-right-0.5" aria-hidden="true" />}
                 {it.to === "/more" && unread > 0 && (

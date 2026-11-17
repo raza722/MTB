@@ -93,9 +93,6 @@ function Hero({ theme, setTheme }: { theme: Theme; setTheme: (t: Theme) => void 
               Teacher app
               <span className="mtb-sr-only"> (opens in a new tab)</span>
             </a>
-            <Link to="/design-system" className={buttonClassName({ variant: "ghost", size: "sm" })}>
-              Design system
-            </Link>
           </div>
         </div>
       </div>
@@ -171,9 +168,6 @@ export function StatesPage() {
 
         <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-6 text-small text-ink-muted">
           <span>All names, numbers and CNICs on this page are fictional. Deliverable 4 of the MTB demo.</span>
-          <Link to="/design-system" className="text-brand-ink underline underline-offset-2">
-            Design system (deliverable 1)
-          </Link>
         </footer>
       </main>
     </div>

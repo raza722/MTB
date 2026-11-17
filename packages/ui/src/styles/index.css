@@ -15,5 +15,7 @@
 @import "./components-ext.css" layer(components);
 @import "./charts.css" layer(components);
 @import "./responsive.css" layer(components);
+@import "./auth.css" layer(components);
+@import "./interactions.css" layer(components);
 @import "./motion.css";
 @import "./base.css";

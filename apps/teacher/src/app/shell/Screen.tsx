@@ -57,7 +57,7 @@ export function Screen({ title, subtitle, backTo, backLabel = "Back", actions, b
       {/* Room at the foot for the action bar or the bottom navigation; on a desktop the navigation is a sidebar instead. */}
       <main
         id="main"
-        className={cx("mx-auto w-full max-w-[560px] px-4 pt-4 lg:max-w-[680px] xl:max-w-[840px] 2xl:max-w-[960px] lg:pt-6", bottom ? "pb-[calc(env(safe-area-inset-bottom)+112px)]" : "pb-[calc(env(safe-area-inset-bottom)+104px)] lg:pb-12", className)}
+        className={cx("t-page mx-auto w-full max-w-[560px] px-4 pt-4 lg:max-w-[680px] xl:max-w-[840px] 2xl:max-w-[960px] lg:pt-6", bottom ? "pb-[calc(env(safe-area-inset-bottom)+112px)]" : "pb-[calc(env(safe-area-inset-bottom)+104px)] lg:pb-12", className)}
       >
         {children}
       </main>

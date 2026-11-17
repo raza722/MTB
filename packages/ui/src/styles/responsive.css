@@ -34,8 +34,12 @@
    long list or a row of fixed pieces inside a card pushes the card and the page wider than the screen (Students →
    Sections at 768px: 11 cards, content 16px past their edge). One shrinkable column lays out exactly the same when
    the content fits and lets it wrap or truncate when it does not. Grids that set their own columns (grid-cols-*,
-   a feature's CSS class, an inline style) are not affected: those win over this layer. */
-.grid:not([class*="grid-cols"]) { grid-template-columns: minmax(0, 1fr); }
+   a feature's CSS class, an inline style) are not affected: those win over this layer.
+   Grids that centre their content by shrinking the column to it (`place-content-center` on a round icon tile,
+   `justify-center`) are left alone too: a full-width column would push the icon to the start of its circle. */
+.grid:not([class*="grid-cols"], [class*="place-content-"], [class*="justify-center"], [class*="justify-end"], [class*="justify-between"], [class*="justify-around"], [class*="justify-evenly"]) {
+  grid-template-columns: minmax(0, 1fr);
+}
 
 /* Checkbox and switch labels wrap even inside a long word with no spaces (a real subject reads
    "Software Pakages(MAPLE/MALTAB/MATHEMATICA)"), instead of running past the card on a tablet. */

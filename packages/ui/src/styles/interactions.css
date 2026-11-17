@@ -1,0 +1,198 @@
+/*
+ * MTB addition: how things respond to the pointer and how they arrive, for the staff app, the teacher app and the
+ * parent portal alike. The design system gives most controls a colour change on hover; this layer adds the movement:
+ * cards that open a page lift, buttons press in, rows light up, menus and tooltips grow from their trigger.
+ *
+ * Rules of thumb:
+ * - Only things that do something move on hover. A card that is just information gets at most a border change.
+ * - Lifts and glows are for a mouse (`hover: hover`). On a phone a hover would stick after a tap, so phones get the
+ *   press-in on :active instead.
+ * - Everything here is cut to an instant by the reduced-motion rule in base.css (and the teacher app's own setting).
+ * - Entrance and hover never fight: entrances animate `translate`, hovers set `transform` (motion.css).
+ */
+
+/* ---------- KPI and stat cards ---------- */
+
+/* A row of KPIs reads as one band: every card fills its column and the row's height, the figures sit at the same
+   line, and the footnotes line up along the bottom. Clickable cards are buttons or links, which otherwise shrink to
+   their text (Setup's four cards stood apart with gaps between them). */
+.mtb-stat { height: 100%; }
+:is(button, a).mtb-stat {
+  position: relative; width: 100%;
+  font: inherit; color: inherit; text-align: start; text-decoration: none; cursor: pointer;
+}
+.mtb-stat-foot { margin-top: auto; }
+:is(button, a).mtb-stat .mtb-stat-foot { padding-inline-end: var(--space-6); } /* room for the arrow */
+.mtb-stat-value { transition: color var(--motion-base) ease; }
+
+/* Arrival: a card that is not already inside a rising group rises in, one after another along the row. */
+.mtb-stat:not(.mtb-rise, .mtb-rise *, [aria-busy]) { animation: mtb-rise var(--motion-slow) var(--ease-out) both; }
+.mtb-stat:not(.mtb-rise, .mtb-rise *):nth-child(2) { animation-delay: 60ms; }
+.mtb-stat:not(.mtb-rise, .mtb-rise *):nth-child(3) { animation-delay: 120ms; }
+.mtb-stat:not(.mtb-rise, .mtb-rise *):nth-child(4) { animation-delay: 180ms; }
+.mtb-stat:not(.mtb-rise, .mtb-rise *):nth-child(5) { animation-delay: 240ms; }
+.mtb-stat:not(.mtb-rise, .mtb-rise *):nth-child(n + 6) { animation-delay: 300ms; }
+
+/* Every progress meter fills from empty when it appears. */
+.mtb-meter > span { transform-origin: left center; animation: mtb-grow-x 1000ms var(--ease-out) 300ms both; }
+[dir="rtl"] .mtb-meter > span { transform-origin: right center; }
+
+/* The icon tile and the card ease between states. */
+.mtb-stat { transition: transform var(--motion-base) var(--ease-out), box-shadow var(--motion-base) var(--ease-out), border-color var(--motion-fast) ease; }
+.mtb-stat-icon { transition: transform var(--motion-base) var(--ease-spring), background-color var(--motion-base) ease, color var(--motion-base) ease; }
+
+/* A clickable KPI: a brand line draws across the top and an arrow slides in, so it is clear the card opens a page. */
+:is(button, a).mtb-stat { overflow: hidden; }
+:is(button, a).mtb-stat::after {
+  content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--brand);
+  transform: scaleX(0); transform-origin: left center; transition: transform var(--motion-slow) var(--ease-out);
+}
+[dir="rtl"] :is(button, a).mtb-stat::after { transform-origin: right center; }
+.mtb-stat-go {
+  position: absolute; inset-inline-end: var(--space-5); bottom: var(--space-5); color: var(--ink-subtle);
+  opacity: 0; transform: translateX(-6px); transition: opacity var(--motion-base) ease, transform var(--motion-base) var(--ease-out);
+}
+[dir="rtl"] .mtb-stat-go { transform: scaleX(-1) translateX(-6px); }
+:is(button, a).mtb-stat:focus-visible::after { transform: scaleX(1); }
+:is(button, a).mtb-stat:focus-visible .mtb-stat-go { opacity: 1; transform: none; }
+:is(button, a).mtb-stat:active { transform: translateY(-1px) scale(0.99); }
+
+@media (hover: hover) {
+  .mtb-stat:hover { border-color: var(--border-strong); }
+  :is(button, a).mtb-stat:hover .mtb-stat-icon { transform: scale(1.08) rotate(-4deg); }
+  :is(button, a).mtb-stat:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+  :is(button, a).mtb-stat:hover::after { transform: scaleX(1); }
+  :is(button, a).mtb-stat:hover .mtb-stat-go { opacity: 1; transform: none; }
+  [dir="rtl"] :is(button, a).mtb-stat:hover .mtb-stat-go { transform: scaleX(-1); }
+  :is(button, a).mtb-stat:hover .mtb-stat-value { color: var(--brand-ink); }
+}
+
+/* ---------- Cards that open something ---------- */
+
+/* A whole card that is a link or a button (teacher: classes, exams, notifications; portal and staff tiles). */
+:is(a, button).mtb-card {
+  transition: transform var(--motion-base) var(--ease-out), box-shadow var(--motion-base) var(--ease-out), border-color var(--motion-fast) ease, background-color var(--motion-fast) ease;
+}
+:is(a, button).mtb-card:active { transform: scale(0.985); }
+@media (hover: hover) {
+  :is(a, button).mtb-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: var(--border-strong); }
+  :is(a, button).mtb-card:hover:active { transform: translateY(-1px) scale(0.99); }
+}
+
+/* Information cards and panels do not lift (they are not clickable); panels already firm up their edge (.mtb-block). */
+.mtb-card { transition: border-color var(--motion-fast) ease, box-shadow var(--motion-base) ease; }
+
+/* ---------- Buttons ---------- */
+
+.mtb-btn {
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 160ms ease, transform 120ms var(--ease-out);
+}
+.mtb-btn:active:not(:disabled) { transform: translateY(1px) scale(0.98); }
+.mtb-btn svg { transition: transform var(--motion-base) var(--ease-out); }
+@media (hover: hover) {
+  /* Filled buttons glow softly in their own colour. */
+  .mtb-btn-primary:hover:not(:disabled) { box-shadow: 0 6px 16px -6px color-mix(in srgb, var(--brand) 70%, transparent); }
+  .mtb-btn-danger:hover:not(:disabled) { box-shadow: 0 6px 16px -6px color-mix(in srgb, var(--danger) 70%, transparent); }
+  .mtb-btn-secondary:hover:not(:disabled) { border-color: var(--border-strong); }
+  /* The icon in a labelled button gives a small nod. */
+  .mtb-btn:not(.mtb-btn-icon):hover:not(:disabled) > svg:first-child { transform: scale(1.12); }
+}
+
+/* ---------- Tables ---------- */
+
+/* Every row lights up under the pointer so the eye can follow it across a wide table; rows that open something also
+   get a brand edge. Rows with their own colour (selected, warnings) keep it. */
+.mtb-table td { transition: background-color 120ms ease, box-shadow 120ms ease; }
+@media (hover: hover) {
+  :where(.mtb-table tbody tr:hover) > td { background: color-mix(in srgb, var(--surface-hover) 70%, var(--surface-raised)); }
+  .mtb-table tbody tr.is-clickable:hover > td:first-child { box-shadow: inset 3px 0 0 var(--brand); }
+  [dir="rtl"] .mtb-table tbody tr.is-clickable:hover > td:first-child { box-shadow: inset -3px 0 0 var(--brand); }
+}
+
+/* ---------- Tabs, section links, segmented controls ---------- */
+
+/* Tabs: a faint underline grows under the pointer; the chosen tab's line draws in when it changes. */
+.mtb-tab { position: relative; transition: color var(--motion-fast) ease; }
+.mtb-tab::after {
+  content: ""; position: absolute; left: var(--space-2); right: var(--space-2); bottom: -2px; height: 2px; border-radius: 2px;
+  background: var(--border-strong); transform: scaleX(0); transition: transform var(--motion-base) var(--ease-out);
+}
+.mtb-tab[aria-selected="true"] { animation: mtb-ix-tab-in var(--motion-base) var(--ease-out); }
+@media (hover: hover) {
+  .mtb-tab:not([aria-selected="true"]):hover::after { transform: scaleX(1); }
+}
+@keyframes mtb-ix-tab-in { from { border-bottom-color: transparent; } }
+
+/* Section links under a page title (staff Fees, Exams, …): the same growing underline, and the current one draws in. */
+.mtb-subnav a { transition: color var(--motion-fast) ease, background-color var(--motion-fast) ease; }
+.mtb-subnav a::after {
+  content: ""; position: absolute; left: var(--space-2); right: var(--space-2); bottom: -1px; height: 2px; border-radius: 2px 2px 0 0;
+  background: var(--border-strong); transform: scaleX(0); transition: transform var(--motion-base) var(--ease-out);
+}
+.mtb-subnav a[aria-current="page"]::after { transform: none; animation: mtb-grow-x var(--motion-slow) var(--ease-out) both; }
+@media (hover: hover) {
+  .mtb-subnav a:not([aria-current="page"]):hover::after { transform: scaleX(1); }
+}
+
+/* Segmented controls: the chosen option's raised chip eases over instead of jumping. */
+.mtb-seg button { transition: background-color var(--motion-base) var(--ease-out), color var(--motion-fast) ease, box-shadow var(--motion-base) ease; }
+.mtb-seg button:active { transform: scale(0.97); }
+
+/* ---------- Form controls ---------- */
+
+.mtb-check input { transition: background-color 120ms ease, border-color 120ms ease, transform 160ms var(--ease-spring); }
+.mtb-check input:active { transform: scale(0.9); }
+@media (hover: hover) {
+  .mtb-check:hover input:not(:checked):not(:disabled) { border-color: var(--brand); }
+}
+
+/* ---------- Menus, popovers, tooltips ---------- */
+
+/* They grow out of the button that opened them. */
+.mtb-menu-floating[data-state="open"] {
+  transform-origin: var(--radix-dropdown-menu-content-transform-origin);
+  animation: mtb-ix-pop-in 160ms var(--ease-out);
+}
+.mtb-popover[data-state="open"] {
+  transform-origin: var(--radix-popover-content-transform-origin);
+  animation: mtb-ix-pop-in 160ms var(--ease-out);
+}
+.mtb-tooltip[data-state="delayed-open"], .mtb-tooltip[data-state="instant-open"] {
+  transform-origin: var(--radix-tooltip-content-transform-origin);
+  animation: mtb-ix-pop-in 140ms var(--ease-out);
+}
+.mtb-menu-item { transition: background-color 100ms ease; }
+.mtb-menu-item svg { transition: transform var(--motion-base) var(--ease-out); }
+.mtb-menu-item:hover svg, .mtb-menu-item:focus-visible svg { transform: translateX(2px); }
+[dir="rtl"] .mtb-menu-item:hover svg, [dir="rtl"] .mtb-menu-item:focus-visible svg { transform: translateX(-2px); }
+@keyframes mtb-ix-pop-in { from { opacity: 0; transform: scale(0.96); } }
+
+/* ---------- Messages and empty states ---------- */
+
+.mtb-banner { animation: mtb-ix-banner-in 320ms var(--ease-out) both; }
+@keyframes mtb-ix-banner-in { from { opacity: 0; translate: 0 -6px; } }
+
+.mtb-empty { animation: mtb-fade 400ms ease both; }
+.mtb-empty-icon { animation: mtb-ix-empty-icon 600ms var(--ease-spring) 80ms both; }
+@keyframes mtb-ix-empty-icon { from { opacity: 0; transform: scale(0.6) rotate(-8deg); } }
+
+/* ---------- Avatars and badges ---------- */
+
+.mtb-avatar { transition: transform var(--motion-base) var(--ease-spring), box-shadow var(--motion-base) ease; }
+@media (hover: hover) {
+  :is(a, button):hover .mtb-avatar { transform: scale(1.06); box-shadow: 0 0 0 2px var(--surface-raised), 0 0 0 4px var(--brand-tint); }
+}
+
+/* ---------- Bottom tab bars (teacher app, parent portal on a phone) ---------- */
+
+/* The chosen tab's pill grows in behind its icon, and the icon gives a small bounce. */
+.mtb-navpill { transition: background-color var(--motion-base) ease; }
+.mtb-navpill > svg { transition: transform var(--motion-base) var(--ease-spring); }
+[aria-current="page"] .mtb-navpill { animation: mtb-ix-pill-in 360ms var(--ease-out); }
+[aria-current="page"] .mtb-navpill > svg { animation: mtb-ix-icon-bounce 460ms var(--ease-spring); }
+:is(a, button):active .mtb-navpill > svg { transform: scale(0.88); }
+@media (hover: hover) {
+  :is(a, button):hover .mtb-navpill > svg { transform: translateY(-1px); }
+}
+@keyframes mtb-ix-pill-in { from { transform: scaleX(0.55); opacity: 0.4; } }
+@keyframes mtb-ix-icon-bounce { 0% { transform: scale(0.8); } 60% { transform: scale(1.12); } 100% { transform: none; } }

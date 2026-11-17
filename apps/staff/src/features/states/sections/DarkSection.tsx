@@ -2,7 +2,7 @@ import { formatRs } from "@mtb/domain";
 import { AttendanceCalendar, Button, Tabs } from "@mtb/ui";
 import { useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from "react";
 import { useAppearance } from "../../../app/appearance";
-import { AYESHA_OCTOBER, AYESHA_OCTOBER_HOLIDAYS } from "../../design-system/demo-data";
+import { AYESHA_OCTOBER, AYESHA_OCTOBER_HOLIDAYS } from "../demo-data";
 import { AYESHA_OVERDUE, CASH_RECEIVED, OVERDUE_TOTAL, TODAY } from "../demo";
 import { Specimen, StateGroupSection } from "../kit";
 import { ChargesTable, DashboardKpis, ProfileHeader } from "../screens";

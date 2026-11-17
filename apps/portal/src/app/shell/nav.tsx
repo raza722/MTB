@@ -74,7 +74,7 @@ export function BottomNav() {
               to={item.to}
               className="group flex min-h-16 flex-col items-center justify-center gap-0.5 rounded-md text-caption text-ink-muted no-underline outline-none focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-focus-ring aria-[current=page]:text-brand-ink"
             >
-              <span className="relative grid h-8 w-14 place-items-center rounded-full transition-colors group-aria-[current=page]:bg-brand-tint">
+              <span className="mtb-navpill relative grid h-8 w-14 place-items-center rounded-full transition-colors group-aria-[current=page]:bg-brand-tint">
                 <Icon name={item.icon} size={22} />
                 {item.to === "/notices" && <UnreadBadge n={unread} className="absolute -top-0.5 end-1.5" />}
               </span>

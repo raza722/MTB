@@ -118,3 +118,5 @@ export { linearScale, monotonePath, niceStep, niceTicks } from "./charts/scale";
 export { Panel, type PanelProps } from "./components/panel";
 export { ColumnChart, type ColumnChartProps } from "./components/column-chart";
 export { BottomSheet, type BottomSheetProps } from "./components/bottom-sheet";
+
+export { AuthScene, type AuthSceneHighlight, type AuthSceneProps } from "./components/auth-scene";

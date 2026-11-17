@@ -337,9 +337,6 @@ function UserMenu() {
       <MenuItem icon={theme === "dark" ? "sun" : "moon"} onSelect={() => setTheme(theme === "dark" ? "light" : "dark")}>
         {theme === "dark" ? "Light mode" : "Dark mode"}
       </MenuItem>
-      <MenuItem icon="layers" onSelect={() => navigate({ to: "/design-system" })}>
-        Design system
-      </MenuItem>
       <MenuSeparator />
       <MenuItem icon="logout" onSelect={() => signOut.mutate()}>
         Sign out

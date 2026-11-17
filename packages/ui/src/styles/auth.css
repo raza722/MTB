@@ -1,0 +1,216 @@
+/*
+ * MTB addition: the sign-in frame (AuthScene) shared by the staff app, the teacher app and the parent portal.
+ * The brand panel takes its picture from the school crest: the torch's glow and rising sparks, the crescent and the
+ * star, over a quiet eight-point lattice. It keeps its own deep colours in light and dark mode, because the brand
+ * token turns pale in dark mode and could not carry white text.
+ * All motion is cut to an instant by the reduced-motion rule in base.css.
+ */
+.mtb-auth {
+  --auth-1: #0e5a3a;
+  --auth-2: #052b1b;
+  --auth-gold: #f6c65b;
+  --auth-ember: #ff8a3c;
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 100dvh;
+  background: var(--surface);
+}
+:root[data-accent="navy"] .mtb-auth { --auth-1: #1e3a5f; --auth-2: #0b1a2e; }
+[data-theme="dark"] .mtb-auth { --auth-1: #0d3b28; --auth-2: #06150e; }
+[data-theme="dark"][data-accent="navy"] .mtb-auth { --auth-1: #16294a; --auth-2: #070f1c; }
+
+/* ---------- Brand panel ---------- */
+.mtb-auth-brand {
+  position: relative; isolation: isolate; overflow: hidden;
+  padding: calc(env(safe-area-inset-top) + 28px) 20px 76px;
+  color: #fff;
+  background:
+    radial-gradient(120% 90% at 15% 0%, color-mix(in oklab, var(--auth-1), #fff 10%) 0%, transparent 60%),
+    linear-gradient(165deg, var(--auth-1) 0%, var(--auth-2) 100%);
+}
+.mtb-auth-sky { position: absolute; inset: 0; z-index: -1; width: 100%; height: 100%; }
+.mtb-auth-lattice { opacity: 0.075; animation: mtb-auth-drift 36s linear infinite; }
+.mtb-auth-crescent {
+  fill: var(--auth-gold); opacity: 0.2;
+  transform-box: fill-box; transform-origin: center;
+  animation: mtb-auth-fade-in 1400ms var(--ease-out) both, mtb-auth-sway 16s var(--ease-in-out) 1400ms infinite alternate;
+}
+.mtb-auth-star5 {
+  fill: var(--auth-gold); opacity: 0.55;
+  transform-box: fill-box; transform-origin: center;
+  animation: mtb-auth-twinkle 5s var(--ease-in-out) 600ms infinite;
+}
+.mtb-auth-twinkle {
+  fill: #fff; opacity: 0.5;
+  transform-box: fill-box; transform-origin: center;
+  animation: mtb-auth-twinkle 4.2s var(--ease-in-out) infinite;
+}
+
+.mtb-auth-brand-inner { display: grid; justify-items: center; gap: 14px; text-align: center; }
+
+/* The crest on its white plate, lit from behind like the torch above it. */
+.mtb-auth-crest { position: relative; display: grid; place-items: center; }
+.mtb-auth-plate {
+  position: relative; display: grid; place-items: center;
+  padding: 8px 12px; border-radius: 18px; background: #fff;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.6);
+  animation: mtb-auth-pop 700ms var(--ease-spring) both;
+}
+.mtb-auth-plate .mtb-crest { height: 64px !important; padding: 0 !important; border-radius: 0 !important; }
+.mtb-auth-glow {
+  position: absolute; width: 260%; aspect-ratio: 1; border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--auth-gold), transparent 55%), color-mix(in srgb, var(--auth-ember), transparent 82%) 45%, transparent 72%);
+  animation: mtb-auth-fade-in 900ms ease both, mtb-auth-breathe 4.6s var(--ease-in-out) 900ms infinite;
+}
+.mtb-auth-ring {
+  position: absolute; inset: -6px; border-radius: 22px; border: 1.5px solid color-mix(in srgb, var(--auth-gold), transparent 40%);
+  opacity: 0; animation: mtb-auth-ring 3.8s var(--ease-out) 1200ms infinite;
+}
+/* Sparks rising from the torch. */
+.mtb-auth-ember {
+  position: absolute; top: 6px; left: calc(50% + (var(--i) - 2) * 9px);
+  width: 4px; height: 4px; border-radius: 50%;
+  background: var(--auth-gold); box-shadow: 0 0 6px 1px var(--auth-ember);
+  opacity: 0; animation: mtb-auth-ember calc(3.2s + var(--i) * 0.5s) ease-out calc(900ms + var(--i) * 0.7s) infinite;
+}
+
+.mtb-auth-title { display: grid; gap: 2px; }
+.mtb-auth-name { margin: 0; font-size: 24px; line-height: 1.2; font-weight: 700; letter-spacing: -0.02em; }
+.mtb-auth-tagline { margin: 0; font-size: 14px; line-height: 1.45; color: rgba(255, 255, 255, 0.82); }
+.mtb-auth-name, .mtb-auth-tagline, .mtb-auth-points > li, .mtb-auth-motto {
+  animation: mtb-rise 620ms var(--ease-out) both;
+  animation-delay: calc(160ms + var(--i, 0) * 80ms);
+}
+.mtb-auth-points, .mtb-auth-motto { display: none; }
+
+/* ---------- Form side ---------- */
+.mtb-auth-main {
+  position: relative; display: flex; flex-direction: column;
+  margin-top: -48px; padding: 0 16px calc(env(safe-area-inset-bottom) + 28px);
+}
+.mtb-auth-column { display: grid; gap: 20px; width: 100%; max-width: 440px; margin-inline: auto; }
+.mtb-auth-card {
+  border-radius: 16px; box-shadow: var(--shadow-lg);
+  animation: mtb-auth-card-in 640ms var(--ease-out) 140ms both;
+}
+/* The form's rows arrive one after another, after the card. */
+.mtb-auth-card form > * { animation: mtb-rise 480ms var(--ease-out) both; animation-delay: 300ms; }
+.mtb-auth-card form > :nth-child(2) { animation-delay: 360ms; }
+.mtb-auth-card form > :nth-child(3) { animation-delay: 420ms; }
+.mtb-auth-card form > :nth-child(4) { animation-delay: 480ms; }
+.mtb-auth-card form > :nth-child(n + 5) { animation-delay: 540ms; }
+.mtb-auth-foot { animation: mtb-fade 600ms ease 700ms both; }
+
+/* The main button catches the light when pointed at. */
+.mtb-auth-card .mtb-btn-primary { position: relative; overflow: hidden; }
+.mtb-auth-card .mtb-btn-primary::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.28) 50%, transparent 65%);
+  transform: translateX(-110%);
+}
+.mtb-auth-card .mtb-btn-primary:hover:not(:disabled)::after,
+.mtb-auth-card .mtb-btn-primary:focus-visible::after { transform: translateX(110%); transition: transform 700ms var(--ease-out); }
+
+/* Language and light/dark: one small pill in the top corner, readable over the panel and over the page. */
+.mtb-auth-tools {
+  position: absolute; z-index: 2; top: calc(env(safe-area-inset-top) + 10px); inset-inline-end: 12px;
+  display: flex; align-items: center; gap: 4px; padding: 3px;
+  border-radius: 12px; background: var(--surface-raised); box-shadow: var(--shadow-md);
+  animation: mtb-fade 500ms ease 300ms both;
+}
+
+/* Right-to-left (Urdu): the sky mirrors with the layout, so the crescent stays on the far side from the crest. */
+[dir="rtl"] .mtb-auth-sky { transform: scaleX(-1); }
+/* The name and the crest's motto are Latin text in both languages. */
+.mtb-auth-name, .mtb-auth-motto { font-family: var(--font-sans); }
+
+/* Phones and tablets: when the corner pill is present, the crest starts below it. */
+@media (max-width: 1023.98px) {
+  .mtb-auth:has(.mtb-auth-tools) .mtb-auth-brand { padding-top: calc(env(safe-area-inset-top) + 72px); }
+}
+
+/* ---------- Tablets: a taller band with a larger crest ---------- */
+@media (min-width: 640px) and (max-width: 1023.98px) and (min-height: 521px) {
+  .mtb-auth-brand, .mtb-auth:has(.mtb-auth-tools) .mtb-auth-brand { padding-top: calc(env(safe-area-inset-top) + 48px); padding-bottom: 104px; }
+  .mtb-auth-brand-inner { gap: 18px; }
+  .mtb-auth-plate { padding: 10px 14px; border-radius: 20px; }
+  .mtb-auth-plate .mtb-crest { height: 88px !important; }
+  .mtb-auth-name { font-size: 30px; }
+  .mtb-auth-tagline { font-size: 16px; }
+  .mtb-auth-main { margin-top: -56px; }
+}
+
+/* ---------- Computers: panel beside the form ---------- */
+@media (min-width: 1024px) {
+  .mtb-auth { grid-template-rows: none; grid-template-columns: minmax(400px, 5fr) 7fr; }
+  .mtb-auth-brand { position: sticky; top: 0; display: flex; height: 100dvh; padding: 56px clamp(40px, 4.5vw, 80px); }
+  .mtb-auth-brand-inner { align-content: center; justify-items: start; gap: 28px; width: 100%; max-width: 480px; margin-inline: auto; text-align: start; }
+  .mtb-auth-plate { padding: 12px 18px; border-radius: 24px; animation: mtb-auth-pop 700ms var(--ease-spring) both, mtb-auth-float 7s var(--ease-in-out) 700ms infinite alternate; }
+  .mtb-auth-plate .mtb-crest { height: 128px !important; }
+  .mtb-auth-ring { border-radius: 28px; }
+  .mtb-auth-title { gap: 8px; }
+  .mtb-auth-name { font-size: clamp(34px, 3.2vw, 46px); line-height: 1.1; }
+  .mtb-auth-tagline { font-size: 17px; }
+  .mtb-auth-points { display: grid; gap: 14px; margin: 0; padding: 0; list-style: none; }
+  .mtb-auth-points > li { display: flex; align-items: center; gap: 12px; font-size: 15px; color: rgba(255, 255, 255, 0.92); }
+  .mtb-auth-point-icon {
+    display: grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: 10px;
+    background: rgba(255, 255, 255, 0.1); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14); color: var(--auth-gold);
+  }
+  .mtb-auth-motto {
+    display: block; margin: 8px 0 0; padding-top: 20px; width: 100%;
+    border-top: 1px solid rgba(255, 255, 255, 0.16);
+    font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255, 255, 255, 0.7);
+  }
+  .mtb-auth-main {
+    justify-content: center; margin-top: 0; padding: 72px 32px 40px;
+    background: radial-gradient(60% 50% at 80% 10%, var(--brand-tint) 0%, transparent 70%);
+  }
+  .mtb-auth-card { animation-name: mtb-auth-card-in-wide; }
+  .mtb-auth-tools { top: 16px; inset-inline-end: 24px; }
+}
+
+/* A short computer window: a smaller crest and tighter spacing, then fewer lines, so nothing is cut off. */
+@media (min-width: 1024px) and (max-height: 760px) {
+  .mtb-auth-brand { padding-block: 28px; }
+  .mtb-auth-brand-inner { gap: 16px; }
+  .mtb-auth-plate { padding: 8px 12px; border-radius: 18px; }
+  .mtb-auth-plate .mtb-crest { height: 76px !important; }
+  .mtb-auth-name { font-size: 32px; }
+  .mtb-auth-points { gap: 8px; }
+  .mtb-auth-motto { margin-top: 0; padding-top: 12px; }
+  .mtb-auth-main { padding-block: 64px 24px; }
+}
+@media (min-width: 1024px) and (max-height: 560px) {
+  .mtb-auth-motto { display: none; }
+  .mtb-auth-point-icon { width: 30px; height: 30px; }
+}
+@media (min-width: 1024px) and (max-height: 440px) {
+  .mtb-auth-points { display: none; }
+}
+
+/* A short, wide window (a phone on its side): keep the band small so the form is reachable. */
+@media (max-width: 1023.98px) and (max-height: 520px) {
+  .mtb-auth-brand { padding-top: 16px; padding-bottom: 64px; }
+  .mtb-auth-brand-inner { grid-auto-flow: column; justify-content: center; align-items: center; text-align: start; }
+  .mtb-auth-plate .mtb-crest { height: 44px !important; }
+}
+
+@keyframes mtb-auth-fade-in { from { opacity: 0; } }
+@keyframes mtb-auth-pop { from { opacity: 0; transform: scale(0.6) translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes mtb-auth-float { to { transform: translateY(-8px); } }
+@keyframes mtb-auth-breathe { 0%, 100% { transform: scale(1); opacity: 0.85; } 40% { transform: scale(1.12); opacity: 1; } 55% { transform: scale(1.05); opacity: 0.9; } 70% { transform: scale(1.14); opacity: 1; } }
+@keyframes mtb-auth-ring { 0% { transform: scale(1); opacity: 0.7; } 70%, 100% { transform: scale(1.45); opacity: 0; } }
+@keyframes mtb-auth-ember { 0% { transform: translate(0, 0) scale(1); opacity: 0; } 12% { opacity: 1; } 100% { transform: translate(calc((var(--i) - 2) * 7px), -78px) scale(0.3); opacity: 0; } }
+@keyframes mtb-auth-twinkle { 0%, 100% { transform: scale(0.55); opacity: 0.25; } 50% { transform: scale(1.1); opacity: 0.95; } }
+@keyframes mtb-auth-sway { from { transform: rotate(-7deg); } to { transform: rotate(9deg); } }
+@keyframes mtb-auth-drift { to { transform: translate(72px, 72px); } }
+@keyframes mtb-auth-card-in { from { opacity: 0; transform: translateY(28px) scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes mtb-auth-card-in-wide { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } }
+
+/* With motion reduced, the looping decorations rest in a calm state instead of freezing at their last frame. */
+@media (prefers-reduced-motion: reduce) {
+  .mtb-auth-ember, .mtb-auth-ring { display: none; }
+  .mtb-auth-twinkle { opacity: 0.5; }
+}

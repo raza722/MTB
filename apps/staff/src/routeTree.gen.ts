@@ -11,7 +11,6 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/_app'
-import { Route as DesignSystemRouteImport } from './routes/design-system'
 import { Route as StatesRouteImport } from './routes/states'
 import { Route as AppAccountsRouteRouteImport } from './routes/_app/accounts/route'
 import { Route as AppActivitiesRouteImport } from './routes/_app/activities'
@@ -172,11 +171,6 @@ const IndexRoute = IndexRouteImport.update({
 } as any)
 const AppRoute = AppRouteImport.update({
   id: '/_app',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DesignSystemRoute = DesignSystemRouteImport.update({
-  id: '/design-system',
-  path: '/design-system',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StatesRoute = StatesRouteImport.update({
@@ -956,7 +950,6 @@ const AppWarehouseCountsCountIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/design-system': typeof DesignSystemRoute
   '/states': typeof StatesRoute
   '/accounts': typeof AppAccountsRouteRouteWithChildren
   '/activities': typeof AppActivitiesRouteWithChildren
@@ -1112,7 +1105,6 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/design-system': typeof DesignSystemRoute
   '/states': typeof StatesRoute
   '/dashboard': typeof AppDashboardRoute
   '/settings': typeof AppSettingsRoute
@@ -1256,7 +1248,6 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
-  '/design-system': typeof DesignSystemRoute
   '/states': typeof StatesRoute
   '/_app/accounts': typeof AppAccountsRouteRouteWithChildren
   '/_app/activities': typeof AppActivitiesRouteWithChildren
@@ -1414,7 +1405,6 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/design-system'
     | '/states'
     | '/accounts'
     | '/activities'
@@ -1570,7 +1560,6 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/design-system'
     | '/states'
     | '/dashboard'
     | '/settings'
@@ -1713,7 +1702,6 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_app'
-    | '/design-system'
     | '/states'
     | '/_app/accounts'
     | '/_app/activities'
@@ -1871,7 +1859,6 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
-  DesignSystemRoute: typeof DesignSystemRoute
   StatesRoute: typeof StatesRoute
   LoginMfaRoute: typeof LoginMfaRoute
   LoginResetPasswordRoute: typeof LoginResetPasswordRoute
@@ -1892,13 +1879,6 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AppRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/design-system': {
-      id: '/design-system'
-      path: '/design-system'
-      fullPath: '/design-system'
-      preLoaderRoute: typeof DesignSystemRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/states': {
@@ -3412,7 +3392,6 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
-  DesignSystemRoute: DesignSystemRoute,
   StatesRoute: StatesRoute,
   LoginMfaRoute: LoginMfaRoute,
   LoginResetPasswordRoute: LoginResetPasswordRoute,

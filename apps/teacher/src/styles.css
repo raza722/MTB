@@ -64,6 +64,9 @@ body {
   }
 }
 
+/* Page changes: only the screen's content cross-fades (motion.css); the header, the tab bar and the sidebar stay put. */
+.t-page { view-transition-name: mtb-page; }
+
 /* "Reduce motion" chosen in More → Appearance, on top of the phone's own setting (base.css). */
 :root[data-motion="reduce"] *,
 :root[data-motion="reduce"] *::before,
@@ -73,4 +76,9 @@ body {
   animation-delay: 0ms !important;
   transition-duration: 0.01ms !important;
   scroll-behavior: auto !important;
+}
+:root[data-motion="reduce"]::view-transition-group(*),
+:root[data-motion="reduce"]::view-transition-old(*),
+:root[data-motion="reduce"]::view-transition-new(*) {
+  animation: none !important;
 }
