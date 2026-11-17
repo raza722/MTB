@@ -1,5 +1,5 @@
 import { formatDate, type IsoDate } from "@mtb/domain";
-import { Fragment, type CSSProperties, type ReactNode } from "react";
+import { Fragment, useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { Icon, type IconName } from "../icons";
 import { cx, initials } from "../lib/cx";
 
@@ -94,14 +94,28 @@ export interface AvatarProps {
   className?: string;
 }
 
-/** Initials when there is no photo. Decorative: the name always appears beside it. */
+/** The photo, or initials when there is none (or it fails to load). Decorative: the name always appears beside it. */
 export function Avatar({ name, size, tone, src, className }: AvatarProps) {
   const t = tone ?? ((name.length % 4) + 1);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [src]);
+  const showPhoto = !!src && !failed;
   return (
-    <span className={cx("mtb-avatar", size && `mtb-avatar-${size}`, t > 1 && `tone-${t}`, className)} aria-hidden="true">
-      {src ? <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : initials(name || "?")}
+    <span className={cx("mtb-avatar", size && `mtb-avatar-${size}`, t > 1 && `tone-${t}`, showPhoto && "has-photo", className)} aria-hidden="true">
+      {showPhoto ? <img src={src} alt="" loading="lazy" decoding="async" onError={() => setFailed(true)} style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "inherit" }} /> : initials(name || "?")}
     </span>
   );
+}
+
+/**
+ * A printed photo box: the photo when there is one, else `fallback` (the old empty box or outline). Loads eagerly so the
+ * photo is there when the print dialog opens.
+ */
+export function PhotoBox({ src, className, fallback, label = "" }: { src?: string; className?: string; fallback?: ReactNode; label?: string }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [src]);
+  if (!src || failed) return <>{fallback ?? null}</>;
+  return <img src={src} alt={label} className={className} loading="eager" decoding="sync" onError={() => setFailed(true)} style={{ objectFit: "cover" }} />;
 }
 
 export function Stepper({ steps, current, label = "Progress" }: { steps: string[]; current: number; label?: string }) {
@@ -169,5 +183,23 @@ export function ShortcutHints({ items, label = "Keyboard shortcuts" }: { items: 
         </li>
       ))}
     </ul>
+  );
+}
+
+/**
+ * The Madrasat-ul-Banat crest, the school's logo from the old system (torch, crescent and book; each app serves it as
+ * /mtb-crest-sm.png from its public folder). It sits on a white tile so the black lines stay readable in dark mode.
+ */
+export function Crest({ size = 40, className }: { size?: number; className?: string }) {
+  return (
+    <img
+      src="/mtb-crest-sm.png"
+      alt=""
+      aria-hidden="true"
+      className={cx("mtb-crest", className)}
+      width={Math.round((size * 441) / 683)}
+      height={size}
+      style={{ height: size, width: "auto", background: "#fff", borderRadius: 4, padding: Math.max(1, Math.round(size / 24)), flex: "none" }}
+    />
   );
 }

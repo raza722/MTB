@@ -1,6 +1,6 @@
 import { authApi, can, CURRENT_SESSION, dashboardQueries, metaQueries, newIdempotencyKey, smsStatusApi, smsStatusQueries, type CampusScope, type Permission, type SessionInfo } from "@mtb/api";
 import { formatDateTime, formatSession } from "@mtb/domain";
-import { Avatar, Banner, Button, cx, Icon, IconButton, Menu, MenuItem, MenuLabel, MenuSeparator, NavDrawer, PHONE_QUERY, Tooltip, useMediaQuery, useToast, WIDE_QUERY, type IconName } from "@mtb/ui";
+import { Avatar, Banner, Button, cx, Icon, IconButton, Menu, MenuItem, MenuLabel, MenuSeparator, NavDrawer, PHONE_QUERY, Tooltip, useMediaQuery, useToast, WIDE_QUERY, type IconName, Crest } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { lazy, Suspense, useRef, useState, type ReactNode } from "react";
@@ -126,13 +126,16 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
   return (
     <aside className={cx("sticky top-0 hidden h-screen shrink-0 flex-col border-r border-border bg-surface-raised md:flex", rail ? "w-16" : "w-60")} aria-label="Main">
       <div className={cx("flex h-12 items-center border-b border-border", rail ? "justify-center" : "justify-between px-4")}>
-        {!rail && <span className="text-title-1">MTB</span>}
+        {!rail && (
+          <span className="flex items-center gap-2">
+            <Crest size={30} />
+            <span className="text-title-1">MTB</span>
+          </span>
+        )}
         {wide ? (
           <IconButton icon={rail ? "chevronRight" : "chevronLeft"} label={rail ? "Expand sidebar" : "Collapse sidebar"} size="sm" onClick={onToggle} />
         ) : (
-          <span className="text-small font-semibold text-brand-ink" aria-hidden="true">
-            MTB
-          </span>
+          <Crest size={30} />
         )}
       </div>
       <nav className="relative grid flex-1 content-start gap-1 overflow-y-auto p-2">
@@ -156,7 +159,12 @@ function MobileNav({ open, onClose }: { open: boolean; onClose: () => void }) {
       open={open}
       onClose={onClose}
       title="Main menu"
-      header={<span className="text-title-1">MTB</span>}
+      header={
+        <span className="flex items-center gap-2">
+          <Crest size={30} />
+          <span className="text-title-1">MTB</span>
+        </span>
+      }
       footer={
         user && (
           <div className="flex min-w-0 items-center gap-3">

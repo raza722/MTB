@@ -66,9 +66,12 @@ function ResultCardDoc({ r, child }: { r: PortalResult; child: PortalChild }) {
   return (
     <div data-theme="light" lang="en" dir="ltr" className="portal-doc portal-resultcard">
       <header className="mb-4 flex items-end justify-between gap-4 border-b-2 border-ink pb-3">
-        <div className="grid">
-          <span className="text-[20px] leading-6 font-semibold text-brand-ink">MTB</span>
-          <span className="font-medium">{child.campusName}</span>
+        <div className="flex items-center gap-3">
+          <img src="/mtb-crest-sm.png" alt="" className="h-14 w-auto" />
+          <div className="grid">
+            <span className="text-[16px] leading-6 font-semibold text-brand-ink">MTB-Madrasat-ul-Banat Schools and Colleges</span>
+            <span className="font-medium">{child.campusName}</span>
+          </div>
         </div>
         <div className="grid justify-items-end text-right">
           <span className="text-[16px] font-semibold">Result card</span>

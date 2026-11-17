@@ -21,6 +21,7 @@ import { Urdu } from "@mtb/ui";
 import type { ReactNode } from "react";
 import { campusPlace, CREST_SRC, Letterhead, SCHOOL_NAME } from "../../app/print/letterhead";
 import { ordinal, printedOn, valueShort } from "./shared";
+import { StudentPhoto } from "../../app/print/photo";
 
 
 /**
@@ -530,6 +531,7 @@ export function SportsListDoc({
                     <th>Participated In</th>
                     <th style={{ width: "24mm" }}>Played as</th>
                     <th style={{ width: "18mm" }}>Position</th>
+                    <th style={{ width: "11mm" }}>Picture</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -548,6 +550,9 @@ export function SportsListDoc({
                           <td className="c">{oneEvent ? g.item : `${g.eventTitle} · ${g.item}`}</td>
                           <td className="c">{ACTIVITIES_ROLE_LABEL[r.role]}</td>
                           <td className="c">{r.position ? ordinal(r.position) : ""}</td>
+                          <td className="act-sl-pic">
+                            <StudentPhoto grNo={r.studentId} className="act-sl-photo" />
+                          </td>
                         </tr>
                       );
                     }),
@@ -566,6 +571,9 @@ export function SportsListDoc({
                         <td />
                         <td />
                         <td />
+                        <td className="act-sl-pic">
+                          <StudentPhoto grNo={s.studentId} className="act-sl-photo" />
+                        </td>
                       </tr>
                     );
                   })}

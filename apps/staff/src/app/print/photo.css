@@ -1,0 +1,6 @@
+/* Photos on printouts (see photo.tsx). The caller's class sets the size; these keep the old look. */
+.mtb-print-photo { display: block; object-fit: cover; background: #fff; }
+.mtb-nophoto { display: block; fill: #c8c8c8; background: #fff; }
+@media print {
+  .mtb-print-photo, .mtb-nophoto { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+}

@@ -20,7 +20,9 @@ const csvCell = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` 
  * Numbers are written plain (no "Rs", no commas) so Excel can add them up. It opens with the printed report's
  * heading: the school and campus, the old report's title (in capitals where the old one was) and the line of parameters ("Class : 9   Section : Barni").
  */
-export function toCsv(result: ReportResult, campus?: string, filters?: ReportFilterDef[]): string {
+export function toCsv(full: ReportResult, campus?: string, filters?: ReportFilterDef[]): string {
+  // a CSV cannot hold pictures: the "Picture" column stays on the printed report only
+  const result: ReportResult = { ...full, columns: full.columns.filter((c) => c.kind !== "photo") };
   const lines: string[] = [];
   lines.push(csvCell(campus ? schoolHeading(campus) : result.campusHeading));
   lines.push(csvCell(titleInCapitals(result) ? printTitle(result).toUpperCase() : printTitle(result)));

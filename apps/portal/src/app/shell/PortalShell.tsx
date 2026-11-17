@@ -1,5 +1,5 @@
 import { portalApi, portalQueries } from "@mtb/api";
-import { Avatar, Button, EmptyState, Icon, IconButton, Menu, MenuItem, MenuLabel, MenuSeparator, useToast } from "@mtb/ui";
+import { Avatar, Button, EmptyState, Icon, IconButton, Menu, MenuItem, MenuLabel, MenuSeparator, useToast, Crest } from "@mtb/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, Outlet, useNavigate } from "@tanstack/react-router";
 import { setTheme, useTheme } from "../appearance";
@@ -98,9 +98,12 @@ export function PortalShell() {
 
       {/* Computer: side list */}
       <aside className="portal-no-print sticky top-0 hidden h-dvh flex-col gap-6 border-e border-border bg-surface-raised px-4 py-5 lg:flex">
-        <Link to="/home" className="grid gap-0.5 px-3 no-underline">
-          <span className="text-title-1 tracking-tight text-brand-ink">MTB</span>
-          <span className="text-small text-ink-muted">{t("app.tagline")}</span>
+        <Link to="/home" className="flex items-center gap-3 px-3 no-underline">
+          <Crest size={44} />
+          <span className="grid gap-0.5">
+            <span className="text-title-1 tracking-tight text-brand-ink">MTB</span>
+            <span className="text-small text-ink-muted">{t("app.tagline")}</span>
+          </span>
         </Link>
         <SideNav />
         <div className="mt-auto grid gap-2">

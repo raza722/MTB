@@ -1,4 +1,4 @@
-import { admissionsApi, admissionsMatchLabel, admissionsQueries, ApiError, newIdempotencyKey, type AdmissionsApplicant, type AdmissionsApplicationInput } from "@mtb/api";
+import { admissionsApi, admissionsMatchLabel, admissionsQueries, ApiError, newIdempotencyKey, type AdmissionsApplicant, type AdmissionsApplicationInput, photoUrl } from "@mtb/api";
 import { formatCnic, formatDate, formatRs, isValidCnic, normalizeMobile } from "@mtb/domain";
 import { Avatar, Banner, Button, buttonClassName, CnicInput, DatePicker, EmptyState, Icon, Input, KeyValue, Modal, Panel, Radio, Select, Skeleton, StatusBadge, Stepper, Switch, Textarea, useToast } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -338,7 +338,7 @@ export function NewApplicationPage({ enquiryId }: { enquiryId: string }) {
                       <ul className="m-0 grid list-none gap-1 p-0">
                         {family.children.map((c) => (
                           <li key={c.grNo} className="flex items-center gap-2 text-small">
-                            <Avatar name={c.name} size="sm" />
+                            <Avatar src={photoUrl.student(c.grNo)} name={c.name} size="sm" />
                             <span className="flex-1">
                               {c.name} <span className="text-ink-muted">· {c.classSection} · {c.campusName}</span>
                             </span>

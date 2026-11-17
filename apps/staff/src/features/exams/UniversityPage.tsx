@@ -31,6 +31,7 @@ import { DocHead, Fields, printedOn, sessionLong } from "./print/docs";
 import { PrintSheet, printNow } from "./print/PrintSheet";
 import { errorText, ExamsNav, examsToday, LoadError, ordinal } from "./shared";
 import { useAutosave } from "./useAutosave";
+import { StudentPhoto } from "../../app/print/photo";
 
 export interface UniversitySearch {
   semester?: string;
@@ -1447,7 +1448,8 @@ function UniTranscript({ sem, studentId, view, onChange }: { sem: ExamsUniSemest
                 <b>Class:</b>
                 <span>{t.data.programmeShort}</span>
               </div>
-              <div className="exams-hist-photo" aria-hidden />
+              {/* the old report printed the student's photo here (Student_Snap) */}
+              <StudentPhoto grNo={t.data.id} className="exams-hist-photo" />
             </div>
             <div className="exams-fields" style={{ justifyContent: "space-between", margin: "1mm 0 1mm" }}>
               <span>

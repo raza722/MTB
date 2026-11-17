@@ -1,9 +1,10 @@
-import { HR_PAYMENT_LABEL, hrMonthLabel, type HrBankList, type HrPayrollRun, type HrPayslip, type HrStaffProfile } from "@mtb/api";
+import { HR_PAYMENT_LABEL, hrMonthLabel, type HrBankList, type HrPayrollRun, type HrPayslip, type HrStaffProfile, photoUrl } from "@mtb/api";
 import { amountInWords, formatCnic, formatDate, formatMobile, formatRs } from "@mtb/domain";
-import { Urdu } from "@mtb/ui";
+import { Urdu, PhotoBox } from "@mtb/ui";
 import type { ReactNode } from "react";
 import { Letterhead } from "../../app/print/letterhead";
 import { campusHeading, cnicOrDash, employmentLabel, Ltr, orDash, sessionOf, today, years } from "./shared";
+import { StaffPhoto } from "../../app/print/photo";
 
 /**
  * Heading used by every printed HR document: the old letterhead (crest, "MTB-Madrasat-ul-Banat Schools and Colleges,
@@ -326,7 +327,7 @@ export function IdCardDoc({ s }: { s: HrStaffProfile }) {
       </div>
       <div className="hr-card-body">
         <div className="hr-card-photo" aria-hidden="true">
-          {initials}
+          <PhotoBox src={photoUrl.staff(s.employeeNo, p.campus)} className="hr-card-img" fallback={initials} />
         </div>
         <div style={{ display: "grid", gap: "0.8mm" }}>
           <span className="hr-card-name">{s.name}</span>
@@ -373,6 +374,10 @@ export function PayslipDoc({ run, slip, first }: { run: Pick<HrPayrollRun, "camp
       <table>
         <tbody>
           <tr>
+            <td rowSpan={2} className="hr-slip-pic">
+              {/* the old "Employee Salary Card" printed the staff member's photo (Snap) */}
+              <StaffPhoto employeeNo={slip.employeeNo} campus={run.campus} className="hr-slip-photo" />
+            </td>
             <td>
               <strong>{slip.name}</strong> · {slip.employeeNo}
               {slip.cnic && (

@@ -1,4 +1,4 @@
-import { HR_CATEGORY_LABEL, hrQueries, type CampusCode, type HrCategory, type HrGender, type HrStaffSummary } from "@mtb/api";
+import { HR_CATEGORY_LABEL, hrQueries, type CampusCode, type HrCategory, type HrGender, type HrStaffSummary, photoUrl } from "@mtb/api";
 import { formatCnic, formatCount, formatDate, formatMobile, formatRs } from "@mtb/domain";
 import { AnimatedNumber, Avatar, Banner, Button, DataTable, EmptyState, Input, Menu, MenuItem, Panel, SegmentedBar, Select, StatCard, type Column, type SortState } from "@mtb/ui";
 import { useQuery } from "@tanstack/react-query";
@@ -103,7 +103,7 @@ export function StaffDirectoryPage() {
       sortable: true,
       render: (s) => (
         <span className="flex items-center gap-3">
-          <Avatar name={s.name.replace(/^(Mr|Ms|Mrs|Dr|Qari)\s+/, "")} size="sm" tone={((s.employeeNo.charCodeAt(s.employeeNo.length - 1) % 4) + 1) as 1 | 2 | 3 | 4} />
+          <Avatar src={photoUrl.staff(s.employeeNo, ctx.campus)} name={s.name.replace(/^(Mr|Ms|Mrs|Dr|Qari)\s+/, "")} size="sm" tone={((s.employeeNo.charCodeAt(s.employeeNo.length - 1) % 4) + 1) as 1 | 2 | 3 | 4} />
           <span className="grid min-w-0">
             <span className="font-medium">{s.name}</span>
             <span className="text-small text-ink-muted">

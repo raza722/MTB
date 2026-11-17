@@ -169,3 +169,7 @@
 .act-chip:hover { background: var(--surface-hover); }
 .act-chip:active { transform: scale(0.97); }
 .act-chip[aria-pressed="true"] { background: var(--brand-tint); border-color: var(--brand); color: var(--brand-ink); font-weight: 600; }
+
+/* The old sports list's "Picture" column: the student's photo, or the grey outline. */
+.act-sl td.act-sl-pic { padding: 0.3mm; text-align: center; vertical-align: middle; }
+.act-sl .act-sl-photo { width: 8mm; height: 9.5mm; margin: 0 auto; }

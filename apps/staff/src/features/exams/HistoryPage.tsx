@@ -1,4 +1,4 @@
-import { EXAMS_CATEGORY_LABEL, EXAMS_RESULT_LABEL, examsQueries, type ExamsHistoryEntry, type ExamsMark, type ExamsStudentHistory } from "@mtb/api";
+import { EXAMS_CATEGORY_LABEL, EXAMS_RESULT_LABEL, examsQueries, type ExamsHistoryEntry, type ExamsMark, type ExamsStudentHistory, photoUrl } from "@mtb/api";
 import { formatDate, formatMobile, formatPercent, formatSession, type IsoDate } from "@mtb/domain";
 import { AreaChart, Avatar, Banner, Button, buttonClassName, Checkbox, DataTable, DatePicker, EmptyState, Input, Panel, Segmented, Select, Skeleton } from "@mtb/ui";
 import { useQuery } from "@tanstack/react-query";
@@ -112,7 +112,7 @@ export function HistoryPage({ id, onPick }: { id: string | undefined; onPick: (i
                         search={{ semester: p.university.semesterId, tab: "transcript", student: p.id, view: "history" } as never}
                         className="flex w-full items-center gap-3 rounded-md border border-border px-3 py-2 text-left hover:bg-surface-hover"
                       >
-                        <Avatar name={p.name} size="sm" />
+                        <Avatar src={photoUrl.student(p.id)} name={p.name} size="sm" />
                         <span className="grid min-w-0">
                           <span className="truncate font-medium">{p.name}</span>
                           <span className="text-small text-ink-muted">
@@ -132,7 +132,7 @@ export function HistoryPage({ id, onPick }: { id: string | undefined; onPick: (i
                         }}
                         className={`flex w-full items-center gap-3 rounded-md border px-3 py-2 text-left ${p.id === id ? "border-brand bg-brand-tint" : "border-border hover:bg-surface-hover"}`}
                       >
-                        <Avatar name={p.name} size="sm" />
+                        <Avatar src={photoUrl.student(p.id)} name={p.name} size="sm" />
                         <span className="grid min-w-0">
                           <span className="truncate font-medium">{p.name}</span>
                           <span className="text-small text-ink-muted">

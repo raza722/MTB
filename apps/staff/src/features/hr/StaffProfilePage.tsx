@@ -1,4 +1,4 @@
-import { can, HR_CATEGORY_LABEL, HR_DOCUMENT_LABEL, HR_EMPLOYMENT_LABEL, HR_PAYMENT_LABEL, hrApi, hrMonthLabel, hrQueries, type HrDocumentKind, type HrStaffProfile } from "@mtb/api";
+import { can, HR_CATEGORY_LABEL, HR_DOCUMENT_LABEL, HR_EMPLOYMENT_LABEL, HR_PAYMENT_LABEL, hrApi, hrMonthLabel, hrQueries, type HrDocumentKind, type HrStaffProfile, photoUrl } from "@mtb/api";
 import { formatDate, formatDateTime, formatMobile, formatRs, formatSession } from "@mtb/domain";
 import {
   AttendanceCalendar,
@@ -169,7 +169,7 @@ export function StaffProfilePage({ staffId, tab, setTab }: { staffId: string; ta
           <>
             <section className="mtb-card mtb-rise p-5" aria-label="Summary">
               <div className="hr-hero">
-                <Avatar name={s.name.replace(/^(Mr|Ms|Mrs|Dr|Qari)\s+/, "")} size="xl" />
+                <Avatar src={photoUrl.staff(s.employeeNo, ctx.campus)} name={s.name.replace(/^(Mr|Ms|Mrs|Dr|Qari)\s+/, "")} size="xl" />
                 <div className="grid min-w-0 gap-1">
                   <div className="flex flex-wrap items-baseline gap-3">
                     <span className="text-title-2">{s.name}</span>

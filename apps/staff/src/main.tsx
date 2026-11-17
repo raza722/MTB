@@ -9,8 +9,11 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { installPrintWhenReady } from "./app/print/ready";
 import { queryClient, sessionExpired } from "./app/query-client";
 import { routeTree } from "./routeTree.gen";
+
+installPrintWhenReady();
 
 const router = createRouter({
   routeTree,

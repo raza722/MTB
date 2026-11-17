@@ -1,8 +1,9 @@
+import { Crest } from "@mtb/ui";
 import { useEffect, type CSSProperties, type ReactNode } from "react";
 import { useLang } from "../../app/i18n";
 import { LangToggle, ThemeToggle } from "../../app/shell/PortalShell";
 
-/** Centred card with the MTB wordmark, the language switch within reach, and who to call for help. */
+/** Centred card with the school crest and the MTB name, the language switch within reach, and who to call for help. */
 export function AuthLayout({ title, subtitle, children, aside }: { title: string; subtitle?: ReactNode; children: ReactNode; aside?: ReactNode }) {
   const { t } = useLang();
   useEffect(() => {
@@ -16,6 +17,7 @@ export function AuthLayout({ title, subtitle, children, aside }: { title: string
       </div>
       <div className="mx-auto grid w-full max-w-[440px] gap-6 px-4 pt-6 pb-12 lg:pt-12">
         <div className="mtb-rise grid justify-items-center gap-1 text-center">
+          <Crest size={80} />
           <span className="text-display tracking-tight text-brand-ink">MTB</span>
           <span className="text-small text-ink-muted">{t("app.tagline")}</span>
         </div>

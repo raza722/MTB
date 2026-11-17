@@ -1,4 +1,4 @@
-import { portalApi, portalQueries, type PortalLang, type PortalProfile } from "@mtb/api";
+import { portalApi, portalQueries, type PortalLang, type PortalProfile, photoUrl } from "@mtb/api";
 import { Avatar, Button, buttonClassName, Icon, KeyValue, Panel, Segmented, Skeleton, Urdu, useToast } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
@@ -15,7 +15,7 @@ function StudentPanel({ p }: { p: PortalProfile }) {
   return (
     <Panel id="prof-student" title={t("prof.student")} rise={0}>
       <div className="mb-4 flex items-center gap-3">
-        <Avatar name={c.name} size="lg" />
+        <Avatar src={photoUrl.portalChild(c.grNo)} name={c.name} size="lg" />
         <div className="grid min-w-0">
           <span className="text-title-2 text-ink">{name(c.name, c.nameUr)}</span>
           {isUr ? (
@@ -213,7 +213,7 @@ function AccountPanel() {
                     onClick={() => switchTo(c.grNo)}
                     className="flex min-h-11 w-full items-center gap-3 rounded-md px-2 text-start hover:bg-surface-hover aria-pressed:bg-brand-tint"
                   >
-                    <Avatar name={c.name} size="sm" />
+                    <Avatar src={photoUrl.portalChild(c.grNo)} name={c.name} size="sm" />
                     <span className="flex-1 font-medium text-ink">{name(c.name, c.nameUr)}</span>
                     <span className="text-small text-ink-muted">
                       <Cls value={c.classSection} /> · {name(c.campusName, c.campusNameUr)}

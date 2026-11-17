@@ -1,4 +1,5 @@
 import type { PortalChild } from "@mtb/api";
+import { photoUrl } from "@mtb/api";
 import { Avatar, BottomSheet, cx, Icon, StatusBadge } from "@mtb/ui";
 import { useState, type CSSProperties } from "react";
 import { Cls, Money } from "../format";
@@ -40,7 +41,7 @@ export function ChildSwitcher() {
 
   const current = (
     <>
-      <Avatar name={child.name} size="sm" />
+      <Avatar src={photoUrl.portalChild(child.grNo)} name={child.name} size="sm" />
       <span className="grid min-w-0 text-start">
         <span className="truncate font-semibold text-ink">{name(child.name, child.nameUr)}</span>
         <ChildLine c={child} />
@@ -82,7 +83,7 @@ export function ChildSwitcher() {
                   active ? "border-brand bg-brand-tint text-brand-ink" : "border-border bg-surface-raised text-ink hover:bg-surface-hover",
                 )}
               >
-                <Avatar name={c.name} size="sm" />
+                <Avatar src={photoUrl.portalChild(c.grNo)} name={c.name} size="sm" />
                 <span className="grid text-start leading-tight">
                   <span className="font-semibold">{name(c.name, c.nameUr)}</span>
                   <span className="text-caption text-ink-muted">
@@ -114,7 +115,7 @@ export function ChildSwitcher() {
                     active ? "border-brand bg-brand-tint" : "border-border bg-surface-raised hover:bg-surface-hover",
                   )}
                 >
-                  <Avatar name={c.name} />
+                  <Avatar src={photoUrl.portalChild(c.grNo)} name={c.name} />
                   <span className="grid min-w-0 flex-1 gap-1">
                     <span className="truncate font-semibold text-ink">{name(c.name, c.nameUr)}</span>
                     <ChildLine c={c} />

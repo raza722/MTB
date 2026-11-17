@@ -1,4 +1,4 @@
-import { teacherQueries, type TeacherClassDetail, type TeacherStudentContact } from "@mtb/api";
+import { teacherQueries, type TeacherClassDetail, type TeacherStudentContact, photoUrl } from "@mtb/api";
 import { formatDate, formatMobile, formatPercent } from "@mtb/domain";
 import { Avatar, Banner, BottomSheet, EmptyState, Icon, Input, KeyValue, Skeleton, StatusBadge, cx, type AttendanceStatus } from "@mtb/ui";
 import { useQuery } from "@tanstack/react-query";
@@ -67,7 +67,7 @@ function ClassList({ d }: { d: TeacherClassDetail }) {
             <li key={s.grNo} className={i < 14 ? "mtb-slide-in" : undefined} style={i < 14 ? ({ "--i": i } as CSSProperties) : undefined}>
               <button type="button" onClick={() => setOpen(s)} className="mtb-card flex min-h-14 w-full items-center gap-3 px-3 py-2 text-start hover:border-border-strong">
                 <span className="w-6 shrink-0 text-end text-small text-ink-muted tabular-nums">{s.rollNo}</span>
-                <Avatar name={s.name} />
+                <Avatar src={photoUrl.student(s.grNo)} name={s.name} />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-medium text-ink">{s.name}</span>
                   <span className="block truncate text-small text-ink-muted">Father: {s.father}</span>

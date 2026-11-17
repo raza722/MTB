@@ -8,6 +8,7 @@ import {
   type AttendanceRegisterStudent,
   type CampusCode,
   type RegisterCode,
+  photoUrl,
 } from "@mtb/api";
 import { formatDate, formatDateTime, formatLongDate, formatSession, formatTime, type IsoDate } from "@mtb/domain";
 import { Avatar, Banner, Button, buttonClassName, ConfirmDialog, DatePicker, EmptyState, Input, Panel, SegmentedBar, SidePanel, Skeleton, StatusBadge, Textarea, useToast } from "@mtb/ui";
@@ -333,7 +334,7 @@ export function RegisterPage({ classSection, date, onDate }: RegisterPageProps) 
                     return (
                       <li key={s.grNo} className={`mtb-slide-in ${code === "A" ? "is-absent" : ""} ${s.pending ? "is-pending" : ""}`} style={{ "--i": Math.min(i, 18) } as CSSProperties}>
                         <span className="att-roll">{s.rollNo || "—"}</span>
-                        <Avatar name={s.name} size="sm" />
+                        <Avatar src={photoUrl.student(s.grNo)} name={s.name} size="sm" />
                         <span className="att-name">
                           <Link to="/students/$grNo" params={{ grNo: s.grNo }}>
                             {s.name}

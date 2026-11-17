@@ -154,7 +154,7 @@
 .exams-hist-info b { text-align: right; }
 .exams-hist-info span { border-bottom: 0.8pt solid #000; padding-left: 2mm; min-height: 4.5mm; }
 .exams-hist-info span:empty { border: 0; }
-.exams-hist-photo { width: 24mm; height: 29mm; border: 0.6pt solid #999; }
+.exams-hist-photo { width: 24mm; height: 29mm; border: 0.6pt solid #999; display: block; object-fit: cover; }
 .exams-doc .exams-hist th, .exams-doc .exams-hist td { border: 0; padding: 1.2mm 1.4mm; }
 .exams-doc .exams-hist thead th { border-bottom: 1.6pt double #000; }
 /* Old consolidated result sheet (one student, every exam and the cumulative result). */

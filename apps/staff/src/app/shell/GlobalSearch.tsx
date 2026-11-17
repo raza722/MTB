@@ -1,4 +1,4 @@
-import { ADMISSIONS_STAGE_LABEL, studentsQueries } from "@mtb/api";
+import { ADMISSIONS_STAGE_LABEL, studentsQueries, photoUrl } from "@mtb/api";
 import { formatCnic, formatDate, formatRs } from "@mtb/domain";
 import { Avatar, Icon, Kbd, StatusBadge } from "@mtb/ui";
 import { useQuery } from "@tanstack/react-query";
@@ -122,7 +122,7 @@ export function GlobalSearch({ open, onOpenChange }: { open: boolean; onOpenChan
                 <Command.Group heading="Students" className="mtb-search-group">
                   {data.students.map((s) => (
                     <Command.Item key={s.grNo} value={`student-${s.grNo}`} onSelect={() => go(() => navigate({ to: "/students/$grNo", params: { grNo: s.grNo } }))} className="mtb-search-item">
-                      <Avatar name={s.name} size="sm" />
+                      <Avatar src={photoUrl.student(s.grNo)} name={s.name} size="sm" />
                       <span className="grid min-w-0 flex-1">
                         <span className="truncate font-medium">
                           <Highlight text={s.name} query={debounced} /> <span className="mtb-mono text-ink-muted"><Highlight text={s.grNo} query={debounced} /></span>

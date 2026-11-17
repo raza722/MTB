@@ -1,6 +1,7 @@
 import { REPORT_SUBTOTAL_KEY, type ReportCell, type ReportColumnDef, type ReportFilterDef, type ReportResult } from "@mtb/api";
 import { useEffect, useState } from "react";
 import { footerBoxes, Letterhead } from "../../app/print/letterhead";
+import { StudentPhoto } from "../../app/print/photo";
 import { cellText } from "./shell";
 
 /** Counts, percentages and dates sit in the middle of their cells and money on the right, as on the old reports. */
@@ -258,11 +259,17 @@ function Table({ result }: { result: ReportResult }) {
           return (
             <tr key={i} className={sub ? "rpt-subtotal" : undefined}>
               {showSerial && <td className="sr">{no}</td>}
-              {result.columns.map((c) => (
-                <td key={c.key} className={cellClass(c)} {...(c.kind === "urdu" ? { lang: "ur", dir: "rtl" } : {})}>
-                  {text(r, c)}
-                </td>
-              ))}
+              {result.columns.map((c) =>
+                c.kind === "photo" ? (
+                  <td key={c.key} className="rpt-photo-cell">
+                    {!sub && <StudentPhoto grNo={typeof r[c.key] === "string" ? (r[c.key] as string) : null} className="rpt-photo" />}
+                  </td>
+                ) : (
+                  <td key={c.key} className={cellClass(c)} {...(c.kind === "urdu" ? { lang: "ur", dir: "rtl" } : {})}>
+                    {text(r, c)}
+                  </td>
+                ),
+              )}
             </tr>
           );
         })}

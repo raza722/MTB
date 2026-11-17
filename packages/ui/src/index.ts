@@ -58,6 +58,8 @@ export { TabPanel, Tabs, type Tab, type TabsProps } from "./components/tabs";
 export { DataTable, DateText, Money, Pagination, type Column, type DataTableProps, type PaginationProps, type SortState } from "./components/data-table";
 export {
   Avatar,
+  PhotoBox,
+  Crest,
   Banner,
   EmptyState,
   Kbd,

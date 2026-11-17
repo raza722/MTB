@@ -1,5 +1,5 @@
 import { teacherQueries } from "@mtb/api";
-import { Icon, type IconName } from "@mtb/ui";
+import { Icon, type IconName, Crest } from "@mtb/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useCtx } from "../session";
@@ -35,6 +35,7 @@ export function BottomNav() {
       className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface-raised/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:inset-x-auto lg:top-0 lg:left-0 lg:w-[var(--t-nav-w)] lg:border-t-0 lg:border-r lg:bg-surface-raised lg:pb-0 lg:backdrop-blur-none"
     >
       <div className="hidden h-14 items-center gap-2 border-b border-border px-5 lg:flex">
+        <Crest size={32} />
         <span className="text-title-2 text-ink">MTB</span>
         <span className="text-small text-ink-muted">Teacher</span>
       </div>

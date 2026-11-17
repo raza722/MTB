@@ -51,7 +51,8 @@ export interface ReportFilterDef {
 }
 
 /** "blank" is an empty column left for ticks, signatures or marks written in by hand on the printed sheet. */
-export type ReportColumnKind = "text" | "mono" | "money" | "count" | "percent" | "date" | "status" | "urdu" | "blank";
+/** "photo": the cell holds a G.R. no. and shows that student's photo (the old reports' "Picture" column); left out of the CSV. */
+export type ReportColumnKind = "text" | "mono" | "money" | "count" | "percent" | "date" | "status" | "urdu" | "blank" | "photo";
 
 /**
  * A row carrying this key (value 1) is a subtotal line, e.g. "Class 7 total · 3 sections". It prints in bold,

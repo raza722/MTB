@@ -1,4 +1,4 @@
-import { ENROLMENT_STATUS_LABEL, metaQueries, studentsApi, studentsQueries, type EnrolmentStatusCode, type FeeStatusCode, type StudentListDetail, type StudentListQuery, type StudentStrength, type StudentSummary } from "@mtb/api";
+import { ENROLMENT_STATUS_LABEL, metaQueries, studentsApi, studentsQueries, type EnrolmentStatusCode, type FeeStatusCode, type StudentListDetail, type StudentListQuery, type StudentStrength, type StudentSummary, photoUrl } from "@mtb/api";
 import { formatCnic, formatCount, formatDate, formatMobile, looksLikeCnic } from "@mtb/domain";
 import {
   AnimatedNumber,
@@ -287,7 +287,7 @@ export function StudentsPage({ search, setSearch }: { search: StudentsSearch; se
   const pageRows = rows.slice((page - 1) * 25, page * 25);
 
   const columns: Array<Column<StudentSummary>> = [
-    { key: "photo", header: <span className="mtb-sr-only">Photo</span>, width: 52, render: (s) => <Avatar name={s.name} size="sm" /> },
+    { key: "photo", header: <span className="mtb-sr-only">Photo</span>, width: 52, render: (s) => <Avatar src={photoUrl.student(s.grNo)} name={s.name} size="sm" /> },
     {
       key: "name",
       header: "Name",
@@ -397,7 +397,7 @@ export function StudentsPage({ search, setSearch }: { search: StudentsSearch; se
             <div className="grid gap-3 md:grid-cols-3">
               {family.members.map((m, i) => (
                 <button key={m.grNo} type="button" onClick={() => navigate({ to: "/students/$grNo", params: { grNo: m.grNo } })} className="mtb-slide-in flex items-center gap-3 rounded-lg border border-border p-3 text-left hover:bg-surface-hover" style={stagger(i)}>
-                  <Avatar name={m.name} />
+                  <Avatar src={photoUrl.student(m.grNo)} name={m.name} />
                   <span className="grid min-w-0 flex-1">
                     <span className="font-medium">{m.name}</span>
                     <span className="text-small text-ink-muted">

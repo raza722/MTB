@@ -20,6 +20,7 @@ import {
   type StudentProfile,
   type StudentQualification,
   type StudentUpdate,
+  photoUrl,
 } from "@mtb/api";
 import { formatCnic, formatDate, formatDateTime, formatMobile, formatPercent, formatRs, formatSession, formatTime, isValidCnic, normalizeMobile } from "@mtb/domain";
 import {
@@ -515,7 +516,7 @@ function FamilyTab({ p }: { p: StudentProfile }) {
           {f.children.map((c, i) => (
             <li key={c.grNo} className="mtb-slide-in" style={stagger(i)}>
               <Link to="/students/$grNo" params={{ grNo: c.grNo }} className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 no-underline hover:bg-surface-hover ${c.grNo === p.grNo ? "border-brand bg-brand-tint" : "border-border"}`}>
-                <Avatar name={c.name} size="sm" />
+                <Avatar src={photoUrl.student(c.grNo)} name={c.name} size="sm" />
                 <span className="grid min-w-0 flex-1">
                   <span className="font-medium text-ink">
                     {c.name} {c.grNo === p.grNo && <span className="text-small text-ink-muted">(this student)</span>}
@@ -703,7 +704,7 @@ function SiblingsCard({ p }: { p: StudentProfile }) {
           {p.siblings.map((s, i) => (
             <li key={s.grNo} className="mtb-slide-in border-b border-border last:border-b-0" style={stagger(i)}>
               <Link to="/students/$grNo" params={{ grNo: s.grNo }} className="flex items-center gap-3 px-5 py-3 no-underline hover:bg-surface-hover">
-                <Avatar name={s.name} size="sm" />
+                <Avatar src={photoUrl.student(s.grNo)} name={s.name} size="sm" />
                 <span className="grid min-w-0 flex-1">
                   <span className="font-medium text-ink">{s.name}</span>
                   <span className="text-small text-ink-muted">
@@ -1103,7 +1104,7 @@ export function StudentProfilePage({ grNo, tab, setTab }: { grNo: string; tab: P
           <HeaderSkeleton />
         ) : (
           <section className="mtb-card mtb-rise flex flex-wrap items-center gap-5 p-5" style={stagger(0)} aria-label="Student">
-            <Avatar name={p.name} size="xl" />
+            <Avatar src={photoUrl.student(p.grNo)} name={p.name} size="xl" />
             <div className="grid min-w-0 flex-1 gap-1">
               <div className="flex flex-wrap items-baseline gap-x-4">
                 <span className="text-title-1">{p.name}</span>

@@ -123,3 +123,9 @@
 .hr-card-photo { width: 19mm; height: 23mm; border-radius: 1.5mm; background: var(--surface-sunken); display: grid; place-items: center; color: var(--ink-subtle); font-size: 13pt; font-weight: 700; border: 0.4pt solid var(--border-strong); }
 .hr-card-name { font-size: 10pt; font-weight: 700; }
 .hr-card-foot { display: flex; justify-content: space-between; color: var(--ink-muted); font-size: 6.5pt; border-top: 0.4pt solid var(--border); padding-top: 1mm; }
+
+/* Staff photos moved over from the old system: the salary card's photo (old "Employee Salary Card") and the ID card's. */
+.hr-slip td.hr-slip-pic { width: 15mm; padding: 0.6mm 1mm 0.6mm 0; vertical-align: top; }
+.hr-slip .hr-slip-photo { width: 14mm; height: 17mm; }
+.hr-card-photo { overflow: hidden; }
+.hr-card-photo .hr-card-img { width: 100%; height: 100%; display: block; }

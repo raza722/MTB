@@ -204,6 +204,7 @@
 .od-dob-pic { text-align: left !important; }
 .od-dob-photo { width: 30mm; height: 20mm; padding: 0 !important; }
 .od-dob-photo .od-silhouette { height: 20mm; }
+.od-dob-photo .od-dob-img { width: 100%; height: 20mm; display: block; object-fit: contain; }
 .od-dob-wish { font-size: 11.5pt; margin: 6mm 0 16mm; }
 .od-dob-foot { display: flex; justify-content: space-between; font-size: 13pt; padding-right: 18mm; }
 .od-dob-date { font: 10.5pt Arial, sans-serif; margin-left: 12mm; }

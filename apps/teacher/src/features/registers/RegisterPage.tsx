@@ -1,4 +1,4 @@
-import { teacherCountMarks, teacherCountsLine, teacherQueries, type RegisterCode, type TeacherRegister, type TeacherRegisterStudent } from "@mtb/api";
+import { teacherCountMarks, teacherCountsLine, teacherQueries, type RegisterCode, type TeacherRegister, type TeacherRegisterStudent, photoUrl } from "@mtb/api";
 import { formatDate, formatLongDate, formatTime, type IsoDate } from "@mtb/domain";
 import { Avatar, Banner, BottomSheet, Button, EmptyState, Icon, Input, Segmented, Skeleton, StatusBadge, cx, useToast } from "@mtb/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -275,7 +275,7 @@ function RegisterView({ reg, requestedDate }: { reg: TeacherRegister; requestedD
                     aria-label={`${s.rollNo}. ${s.name}, ${MARK_LABEL[mark]}${pendingTo ? `, change to ${MARK_LABEL[pendingTo]} waiting for approval` : ""}. ${editable ? "Tap to change the mark." : submitted && !queued.submit && !pendingTo ? "Tap to request a change." : ""}`}
                   >
                     <span className="w-6 shrink-0 text-end text-small text-ink-muted tabular-nums">{s.rollNo || "—"}</span>
-                    <Avatar name={s.name} />
+                    <Avatar src={photoUrl.student(s.grNo)} name={s.name} />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-medium text-ink">{s.name}</span>
                       <span className={cx("block truncate text-small", pendingTo ? "text-status-unpaid-ink" : "text-ink-muted")}>

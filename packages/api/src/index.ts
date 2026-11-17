@@ -21,3 +21,4 @@ export * from "./reports";
 export * from "./teacher";
 export * from "./portal";
 export * from "./notices";
+export * from "./photos";

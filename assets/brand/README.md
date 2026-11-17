@@ -10,5 +10,11 @@
 The old printed heading, from `tbl0_01InstituteInfo.InstituteHeading`, is
 **"MTB-Madrasat-ul-Banat Schools and Colleges, Khalid Campus, Sadikabad"** (title "MTB, MADRASAT-UL-BANAT SCHOOLS AND COLLEGES").
 
-These files are kept here and are not used by the apps yet. Today the printed documents show a green "MTB" badge and
-"MTB Schools and Colleges".
+Where the apps use them:
+
+- Printouts (staff app): `apps/staff/src/assets/mtb-crest.png` in the shared letterhead (`app/print/letterhead.tsx`).
+- Screens: each app's `public/mtb-crest-sm.png` (the crest at 192 px high) on the sign-in page and in the side bar or
+  header (`<Crest>` from `@mtb/ui`), and on the parent portal's fee receipt and result card.
+- Browser tab and home-screen icons: each app's `public/favicon.ico` (= `mtb.ico`), `favicon-64.png` and
+  `apple-touch-icon.png`; the teacher app's `public/icons/icon-192.png`, `icon-512.png` and `icon-maskable-512.png`
+  (the crest centred on white, made from `mtb-crest.png`).

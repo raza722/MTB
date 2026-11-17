@@ -111,3 +111,7 @@
   .rpt-doc tfoot { display: table-row-group; }
   .rpt-doc tr { break-inside: avoid; }
 }
+
+/* The old "Picture" column (General Student List, New Admission List): the photo or the grey outline, one per row. */
+.rpt-doc td.rpt-photo-cell { width: 13mm; padding: 0.5mm; vertical-align: top; text-align: center; }
+.rpt-doc .rpt-photo { width: 12mm; height: 14mm; margin: 0 auto; }

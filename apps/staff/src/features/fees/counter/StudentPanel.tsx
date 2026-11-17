@@ -1,4 +1,4 @@
-import { studentsQueries, type StudentSummary } from "@mtb/api";
+import { studentsQueries, type StudentSummary, photoUrl } from "@mtb/api";
 import { formatMobile, formatRs } from "@mtb/domain";
 import { Avatar, Banner, Button, Icon, Input, Kbd, Skeleton, StatusBadge, Urdu } from "@mtb/ui";
 import { useQuery } from "@tanstack/react-query";
@@ -54,7 +54,7 @@ export function StudentSearch({ inputRef, onPick }: { inputRef: RefObject<HTMLIn
           {items.map((s, i) => (
             <li key={s.grNo}>
               <button type="button" onClick={() => pick(s)} className="flex w-full items-center gap-3 rounded-md px-2 py-2 text-left hover:bg-surface-hover focus-visible:bg-surface-hover">
-                <Avatar name={s.name} size="sm" />
+                <Avatar src={photoUrl.student(s.grNo)} name={s.name} size="sm" />
                 <span className="grid min-w-0 flex-1">
                   <span className="truncate font-medium">{s.name}</span>
                   <span className="truncate text-small text-ink-muted">
@@ -93,7 +93,7 @@ export function StudentSummaryCard({ grNo, onSwitch, onAddCharge }: { grNo: stri
   return (
     <section className="mtb-card grid gap-4 p-4" aria-label="Student">
       <div className="flex items-start gap-3">
-        <Avatar name={p.name} size="lg" />
+        <Avatar src={photoUrl.student(p.grNo)} name={p.name} size="lg" />
         <div className="grid min-w-0 gap-0.5">
           <span className="text-title-2">{p.name}</span>
           {p.nameUr && <Urdu size="small">{p.nameUr}</Urdu>}

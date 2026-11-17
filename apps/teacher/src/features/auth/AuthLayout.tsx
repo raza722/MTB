@@ -1,8 +1,8 @@
-import { Icon } from "@mtb/ui";
+import { Icon, Crest } from "@mtb/ui";
 import { useEffect, type CSSProperties, type ReactNode } from "react";
 import { useOnline } from "../../app/sync/network";
 
-/** Phone sign-in frame: the MTB wordmark (the official logo was not supplied), the form, and help underneath. */
+/** Phone sign-in frame: the school crest and the MTB Teacher name, the form, and help underneath. */
 export function AuthLayout({ title, subtitle, children, aside }: { title: string; subtitle?: ReactNode; children: ReactNode; aside?: ReactNode }) {
   const online = useOnline();
   useEffect(() => {
@@ -12,9 +12,7 @@ export function AuthLayout({ title, subtitle, children, aside }: { title: string
     <div className="min-h-dvh bg-surface px-4 pt-[calc(env(safe-area-inset-top)+32px)] pb-[calc(env(safe-area-inset-bottom)+24px)]">
       <div className="mx-auto grid w-full max-w-[420px] gap-5">
         <div className="mtb-rise flex items-center gap-3">
-          <span className="grid size-12 place-items-center rounded-lg bg-brand text-on-brand" aria-hidden="true">
-            <Icon name="book" size={26} />
-          </span>
+          <Crest size={56} />
           <span className="grid">
             <span className="text-title-1 tracking-tight text-brand-ink">MTB Teacher</span>
             <span className="text-small text-ink-muted">Registers and marks on your phone</span>

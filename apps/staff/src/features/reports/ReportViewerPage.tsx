@@ -13,6 +13,7 @@ import {
   type ReportFormat,
   type ReportResult,
   type ReportRunRequest,
+  photoUrl,
 } from "@mtb/api";
 import { daysBetween, formatCount, formatDate, formatPercent, formatRs, formatSession, pakistanToday, type IsoDate } from "@mtb/domain";
 import {
@@ -41,6 +42,7 @@ import {
   useToast,
   type Column,
   type SortState,
+  Avatar,
 } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -490,6 +492,8 @@ const DAY_CODE: Record<string, string> = { A: "text-danger-ink font-semibold", L
 function renderCell(c: ReportColumnDef, v: ReportCell) {
   // A blank column is left empty for ticks, signatures or marks written in by hand.
   if (c.kind === "blank") return <span className="rpt-blank" aria-hidden="true" />;
+  // the old "Picture" column: the student's photo (initials when there is none)
+  if (c.kind === "photo") return typeof v === "string" && v ? <Avatar src={photoUrl.student(v)} name={v.replace(/^[A-Z]+-/, "")} size="sm" /> : null;
   if (v === null || v === undefined || v === "") return <span className="text-ink-subtle">—</span>;
   if (typeof v === "number") {
     if (c.kind === "money") return <Money value={v} />;

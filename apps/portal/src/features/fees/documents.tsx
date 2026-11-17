@@ -62,10 +62,13 @@ export function ReceiptA5({ receipt: r }: { receipt: PortalReceipt }) {
           </span>
         )}
         <header className="flex items-start justify-between gap-4 border-b border-border-strong pb-3">
-          <div className="grid">
-            <span className="text-[20px] leading-6 font-semibold text-brand-ink">MTB</span>
-            <span className="font-medium">{r.campusName}</span>
-            <span className="text-ink-muted">{r.campusAddress}</span>
+          <div className="flex items-center gap-3">
+            <img src="/mtb-crest-sm.png" alt="" className="h-14 w-auto" />
+            <div className="grid">
+              <span className="text-[16px] leading-6 font-semibold text-brand-ink">MTB-Madrasat-ul-Banat Schools and Colleges</span>
+              <span className="font-medium">{r.campusName}</span>
+              <span className="text-ink-muted">{r.campusAddress}</span>
+            </div>
           </div>
           <div className="grid justify-items-end gap-1 text-right">
             <span className="rounded-sm border border-border-strong px-2 py-0.5 text-[11px] font-semibold tracking-wide uppercase">Parent copy</span>

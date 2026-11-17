@@ -1,9 +1,10 @@
-import { STUDENT_DOC_LABEL, type StudentDocDetails, type StudentDocSnapshot, type StudentDocType, type StudentFamilyDetail, type StudentMovement } from "@mtb/api";
+import { STUDENT_DOC_LABEL, type StudentDocDetails, type StudentDocSnapshot, type StudentDocType, type StudentFamilyDetail, type StudentMovement, photoUrl } from "@mtb/api";
 import { formatCnic, formatDate, formatMobile, formatRs, pakistanToday, type IsoDate } from "@mtb/domain";
 import { Fragment, useId, type ReactNode } from "react";
 import { CREST_SRC, Letterhead, printStamp, SCHOOL_NAME, schoolHeading } from "../../../app/print/letterhead";
 import { CAMPUS_CODES, CAMPUS_LABEL } from "../../../app/shell/campus";
 import { classShortOf, sectionOf } from "../shared";
+import { PhotoBox } from "@mtb/ui";
 
 /*
  * Printed student documents, laid out as the old desktop system printed them (its report designs and the printouts
@@ -595,7 +596,8 @@ export function BirthCertificate({ d }: { d: DocInput }) {
             <td className="c">{cls}</td>
             <td className="c">{sec}</td>
             <td className="od-dob-photo">
-              <Silhouette />
+              {/* the old certificate printed the student's photo from the record (Student_Snap) */}
+              <PhotoBox src={photoUrl.student(s.grNo)} className="od-dob-img" fallback={<Silhouette />} />
             </td>
           </tr>
         </tbody>

@@ -8,6 +8,7 @@ import {
   type StudentFamilyGuardian,
   type StudentFamilyGuardianInput,
   type StudentFamilyGuardianRelation,
+  photoUrl,
 } from "@mtb/api";
 import { formatCnic, formatDate, formatMobile, formatRs, isValidCnic, normalizeMobile } from "@mtb/domain";
 import {
@@ -364,7 +365,7 @@ export function FamilyPage({ familyId }: { familyId: string }) {
                 {f.children.map((c, i) => (
                   <li key={c.grNo} className="mtb-slide-in grid gap-3 rounded-lg border border-border p-4" style={stagger(i)}>
                     <div className="flex items-start gap-3">
-                      <Avatar name={c.name} size="lg" />
+                      <Avatar src={photoUrl.student(c.grNo)} name={c.name} size="lg" />
                       <div className="grid min-w-0 flex-1">
                         <Link to="/students/$grNo" params={{ grNo: c.grNo }} className="font-medium text-ink underline-offset-2 hover:underline">
                           {c.name}
