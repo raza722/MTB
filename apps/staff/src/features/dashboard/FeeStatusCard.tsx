@@ -17,9 +17,14 @@ const PARTS = [
 export function FeeStatusCard({ s }: { s: DashboardSummary | undefined }) {
   const canStudents = useCan("students.view");
   const { showLakh } = usePreferences();
-  const total = s ? s.feeStatus.paid + s.feeStatus.unpaid + s.feeStatus.overdue : 0;
+  const canFees = useCan("fees.view");
+  // Sent only to fees.view holders (access parity): no card without it.
+  if (!canFees || (s && (!s.feeStatus || !s.month))) return null;
+  const fs = s?.feeStatus ?? { paid: 0, unpaid: 0, overdue: 0 };
+  const month = s?.month ?? { collected: 0, target: 0 };
+  const total = fs.paid + fs.unpaid + fs.overdue;
   // No target this month (no charges raised yet): "—" rather than a division by zero.
-  const monthPct = s && s.month.target > 0 ? Math.round((s.month.collected / s.month.target) * 100) : null;
+  const monthPct = s && month.target > 0 ? Math.round((month.collected / month.target) * 100) : null;
 
   return (
     <DashCard id="fee-status" title="Fee status" description="Students on roll by fee status (the Students list's fee filter)" style={stagger(6)}>
@@ -33,15 +38,15 @@ export function FeeStatusCard({ s }: { s: DashboardSummary | undefined }) {
           <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
             <p className="m-0 flex flex-wrap items-baseline gap-x-2">
               <span className="mtb-dash-figure-lg">
-                <AnimatedNumber value={s.feeStatus.unpaid + s.feeStatus.overdue} format={formatCount} />
+                <AnimatedNumber value={fs.unpaid + fs.overdue} format={formatCount} />
               </span>
               <span className="text-small text-ink-muted">of {formatCount(total)} students still to pay</span>
             </p>
-            <SegmentedBar label="Students by fee status" height={14} format={formatCount} segments={PARTS.map((p) => ({ key: p.key, label: p.label, color: p.color, value: s.feeStatus[p.key] }))} />
+            <SegmentedBar label="Students by fee status" height={14} format={formatCount} segments={PARTS.map((p) => ({ key: p.key, label: p.label, color: p.color, value: fs[p.key] }))} />
           </div>
           <ul className="mtb-dash-legend" aria-label="Fee status legend">
             {PARTS.map((p, i) => {
-              const n = s.feeStatus[p.key];
+              const n = fs[p.key];
               const row = (
                 <>
                   <span className="mtb-chart-key" style={{ background: p.color }} aria-hidden="true" />
@@ -76,7 +81,7 @@ export function FeeStatusCard({ s }: { s: DashboardSummary | undefined }) {
               </div>
             )}
             <p className="m-0 text-small text-ink-muted">
-              <span className="font-medium text-ink">{money(s.month.collected, showLakh)}</span> of {formatRs(s.month.target)}
+              <span className="font-medium text-ink">{money(month.collected, showLakh)}</span> of {formatRs(month.target)}
             </p>
           </div>
         </div>

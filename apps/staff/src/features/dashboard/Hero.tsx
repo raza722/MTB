@@ -77,7 +77,11 @@ export function Hero({ s, approvals }: { s: DashboardSummary | undefined; approv
         <p className="m-0 max-w-[62ch] text-body text-ink-muted">
           {s ? (
             <>
-              <strong className="font-semibold text-ink">{formatRs(s.feesToday.amount)}</strong> collected so far today from {formatCount(s.feesToday.receipts)} receipts.{" "}
+              {s.feesToday && (
+                <>
+                  <strong className="font-semibold text-ink">{formatRs(s.feesToday.amount)}</strong> collected so far today from {formatCount(s.feesToday.receipts)} receipts.{" "}
+                </>
+              )}
               {percent === null ? (
                 "No attendance marked yet today."
               ) : (
@@ -123,7 +127,9 @@ export function Hero({ s, approvals }: { s: DashboardSummary | undefined; approv
                 {...(canStaff ? { to: "/hr/attendance" } : {})}
               />
             )}
-            <Glance i={2} icon="sms" value={`${formatCount(s.sms.delivered)} SMS delivered`} label={`${formatCount(s.sms.failed)} failed · ${formatCount(s.sms.queued)} queued`} {...(canSms ? { to: "/sms" } : {})} />
+            {s.sms && (
+              <Glance i={2} icon="sms" value={`${formatCount(s.sms.delivered)} SMS delivered`} label={`${formatCount(s.sms.failed)} failed · ${formatCount(s.sms.queued)} queued`} {...(canSms ? { to: "/sms" } : {})} />
+            )}
             {canApprove && approvals !== undefined && <Glance i={3} icon="inbox" value={`${formatCount(approvals)} approvals waiting`} label="Attendance and receipts" />}
           </>
         ) : (

@@ -736,7 +736,7 @@ export interface SetupRole {
   code: string;
   name: string;
   description: string;
-  /** System roles come with the software and can't be changed; copy one to make a custom role. */
+  /** System roles come with the software: head office can change their permissions, not their name or scope (Super admin not at all). */
   system: boolean;
   /** ANY: may be granted for all campuses (head office). CAMPUS: one campus at a time. */
   scope: "CAMPUS" | "ANY";

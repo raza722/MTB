@@ -74,7 +74,7 @@ export function KpiCards({ s }: { s: DashboardSummary | undefined }) {
   if (!s) {
     return (
       <div className="mtb-dash-kpis">
-        {[0, 1, 2, 3].map((i) => (
+        {(canFees ? [0, 1, 2, 3] : [0]).map((i) => (
           <div key={i} className="mtb-stat" aria-busy="true">
             <div className="mtb-stat-top">
               <Skeleton width={120} />
@@ -90,8 +90,8 @@ export function KpiCards({ s }: { s: DashboardSummary | undefined }) {
 
   // Days with registers but nothing marked have no percentage (C1): the line skips them.
   const att = s.attendanceTrend.flatMap((a) => (a.percent === null ? [] : [a.percent]));
-  const fees = s.collectionsTrend.slice(-14);
-  const monthPct = s.month.target > 0 ? Math.round((s.month.collected / s.month.target) * 100) : null;
+  const fees = (s.collectionsTrend ?? []).slice(-14);
+  const monthPct = s.month && s.month.target > 0 ? Math.round((s.month.collected / s.month.target) * 100) : null;
   const d = s.attendance.deltaPts;
   const percent = s.attendance.percent;
 
@@ -107,6 +107,8 @@ export function KpiCards({ s }: { s: DashboardSummary | undefined }) {
         foot={`${formatCount(s.attendance.present)} of ${formatCount(s.attendance.total)} present`}
         onClick={canAttendance ? () => navigate({ to: "/attendance" }) : undefined}
       />
+      {s.feesToday && s.month && (
+      <>
       <Kpi
         i={1}
         label="Fees collected today"
@@ -120,19 +122,23 @@ export function KpiCards({ s }: { s: DashboardSummary | undefined }) {
         i={2}
         label="Collected this month"
         icon="trendUp"
-        value={<AnimatedNumber value={s.month.collected} format={(v) => money(v, showLakh)} />}
+        value={<AnimatedNumber value={s.month!.collected} format={(v) => money(v, showLakh)} />}
         {...(monthPct === null ? {} : { meter: { percent: monthPct, label: `${monthPct}% of the ${formatRs(s.month.target)} target` } })}
-        foot={monthPct === null ? "No target set this month" : `${monthPct}% of the ${money(s.month.target, showLakh)} target`}
+        foot={monthPct === null ? "No target set this month" : `${monthPct}% of the ${money(s.month!.target, showLakh)} target`}
       />
+      </>
+      )}
+      {s.arrears && (
       <Kpi
         i={3}
         label="Outstanding arrears"
         icon="alert"
         tone="danger"
-        value={<AnimatedNumber value={s.arrears.amount} format={(v) => money(v, showLakh)} />}
-        foot={`${formatCount(s.arrears.students)} students overdue`}
+        value={<AnimatedNumber value={s.arrears!.amount} format={(v) => money(v, showLakh)} />}
+        foot={`${formatCount(s.arrears!.students)} students overdue`}
         onClick={canStudents ? () => navigate({ to: "/students", search: (p: Record<string, unknown>) => ({ ...p, fee: "overdue" }) } as never) : undefined}
       />
+      )}
     </div>
   );
 }

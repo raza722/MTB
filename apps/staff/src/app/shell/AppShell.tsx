@@ -9,6 +9,7 @@ import { useAppearance } from "../appearance";
 import { campusesFor, useCan, useCanGroupWide, useCtx, useReadOnly, useRoleLabel, useSessionStatus, useSessionUser, useSetCtx, type SessionStatus } from "../session";
 import { campusLabel } from "./campus";
 import { GlobalSearch, SearchTrigger } from "./GlobalSearch";
+import { hasNoStaffAccess, NotForStaffApp } from "./NotForStaffApp";
 
 // Presenter's panel: only loaded in mock mode, so it never ships with the real app.
 const DemoControls = lazy(() => import("./DemoControls"));
@@ -274,7 +275,7 @@ function Notifications() {
   // Report notifications (ready, failed, scheduled report sent) are the user's own, from GET /notifications.
   const canReports = useCan("reports.view");
   const reportUnread = useReportNotificationCount(canReports);
-  const count = (approvals.data?.length ?? 0) + (summary.data?.sms.failed ? 1 : 0) + reportUnread;
+  const count = (approvals.data?.length ?? 0) + (summary.data?.sms?.failed ? 1 : 0) + reportUnread;
   return (
     <Menu
       label="Notifications"
@@ -296,7 +297,7 @@ function Notifications() {
           {approvals.data.length} approvals waiting for you
         </MenuItem>
       )}
-      {summary.data && summary.data.sms.failed > 0 && <MenuItem icon="alertCircle">{summary.data.sms.failed} SMS failed today</MenuItem>}
+      {summary.data?.sms && summary.data.sms.failed > 0 && <MenuItem icon="alertCircle">{summary.data.sms.failed} SMS failed today</MenuItem>}
       {count === 0 && <MenuItem icon="checkCircle">You're all caught up</MenuItem>}
       <ReportNotificationItems enabled={canReports} />
     </Menu>
@@ -414,6 +415,14 @@ function ReadOnlyBanner() {
 }
 
 export function AppShell({ children }: { children?: ReactNode }) {
+  const user = useSessionUser();
+  // A teacher-only account (the Teacher role is the teacher app only, as in the old software) gets a pointer to the
+  // teacher app instead of an empty staff app.
+  if (hasNoStaffAccess(user)) return <NotForStaffApp user={user!} />;
+  return <StaffShell>{children}</StaffShell>;
+}
+
+function StaffShell({ children }: { children?: ReactNode }) {
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const [searchOpen, setSearchOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);

@@ -8,9 +8,10 @@ export interface CampusComparisonRow {
   name: string;
   /** null when nothing was marked at the campus today ("—"). */
   attendancePercent: number | null;
-  collected: Rupees;
-  target: Rupees;
-  arrears: Rupees;
+  /** null at a campus where the caller has no fees.view. */
+  collected: Rupees | null;
+  target: Rupees | null;
+  arrears: Rupees | null;
 }
 
 /** One school day (Sundays are closed and left out). The last point is today, so far. */
@@ -63,19 +64,24 @@ export interface DashboardSummary {
   today: IsoDate;
   /** percent and deltaPts are null when nothing is marked today (or yesterday, for the delta): shown as "—". */
   attendance: { percent: number | null; present: number; total: number; deltaPts: number | null };
-  feesToday: { amount: Rupees; receipts: number };
-  month: { collected: Rupees; target: Rupees };
-  arrears: { amount: Rupees; students: number };
-  admissions: { session: number; week: number };
-  sms: { delivered: number; failed: number; queued: number };
+  /*
+   * Each figure only where the caller holds the right of the screen that owns it, as the old software showed money
+   * only on the Fee tab and fee reports an account was given: fees.view for feesToday, month, arrears,
+   * collectionsTrend and feeStatus; admissions.view; sms.view; hr.view for staff.
+   */
+  feesToday?: { amount: Rupees; receipts: number };
+  month?: { collected: Rupees; target: Rupees };
+  arrears?: { amount: Rupees; students: number };
+  admissions?: { session: number; week: number };
+  sms?: { delivered: number; failed: number; queued: number };
   /** Staff on roll today and how many came in (Staff & payroll attendance). present includes late arrivals. */
   staff?: { total: number; present: number; late: number; onLeave: number; notMarked: number };
   /** School days in the last 30 calendar days, oldest first. */
-  collectionsTrend: CollectionDay[];
+  collectionsTrend?: CollectionDay[];
   /** Last 14 school days, oldest first; the last point is today. */
   attendanceTrend: AttendanceTrendDay[];
   /** Students by fee status this month. */
-  feeStatus: { paid: number; unpaid: number; overdue: number };
+  feeStatus?: { paid: number; unpaid: number; overdue: number };
   attendanceGroups: AttendanceGroup[];
   /** Newest first. */
   activity: DashboardActivity[];

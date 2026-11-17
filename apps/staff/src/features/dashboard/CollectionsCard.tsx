@@ -2,6 +2,7 @@ import type { CollectionDay, DashboardSummary } from "@mtb/api";
 import { formatCount, formatDate, formatLakh, formatRs, formatWeekday } from "@mtb/domain";
 import { AnimatedNumber, AreaChart, DataTable, Segmented, Skeleton } from "@mtb/ui";
 import { useState } from "react";
+import { useCan } from "../../app/session";
 import { DashCard } from "./DashCard";
 import { lakhTick, shortDate, stagger } from "./format";
 
@@ -24,6 +25,7 @@ function Tip({ d, isToday }: { d: CollectionDay; isToday: (d: CollectionDay) => 
 /** Daily collections for the last 30 days: total, busiest day and daily average, then the trend or a table. */
 export function CollectionsCard({ s }: { s: DashboardSummary | undefined }) {
   const [view, setView] = useState("chart");
+  const canFees = useCan("fees.view");
   const data = s?.collectionsTrend ?? [];
   // The server's day (C2), not the browser's: the last point is today so far.
   const isToday = (d: CollectionDay) => d.date === s?.today;
@@ -31,6 +33,9 @@ export function CollectionsCard({ s }: { s: DashboardSummary | undefined }) {
   const past = data.filter((d) => !isToday(d));
   const best = past.reduce<CollectionDay | undefined>((a, d) => (!a || d.amount > a.amount ? d : a), undefined);
   const average = past.length ? Math.round(past.reduce((a, d) => a + d.amount, 0) / past.length) : 0;
+
+  // Sent only to fees.view holders (access parity): no card without it.
+  if (!canFees || (s && !s.collectionsTrend)) return null;
 
   return (
     <DashCard

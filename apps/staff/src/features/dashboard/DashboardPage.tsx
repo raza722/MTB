@@ -42,9 +42,12 @@ export function DashboardPage() {
           <FeeStatusCard s={s} />
           <AttendanceCard s={s} />
           <UpcomingCard s={s} />
-          {s?.campuses && (
+          {s?.campuses && s.campuses.some((r) => r.collected !== null) && (
             <div className="xl:col-span-2">
-              <CampusComparison rows={s.campuses} />
+              {/* Campuses where the caller has no fees.view carry no money figures (access parity). */}
+              <CampusComparison
+                rows={s.campuses.flatMap((r) => (r.collected === null || r.target === null ? [] : [{ ...r, collected: r.collected, target: r.target, arrears: r.arrears ?? 0 }]))}
+              />
             </div>
           )}
           {canApprove ? (

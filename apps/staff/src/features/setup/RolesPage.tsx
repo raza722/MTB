@@ -8,7 +8,7 @@ import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { apiFieldError, ConflictBanner, conflictOf, EditButton, err, errorText, PrintSheet, QueryError, useReadOnlyText, SetupPage, zodErrors, type Conflict, type FieldErrors } from "./shared";
 
 const roleSchema = z.object({
-  name: z.string().trim().min(1, { error: "Enter a name for the role, e.g. Exam office." }).max(40, { error: "Keep the name under 40 characters." }),
+  name: z.string().trim().min(1, { error: "Enter a name for the role, e.g. Exam office." }).max(80, { error: "Keep the role name to 80 characters." }),
   permissions: z.array(z.string()).min(1, { error: "Tick at least one thing this role can do." }),
 });
 
@@ -20,7 +20,11 @@ function RoleEditor({ role, copyFrom, roles, onClose, onCopy }: { role: SetupRol
   const canEdit = useCan("setup.manage");
   const readOnly = useReadOnly();
   const readOnlyNote = useReadOnlyText();
-  const editable = canEdit && !readOnly && !(role?.system ?? false);
+  // Super admin always holds every permission. Other system roles: head office changes what they can do (the old
+  // software set access per account, so every role is adjustable); their name and scope stay as shipped.
+  const locked = role?.code === "SUPER_ADMIN";
+  const editable = canEdit && !readOnly && !locked;
+  const nameEditable = editable && !(role?.system ?? false);
   const base = role ?? copyFrom;
   const [draft, setDraft] = useState<Draft>(() => ({
     name: role ? role.name : copyFrom ? `${copyFrom.name} (copy)` : "",
@@ -75,7 +79,7 @@ function RoleEditor({ role, copyFrom, roles, onClose, onCopy }: { role: SetupRol
     setErrors(next);
     if (!Object.keys(next).length) save.mutate();
   };
-  const title = role ? (role.system ? role.name : `Edit ${role.name}`) : "New role";
+  const title = role ? (locked || !editable ? role.name : `Edit ${role.name}`) : "New role";
   return (
     <SidePanel
       open
@@ -107,19 +111,21 @@ function RoleEditor({ role, copyFrom, roles, onClose, onCopy }: { role: SetupRol
       <div className="grid gap-5">
         {role?.system && (
           <Banner tone="info" icon="lock">
-            System roles come with the software and are the same for every campus. Copy one to make a role that fits your school.
+            {locked
+              ? "Super admin always has every permission, including ones added later. It can't be changed."
+              : "This role comes with the software and is the same for every campus. Head office can change what it can do; its name and where it can be given stay the same. Copy it to make a role that fits your school."}
           </Banner>
         )}
-        {!canEdit && !role?.system && <Banner tone="info">Only head office can change roles.</Banner>}
+        {!canEdit && !locked && <Banner tone="info">Only head office can change roles.</Banner>}
         {readOnly && <Banner tone="info">{readOnlyNote}</Banner>}
         {conflict && <ConflictBanner conflict={conflict} onReload={() => void qc.invalidateQueries({ queryKey: ["setup"] }).then(onClose)} />}
         {failure && <Banner tone="danger" title="Not saved.">{failure}</Banner>}
         <div className="grid gap-4 sm:grid-cols-2">
-          <Input label="Role name" required disabled={!editable} value={draft.name} onChange={(e) => { setDraft((d) => ({ ...d, name: e.target.value })); setErrors((x) => ({ ...x, name: undefined })); }} {...err(errors, "name")} />
+          <Input label="Role name" required disabled={!nameEditable} value={draft.name} onChange={(e) => { setDraft((d) => ({ ...d, name: e.target.value })); setErrors((x) => ({ ...x, name: undefined })); }} {...err(errors, "name")} />
           <fieldset className="m-0 grid gap-2 border-0 p-0">
             <legend className="mtb-label mb-1">Can be given for</legend>
-            <Radio name="scope" disabled={!editable} checked={draft.scope === "CAMPUS"} onChange={() => setDraft((d) => ({ ...d, scope: "CAMPUS" }))} label="One campus at a time" />
-            <Radio name="scope" disabled={!editable} checked={draft.scope === "ANY"} onChange={() => setDraft((d) => ({ ...d, scope: "ANY" }))} label="One campus or all campuses (head office)" />
+            <Radio name="scope" disabled={!nameEditable} checked={draft.scope === "CAMPUS"} onChange={() => setDraft((d) => ({ ...d, scope: "CAMPUS" }))} label="One campus at a time" />
+            <Radio name="scope" disabled={!nameEditable} checked={draft.scope === "ANY"} onChange={() => setDraft((d) => ({ ...d, scope: "ANY" }))} label="One campus or all campuses (head office)" />
           </fieldset>
         </div>
         <Textarea label="What this role is for" rows={2} disabled={!editable} value={draft.description} onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))} />
@@ -331,7 +337,7 @@ export function RolesPage() {
       <KeyValue
         className="text-small"
         items={[
-          [<span className="inline-flex items-center gap-1"><Icon name="lock" size={14} /> System role</span>, "Comes with the software; copy it to change it."],
+          [<span className="inline-flex items-center gap-1"><Icon name="lock" size={14} /> System role</span>, "Comes with the software; head office can change what it can do, not its name."],
           [<span className="inline-flex items-center gap-1 text-warning-ink"><Icon name="shield" size={14} /> Sensitive</span>, "Money, results, roles and SMS pausing. Changes are recorded in the audit log."],
         ]}
       />

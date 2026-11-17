@@ -8,7 +8,8 @@ import { percentOrDash, stagger } from "./format";
 /** Collected as a whole percentage of the target, or null when the campus has no target this month. */
 const ofTarget = (collected: number, target: number) => (target > 0 ? Math.round((collected / target) * 100) : null);
 
-type Rows = NonNullable<DashboardSummary["campuses"]>;
+/** The campuses where the caller has fees.view, so every money figure is there. */
+type Rows = Array<NonNullable<DashboardSummary["campuses"]>[number] & { collected: number; target: number; arrears: number }>;
 
 /** With "All campuses": each campus's collection against its own target, with attendance and arrears beside it. */
 export function CampusComparison({ rows }: { rows: Rows }) {
