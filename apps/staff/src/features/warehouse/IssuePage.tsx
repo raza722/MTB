@@ -602,7 +602,7 @@ function IssuePanel({ i, onClose }: { i: WarehouseIssue; onClose: () => void }) 
             ["Returns", i.returns.length ? i.returns.map((r) => `${r.no} (${r.qty}) on ${formatDate(r.date)}`).join(", ") : "None"],
           ]}
         />
-        <DataTable
+        <DataTable searchable={false}
           caption="Items issued"
           rows={i.lines}
           density="dense"

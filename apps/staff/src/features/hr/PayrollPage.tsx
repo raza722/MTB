@@ -567,7 +567,7 @@ export function PayrollPage({ search, setSearch }: { search: PayrollSearch; setS
         {ctx.campus === "ALL" ? (
           <>
             <Banner tone="info">Salary sheets are prepared per campus. Choose a campus at the top to open its sheets.</Banner>
-            <DataTable
+            <DataTable searchable={false}
               caption="Payroll by campus"
               rows={d?.campuses ?? []}
               rowKey="campus"

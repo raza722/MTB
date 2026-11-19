@@ -169,16 +169,21 @@ export function MovementsPage({ kind, setKind }: { kind: StudentMovementKind | "
           columns={columns}
           rows={rows}
           loading={list.isLoading}
+          maxHeight={560}
           onRowClick={setOpen}
           empty={<EmptyState icon="logout" title={kind ? `No ${STUDENT_MOVEMENT_LABEL[kind].toLowerCase()} records this session` : "No changes this session"} description="Leavers, struck-off students, expulsions, restorations and campus transfers appear here with the reason and the dues at the time." />}
           toolbar={
-            <div className="flex w-full flex-wrap items-end gap-3">
+            // Two rows: the kinds of change on top (scrolls sideways on a narrow screen), then search, dates and class on one line.
+            <div className="grid w-full gap-3">
+              <div className="max-w-full overflow-x-auto">
               <Segmented
                 aria-label="Change"
                 value={kind}
                 onChange={(v) => setKind(v as StudentMovementKind | "")}
                 options={[{ value: "", label: "All" }, ...(["LEFT", "STRUCK_OFF", "EXPELLED", "RESTORED", "TRANSFER", "PASSED_OUT"] as StudentMovementKind[]).map((k) => ({ value: k, label: `${STUDENT_MOVEMENT_LABEL[k]}${d ? ` · ${d.counts[k]}` : ""}` }))]}
               />
+              </div>
+              <div className="flex w-full flex-wrap items-end gap-3">
               <div className="min-w-56 flex-1">
                 <Input label="Search" icon="search" placeholder="Name, G.R. or reason" value={q} onChange={(e) => setQ(e.target.value)} />
               </div>
@@ -188,7 +193,7 @@ export function MovementsPage({ kind, setKind }: { kind: StudentMovementKind | "
               <div className="w-full sm:w-40">
                 <DatePicker label="To" value={to} onValueChange={setTo} today={today()} minDate={sessionStart} maxDate={sessionEnd} />
               </div>
-              <Select label="Class" value={cls} onChange={(e) => setCls(e.target.value)} options={[{ value: "", label: "All classes" }, ...(classes.data ?? []).map((c) => ({ value: c.short, label: c.name }))]} />
+              <Select label="Class" className="w-full sm:w-48" value={cls} onChange={(e) => setCls(e.target.value)} options={[{ value: "", label: "All classes" }, ...(classes.data ?? []).map((c) => ({ value: c.short, label: c.name }))]} />
               {(from || to || cls) && (
                 <Button
                   variant="ghost"
@@ -201,6 +206,7 @@ export function MovementsPage({ kind, setKind }: { kind: StudentMovementKind | "
                   Clear
                 </Button>
               )}
+              </div>
             </div>
           }
         />

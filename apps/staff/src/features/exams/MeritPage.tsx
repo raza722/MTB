@@ -104,7 +104,7 @@ export function MeritPage() {
             {merit.isError ? (
               <LoadError what="The merit list" error={merit.error} onRetry={() => void merit.refetch()} />
             ) : (
-              <DataTable caption="Merit list preview" columns={columns} rows={merit.data?.rows ?? []} loading={merit.isLoading} density="dense" maxHeight={460} empty={<EmptyState icon="award" title="No complete results" description="No student in these sections has a complete, released result." />} />
+              <DataTable searchable={false} caption="Merit list preview" columns={columns} rows={merit.data?.rows ?? []} loading={merit.isLoading} density="dense" maxHeight={460} empty={<EmptyState icon="award" title="No complete results" description="No student in these sections has a complete, released result." />} />
             )}
             {merit.data && merit.data.tiedAtCutOff > 0 && (
               <Banner tone="info">
@@ -139,7 +139,7 @@ export function MeritPage() {
       </Panel>
 
       <Panel id="merit-saved" title="Saved merit lists" description="Frozen exactly as saved, with a list number. Activities reads these lists when awarding scholarships." rise={1} flush>
-        <DataTable<ExamsMeritList & { id: string }>
+        <DataTable<ExamsMeritList & { id: string }> searchable={false}
           caption="Saved merit lists"
           rows={(saved.data ?? []).map((l) => ({ ...l, id: l.id ?? l.listNo ?? l.title }))}
           loading={saved.isLoading}
@@ -180,7 +180,7 @@ export function MeritPage() {
         >
           <div className="grid gap-3">
             {viewing.purpose && <p className="m-0 text-ink-muted">{viewing.purpose}</p>}
-            <DataTable caption={viewing.title} columns={columns} rows={viewing.rows} density="dense" />
+            <DataTable searchable={false} caption={viewing.title} columns={columns} rows={viewing.rows} density="dense" />
           </div>
         </SidePanel>
       )}

@@ -137,7 +137,7 @@ function StudentReport({ report, today }: { report: AttendanceStudentReport; tod
           </div>
         </Panel>
         <Panel id="att-student-marks" rise={2} flush title="Days not present" description={report.marks.length ? `${report.marks.length} days absent, on leave or late, newest first.` : "Present on every school day in this period."}>
-          <DataTable
+          <DataTable searchable={false}
             caption="Days not present"
             density="dense"
             maxHeight={460}
@@ -360,7 +360,7 @@ function ClassReport({ search, setSearch }: { search: StudentReportSearch; setSe
           </Button>
         }
       >
-        <DataTable
+        <DataTable searchable={false}
           caption={`Attendance report for ${cls ?? "the class"}`}
           columns={columns}
           rows={rows}

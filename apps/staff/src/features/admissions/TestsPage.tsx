@@ -1,6 +1,6 @@
 import { admissionsApi, admissionsPapersFor, admissionsQueries, ApiError, newIdempotencyKey, type AdmissionsApplicant, type AdmissionsTest, type AdmissionsTestSubject } from "@mtb/api";
 import { formatDate } from "@mtb/domain";
-import { Banner, Button, buttonClassName, Checkbox, cx, DatePicker, EmptyState, IconButton, Input, Modal, Panel, Select, Skeleton, StatusBadge, useToast } from "@mtb/ui";
+import { Banner, Button, buttonClassName, Checkbox, cx, DatePicker, EmptyState, IconButton, Input, Modal, Panel, Segmented, Select, Skeleton, StatusBadge, useToast } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
@@ -10,8 +10,12 @@ import { PrintSheet, printNow } from "../students/documents/print";
 import { apiMessage, fieldError, LoadError, stagger } from "../students/shared";
 import { AdmissionsSubNav, DiamondMindsBadge, relationName, sittingWhen, sittingWhenWhere, today } from "./shared";
 import { AttendanceSheet, MarksSheetPrint, TestSlip, TestSlipSheet } from "./slips";
+import "../students/students.css";
 
 type Row = { absent: boolean; marks: Record<string, string> };
+/** Where one candidate's row stands, for the status badge and the filter above the sheet (design of 19-Nov-2026). */
+type RowState = "due" | "absent" | "bad" | "marked" | "todo";
+type SheetFilter = "all" | "todo" | "marked" | "absent";
 
 const STATUS: Record<AdmissionsTest["status"], { label: string; tone: "warning" | "info" | "success" }> = {
   MARKING: { label: "Marks to enter", tone: "warning" },
@@ -155,6 +159,8 @@ function MarksSheet({ testId }: { testId: string }) {
   const [rows, setRows] = useState<Map<string, Row>>(new Map());
   const [printing, setPrinting] = useState<null | "slips" | "sheet" | "marks">(null);
   const [remarks, setRemarks] = useState("");
+  const [filter, setFilter] = useState<SheetFilter>("all");
+  useEffect(() => setFilter("all"), [testId]);
   const t = sheet.data?.test;
   const list = sheet.data?.rows ?? [];
   /** The papers one candidate sits: common ones plus their group's. */
@@ -213,13 +219,35 @@ function MarksSheet({ testId }: { testId: string }) {
       return n;
     });
   const paid = list.filter((a) => a.fee?.status !== "DUE");
+  const stateOf = (a: AdmissionsApplicant): RowState => {
+    const r = rows.get(a.id);
+    if (a.fee?.status === "DUE") return "due";
+    if (r?.absent) return "absent";
+    if (Object.keys(errors).some((k) => k.startsWith(`${a.id}:`))) return "bad";
+    return total(a, r) !== null ? "marked" : "todo";
+  };
+  const states = new Map(list.map((a) => [a.id, stateOf(a)]));
+  const countOf = (...which: RowState[]) => list.filter((a) => which.includes(states.get(a.id)!)).length;
+  const shown = filter === "all" ? list : list.filter((a) => (filter === "todo" ? ["todo", "bad"] : [filter]).includes(states.get(a.id)!));
+  const percents = list.map((a) => ({ tot: total(a, rows.get(a.id)), max: maxFor(a) })).filter((x): x is { tot: number; max: number } => x.tot !== null && x.max > 0);
+  const average = percents.length ? percents.reduce((x, y) => x + (y.tot / y.max) * 100, 0) / percents.length : null;
+  const best = percents.length ? percents.reduce((x, y) => (y.tot / y.max > x.tot / x.max ? y : x)) : null;
+  const settled = countOf("marked", "absent");
 
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="m-0 text-small text-ink-muted">
-          {sittingWhenWhere(t)} · {t.subjects.map((s) => `${s.subject} ${s.max}${s.durationMins ? ` (${s.durationMins} min)` : ""}${s.stream ? `, ${s.stream} only` : ""}`).join(" · ")} · total {t.max}
-        </p>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="stu-chip">{sittingWhenWhere(t)}</span>
+          {t.subjects.map((s) => (
+            <span key={s.subject} className="stu-chip">
+              {s.subject} <b>{s.max}</b>
+              {s.durationMins ? ` · ${s.durationMins} min` : ""}
+              {s.stream ? ` · ${s.stream} only` : ""}
+            </span>
+          ))}
+          <span className="stu-tile-pill">Total {t.max}</span>
+        </div>
         <div className="flex flex-wrap gap-2">
           <Button size="sm" icon="printer" disabled={!list.length || upcoming} onClick={() => setPrinting("marks")}>
             Print marks sheet
@@ -238,30 +266,53 @@ function MarksSheet({ testId }: { testId: string }) {
         <EmptyState icon="admissions" title="Nobody booked yet" description="Book applicants into this sitting from their application." />
       ) : (
         <div className="mtb-table-wrap">
-          <div className="mtb-table-scroll">
+          <div className="mtb-table-toolbar">
+            <Segmented
+              aria-label="Show"
+              value={filter}
+              onChange={(v) => setFilter(v as SheetFilter)}
+              options={[
+                { value: "all", label: `Everyone · ${list.length}` },
+                { value: "todo", label: `To mark · ${countOf("todo", "bad")}` },
+                { value: "marked", label: `Marked · ${countOf("marked")}` },
+                { value: "absent", label: `Absent · ${countOf("absent")}` },
+              ]}
+            />
+            {editable && <span className="text-small text-ink-muted">Type a mark and press Tab for the next paper. Totals add up as you type.</span>}
+          </div>
+          <div className="mtb-table-scroll" style={{ maxHeight: 520, overflowY: "auto" }}>
             <table className="mtb-table">
               <caption className="mtb-sr-only">Marks for {t.name}</caption>
               <thead>
                 <tr>
-                  <th scope="col" style={{ position: "static", width: 90 }}>Seat</th>
-                  <th scope="col" style={{ position: "static" }}>Candidate</th>
-                  <th scope="col" style={{ position: "static", width: 80 }}>Absent</th>
+                  <th scope="col" style={{ width: 90 }}>Seat</th>
+                  <th scope="col" >Candidate</th>
+                  <th scope="col" style={{ width: 80 }}>Absent</th>
                   {t.subjects.map((s) => (
-                    <th key={s.subject} scope="col" className="mtb-th-num" style={{ position: "static", width: 110 }}>
+                    <th key={s.subject} scope="col" className="mtb-th-num" style={{ width: 110 }}>
                       {s.subject} <span className="text-ink-muted">/{s.max}</span>
                       {s.stream && <span className="block text-caption font-normal text-ink-muted">{s.stream} only</span>}
                     </th>
                   ))}
-                  <th scope="col" className="mtb-th-num" style={{ position: "static", width: 100 }}>Total</th>
-                  <th scope="col" className="mtb-th-num" style={{ position: "static", width: 80 }}>%</th>
+                  <th scope="col" style={{ width: 180 }}>Total</th>
+                  <th scope="col" className="mtb-th-num" style={{ width: 110 }}>Status</th>
                 </tr>
               </thead>
               <tbody>
-                {list.map((a: AdmissionsApplicant, i) => {
+                {shown.length === 0 && (
+                  <tr>
+                    <td colSpan={5 + t.subjects.length} style={{ padding: 0 }}>
+                      <EmptyState icon="checkCircle" title={filter === "todo" ? "Nobody left to mark" : filter === "absent" ? "Nobody is marked absent" : "Nobody is marked yet"} description="Choose Everyone to see the whole sitting." />
+                    </td>
+                  </tr>
+                )}
+                {shown.map((a: AdmissionsApplicant, i) => {
                   const r = rows.get(a.id);
                   const due = a.fee?.status === "DUE";
                   const tot = total(a, r);
                   const mine = papers(a);
+                  const state = states.get(a.id)!;
+                  const pct = !r?.absent && tot !== null && maxFor(a) ? (tot / maxFor(a)) * 100 : null;
                   return (
                     <tr key={a.id} className={cx("mtb-slide-in", (r?.absent || due) && "is-muted")} style={stagger(i)}>
                       <td className="mtb-mono">{a.testRollNo ?? "—"}</td>
@@ -303,8 +354,30 @@ function MarksSheet({ testId }: { testId: string }) {
                           </td>
                         );
                       })}
-                      <td className="mtb-td-num font-semibold">{r?.absent ? "Absent" : tot !== null ? `${tot} / ${maxFor(a)}` : <span className="text-ink-subtle">—</span>}</td>
-                      <td className="mtb-td-num">{!r?.absent && tot !== null && maxFor(a) ? `${((tot / maxFor(a)) * 100).toFixed(1)}` : <span className="text-ink-subtle">—</span>}</td>
+                      <td>
+                        <span className="promo-att">
+                          <span className="flex justify-between gap-2 tabular-nums">
+                            <b className="font-semibold">{r?.absent ? "Absent" : tot !== null ? `${tot} / ${maxFor(a)}` : <span className="text-ink-subtle">—</span>}</b>
+                            {pct !== null && <span className="text-ink-muted">{pct.toFixed(1)}%</span>}
+                          </span>
+                          <span className="promo-att-bar" aria-hidden="true">
+                            <span style={{ width: `${pct === null ? 0 : Math.min(100, pct)}%` }} />
+                          </span>
+                        </span>
+                      </td>
+                      <td className="mtb-td-num">
+                        {state === "due" ? (
+                          <StatusBadge status="unpaid">Fee due</StatusBadge>
+                        ) : state === "absent" ? (
+                          <StatusBadge status="neutral">Absent</StatusBadge>
+                        ) : state === "bad" ? (
+                          <StatusBadge status="danger">Check marks</StatusBadge>
+                        ) : state === "marked" ? (
+                          <StatusBadge status="success">Marked</StatusBadge>
+                        ) : (
+                          <StatusBadge status="pending">To mark</StatusBadge>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
@@ -312,8 +385,19 @@ function MarksSheet({ testId }: { testId: string }) {
             </table>
           </div>
           <div className="mtb-table-footer flex flex-wrap items-center justify-between gap-3">
-            <span>
-              {t.marked} of {t.candidates} marked · appeared {appearedCount} · absent {absentCount} · a candidate moves to the merit list when every paper has a mark
+            <span className="grid min-w-64 flex-1 gap-1.5">
+              <span className="promo-att-bar" aria-hidden="true" style={{ height: 6 }}>
+                <span style={{ width: `${list.length ? (settled / list.length) * 100 : 0}%` }} />
+              </span>
+              <span className="tabular-nums">
+                <b className="text-ink">{countOf("marked")}</b> of {list.length} marked · <b className="text-ink">{countOf("todo", "bad")}</b> left · appeared {appearedCount} · absent {absentCount}
+                {average !== null && best && (
+                  <>
+                    {" "}· average <b className="text-ink">{average.toFixed(1)}%</b> · highest <b className="text-ink">{best.tot} / {best.max}</b>
+                  </>
+                )}
+              </span>
+              <span>A candidate moves to the merit list when every paper has a mark.</span>
             </span>
             {editable && (
               <span className="flex gap-2">
@@ -410,36 +494,37 @@ export function TestsPage({ testId, setTestId }: { testId: string; setTestId: (i
       <AdmissionsSubNav />
       <RequireSingleCampus action="entrance tests">
         {setup.isError && <LoadError what="test sittings" error={setup.error} onRetry={() => void setup.refetch()} />}
-        <div className="grid items-start gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
-          <Panel id="sittings" rise={1} title="Sittings" description="Marks to enter first, then upcoming, then marked" flush>
+        <div className="grid gap-6">
+          <Panel id="sittings" rise={1} title="Sittings" description="Marks to enter first, then upcoming, then marked">
             {!setup.data ? (
-              <div className="grid gap-2 p-4">
+              <div className="stu-tiles">
                 {[0, 1, 2, 3].map((i) => (
-                  <Skeleton key={i} height={64} />
+                  <Skeleton key={i} height={112} />
                 ))}
               </div>
             ) : sorted.length === 0 ? (
               <EmptyState icon="calendar" title="No test sittings" description="Add a sitting for each class that admits through an entrance test." />
             ) : (
-              <ul className="m-0 grid max-h-[680px] list-none gap-1 overflow-y-auto p-2">
+              <ul className="stu-tiles max-h-[272px] overflow-y-auto p-1">
                 {sorted.map((t, i) => (
                   <li key={t.id} className="mtb-slide-in" style={stagger(i)}>
-                    <button type="button" onClick={() => setTestId(t.id)} aria-current={t.id === selected ? "true" : undefined} className={cx("grid w-full gap-1.5 rounded-md px-3 py-2.5 text-left", t.id === selected ? "bg-surface-selected" : "hover:bg-surface-hover")}>
+                    <button type="button" onClick={() => setTestId(t.id)} aria-pressed={t.id === selected} className="stu-tile" style={{ gap: "var(--space-2)" }}>
                       <span className="flex items-center justify-between gap-2">
-                        <b className="font-medium text-ink">{t.classApplied}</b>
+                        <b className="truncate text-title-3 font-semibold text-ink">{t.classApplied}</b>
                         <StatusBadge status={STATUS[t.status].tone}>{STATUS[t.status].label}</StatusBadge>
                       </span>
-                      <span className="text-small text-ink-muted">
+                      <span className="truncate text-small text-ink-muted">
                         {t.name.split("·")[1]?.trim() ?? t.name} · {sittingWhen(t)}
                       </span>
-                      <span className="text-small text-ink-muted">
-                        {t.candidates} booked · {t.feePaid} paid · {t.marked} marked
+                      <span className="mtb-meter" role="meter" aria-valuenow={t.marked} aria-valuemin={0} aria-valuemax={Math.max(1, t.candidates)} aria-label={`${t.marked} of ${t.candidates} marked`}>
+                        <span style={{ width: `${t.candidates ? (t.marked / t.candidates) * 100 : 0}%` }} />
                       </span>
-                      {t.candidates > 0 && (
-                        <span className="mtb-meter" role="meter" aria-valuenow={t.marked} aria-valuemin={0} aria-valuemax={t.candidates} aria-label={`${t.marked} of ${t.candidates} marked`}>
-                          <span style={{ width: `${(t.marked / t.candidates) * 100}%` }} />
+                      <span className="flex justify-between gap-2 text-small tabular-nums text-ink-muted">
+                        <span>
+                          <b className="text-ink">{t.marked}</b> of {t.candidates} marked
                         </span>
-                      )}
+                        <span>{t.feePaid} paid</span>
+                      </span>
                     </button>
                   </li>
                 ))}
@@ -447,7 +532,7 @@ export function TestsPage({ testId, setTestId }: { testId: string; setTestId: (i
             )}
           </Panel>
           <Panel id="marks" rise={2} title={current?.name ?? "Choose a sitting"} description={current ? `${current.candidates} ${current.candidates === 1 ? "candidate" : "candidates"} · marks per paper, totals add up as you type` : undefined}>
-            {selected ? <MarksSheet testId={selected} /> : <EmptyState icon="edit" title="No sitting chosen" description="Choose a sitting on the left." />}
+            {selected ? <MarksSheet testId={selected} /> : <EmptyState icon="edit" title="No sitting chosen" description="Choose a sitting above." />}
           </Panel>
         </div>
         <NewSittingModal open={adding} onClose={() => setAdding(false)} tests={tests} onCreated={setTestId} />

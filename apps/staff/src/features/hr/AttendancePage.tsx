@@ -749,7 +749,7 @@ function RangeView({ from, to, staffId, set }: { from: string; to: string; staff
         ) : d.rows.length === 0 ? (
           <EmptyState icon="hr" title="Nobody matches" description="Nobody with this designation or name worked here in these dates." />
         ) : single ? (
-          <DataTable caption={`Time in and out, ${single.name}, ${heading}`} columns={dayColumns} rows={dayRows} rowKey="date" empty={<EmptyState icon="calendar" title="No days in this range" />} />
+          <DataTable searchable={false} caption={`Time in and out, ${single.name}, ${heading}`} columns={dayColumns} rows={dayRows} rowKey="date" empty={<EmptyState icon="calendar" title="No days in this range" />} />
         ) : (
           <>
             <div className="hr-sheet-scroll">
@@ -883,7 +883,7 @@ function LateView({ month, setMonth }: { month: string; setMonth: (m: string) =>
           </table>
         )}
       </Panel>
-      <DataTable caption={`Late arrivals, ${hrMonthLabel(m)}`} columns={columns} rows={people} rowKey="staffId" loading={q.isLoading} empty={<EmptyState icon="checkCircle" title="Nobody was late" description="Everyone arrived on time this month." />} />
+      <DataTable searchable={false} caption={`Late arrivals, ${hrMonthLabel(m)}`} columns={columns} rows={people} rowKey="staffId" loading={q.isLoading} empty={<EmptyState icon="checkCircle" title="Nobody was late" description="Everyone arrived on time this month." />} />
     </>
   );
 }
@@ -899,7 +899,7 @@ function ImportsView() {
       <Banner tone="info" title="Punches are stored once.">
         Importing the same file twice adds nothing: punches already in the system are skipped. The machine's own log is never cleared by the system, so nothing is lost if an import fails.
       </Banner>
-      <DataTable
+      <DataTable searchable={false}
         caption="Imports from the fingerprint machine"
         rows={q.data ?? []}
         loading={q.isLoading}

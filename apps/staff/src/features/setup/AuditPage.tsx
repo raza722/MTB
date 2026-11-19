@@ -88,7 +88,7 @@ function SignInsPanel() {
           )}
         />
       ) : (
-        <DataTable
+        <DataTable searchable={false}
           rows={days.slice().reverse()}
           rowKey="date"
           density="dense"

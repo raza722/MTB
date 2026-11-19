@@ -17,9 +17,13 @@ import { useEffect, useMemo, useState } from "react";
 import { Page, PageHeader, RequirePermission, RequireSingleCampus } from "../../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../../app/session";
 import { apiMessage, classShortOf, LoadError, SeatMeter, sectionOf, stagger, StudentsSubNav, useClassLabel } from "../shared";
+import "../students.css";
 
 type Decision = { outcome: StudentPromotionOutcome; toSection: string; stream: string };
 type Gender = "all" | "M" | "F";
+
+/** Short words for the one-click decision buttons in each row (design of 19-Nov-2026). */
+const DECISION_WORD: Record<StudentPromotionOutcome, string> = { PROMOTE: "Promote", DETAIN: "Repeat", LEFT: "Leaving", PASS_OUT: "Pass out" };
 
 const GRADE_TONE = (g: string) => (g === "A+" || g === "A" ? "success" : g === "B" || g === "C" ? "info" : g === "D" ? "warning" : "danger");
 
@@ -148,6 +152,18 @@ function ClassDetail({ cs, detail, onDone }: { cs: string; detail: StudentPromot
   }
   if (detail.candidates.length === 0) return <EmptyState icon="students" title="No students to promote" description={`Nobody is enrolled in ${cs} right now.`} />;
 
+  const mainCount = next ? count("PROMOTE") : count("PASS_OUT");
+  // One section for every promoted student at once; shows the section they share, or "Choose…" when they differ.
+  const promotedTo = [...new Set(items.filter((i) => i.outcome === "PROMOTE").map((i) => i.toSection ?? ""))];
+  const placeAll = (sec: string) =>
+    setDecisions((m) => {
+      const n = new Map(m);
+      for (const c of detail.candidates) {
+        const d = n.get(c.grNo) ?? suggested(c);
+        if (d.outcome === "PROMOTE") n.set(c.grNo, { ...d, toSection: sec });
+      }
+      return n;
+    });
   const outcomeOptions: StudentPromotionOutcome[] = next ? ["PROMOTE", "DETAIN", "LEFT"] : ["PASS_OUT", "DETAIN", "LEFT"];
   const columns: Array<Column<StudentPromotionCandidate>> = [
     { key: "rollNo", header: "Roll", align: "right", width: 56, render: (c) => <span className="tabular-nums">{c.rollNo || "—"}</span> },
@@ -163,6 +179,12 @@ function ClassDetail({ cs, detail, onDone }: { cs: string; detail: StudentPromot
             {c.relation} {c.father} · <span className="mtb-mono">{c.grNo}</span>
             {c.stream && ` · ${c.stream} now`}
           </span>
+          {c.note && (
+            <span className="flex items-start gap-1.5 text-small text-warning-ink">
+              <Icon name="alert" size={14} />
+              {c.note}
+            </span>
+          )}
         </span>
       ),
     },
@@ -180,34 +202,48 @@ function ClassDetail({ cs, detail, onDone }: { cs: string; detail: StudentPromot
           <span className="text-ink-subtle">—</span>
         ),
     },
-    { key: "att", header: "Attendance", align: "right", width: 100, render: (c) => (c.attendancePercent === null ? <span className="text-ink-subtle" title="No attendance registers for this session yet">—</span> : <span className={cx("tabular-nums", c.attendancePercent < 75 && "font-semibold text-warning-ink")}>{c.attendancePercent}%</span>) },
+    {
+      key: "att",
+      header: "Attendance",
+      width: 120,
+      render: (c) =>
+        c.attendancePercent === null ? (
+          <span className="text-ink-subtle" title="No attendance registers for this session yet">—</span>
+        ) : (
+          <span className={cx("promo-att", c.attendancePercent < 75 && "is-low")}>
+            <span className="tabular-nums">{c.attendancePercent}%</span>
+            <span className="promo-att-bar" aria-hidden="true">
+              <span style={{ width: `${Math.max(0, Math.min(100, c.attendancePercent))}%` }} />
+            </span>
+          </span>
+        ),
+    },
     { key: "fee", header: "Fees", width: 100, render: (c) => <StatusBadge status={c.feeStatus} /> },
     {
       key: "outcome",
       header: "Decision",
-      width: 160,
+      width: 250,
       render: (c) => {
         const d = decisionOf(c);
         return (
-          <Select
-            aria-label={`Decision for ${c.name}`}
-            value={d.outcome}
-            disabled={readOnly || !canEdit}
-            onChange={(e) => set(c.grNo, { outcome: e.target.value as StudentPromotionOutcome })}
-            options={outcomeOptions.map((o) => ({ value: o, label: STUDENT_PROMOTION_OUTCOME_LABEL[o] }))}
-          />
+          <span className="promo-seg" role="group" aria-label={`Decision for ${c.name}`}>
+            {outcomeOptions.map((o) => (
+              <button key={o} type="button" data-outcome={o} aria-pressed={d.outcome === o} disabled={readOnly || !canEdit} title={STUDENT_PROMOTION_OUTCOME_LABEL[o]} onClick={() => set(c.grNo, { outcome: o })}>
+                {DECISION_WORD[o]}
+              </button>
+            ))}
+          </span>
         );
       },
     },
     {
       key: "toSection",
       header: next ? `Section in ${classLabel(next)}` : "Section",
-      width: 130,
+      width: 150,
       render: (c) => {
         const d = decisionOf(c);
-        if (d.outcome === "LEFT" || d.outcome === "PASS_OUT") return <span className="text-small text-ink-muted">—</span>;
-        const opts = d.outcome === "PROMOTE" ? destSections.map((s) => ({ value: s, label: `${next}-${s}` })) : [{ value: curSec, label: `${curShort}-${curSec}` }];
-        return <Select aria-label={`Section for ${c.name}`} value={d.toSection} disabled={readOnly || !canEdit || d.outcome === "DETAIN"} onChange={(e) => set(c.grNo, { toSection: e.target.value })} options={opts} />;
+        if (d.outcome !== "PROMOTE") return <span className="text-small text-ink-muted">{d.outcome === "DETAIN" ? `Stays in ${curShort}-${d.toSection}` : d.outcome === "LEFT" ? "Leaves MTB" : "Passes out"}</span>;
+        return <Select aria-label={`Section for ${c.name}`} value={d.toSection} disabled={readOnly || !canEdit} onChange={(e) => set(c.grNo, { toSection: e.target.value })} options={destSections.map((s) => ({ value: s, label: `${next}-${s}` }))} />;
       },
     },
     ...(hasGroups
@@ -225,13 +261,39 @@ function ClassDetail({ cs, detail, onDone }: { cs: string; detail: StudentPromot
           } as Column<StudentPromotionCandidate>,
         ]
       : []),
-    { key: "note", header: "Advice", render: (c) => (c.note ? <span className="flex items-start gap-1.5 text-small text-warning-ink"><Icon name="alert" size={14} />{c.note}</span> : <span className="text-small text-ink-subtle">—</span>) },
   ];
 
   return (
     <div className="grid gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="promo-pill">{cs}</span>
+          <span className="text-brand" aria-hidden="true">
+            <Icon name="arrowRight" size={22} />
+          </span>
+          <span className="promo-pill is-to">{next ? classLabel(next) : "Passing out"}</span>
+        </div>
+        <div className="promo-outcome" aria-hidden="true">
+          <div className="promo-outcome-bar">
+            {mainCount > 0 && <span data-outcome="PROMOTE" style={{ flexGrow: mainCount }} />}
+            {count("DETAIN") > 0 && <span data-outcome="DETAIN" style={{ flexGrow: count("DETAIN") }} />}
+            {count("LEFT") > 0 && <span data-outcome="LEFT" style={{ flexGrow: count("LEFT") }} />}
+          </div>
+          <div className="flex justify-between text-small tabular-nums text-ink-muted">
+            <span>
+              <b className="text-ink">{mainCount}</b> {next ? "promote" : "pass out"}
+            </span>
+            <span>
+              <b className="text-ink">{count("DETAIN")}</b> repeat
+            </span>
+            <span>
+              <b className="text-ink">{count("LEFT")}</b> leaving
+            </span>
+          </div>
+        </div>
+      </div>
       <Banner tone="info" icon="info">
-        Promotion is the school's decision. The First Term result and attendance are shown only as advice; the annual result has not been declared yet. Nothing changes until you confirm, and the move takes effect on 01-Apr-{detail.toSession}.
+        Change only the students who should repeat or leave. The First Term result and attendance are advice; the annual result has not been declared yet. Nothing changes until you confirm, and the move takes effect on 01-Apr-{detail.toSession}.
       </Banner>
       {next && (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -268,10 +330,13 @@ function ClassDetail({ cs, detail, onDone }: { cs: string; detail: StudentPromot
           />
         </div>
         {canEdit && !readOnly && (
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" onClick={() => setDecisions(initial())}>
-              Use advice
-            </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            {next && destSections.length > 1 && (
+              <label className="flex items-center gap-2 text-small text-ink-muted">
+                Place all promoted students in
+                <Select aria-label="Section for all promoted students" className="w-40" value={promotedTo.length === 1 ? promotedTo[0]! : ""} onChange={(e) => placeAll(e.target.value)} options={destSections.map((s) => ({ value: s, label: `${next}-${s}` }))} />
+              </label>
+            )}
             <Button size="sm" onClick={() => setAll(next ? "PROMOTE" : "PASS_OUT")}>
               {next ? "Promote everyone" : "Everyone passes out"}
             </Button>
@@ -450,7 +515,16 @@ export function PromotionPage({ cls, setCls }: { cls: string; setCls: (cs: strin
               ) : o.classes.length === 0 ? (
                 <EmptyState icon="students" title="No classes" description="No students are enrolled at this campus." />
               ) : (
-                <ul className="m-0 grid max-h-[640px] list-none gap-1 overflow-y-auto p-2">
+                <>
+                  <div className="grid gap-1.5 px-4 pt-1 pb-2">
+                    <span className="text-small tabular-nums text-ink-muted">
+                      <b className="text-ink">{doneCount}</b> of {total} done
+                    </span>
+                    <span className="promo-att-bar" aria-hidden="true">
+                      <span style={{ width: `${total ? (doneCount / total) * 100 : 0}%` }} />
+                    </span>
+                  </div>
+                  <ul className="m-0 grid max-h-[640px] list-none gap-1 overflow-y-auto p-2">
                   {o.classes.map((c, i) => {
                     const active = c.classSection === selected;
                     return (
@@ -467,13 +541,14 @@ export function PromotionPage({ cls, setCls }: { cls: string; setCls: (cs: strin
                       </li>
                     );
                   })}
-                </ul>
+                  </ul>
+                </>
               )}
             </Panel>
             <Panel
               id="promo-detail"
               rise={6}
-              title={selected ? `${selected} → ${detail.data?.nextClass ? classLabel(detail.data.nextClass) : "passing out"}` : "Choose a class"}
+              title={selected ? "Promotion decisions" : "Choose a class"}
               description={o ? `From ${formatSession(o.fromSession)} into ${formatSession(o.toSession)}` : undefined}
             >
               {detail.isError ? (

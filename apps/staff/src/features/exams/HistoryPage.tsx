@@ -319,7 +319,7 @@ export function HistoryPage({ id, onPick }: { id: string | undefined; onPick: (i
 
 function HistoryTable({ entries }: { entries: ExamsHistoryEntry[] }) {
   return (
-    <DataTable<ExamsHistoryEntry & { id: string }>
+    <DataTable<ExamsHistoryEntry & { id: string }> searchable={false}
       caption="Results by exam"
       rows={entries.map((e) => ({ ...e, id: e.examId }))}
       density="dense"
@@ -351,7 +351,7 @@ function HistoryTable({ entries }: { entries: ExamsHistoryEntry[] }) {
 
 function PaperTable({ papers }: { papers: PaperLine[] }) {
   return (
-    <DataTable<PaperLine>
+    <DataTable<PaperLine> searchable={false}
       caption="Every paper"
       rows={papers}
       density="dense"

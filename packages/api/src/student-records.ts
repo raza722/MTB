@@ -41,8 +41,10 @@ export interface StudentFamilyRow {
   balance: Rupees;
   /** Worst fee status among the children. */
   feeStatus: FeeStatusCode;
-  /** First names, for the list: "Ayesha, Hamza, Mariam". */
+  /** First names, for the list: "Ayesha, Hamza, Mariam". Each child once; those enrolled now come first. */
   childNames: string;
+  /** First names of the children enrolled now. Absent from a backend older than 19-Nov-2026. */
+  enrolledChildNames?: string;
 }
 
 export interface StudentFamilyList {

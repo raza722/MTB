@@ -451,7 +451,7 @@ export function CollectionReport({ search = {} }: { search?: CollectionSearch })
                 label={`Daily collection from ${formatDate(r.from)} to ${formatDate(r.to)}`}
               />
             ) : (
-              <DataTable
+              <DataTable searchable={false}
                 rows={[...r.days].reverse()}
                 rowKey="date"
                 density="dense"

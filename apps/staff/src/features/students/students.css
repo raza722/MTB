@@ -21,3 +21,28 @@
 .stu-tile-detail { display: grid; gap: var(--space-3); padding: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface-sunken); }
 .stu-chip { display: inline-flex; align-items: center; gap: var(--space-2); padding: 3px 8px 3px 10px; border: 1px solid var(--border); border-radius: var(--radius-full); background: var(--surface-raised); font-size: 13px; line-height: 18px; color: var(--ink-muted); }
 .stu-chip b { font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+/*
+ * Promotion (design of 19-Nov-2026): the class and where it goes as two pills, a live bar of the outcomes, and one
+ * click per student instead of a dropdown. Repeat is the warning colour and Leaving the danger colour, so the
+ * exceptions stand out in a long list.
+ */
+.promo-pill { padding: 6px 14px; border: 1px solid var(--border); border-radius: var(--radius-lg); font-size: 18px; line-height: 24px; font-weight: 600; color: var(--ink); }
+.promo-pill.is-to { border-color: var(--brand); background: var(--brand-tint); color: var(--brand-ink); }
+.promo-outcome { display: grid; gap: 6px; width: min(380px, 100%); }
+.promo-outcome-bar { display: flex; gap: 2px; height: 10px; }
+.promo-outcome-bar > span { flex: 0 1 0; min-width: 4px; border-radius: 5px; background: var(--chart-1); transition: flex-grow var(--motion-base) var(--ease-out); }
+.promo-outcome-bar > span[data-outcome="DETAIN"] { background: var(--warning); }
+.promo-outcome-bar > span[data-outcome="LEFT"] { background: var(--danger); }
+.promo-seg { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface-sunken); }
+.promo-seg > button { height: 30px; padding: 0 12px; border: 0; border-radius: var(--radius-md); background: transparent; color: var(--ink-muted); font: inherit; font-size: 13px; font-weight: 500; white-space: nowrap; cursor: pointer; transition: background-color var(--motion-fast) ease, color var(--motion-fast) ease; }
+.promo-seg > button:hover:not(:disabled):not([aria-pressed="true"]) { background: var(--surface-hover); color: var(--ink); }
+.promo-seg > button:disabled { cursor: not-allowed; opacity: 0.6; }
+.promo-seg > button[aria-pressed="true"] { font-weight: 600; background: var(--brand-tint); color: var(--brand-ink); }
+.promo-seg > button[aria-pressed="true"][data-outcome="DETAIN"] { background: var(--warning-tint); color: var(--warning-ink); }
+.promo-seg > button[aria-pressed="true"][data-outcome="LEFT"] { background: var(--danger-tint); color: var(--danger-ink); }
+.promo-att { display: grid; gap: 4px; }
+.promo-att.is-low { font-weight: 600; color: var(--warning-ink); }
+.promo-att-bar { display: block; height: 4px; border-radius: 2px; background: var(--surface-sunken); overflow: hidden; }
+.promo-att-bar > span { display: block; height: 100%; border-radius: 2px; background: var(--chart-1); }
+.promo-att.is-low .promo-att-bar > span { background: var(--warning); }

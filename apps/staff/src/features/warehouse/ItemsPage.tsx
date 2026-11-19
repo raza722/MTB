@@ -403,7 +403,7 @@ export function ItemsPage() {
         />
       </TabPanel>
       <TabPanel id="categories" active={tab === "categories"}>
-        <DataTable
+        <DataTable searchable={false}
           caption="Item categories"
           rows={setup.data?.categories ?? []}
           loading={setup.isLoading}

@@ -43,15 +43,32 @@ export function FamiliesPage({ q: initialQ, setQ: pushQ }: { q: string; setQ: (q
     {
       key: "children",
       header: "Children",
-      render: (f) => (
-        <span className="grid">
-          <span>{f.childNames}</span>
-          <span className="mtb-cell-secondary">
-            {f.children} {f.children === 1 ? "child" : "children"}
-            {f.enrolledChildren !== f.children ? ` · ${f.enrolledChildren} enrolled` : ""}
+      render: (f) => {
+        // Enrolled children are named; children who left, passed out or were struck off are counted on the line
+        // below, not mixed into the names (user report, 19-Nov-2026). A backend from before that date sends no
+        // enrolledChildNames: the row then shows every name, as it did.
+        if (f.enrolledChildNames === undefined)
+          return (
+            <span className="grid">
+              <span>{f.childNames}</span>
+              <span className="mtb-cell-secondary">
+                {f.children} {f.children === 1 ? "child" : "children"}
+                {f.enrolledChildren !== f.children ? ` · ${f.enrolledChildren} enrolled` : ""}
+              </span>
+            </span>
+          );
+        const former = f.children - f.enrolledChildren;
+        return (
+          <span className="grid">
+            {f.enrolledChildren > 0 ? <span>{f.enrolledChildNames}</span> : <span className="text-ink-muted">No child enrolled now</span>}
+            <span className="mtb-cell-secondary">
+              {f.enrolledChildren > 0 && `${f.enrolledChildren} enrolled`}
+              {f.enrolledChildren > 0 && former > 0 && " · "}
+              {former > 0 && <span title={f.childNames}>{former} no longer enrolled</span>}
+            </span>
           </span>
-        </span>
-      ),
+        );
+      },
     },
     {
       key: "campuses",

@@ -1,5 +1,5 @@
 import { formatCount, formatDate, formatRs, type IsoDate, type Rupees } from "@mtb/domain";
-import type { CSSProperties, ReactNode } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import { Icon } from "../icons";
 import { cx } from "../lib/cx";
 import { Button } from "./button";
@@ -13,6 +13,7 @@ export interface Column<Row> {
   align?: "left" | "right";
   width?: number | string;
   render?: (row: Row, index: number) => ReactNode;
+  /** With `onSortChange` the page sorts (true shows the arrow). Without it the table sorts by itself on every column whose key is a plain value of the row; false switches that off for a column. */
   sortable?: boolean;
   className?: string;
 }
@@ -50,12 +51,43 @@ export interface DataTableProps<Row> {
   maxHeight?: number | string;
   toolbar?: ReactNode;
   pagination?: ReactNode;
+  /**
+   * The table's own search box, which filters the rows on screen by any text or number in them. By default it shows
+   * on a table of more than 10 rows that has no toolbar, pages or totals row of its own; false switches it off
+   * (a page with its own search box), true shows it whatever the size.
+   */
+  searchable?: boolean;
+}
+
+const BUILT_IN_SEARCH_FROM = 10;
+
+/** Every text and number in a row (two levels deep), lower-cased, for the built-in search. */
+const rowTextCache = new WeakMap<object, string>();
+function rowText(row: object): string {
+  const hit = rowTextCache.get(row);
+  if (hit !== undefined) return hit;
+  const parts: string[] = [];
+  const walk = (v: unknown, depth: number) => {
+    if (typeof v === "string" || typeof v === "number") parts.push(String(v));
+    else if (v && typeof v === "object" && depth < 2) for (const x of Object.values(v)) walk(x, depth + 1);
+  };
+  walk(row, 0);
+  const text = parts.join(" ").toLowerCase();
+  rowTextCache.set(row, text);
+  return text;
+}
+
+function compareValues(a: unknown, b: unknown): number {
+  const empty = (v: unknown) => v === null || v === undefined || v === "";
+  if (empty(a) || empty(b)) return empty(a) ? (empty(b) ? 0 : 1) : -1; // empty values last
+  if (typeof a === "number" && typeof b === "number") return a - b;
+  if (typeof a === "boolean" && typeof b === "boolean") return Number(a) - Number(b);
+  return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: "base" });
 }
 
 /** The data-dense table of the staff app. Headers stay put; never hide a column that carries an amount. */
 export function DataTable<Row extends object>({
   columns,
-  rows,
   rowKey = "id" as keyof Row & string,
   loading,
   skeletonRows = 6,
@@ -76,7 +108,26 @@ export function DataTable<Row extends object>({
   maxHeight,
   toolbar,
   pagination,
+  searchable,
+  rows: allRows,
 }: DataTableProps<Row>) {
+  // Search and sorting the table does by itself (user request, 19-Nov-2026: "search on every table, and ascending and
+  // descending on the columns"). A page that sorts for itself (onSortChange) or shows pages keeps doing so: sorting
+  // one page of a longer list here would put the wrong rows first.
+  const [query, setQuery] = useState("");
+  const [ownSort, setOwnSort] = useState<SortState | null>(null);
+  const selfSort = !onSortChange && !pagination;
+  const plainValue = (key: string) => allRows.some((r) => ["string", "number", "boolean"].includes(typeof (r as Record<string, unknown>)[key]));
+  const canSort = (c: Column<Row>) => (onSortChange ? Boolean(c.sortable) : selfSort && c.sortable !== false && plainValue(c.key));
+  const showSearch = searchable ?? (!toolbar && !pagination && !footer && allRows.length > BUILT_IN_SEARCH_FROM);
+  const needle = showSearch ? query.trim().toLowerCase() : "";
+  let rows = needle ? allRows.filter((r) => rowText(r).includes(needle)) : allRows;
+  if (selfSort && ownSort) {
+    const k = ownSort.key;
+    const sign = ownSort.dir === "asc" ? 1 : -1;
+    rows = [...rows].sort((a, b) => sign * compareValues((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k]));
+  }
+  const shownSort = onSortChange ? sort : (ownSort ?? undefined);
   const idOf = (r: Row) => r[rowKey] as unknown;
   const selectableRows = rows.filter((r) => isRowSelectable?.(r) ?? true);
   const allIds = selectableRows.map(idOf);
@@ -96,8 +147,9 @@ export function DataTable<Row extends object>({
     onSelectedChange?.(next);
   };
   const sortBy = (key: string) => {
-    if (!onSortChange) return;
-    onSortChange(sort?.key === key ? { key, dir: sort.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" });
+    if (onSortChange) return onSortChange(sort?.key === key ? { key, dir: sort.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" });
+    // The table's own sort: ascending, then descending, then back to the order the page gave.
+    setOwnSort((cur) => (cur?.key !== key ? { key, dir: "asc" } : cur.dir === "asc" ? { key, dir: "desc" } : null));
   };
   const headStyle = (extra?: CSSProperties): CSSProperties | undefined => (stickyHeader ? extra : { ...extra, position: "static" });
   const colCount = columns.length + (selectable ? 1 : 0);
@@ -105,6 +157,19 @@ export function DataTable<Row extends object>({
   return (
     <div className="mtb-table-wrap">
       {toolbar && <div className="mtb-table-toolbar">{toolbar}</div>}
+      {showSearch && (
+        <div className="mtb-table-toolbar">
+          <div className="mtb-input-wrap has-icon" style={{ width: "min(320px, 100%)" }}>
+            <Icon name="search" />
+            <input className="mtb-input" type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search this table" aria-label={caption ? `Search ${caption}` : "Search this table"} />
+          </div>
+          {needle && (
+            <span className="mtb-num" aria-live="polite" style={{ color: "var(--ink-muted)" }}>
+              {formatCount(rows.length)} of {formatCount(allRows.length)}
+            </span>
+          )}
+        </div>
+      )}
       <div className="mtb-table-scroll" style={maxHeight ? { maxHeight, overflowY: "auto" } : undefined}>
         <table className={cx("mtb-table", density && `mtb-table-${density}`)} aria-busy={loading || undefined}>
           {caption && <caption className="mtb-sr-only">{caption}</caption>}
@@ -121,14 +186,14 @@ export function DataTable<Row extends object>({
                   scope="col"
                   className={cx(c.align === "right" && "mtb-th-num", c.className)}
                   style={headStyle({ width: c.width })}
-                  aria-sort={sort?.key === c.key ? (sort.dir === "asc" ? "ascending" : "descending") : undefined}
+                  aria-sort={shownSort?.key === c.key ? (shownSort.dir === "asc" ? "ascending" : "descending") : undefined}
                 >
-                  {c.sortable && onSortChange ? (
-                    <button type="button" onClick={() => sortBy(c.key)}>
+                  {canSort(c) ? (
+                    <button type="button" onClick={() => sortBy(c.key)} title="Sort by this column">
                       {c.header}
                       <Icon
-                        name={sort?.key === c.key && sort.dir === "asc" ? "chevronUp" : "chevronDown"}
-                        style={sort?.key === c.key ? undefined : { opacity: 0.4 }}
+                        name={shownSort?.key === c.key && shownSort.dir === "asc" ? "chevronUp" : "chevronDown"}
+                        style={shownSort?.key === c.key ? undefined : { opacity: 0.4 }}
                       />
                     </button>
                   ) : (
@@ -160,7 +225,7 @@ export function DataTable<Row extends object>({
             ) : rows.length === 0 ? (
               <tr>
                 <td colSpan={colCount} style={{ padding: 0 }}>
-                  {empty ?? <EmptyState title="Nothing to show" />}
+                  {needle ? <EmptyState icon="search" title="Nothing matches the search" description="Check the spelling, or clear the search box to see every row." /> : (empty ?? <EmptyState title="Nothing to show" />)}
                 </td>
               </tr>
             ) : (

@@ -449,7 +449,7 @@ function TitlePanel({ id, setup, onClose, onEdit }: { id: string; setup: Library
             ]}
           />
           {tab === "copies" ? (
-            <DataTable
+            <DataTable searchable={false}
               caption="Copies of this title"
               rows={t.copyList}
               density="dense"
@@ -522,7 +522,7 @@ function TitlePanel({ id, setup, onClose, onEdit }: { id: string; setup: Library
           ) : t.loans.length === 0 ? (
             <EmptyState icon="book" title="Never borrowed" description="Loans of every copy show here." />
           ) : (
-            <DataTable
+            <DataTable searchable={false}
               caption="Borrowing history"
               rows={t.loans}
               density="dense"

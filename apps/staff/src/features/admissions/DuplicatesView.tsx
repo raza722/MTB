@@ -182,7 +182,7 @@ export function DuplicatesView({ data, loading }: { data: AdmissionsDuplicates |
               <h3 id="dup-queue">Review queue</h3>
               <span className="text-small text-ink-muted tabular-nums">{cases.length} to review</span>
             </header>
-            <ul className="m-0 grid list-none gap-1 p-2">
+            <ul className="m-0 grid max-h-[560px] list-none content-start gap-1 overflow-y-auto p-2">
               {cases.map((c) => {
                 const active = c.id === current.id;
                 return (

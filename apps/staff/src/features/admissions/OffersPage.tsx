@@ -1,6 +1,6 @@
 import { admissionsQueries, metaQueries, type AdmissionsApplicant } from "@mtb/api";
 import { formatCount, formatDate, formatMobile } from "@mtb/domain";
-import { AnimatedNumber, Banner, Button, DataTable, DatePicker, EmptyState, Modal, Panel, Select, StatCard, StatusBadge, type Column } from "@mtb/ui";
+import { AnimatedNumber, Banner, Button, DataTable, DatePicker, EmptyState, Input, Modal, Panel, Select, StatCard, StatusBadge, type Column } from "@mtb/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
@@ -43,9 +43,15 @@ export function OffersPage() {
   const [ticked, setTicked] = useState<Set<unknown>>(new Set());
   const [bulkSlips, setBulkSlips] = useState<string[] | null>(null);
   const [printList, setPrintList] = useState(false);
+  const [offerQ, setOfferQ] = useState("");
   const all = [...(offeredQ.data?.applicants ?? []), ...(admittedQ.data?.applicants ?? [])];
   // Soonest expiry first; offers without an expiry (migrated from the old system) last.
   const offered = all.filter((a) => a.stage === "OFFERED").sort((a, b) => (a.offerValidUntil ?? "9999").localeCompare(b.offerValidUntil ?? "9999"));
+  // The search box above the offers table: name, father or guardian, class applied for, or mobile digits.
+  const offerNeedle = offerQ.trim().toLowerCase();
+  const offeredShown = offerNeedle
+    ? offered.filter((a) => [a.name, relationName(a), a.classApplied, a.mobile].some((v) => String(v ?? "").toLowerCase().includes(offerNeedle)) || (/\d{3,}/.test(offerNeedle) && String(a.mobile ?? "").replace(/\D/g, "").includes(offerNeedle.replace(/\D/g, ""))))
+    : offered;
   const admittedAll = all.filter((a) => a.stage === "ADMITTED").sort((a, b) => (b.admittedOn ?? "").localeCompare(a.admittedOn ?? ""));
   /** The campus's classes in school order ("10" → "Class 10", "P9" → "Pre 9th"). */
   const campusClasses = useQuery(metaQueries.classes(ctx.campus)).data;
@@ -173,8 +179,8 @@ export function OffersPage() {
         </div>
       </div>
       {urgent > 0 && <Banner tone="warning" title={`${urgent} ${urgent === 1 ? "offer ends" : "offers end"} within two days`}>Call these families today. An offer that lapses frees the seat for the next applicant on the merit list.</Banner>}
-      <Panel id="offers" rise={4} title="Waiting to complete admission" description="Choose the section; the G.R. number and roll number follow in one step" flush>
-        <DataTable caption="Offers waiting" columns={offerCols} rows={offered} loading={pipeline.isLoading} onRowClick={(a) => setViewing(a.id)} stickyHeader={false} empty={<EmptyState icon="checkCircle" title="No offers waiting" description="Offer seats from the merit list, or after an interview for classes without a test." />} />
+      <Panel id="offers" rise={4} title="Waiting to complete admission" description="Choose the section; the G.R. number and roll number follow in one step" flush actions={<Input aria-label="Search offers waiting" icon="search" placeholder="Name, father, class or mobile" className="w-full sm:w-72" value={offerQ} onChange={(e) => setOfferQ(e.target.value)} />}>
+        <DataTable searchable={false} caption="Offers waiting" columns={offerCols} rows={offeredShown} loading={pipeline.isLoading} onRowClick={(a) => setViewing(a.id)} maxHeight={480} empty={offerNeedle ? <EmptyState icon="search" title="No offer matches the search" description="Check the spelling, or clear the search box to see every offer waiting." /> : <EmptyState icon="checkCircle" title="No offers waiting" description="Offer seats from the merit list, or after an interview for classes without a test." />} />
       </Panel>
       <Panel
         id="admitted"

@@ -275,7 +275,7 @@ function TodayList() {
         {q.isError ? (
           <LoadError what="Today's loans" error={q.error} onRetry={() => void q.refetch()} />
         ) : (
-        <DataTable
+        <DataTable searchable={false}
           caption="Books issued today"
           rows={q.data ?? []}
           loading={q.isLoading}
@@ -293,7 +293,7 @@ function TodayList() {
         {due.isError ? (
           <LoadError what="Books due back today" error={due.error} onRetry={() => void due.refetch()} />
         ) : (
-        <DataTable
+        <DataTable searchable={false}
           caption="Books due back today"
           rows={dueToday}
           loading={due.isLoading}

@@ -33,6 +33,28 @@ const queryClient: QueryClient = new QueryClient({
   },
 });
 
+// A page opened before a new build was put on the server still asks for the old build's page files, which are gone:
+// changing page then failed with "Failed to fetch dynamically imported module" and a blank or broken screen (user
+// report, 19-Nov-2026). Vite reports that as vite:preloadError; load the new build once instead. The time stamp stops
+// a reload loop when the file is missing for another reason.
+window.addEventListener("vite:preloadError", (event) => {
+  const KEY = "mtb.reloadedForNewBuild";
+  let last = 0;
+  try {
+    last = Number(sessionStorage.getItem(KEY) ?? 0);
+  } catch {
+    // storage blocked: fall through to one reload
+  }
+  if (Date.now() - last < 30_000) return;
+  try {
+    sessionStorage.setItem(KEY, String(Date.now()));
+  } catch {
+    return;
+  }
+  event.preventDefault();
+  window.location.reload();
+});
+
 const router = createRouter({
   routeTree,
   context: { queryClient },

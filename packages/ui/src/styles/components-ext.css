@@ -44,6 +44,9 @@
 
 /* ---------- Floating surfaces (Radix positions the wrapper) ---------- */
 .mtb-menu.mtb-menu-floating { position: relative; }
+/* A long menu (the session list reaches back to 2010) stays short and scrolls inside itself (user request,
+   19-Nov-2026). It also never grows past the space below its button, which Radix reports. */
+.mtb-menu.mtb-menu-floating { max-height: min(360px, var(--radix-dropdown-menu-content-available-height, 360px)); overflow-y: auto; overscroll-behavior: contain; }
 .mtb-popover { z-index: 55; background: var(--surface-raised); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); padding: var(--space-3); }
 .mtb-tooltip { z-index: 70; max-width: 280px; padding: 6px 10px; border-radius: var(--radius-md); background: var(--ink); color: var(--surface-raised); font-size: 13px; line-height: 18px; box-shadow: var(--shadow-md); }
 .mtb-tooltip-arrow { fill: var(--ink); }
@@ -146,3 +149,8 @@
 .mtb-subnav a:hover { color: var(--ink); background: var(--surface-hover); }
 .mtb-subnav a[aria-current="page"] { color: var(--brand-ink); }
 .mtb-subnav a[aria-current="page"]::after { content: ""; position: absolute; left: var(--space-2); right: var(--space-2); bottom: -1px; height: 2px; border-radius: 2px 2px 0 0; background: var(--brand); animation: mtb-grow-x 240ms var(--ease-out, ease) both; }
+
+/* A disabled select in dark mode tiled its arrow across the whole box (user report, 19-Nov-2026): the design system's
+   disabled rule sets the `background` shorthand, which resets repeat and position, and its dark-mode rule then puts
+   the arrow image back. Keep one arrow at the right edge. */
+.mtb-select:disabled { background-repeat: no-repeat; background-position: right 12px center; }

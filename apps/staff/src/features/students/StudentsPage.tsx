@@ -213,7 +213,7 @@ function StrengthPanel({ s, onPick }: { s: StudentStrength | undefined; onPick: 
           )}
         </div>
       ) : (
-        <DataTable
+        <DataTable searchable={false}
           caption="Class strength"
           rows={classes.map((c) => ({ ...c, id: c.className }))}
           stickyHeader={false}

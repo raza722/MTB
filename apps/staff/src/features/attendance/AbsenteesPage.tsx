@@ -282,7 +282,7 @@ export function AbsenteesPage() {
                   <Input aria-label="Search" icon="search" placeholder="Student, parent or mobile" value={search} onChange={(e) => setSearch(e.target.value)} />
                 </div>
               </div>
-              <DataTable
+              <DataTable searchable={false}
                 caption="Students not present today"
                 columns={columns}
                 rows={rows}

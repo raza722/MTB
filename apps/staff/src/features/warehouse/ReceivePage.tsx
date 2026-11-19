@@ -213,7 +213,7 @@ function GrnPanel({ g, onClose }: { g: WarehouseGrn; onClose: () => void }) {
             ...(g.note ? ([["Note", g.note]] as Array<[string, string]>) : []),
           ]}
         />
-        <DataTable
+        <DataTable searchable={false}
           caption="Items received"
           rowKey="itemId"
           rows={g.lines}

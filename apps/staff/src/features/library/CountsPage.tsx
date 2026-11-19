@@ -117,7 +117,7 @@ export function CountsPage() {
         Scan every copy on a shelf. The count lists what is missing, what sits on the wrong shelf and what the records show on loan but is actually on the shelf. Closing it corrects the catalogue in one step.
       </Banner>
       {q.isError && <LoadError what="Stock counts" error={q.error} onRetry={() => void q.refetch()} />}
-      <DataTable
+      <DataTable searchable={false}
         caption="Library stock counts"
         rows={q.data ?? []}
         loading={q.isLoading}
@@ -331,7 +331,7 @@ export function CountPage({ countId }: { countId: string }) {
           }
           flush
         >
-          <DataTable caption="Stock count findings" rowKey="accessionNo" rows={rows} columns={columns} density="dense" empty={<EmptyState icon="checkCircle" title={view === "issues" ? "Nothing to correct" : "Nothing scanned yet"} description={view === "issues" ? "Every copy scanned is where the catalogue says." : undefined} />} />
+          <DataTable searchable={false} caption="Stock count findings" rowKey="accessionNo" rows={rows} columns={columns} density="dense" empty={<EmptyState icon="checkCircle" title={view === "issues" ? "Nothing to correct" : "Nothing scanned yet"} description={view === "issues" ? "Every copy scanned is where the catalogue says." : undefined} />} />
         </Panel>
       </RequireSingleCampus>
 

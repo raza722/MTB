@@ -315,7 +315,7 @@ function BatchPanel({ id, onClose }: { id: string | null; onClose: () => void })
             <SmsBubble text={b.sampleMessage} language={b.language} />
           </div>
 
-          {b.rows.length > 0 && <DataTable caption="First recipients" columns={rowColumns} rows={b.rows.slice(0, 12)} rowKey="id" density="dense" stickyHeader={false} />}
+          {b.rows.length > 0 && <DataTable searchable={false} caption="First recipients" columns={rowColumns} rows={b.rows.slice(0, 12)} rowKey="id" density="dense" stickyHeader={false} />}
         </div>
       )}
 

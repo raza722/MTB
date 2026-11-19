@@ -179,7 +179,7 @@ function ItemPanel({ id, onClose }: { id: string; onClose: () => void }) {
             Newest first. Every receipt, issue, return, sale and count adjustment is a row; corrections are new rows, never edits.
             {opening ? ` Balance on ${formatDate(opening.on)} before these movements: ${formatCount(opening.balance)}.` : ""}
           </p>
-          <DataTable caption="Stock ledger" rows={rows} columns={columns} density="dense" maxHeight={420} empty={<EmptyState icon="inbox" title="No movements" />} />
+          <DataTable searchable={false} caption="Stock ledger" rows={rows} columns={columns} density="dense" maxHeight={420} empty={<EmptyState icon="inbox" title="No movements" />} />
         </div>
       )}
       {printer.element}
