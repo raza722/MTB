@@ -23,14 +23,15 @@ export function MarksEntry({ search, onSearch }: { search: MarksSearch; onSearch
   const readOnly = useReadOnly();
   const programme = Boolean(exam.programmeId);
   const section = search.section && exam.classes.includes(search.section) ? search.section : exam.classes[0]!;
-  // Programme tests (Diamond Minds): tick several test centres, or Check all.
-  const [centres, setCentres] = useState<string[]>(() => (search.section && exam.classes.includes(search.section) ? [search.section] : exam.classes));
+  // Programme tests (Diamond Minds): tick several test centres, or Check all. None to start with (a centre named in the
+  // address excepted): every centre at once is thousands of participants and a very slow page.
+  const [centres, setCentres] = useState<string[]>(() => (search.section && exam.classes.includes(search.section) ? [search.section] : programme ? [] : exam.classes));
   const shown = programme ? exam.classes.filter((c) => centres.includes(c)) : [section];
   const subject = search.subject && exam.subjects.some((s) => s.id === search.subject) ? search.subject : "ALL";
   const declared = exam.status === "DECLARED";
   const locked = declared || readOnly || !canManage;
   const why = declared ? "Results are declared, so marks are locked. Ask for the results to be reopened to correct a mark." : readOnly ? "Past sessions are read-only." : !canManage ? "Your role can view marks but not change them." : null;
-  const where = programme ? (shown.length === exam.classes.length ? "every centre" : shown.length === 1 ? shown[0]! : `${shown.length} centres`) : section;
+  const where = programme ? (shown.length === 0 ? "no centre ticked" : shown.length === exam.classes.length ? "every centre" : shown.length === 1 ? shown[0]! : `${shown.length} centres`) : section;
 
   return (
     <>

@@ -60,6 +60,25 @@ function paperGroups(p: Pick<PaperDraft, "groups">, all: string[]): string[] {
   return p.groups.length === 0 || p.groups.length >= all.length ? [] : p.groups;
 }
 
+/**
+ * The class's groups that the chosen sections have students in: an exam for one section is checked against that
+ * section's groups, not every group of the class. All of the class's groups when a chosen section's groups aren't known.
+ */
+function presentGroups(template: ExamsClassTemplate | undefined, chosen: string[]): string[] {
+  const all = template?.groups ?? [];
+  if (!template || all.length === 0) return all;
+  const secs = template.sections.filter((s) => chosen.includes(s.classSection));
+  if (secs.length === 0 || secs.some((s) => !s.groups || Object.keys(s.groups).length === 0)) return all;
+  const have = new Set(secs.flatMap((s) => Object.keys(s.groups ?? {})));
+  return all.filter((g) => have.has(g));
+}
+
+/** A subject's "Sat by" and tick for the chosen sections: only their groups; unticked when none of them takes it. */
+function groupDefaults(own: string[], present: string[]): Pick<PaperDraft, "groups" | "include"> {
+  const groups = own.filter((g) => present.includes(g));
+  return { groups, include: own.length === 0 || groups.length > 0 };
+}
+
 /** New exam: type, class and sections; then papers with maximum marks and the date sheet; then a check before creating. */
 export function NewExamPage() {
   return (
@@ -101,7 +120,7 @@ function NewExamForm() {
   const fromPast = board && sourceSession === lastSession;
   const templates = fromPast ? past : current;
   const template: ExamsClassTemplate | undefined = templates.data?.find((t) => t.classShort === classShort);
-  const groups = template?.groups ?? [];
+  const groups = presentGroups(template, sections);
 
   const chooseType = (id: string) => {
     setTypeId(id);
@@ -117,13 +136,14 @@ function NewExamForm() {
       return;
     }
     // Class tests are short: suggest 25 marks and 40 minutes per paper.
-    if (t && template) setPapers(fromTemplate(template.subjects, t));
+    if (t && template) setPapers(fromTemplate(template.subjects, t, presentGroups(template, sections)));
   };
   const chooseClass = (c: string) => {
     setClassShort(c);
     const t = templates.data?.find((x) => x.classShort === c);
-    setSections(t ? t.sections.map((s) => s.classSection) : []);
-    setPapers(t ? fromTemplate(t.subjects, type) : []);
+    const all = t ? t.sections.map((s) => s.classSection) : [];
+    setSections(all);
+    setPapers(t ? fromTemplate(t.subjects, type, presentGroups(t, all)) : []);
   };
   const chooseSource = (n: number) => {
     setSourceSession(n);
@@ -131,20 +151,32 @@ function NewExamForm() {
     setSections([]);
     setPapers([]);
   };
+  // Ticking or unticking sections changes which groups sit the exam: each paper's "Sat by" follows (marks and dates stay).
+  const chooseSections = (next: string[]) => {
+    setSections(next);
+    if (!template) return;
+    const present = presentGroups(template, next);
+    setPapers((list) => list.map((p) => {
+      const sub = template.subjects.find((x) => x.id === p.id);
+      return sub ? { ...p, ...groupDefaults(sub.groups ?? [], present) } : p;
+    }));
+  };
   const setPaper = (i: number, patch: Partial<PaperDraft>) => setPapers((list) => list.map((p, j) => (j === i ? { ...p, ...patch } : p)));
 
   const spreadDates = () => {
     if (!firstDate) return;
-    let d = firstDate;
-    setPapers((list) =>
-      list.map((p) => {
+    // The day counter lives inside the updater: React may run an updater twice (always in
+    // development), and a counter outside it would carry on from the first run.
+    setPapers((list) => {
+      let d = firstDate;
+      return list.map((p) => {
         if (!p.include) return p;
         while (isSunday(d)) d = addDays(d, 1);
         const out = { ...p, date: d };
         d = addDays(d, 1);
         return out;
-      }),
-    );
+      });
+    });
   };
 
   const step1 = examSchema.safeParse({ typeId, name, classShort, sections });
@@ -217,6 +249,7 @@ function NewExamForm() {
   const show = (n: number) => tried !== null && tried >= n;
   const totalMax = included.reduce((a, p) => a + (Number(p.maxMarks) || 0), 0);
   const students = template?.sections.filter((s) => sections.includes(s.classSection)).reduce((a, s) => a + s.students, 0) ?? 0;
+  const tickedCount = template?.sections.filter((s) => sections.includes(s.classSection)).length ?? 0;
 
   return (
     <div className="grid gap-6">
@@ -280,13 +313,27 @@ function NewExamForm() {
             {template && (
               <fieldset className="m-0 grid gap-2 border-0 p-0">
                 <legend className="mb-2 text-small font-medium">{fromPast ? `Sections in ${formatSession(lastSession)}` : "Sections that sit this exam"}</legend>
-                <div className="flex flex-wrap gap-4">
+                {template.sections.length > 1 && (
+                  // Bulk tick / untick: ticks every section, unticks them all, and shows a dash when only some are ticked.
+                  <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-border pb-2">
+                    <Checkbox
+                      label={<span className="font-medium">All {template.sections.length} sections</span>}
+                      checked={tickedCount === template.sections.length}
+                      indeterminate={tickedCount > 0 && tickedCount < template.sections.length}
+                      onChange={(e) => chooseSections(e.target.checked ? template.sections.map((s) => s.classSection).sort() : [])}
+                    />
+                    <span className="text-small text-ink-muted tabular-nums" aria-live="polite">
+                      {tickedCount} of {template.sections.length} ticked · {students} students
+                    </span>
+                  </div>
+                )}
+                <div className="grid gap-x-6 gap-y-2 lg:grid-cols-2">
                   {template.sections.map((s) => (
                     <Checkbox
                       key={s.classSection}
                       label={`${s.classSection} · ${s.students} students${s.groups ? ` (${Object.entries(s.groups).map(([g, n]) => `${n} ${g}`).join(", ")})` : ""}`}
                       checked={sections.includes(s.classSection)}
-                      onChange={(e) => setSections((list) => (e.target.checked ? [...list, s.classSection].sort() : list.filter((x) => x !== s.classSection)))}
+                      onChange={(e) => chooseSections(e.target.checked ? [...sections, s.classSection].sort() : sections.filter((x) => x !== s.classSection))}
                     />
                   ))}
                 </div>
@@ -455,7 +502,7 @@ function NewExamForm() {
   );
 }
 
-function fromTemplate(subjects: ExamsSubject[], type: ExamsType | undefined): PaperDraft[] {
+function fromTemplate(subjects: ExamsSubject[], type: ExamsType | undefined, present?: string[]): PaperDraft[] {
   // A type with its own papers (Hifz: Manzil 1–7, Tajweed …) uses them instead of the class's subjects.
   if (type?.papers?.length)
     return type.papers.map((s) => ({ id: s.id, name: s.name, include: true, maxMarks: String(s.maxMarks), date: null, startTime: "08:00", duration: "40", supervisor: "", groups: [] }));
@@ -463,12 +510,11 @@ function fromTemplate(subjects: ExamsSubject[], type: ExamsType | undefined): Pa
   return subjects.map((s) => ({
     id: s.id,
     name: s.name,
-    include: true,
     maxMarks: String(test ? 25 : s.maxMarks),
     date: null,
     startTime: test ? "08:00" : "09:00",
     duration: String(test ? 40 : s.maxMarks >= 75 ? 180 : 120),
     supervisor: "",
-    groups: s.groups ?? [],
+    ...(present ? groupDefaults(s.groups ?? [], present) : { include: true, groups: s.groups ?? [] }),
   }));
 }

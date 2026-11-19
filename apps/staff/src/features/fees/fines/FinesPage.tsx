@@ -3,7 +3,6 @@ import {
   feeSetupApi,
   feeSetupQueries,
   feesQueries,
-  newIdempotencyKey,
   type CampusCode,
   type FeeFineRule,
   type FeeFineScope,
@@ -12,7 +11,7 @@ import {
   type FeeWaiver,
   type FeeWaiverKind,
 } from "@mtb/api";
-import { calculateLateFine, formatCount, formatDate, formatDateTime, formatRs, type LateFinePolicy } from "@mtb/domain";
+import { calculateLateFine, formatCount, formatDate, formatDateTime, formatRs, type LateFinePolicy, pakistanDate } from "@mtb/domain";
 import {
   AmountInput,
   AnimatedNumber,
@@ -25,6 +24,7 @@ import {
   EmptyState,
   Input,
   KeyValue,
+  Pagination,
   Panel,
   Radio,
   Segmented,
@@ -42,12 +42,15 @@ import {
 } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useState } from "react";
+import { useStudentSearch } from "../../students/useStudentSearch";
 import { z } from "zod";
 import { campusLabel } from "../../../app/shell/campus";
 import { Page, PageHeader, RequirePermission } from "../../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../../app/session";
+import { chargeLateFine } from "../counter/useFeeCounter";
 import { addDaysIso, DecisionBadge, errorField, errorText, feeToday, FeesNav, LoadError, monthEndIso, slide, useCanAny, useFeeClasses, useFeeSessionDates } from "../shared";
+import { useIdempotencyKey } from "../../../app/idempotency";
 
 const scopeText = (s: FeeFineScope) => (s === "ALL" ? "Every fee head" : "Tuition only");
 const ruleLine = (r: Pick<FeeFineRule, "ratePerDay" | "graceDays" | "maxFine" | "appliesTo">) =>
@@ -74,7 +77,7 @@ function RulePanel({ rule, onClose }: { rule: FeeFineRule; onClose: () => void }
   const errors: Record<string, string> = {};
   if (!parsed.success) for (const i of parsed.error.issues) errors[String(i.path[0])] ??= i.message;
   if (max !== null && rate !== null && max < rate) errors.max = "The maximum must be at least one day's fine.";
-  const key = useMemo(() => newIdempotencyKey(), [rate, grace, max, scope, from]);
+  const key = useIdempotencyKey(rate, grace, max, scope, from);
   const save = useMutation({
     mutationFn: () => feeSetupApi.saveFineRule(rule.campus, { ratePerDay: rate!, graceDays: Number(grace), maxFine: max, appliesTo: scope, effectiveFrom: from! }, key),
     onSuccess: (r) => {
@@ -187,7 +190,7 @@ function NewWaiverPanel({ onClose }: { onClose: () => void }) {
   const ctx = useCtx();
   const toast = useToast();
   const queryClient = useQueryClient();
-  const students = useQuery(feeSetupQueries.students(ctx));
+  const students = useStudentSearch(ctx, {}, true, { searchOnly: true });
   const [grNo, setGrNo] = useState<string | null>(null);
   const counter = useQuery(feesQueries.counter(ctx, grNo ?? ""));
   const [chargeId, setChargeId] = useState<string | null>(null);
@@ -196,7 +199,8 @@ function NewWaiverPanel({ onClose }: { onClose: () => void }) {
   const [newDue, setNewDue] = useState<string | null>(null);
   const [reason, setReason] = useState("");
   const [tried, setTried] = useState(false);
-  const charges = (counter.data?.charges ?? []).map((c) => ({ c, f: calculateLateFine(c.dueDate, counter.data!.today, counter.data!.policy) }));
+  // The server's fine per charge, as at the counter: the rule may leave a head out (tuition only) or start at a cut-over.
+  const charges = (counter.data?.charges ?? []).map((c) => ({ c, f: chargeLateFine(counter.data!, c) }));
   const picked = charges.find((x) => x.c.id === chargeId);
   const rate = counter.data?.policy.ratePerDay ?? 10;
   const errors: Record<string, string> = {};
@@ -214,7 +218,7 @@ function NewWaiverPanel({ onClose }: { onClose: () => void }) {
     else if (newDue < feeToday()) errors.newDue = "The new due date can't be in the past.";
   }
   if (reason.trim().length < 10) errors.reason = "Say why in a sentence; the principal reads this when deciding.";
-  const key = useMemo(() => newIdempotencyKey(), [grNo, chargeId, kind, amount, newDue, reason]);
+  const key = useIdempotencyKey(grNo, chargeId, kind, amount, newDue, reason);
   const save = useMutation({
     mutationFn: () => feeSetupApi.requestWaiver(ctx, { grNo: grNo!, chargeId: chargeId!, kind, ...(kind === "WAIVE" ? { amount: amount! } : { newDueDate: newDue! }), reason: reason.trim() }, key),
     onSuccess: (w) => {
@@ -255,11 +259,13 @@ function NewWaiverPanel({ onClose }: { onClose: () => void }) {
           required
           value={grNo}
           onValueChange={(v) => {
+            students.remember(v);
             setGrNo(v);
             setChargeId(null);
           }}
           placeholder="Search by name or G.R. number"
-          options={(students.data ?? []).map((s) => ({ value: s.grNo, label: `${s.name} (${s.classSection})`, hint: s.grNo, keywords: [s.grNo, s.father] }))}
+          options={students.students.map((s) => ({ value: s.grNo, label: `${s.name} (${s.classSection})`, hint: s.grNo, keywords: [s.grNo, s.father] }))}
+          onSearchChange={students.onSearchChange}
           error={err("grNo")}
         />
         {grNo && counter.isLoading && <Skeleton height={120} />}
@@ -313,7 +319,7 @@ function WaiverPanel({ w, onClose }: { w: FeeWaiver; onClose: () => void }) {
   const [rejecting, setRejecting] = useState(false);
   const [note, setNote] = useState("");
   const [tried, setTried] = useState(false);
-  const key = useMemo(() => newIdempotencyKey(), [w.id, rejecting]);
+  const key = useIdempotencyKey(w.id, rejecting);
   const decide = useMutation({
     mutationFn: (approve: boolean) => feeSetupApi.decideWaiver(w.id, { approve, note }, key),
     onSuccess: (r) => {
@@ -390,7 +396,7 @@ function RaiseFinePanel({ defaults, onClose }: { defaults: Record<FeeStudentFine
   const ctx = useCtx();
   const toast = useToast();
   const queryClient = useQueryClient();
-  const students = useQuery(feeSetupQueries.students(ctx));
+  const students = useStudentSearch(ctx, {}, true, { searchOnly: true });
   const [grNo, setGrNo] = useState<string | null>(null);
   const [kind, setKind] = useState<FeeStudentFineKind>("BREAKAGE");
   const [amount, setAmount] = useState<number | null>(defaults.BREAKAGE);
@@ -401,7 +407,7 @@ function RaiseFinePanel({ defaults, onClose }: { defaults: Record<FeeStudentFine
   if (!amount || amount < 50) errors.amount = "Enter at least Rs 50.";
   else if (amount > 10000) errors.amount = "More than Rs 10,000 needs the principal; enter a smaller amount.";
   if (reason.trim().length < 5) errors.reason = "Say what happened, in a few words.";
-  const key = useMemo(() => newIdempotencyKey(), [grNo, kind, amount, reason]);
+  const key = useIdempotencyKey(grNo, kind, amount, reason);
   const save = useMutation({
     mutationFn: () => feeSetupApi.raiseFine(ctx, { grNo: grNo!, kind, amount: amount!, reason: reason.trim() }, key),
     onSuccess: (f) => {
@@ -438,9 +444,13 @@ function RaiseFinePanel({ defaults, onClose }: { defaults: Record<FeeStudentFine
           label="Student"
           required
           value={grNo}
-          onValueChange={setGrNo}
+          onValueChange={(v) => {
+            students.remember(v);
+            setGrNo(v);
+          }}
           placeholder="Search by name or G.R. number"
-          options={(students.data ?? []).map((s) => ({ value: s.grNo, label: `${s.name} (${s.classSection})`, hint: s.grNo, keywords: [s.grNo, s.father] }))}
+          options={students.students.map((s) => ({ value: s.grNo, label: `${s.name} (${s.classSection})`, hint: s.grNo, keywords: [s.grNo, s.father] }))}
+          onSearchChange={students.onSearchChange}
           error={tried ? errors.grNo : undefined}
         />
         <Select
@@ -487,17 +497,24 @@ export function FinesPage() {
   const [waiveNote, setWaiveNote] = useState("");
   const [fineCls, setFineCls] = useState("");
   const [fineSection, setFineSection] = useState("");
+  const [finePage, setFinePage] = useState(1);
   const [fineDue, setFineDue] = useState<string | null>(addDaysIso(feeToday(), 7));
   const [chargeTried, setChargeTried] = useState(false);
   const d = q.data;
   const single = ctx.campus !== "ALL";
-  const chargeKey = useMemo(() => newIdempotencyKey(), [selected, charging, fineDue]);
-  const waiveKey = useMemo(() => newIdempotencyKey(), [waiving]);
+  const chargeKey = useIdempotencyKey(selected, charging, fineDue);
+  const waiveKey = useIdempotencyKey(waiving);
   const pendingWaivers = d?.waivers.filter((w) => w.status === "PENDING").length ?? 0;
   const pendingFines = d?.fines.filter((f) => f.status === "PENDING") ?? [];
   const chosen = pendingFines.filter((f) => selected.has(f.id));
   // Class and section filters (legacy Student Fine Calculation).
-  const fineRows = (d?.fines ?? []).filter((f) => (!fineCls || f.classSection.split("-")[0] === fineCls) && (!fineSection || f.classSection.split("-")[1] === fineSection));
+  // Not yet charged first, then the charged ones; shown a page at a time (a campus has thousands of charged fines, and
+  // one table of them all froze the page).
+  const fineRows = (d?.fines ?? []).filter((f) => (!fineCls || f.classSection.split("-")[0] === fineCls) && (!fineSection || f.classSection.split("-")[1] === fineSection)).sort((a, b) => (a.status === "PENDING" ? 0 : 1) - (b.status === "PENDING" ? 0 : 1));
+  const FINE_PAGE = 100;
+  const fineLast = Math.max(1, Math.ceil(fineRows.length / FINE_PAGE));
+  const finePageNow = Math.min(finePage, fineLast);
+  const finePageRows = fineRows.slice((finePageNow - 1) * FINE_PAGE, finePageNow * FINE_PAGE);
   const shownPending = fineRows.filter((f) => f.status === "PENDING");
   const classList = useFeeClasses(ctx.campus);
   const sectionsOfFines = classList.sectionsOf(fineCls);
@@ -513,7 +530,7 @@ export function FinesPage() {
   const charge = useMutation({
     mutationFn: () => feeSetupApi.chargeFines({ ids: chosen.map((f) => f.id), dueDate: fineDue! }, chargeKey),
     onSuccess: (r) => {
-      toast({ title: `${formatCount(r.charged)} fines added to student fees`, message: `${formatRs(r.amount)} in all, due ${formatDate(fineDue!)}. They show at the counter now.` });
+      toast({ title: `${formatCount(r.charged)} ${r.charged === 1 ? "fine" : "fines"} added to student fees`, message: `${formatRs(r.amount)} in all, due ${formatDate(fineDue!)}. ${r.charged === 1 ? "It shows" : "They show"} at the counter now.` });
       setSelected(new Set());
       setCharging(false);
       setChargeTried(false);
@@ -541,7 +558,7 @@ export function FinesPage() {
     { key: "student", header: "Student", render: (f) => <span className="grid"><span className="font-medium">{f.studentName}</span><span className="text-small text-ink-muted">{f.grNo} · {f.classSection}</span></span> },
     { key: "kind", header: "Fine", render: (f) => <span className="grid"><span>{FEE_STUDENT_FINE_LABEL[f.kind]}</span><span className="text-small text-ink-muted">{f.reason}</span></span> },
     { key: "amount", header: "Amount", align: "right", render: (f) => <span className="mtb-num">{formatRs(f.amount)}</span> },
-    { key: "status", header: "Status", render: (f) => <DecisionBadge status={f.status} /> },
+    { key: "status", header: "Status", render: (f) => <DecisionBadge status={f.status} fine /> },
     { key: "raised", header: "Raised", render: (f) => <span className="text-small">{f.raisedBy} · {formatDate(f.raisedAt)}</span> },
     {
       key: "act",
@@ -638,7 +655,7 @@ export function FinesPage() {
                       .flatMap((r) => r.history.map((h) => ({ ...h, campus: r.campusName })))
                       .sort((a, b) => b.at.localeCompare(a.at))
                       .slice(0, 8)
-                      .map((h) => ({ id: `${h.campus}-${h.id}`, date: h.at.slice(0, 10), title: h.text, description: `${single ? "" : `${h.campus} · `}${h.by}${h.detail ? ` · ${h.detail}` : ""}`, icon: "clock" as const }))}
+                      .map((h) => ({ id: `${h.campus}-${h.id}`, date: pakistanDate(h.at), title: h.text, description: `${single ? "" : `${h.campus} · `}${h.by}${h.detail ? ` · ${h.detail}` : ""}`, icon: "clock" as const }))}
                   />
                 </Panel>
               </div>
@@ -663,7 +680,8 @@ export function FinesPage() {
           <DataTable
             caption="Student fines"
             columns={fineCols}
-            rows={fineRows}
+            rows={finePageRows}
+            pagination={fineRows.length > FINE_PAGE ? <Pagination page={finePageNow} pageSize={FINE_PAGE} total={fineRows.length} onPageChange={setFinePage} /> : undefined}
             loading={q.isLoading}
             selectable={canCharge && !readOnly}
             selected={selected}
@@ -679,12 +697,13 @@ export function FinesPage() {
                       onChange={(e) => {
                         setFineCls(e.target.value);
                         setFineSection("");
+                        setFinePage(1);
                       }}
                       options={[{ value: "", label: "Every class" }, ...classList.options]}
                     />
                   </div>
                   <div className="w-full sm:w-36">
-                    <Select aria-label="Section" value={fineSection} disabled={!fineCls} onChange={(e) => setFineSection(e.target.value)} options={[{ value: "", label: fineCls ? "Every section" : "Choose a class" }, ...sectionsOfFines.map((x) => ({ value: x, label: `${fineCls}-${x}` }))]} />
+                    <Select aria-label="Section" value={fineSection} disabled={!fineCls} onChange={(e) => { setFineSection(e.target.value); setFinePage(1); }} options={[{ value: "", label: fineCls ? "Every section" : "Choose a class" }, ...sectionsOfFines.map((x) => ({ value: x, label: `${fineCls}-${x}` }))]} />
                   </div>
                   {canCharge && !readOnly && (
                     <Button size="sm" variant="quiet" icon="checkSquare" disabled={shownPending.length === 0} onClick={() => setSelected(new Set([...selected, ...shownPending.map((f) => f.id)]))}>
@@ -715,7 +734,7 @@ export function FinesPage() {
             setChargeTried(true);
             if (!dueError) charge.mutate();
           }}
-          title={`Add ${formatCount(chosen.length)} fines to student fees?`}
+          title={`Add ${formatCount(chosen.length)} ${chosen.length === 1 ? "fine" : "fines"} to student fees?`}
           message="Each fine becomes a charge on the student's fee ledger and shows at the counter and on the next voucher."
           details={[
             ["Students", formatCount(new Set(chosen.map((f) => f.grNo)).size)],

@@ -23,6 +23,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
+import { useStudentSearch } from "../useStudentSearch";
 import { useCan, useCtx } from "../../../app/session";
 import { AddChargePanel } from "../../fees/ledger/ChargePanels";
 import { PrintSheet, printNow } from "../documents/print";
@@ -62,7 +63,7 @@ export function StatusChangePanel({ open, onClose, grNo: fixedGrNo, initialKind 
   const toast = useToast();
   const queryClient = useQueryClient();
   const [grNo, setGrNo] = useState(fixedGrNo ?? "");
-  const roster = useQuery({ ...studentsQueries.list(ctx, {}), enabled: open && !fixedGrNo });
+  const roster = useStudentSearch(ctx, {}, open && !fixedGrNo);
   const profile = useQuery({ ...studentsQueries.profile(grNo), enabled: open && Boolean(grNo) });
   const campuses = useQuery(metaQueries.campuses());
   const classes = useQuery(metaQueries.classes("ALL"));
@@ -125,7 +126,7 @@ export function StatusChangePanel({ open, onClose, grNo: fixedGrNo, initialKind 
 
   const classShort = p?.classSection.split("-")[0] ?? "";
   const sections = classes.data?.find((c) => c.short === classShort)?.sections ?? [];
-  const options = (roster.data?.items ?? []).filter((s) => s.status !== "PASSED_OUT").map((s) => ({ value: s.grNo, label: s.name, hint: `${s.grNo} · ${s.classSection} · ${ENROLMENT_STATUS_LABEL[s.status]}`, keywords: [s.grNo, s.father, s.classSection] }));
+  const options = roster.students.filter((s) => s.status !== "PASSED_OUT").map((s) => ({ value: s.grNo, label: s.name, hint: `${s.grNo} · ${s.classSection} · ${ENROLMENT_STATUS_LABEL[s.status]}`, keywords: [s.grNo, s.father, s.classSection] }));
   const danger = form.kind === "EXPELLED" || form.kind === "STRUCK_OFF";
   const err = (f: string) => errors[f] ?? fieldError(record.error, f);
 
@@ -202,16 +203,19 @@ export function StatusChangePanel({ open, onClose, grNo: fixedGrNo, initialKind 
         </div>
       ) : (
         <div className="grid gap-5">
-          {!fixedGrNo && <Combobox label="Student" required options={options} value={grNo || null} onValueChange={setGrNo} placeholder="Search by name or G.R. number" emptyText="No student matches." />}
+          {!fixedGrNo && <Combobox label="Student" required options={options} value={grNo || null} onValueChange={(v) => { roster.remember(v); setGrNo(v); }} onSearchChange={roster.onSearchChange} placeholder="Search by name or G.R. number" emptyText="No student matches." />}
           {grNo && !p && profile.isLoading && <Skeleton height={120} />}
           {profile.isError && <Banner tone="danger">{apiMessage(profile.error)}</Banner>}
           {p && (
             <>
               <div className="flex flex-wrap items-center gap-3 rounded-md bg-surface-sunken px-3 py-2 text-small">
                 <EnrolmentBadge status={p.status} />
-                <span className="text-ink-muted">
-                  Dues <b className="tabular-nums text-ink">{formatRs(p.balance)}</b>
-                </span>
+                {/* the API sends the balance only to accounts with fee rights (F-012) */}
+                {p.balance !== undefined && (
+                  <span className="text-ink-muted">
+                    Dues <b className="tabular-nums text-ink">{formatRs(p.balance)}</b>
+                  </span>
+                )}
                 {p.statusNote && (
                   <span className="text-ink-muted">
                     since {formatDate(p.statusNote.on)} · {p.statusNote.reason}

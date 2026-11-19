@@ -1,5 +1,5 @@
-import { HR_CATEGORY_LABEL, HR_INCREMENT_METHOD_LABEL, hrApi, hrQueries, newIdempotencyKey, type CampusCode, type HrCategory, type HrIncrementLine, type HrIncrementMethod, type HrIncrementRun } from "@mtb/api";
-import { formatCount, formatDate, formatDateTime, formatPercent, formatRs, formatSession } from "@mtb/domain";
+import { HR_CATEGORY_LABEL, HR_INCREMENT_METHOD_LABEL, hrApi, hrQueries, type CampusCode, type HrCategory, type HrIncrementLine, type HrIncrementMethod, type HrIncrementRun } from "@mtb/api";
+import { formatCount, formatDate, formatDateTime, formatPercent, formatRs, formatSession, pakistanDate } from "@mtb/domain";
 import { AmountInput, AnimatedNumber, Banner, Button, Checkbox, ColumnChart, ConfirmDialog, DataTable, DatePicker, EmptyState, Input, Panel, Segmented, Select, SidePanel, Skeleton, StatCard, Textarea, Timeline, useToast, type Column } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -11,6 +11,7 @@ import { useCan, useCtx, useReadOnly, useSessionUser } from "../../app/session";
 import { ReportDoc } from "./print";
 import { issues, useHrSettings } from "./StaffPanels";
 import { addMonths, basicRs, campusHeading, errorField, errorText, filterNote, HrShell, LoadError, monthEnd, RunBadge, slide, thisMonth, today, usePayAccess, usePrint, years } from "./shared";
+import { useIdempotencyKey } from "../../app/idempotency";
 
 /* ---------------------------------------------------------------- New run */
 
@@ -38,7 +39,7 @@ function NewRunPanel({ campus, onClose, onCreated }: { campus: CampusCode; onClo
   const values = { title, value, asOf: asOf ?? "" };
   const parsed = schema.safeParse(values);
   const errors = issues(parsed);
-  const key = useMemo(() => newIdempotencyKey(), [JSON.stringify(values), method, category, designationId, payScale, level, from]); // eslint-disable-line react-hooks/exhaustive-deps
+  const key = useIdempotencyKey(JSON.stringify(values), method, category, designationId, payScale, level, from);
   const save = useMutation({
     mutationFn: () => hrApi.createIncrement({ campus, session: ctx.session, title: title.trim(), method, value: method === "CRITERIA" ? null : Number(value), filter: { category: category || null, designationId: designationId || null, payScale: payScale || null, teachingLevel: level || null }, experienceAsOf: asOf!, effectiveFrom: from }, key),
     onSuccess: (r) => {
@@ -313,7 +314,7 @@ export function IncrementsPage({ runId, setRunId }: { runId: string | undefined;
                           <ReportDoc
                             campus={campusHeading(r.campus)}
                             title={`Staff salary increment · ${r.title}`}
-                            sub={filterNote([`Session ${formatSession(r.session)}`, covers, `service counted to ${formatDate(r.experienceAsOf)}`, `${HR_INCREMENT_METHOD_LABEL[r.method]}${r.method === "PERCENT" ? ` (${r.value}%)` : r.method === "FIXED" ? ` (${formatRs(r.value ?? 0)})` : ""}`, `new salaries from ${formatDate(r.effectiveFrom)}`, `prepared ${formatDate(r.preparedAt.slice(0, 10))}`, r.status === "APPROVED" ? `approved by ${r.decidedBy}` : "not approved yet"])}
+                            sub={filterNote([`Session ${formatSession(r.session)}`, covers, `service counted to ${formatDate(r.experienceAsOf)}`, `${HR_INCREMENT_METHOD_LABEL[r.method]}${r.method === "PERCENT" ? ` (${r.value}%)` : r.method === "FIXED" ? ` (${formatRs(r.value ?? 0)})` : ""}`, `new salaries from ${formatDate(r.effectiveFrom)}`, `prepared ${formatDate(pakistanDate(r.preparedAt))}`, r.status === "APPROVED" ? `approved by ${r.decidedBy}` : "not approved yet"])}
                             small
                             head={["#", "Emp. no", "Name", "Scale", "Service", "Basic now", "Increment", "No.", "Annual × no.", "Special", "Total", "New basic"]}
                             numeric={[4, 5, 6, 7, 8, 9, 10, 11]}
@@ -392,7 +393,7 @@ export function IncrementsPage({ runId, setRunId }: { runId: string | undefined;
                 empty={<EmptyState icon="hr" title={show === "included" ? "Nobody included" : "Nobody left out"} />}
               />
               <Panel id="inc-history" title="History" rise={2}>
-                <Timeline label="Run history" items={r.history.map((h) => ({ id: h.id, date: h.at.slice(0, 10), title: h.text, description: `${h.by} · ${formatDateTime(h.at)}${h.detail ? ` · ${h.detail}` : ""}` }))} />
+                <Timeline label="Run history" items={r.history.map((h) => ({ id: h.id, date: pakistanDate(h.at), title: h.text, description: `${h.by} · ${formatDateTime(h.at)}${h.detail ? ` · ${h.detail}` : ""}` }))} />
                 <Link to="/hr/settings" className="mt-3 inline-block text-small text-brand-ink">
                   See or change the increment table
                 </Link>

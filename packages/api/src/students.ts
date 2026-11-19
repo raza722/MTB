@@ -38,6 +38,8 @@ export interface StudentSummary {
   balance: Rupees;
   /** Group (stream) in classes with groups, e.g. "Science (Biology)". Sent on the student list. */
   stream?: string;
+  /** Student list only: whether a photo file exists, so the list asks only for photos that are there (no 404s). */
+  hasPhoto?: boolean;
 }
 
 /** Board (BISE) roll numbers: Part-I is the Class 9 board exam, Part-II the Class 10 board exam. */

@@ -15,7 +15,7 @@ import {
   type ActivitiesRenewalOutcome,
   type ActivitiesTestStatus,
 } from "@mtb/api";
-import { formatDate, formatRs, pakistanToday, type IsoDate } from "@mtb/domain";
+import { formatCount, formatDate, formatRs, pakistanToday, type IsoDate } from "@mtb/domain";
 import { Banner, Button, Icon, Input, Segmented, Spinner, StatusBadge, cx } from "@mtb/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDeferredValue, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
@@ -127,7 +127,7 @@ export function ordinal(n: number) {
   return `${n}${s[(v - 20) % 10] ?? s[v] ?? s[0]}`;
 }
 
-export const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+export const plural = (n: number, one: string, many = `${one}s`) => `${formatCount(n)} ${n === 1 ? one : many}`;
 
 /** "50% off" or "Rs 1,000 a month". */
 export const valueShort = (basis: ActivitiesBasis, v: number) => (basis === "FIXED" ? `${formatRs(v)} a month` : `${v}% off`);

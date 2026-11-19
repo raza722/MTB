@@ -36,6 +36,8 @@ export interface DataTableProps<Row> {
   selected?: Set<unknown>;
   onSelectedChange?: (next: Set<unknown>) => void;
   isRowSelectable?: (row: Row) => boolean;
+  /** What a row's select box reads to a screen reader: "Select {rowLabel}" (default "Select row {n}"). */
+  rowLabel?: (row: Row) => string;
   onRowClick?: (row: Row) => void;
   rowClassName?: (row: Row) => string | undefined;
   /** Totals by column key. */
@@ -63,6 +65,7 @@ export function DataTable<Row extends object>({
   selected,
   onSelectedChange,
   isRowSelectable,
+  rowLabel,
   onRowClick,
   rowClassName,
   footer,
@@ -183,7 +186,7 @@ export function DataTable<Row extends object>({
                   >
                     {selectable && (
                       <td className="mtb-td-check">
-                        <Checkbox checked={isSel} disabled={!canSelect} onChange={() => toggle(id)} aria-label={`Select row ${i + 1}`} />
+                        <Checkbox checked={isSel} disabled={!canSelect} onChange={() => toggle(id)} aria-label={rowLabel ? `Select ${rowLabel(r)}` : `Select row ${i + 1}`} />
                       </td>
                     )}
                     {columns.map((c) => (

@@ -82,9 +82,9 @@ export function Amount({ value, lakh }: { value: number; lakh?: boolean }) {
   );
 }
 
-/** A decision badge used by concessions, waivers and fines. */
-export function DecisionBadge({ status }: { status: "PENDING" | "APPROVED" | "REJECTED" | "STOPPED" | "CHARGED" | "WAIVED" }) {
-  if (status === "PENDING") return <StatusBadge status="pending">Waiting for approval</StatusBadge>;
+/** A decision badge used by concessions, waivers and fines. A fine waits for nobody's approval: `fine` reads PENDING as "Not yet charged". */
+export function DecisionBadge({ status, fine }: { status: "PENDING" | "APPROVED" | "REJECTED" | "STOPPED" | "CHARGED" | "WAIVED"; fine?: boolean }) {
+  if (status === "PENDING") return <StatusBadge status="pending">{fine ? "Not yet charged" : "Waiting for approval"}</StatusBadge>;
   if (status === "APPROVED") return <StatusBadge status="approved" icon="check" />;
   if (status === "REJECTED") return <StatusBadge status="rejected" />;
   if (status === "CHARGED") return <StatusBadge status="info">On the fee ledger</StatusBadge>;

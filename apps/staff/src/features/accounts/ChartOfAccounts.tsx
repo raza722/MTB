@@ -2,7 +2,7 @@ import { ACCOUNTS_CLASS_LABEL, ACCOUNTS_CONTROL_LABEL, type AccountsAccount, typ
 import { formatCount, formatDate } from "@mtb/domain";
 import { Button, cx, EmptyState, Icon, Input, Segmented, SegmentedBar, Skeleton, StatusBadge } from "@mtb/ui";
 import { useMemo, useState, type CSSProperties } from "react";
-import { useCan, useCtx, useReadOnly } from "../../app/session";
+import { useCan, useCanGroupWide, useCtx, useReadOnly } from "../../app/session";
 import { campusLabel } from "../../app/shell/campus";
 import { AccountPanel } from "./AccountPanel";
 import { AccLink, AccountsShell, asOfFor, Bal, balText, DocFoot, DocHead, LoadError, useChart } from "./shared";
@@ -27,6 +27,8 @@ export function ChartOfAccountsPage() {
   const canPost = useCan("accounts.post");
   const readOnly = useReadOnly();
   const canEdit = canPost && !readOnly;
+  // Groups and accounts used by every campus belong to head office: the server refuses their changes to a campus-level right.
+  const canShared = useCanGroupWide("accounts.post");
   const { q, accounts } = useChart();
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set(["1", "2", "3", "4", "5", "11", "41"]));
   const [search, setSearch] = useState("");
@@ -341,7 +343,7 @@ export function ChartOfAccountsPage() {
                                   Add
                                 </Button>
                               )}
-                              {a.parentCode !== null && (
+                              {a.parentCode !== null && (a.campus || canShared) && (
                                 <Button size="sm" variant="quiet" icon="edit" aria-label={`Edit ${a.code} ${a.name}`} onClick={() => setPanel({ mode: "edit", code: a.code })}>
                                   Edit
                                 </Button>

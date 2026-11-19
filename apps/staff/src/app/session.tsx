@@ -39,12 +39,25 @@ export function campusesFor(user: SessionUser | undefined): CampusScope[] {
 }
 
 /**
- * The Teaching pages (a teacher's own registers, marks, timetable and leave): the teacher.app right at this campus,
- * or, while viewing all campuses, at any campus (the pages then ask for one campus).
+ * The super admin's role holds every permission, including the teacher rights, but head office does not teach through
+ * it: those rights would only put an empty "Teaching" group (a teacher's own day, registers, marks, leave) in front of
+ * its menu. Teaching therefore counts rights from the account's other roles only; a super admin who also teaches has a
+ * Teacher (or other) grant as well and still sees it.
  */
-export function canTeach(user: SessionUser | undefined, campus: CampusScope): boolean {
-  if (campus !== "ALL") return can(user, "teacher.app", campus);
-  return Boolean(user?.roles.some((g) => g.permissions.includes("teacher.app") || Object.values(g.campusPermissions ?? {}).some((p) => p?.includes("teacher.app"))));
+const ALL_PERMISSIONS_ROLE = "SUPER_ADMIN";
+function teachingRoles(user: SessionUser | undefined): SessionUser | undefined {
+  return user ? { ...user, roles: user.roles.filter((g) => g.role !== ALL_PERMISSIONS_ROLE) } : undefined;
+}
+
+/**
+ * The Teaching pages (a teacher's own registers, marks, timetable and leave): the teacher right (teacher.app, or
+ * teacher.marks / teacher.leave for those pages) at this campus, or, while viewing all campuses, at any campus (the pages
+ * then ask for one campus). Rights that come only from the super admin's every-permission role do not count.
+ */
+export function canTeach(user: SessionUser | undefined, campus: CampusScope, permission: Permission = "teacher.app"): boolean {
+  const teacher = teachingRoles(user);
+  if (campus !== "ALL") return can(teacher, permission, campus);
+  return Boolean(teacher?.roles.some((g) => g.permissions.includes(permission) || Object.values(g.campusPermissions ?? {}).some((p) => p?.includes(permission))));
 }
 
 export function useCan(permission: Permission): boolean {

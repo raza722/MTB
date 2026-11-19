@@ -222,6 +222,7 @@ function PeriodPanel({ p, onClose }: { p: AccountsPeriod; onClose: () => void })
             {p.checks.map((c, i) => (
               <li key={c.key} className="mtb-slide-in" style={slide(i)}>
                 <Icon name={c.ok ? "checkCircle" : "alertCircle"} size={20} className={c.ok ? "acc-check-ok" : "acc-check-no"} />
+                <span className="mtb-sr-only">{c.ok ? "Passed:" : "Not yet:"}</span>
                 <span className="grid gap-0.5">
                   <span className="font-medium">{c.label}</span>
                   <span className="text-small text-ink-muted">{c.detail}</span>
@@ -237,8 +238,9 @@ function PeriodPanel({ p, onClose }: { p: AccountsPeriod; onClose: () => void })
             ))}
           </ul>
         )}
-        {p.status === "CLOSED" && !p.canReopen && <p className="m-0 text-small text-ink-muted">Months reopen from the latest closed month backwards.</p>}
-        {p.status === "CLOSED" && p.canReopen && !canReopen && <p className="m-0 text-small text-ink-muted">Only an admin can reopen a month.</p>}
+        {/* the server folds the right into canReopen, so say first whether this account may reopen at all (test run F-043) */}
+        {p.status === "CLOSED" && !canReopen && <p className="m-0 text-small text-ink-muted">Only an admin can reopen a month.</p>}
+        {p.status === "CLOSED" && canReopen && !p.canReopen && <p className="m-0 text-small text-ink-muted">Months reopen from the latest closed month backwards.</p>}
       </div>
       <ConfirmDialog
         open={confirm}

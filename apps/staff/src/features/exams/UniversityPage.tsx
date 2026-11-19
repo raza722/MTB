@@ -91,7 +91,7 @@ export function UniversityPage({ search, onSearch }: { search: UniversitySearch;
                 key={p.id}
                 id={`prog-${p.id}`}
                 title={`${p.short} · ${p.name}`}
-                description={`${p.years}-year programme · ${campusLabel(p.campus)} · assessment: ${p.components.map((c) => `${c.label} ${c.max}`).join(", ")}`}
+                description={`${p.years}-year programme · ${campusLabel(p.campus)} · assessment: ${p.components.length ? p.components.map((c) => `${c.label} ${c.max}`).join(", ") : "none set"}`}
                 rise={pi}
                 actions={
                   editable ? (
@@ -115,7 +115,7 @@ export function UniversityPage({ search, onSearch }: { search: UniversitySearch;
                           <span className="grid min-w-0 flex-1">
                             <span className="font-medium">{s.label}</span>
                             <span className="text-small text-ink-muted">
-                              {s.students} students · {s.courseCount} courses · Session {formatSession(s.session)}
+                              {s.students} {s.students === 1 ? "student" : "students"} · {s.courseCount} {s.courseCount === 1 ? "course" : "courses"} · Session {formatSession(s.session)}
                             </span>
                           </span>
                           {s.status === "DECLARED" ? (
@@ -378,7 +378,7 @@ function SemesterView({ id, search, onSearch }: { id: string; search: University
       >
         <div className="grid gap-5">
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <StatCard label="Students" icon="students" value={<AnimatedNumber value={s.students} format={formatCount} />} foot={`${s.courses.length} courses · ${credits} credit hours`} />
+            <StatCard label="Students" icon="students" value={<AnimatedNumber value={s.students} format={formatCount} />} foot={`${s.courses.length} ${s.courses.length === 1 ? "course" : "courses"} · ${credits} credit ${credits === 1 ? "hour" : "hours"}`} />
             <StatCard label="Results open" icon="alertCircle" tone={s.missing > 0 ? "warning" : "neutral"} value={<AnimatedNumber value={s.missing} format={formatCount} />} foot={noCourses ? "No courses yet" : s.missing > 0 ? "Final papers to mark" : "Every course result is in"} />
             <StatCard label="Average GPA" icon="trendUp" tone="info" value={gpas.length ? (gpas.reduce((a, g) => a + g, 0) / gpas.length).toFixed(2) : "—"} foot={gpas.length ? `${gpas.length} students with a GPA` : "After final papers"} />
             <StatCard label="On probation" icon="alert" tone={probation ? "danger" : "neutral"} value={probation} foot="CGPA below 2.0" />
@@ -463,7 +463,7 @@ function UniCourses({ sem, programme, locked }: { sem: ExamsUniSemester; program
         toolbar={
           <div className="flex w-full flex-wrap items-center justify-between gap-3">
             <span className="text-small text-ink-muted">
-              {sem.courses.length} courses · {sem.courses.reduce((a, c) => a + c.creditHours, 0)} credit hours. Internal assessment, mid and final add up to 100 in each course.
+              {sem.courses.length} {sem.courses.length === 1 ? "course" : "courses"} · {sem.courses.reduce((a, c) => a + c.creditHours, 0)} credit hours. Internal assessment, mid and final add up to 100 in each course.
             </span>
             {!locked && (
               <Button size="sm" icon="plus" onClick={() => setEditing("new")}>

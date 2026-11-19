@@ -95,7 +95,7 @@ function TemplateEditor({ template, canEdit }: { template: SmsTemplate; canEdit:
           </p>
           <p className="m-0 text-small text-ink-muted">
             Last changed by {template.updatedBy || "—"}, <span className="mtb-num">{formatDateTime(template.updatedAt)}</span>
-            {template.uses ? ` · used ${formatCount(template.uses)} times this session` : ""}
+            {template.uses ? ` · used ${template.uses === 1 ? "once" : `${formatCount(template.uses)} times`} this session` : ""}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

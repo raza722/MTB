@@ -1,5 +1,5 @@
 import { can, HR_CATEGORY_LABEL, HR_DOCUMENT_LABEL, HR_EMPLOYMENT_LABEL, HR_PAYMENT_LABEL, hrApi, hrMonthLabel, hrQueries, type HrDocumentKind, type HrStaffProfile, photoUrl } from "@mtb/api";
-import { formatDate, formatDateTime, formatMobile, formatRs, formatSession } from "@mtb/domain";
+import { formatDate, formatDateTime, formatMobile, formatRs, formatSession, pakistanDate } from "@mtb/domain";
 import {
   AttendanceCalendar,
   Avatar,
@@ -69,6 +69,8 @@ export function StaffProfilePage({ staffId, tab, setTab }: { staffId: string; ta
   const fileRef = useRef<HTMLInputElement>(null);
   const s = q.data;
   const edit = canManage && !readOnly && s?.status === "ACTIVE";
+  // Marked as left with a last working day of today or later: still ACTIVE until that day ends (test run F-130).
+  const leavingSet = s?.status === "ACTIVE" && Boolean(s?.leavingDate);
   // Pay is changed by payroll at the paying campus (the open main posting, else the latest main one), whatever campus
   // is selected: the API checks payroll.manage there, with that campus's Payroll switch.
   const payCampus = (s?.postings.find((p) => p.primary && !p.endDate) ?? s?.postings.filter((p) => p.primary).sort((a, b) => b.startDate.localeCompare(a.startDate))[0])?.campus;
@@ -151,7 +153,7 @@ export function StaffProfilePage({ staffId, tab, setTab }: { staffId: string; ta
                   Edit details
                 </Button>
               )}
-              {edit && (
+              {edit && !leavingSet && (
                 <Button variant="danger-quiet" icon="logout" onClick={() => setLeaving(true)}>
                   Mark as left
                 </Button>
@@ -219,11 +221,18 @@ export function StaffProfilePage({ staffId, tab, setTab }: { staffId: string; ta
                   {s.leavingReason}. The record is kept for history, reports and experience letters. If they come back, rejoin them here instead of adding a new record.
                 </Banner>
               )}
-              {s.probationEnds && s.status === "ACTIVE" && <Banner tone="info" className="mt-4">On probation until {formatDate(s.probationEnds)}. Confirm the appointment in writing before then.</Banner>}
+              {leavingSet && (
+                <Banner tone="warning" className="mt-4" title={`Leaving: last working day ${formatDate(s.leavingDate!)}`}>
+                  {s.leavingReason ? `${s.leavingReason}. ` : ""}They count as working until that day ends, then drop out of attendance and future salary sheets. The record is kept.
+                </Banner>
+              )}
+              {s.probationEnds && s.status === "ACTIVE" && !leavingSet && <Banner tone="info" className="mt-4">On probation until {formatDate(s.probationEnds)}. Confirm the appointment in writing before then.</Banner>}
             </section>
 
             <Tabs aria-label="Staff file" idPrefix="hr-p-" tabs={tabs} value={tab} onChange={(t) => setTab(t as ProfileTab)} />
 
+            {/* The selected tab's content is the panel its tab points at (aria-controls="hr-p-panel-{tab}"). */}
+            <div role="tabpanel" id={`hr-p-panel-${tab}`} aria-labelledby={`hr-p-tab-${tab}`}>
             {tab === "overview" && (
               <div className="hr-split">
                 <Panel id="personal" title="Personal and contact" rise={1} actions={edit ? <Button size="sm" variant="quiet" icon="edit" onClick={() => setEditing("personal")}>Edit</Button> : undefined}>
@@ -231,7 +240,18 @@ export function StaffProfilePage({ staffId, tab, setTab }: { staffId: string; ta
                     items={[
                       [s.relation === "w/o" ? "Husband" : "Father", orDash(s.guardianName)],
                       ["CNIC", <Ltr>{cnicOrDash(s.cnic)}</Ltr>],
-                      ["Date of birth", dateOrDash(s.dob)],
+                      [
+                        "Date of birth",
+                        // Some migrated records were born after they joined (F-021): flag it so the office corrects it.
+                        s.dob && s.joiningDate && s.dob > s.joiningDate ? (
+                          <span className="flex flex-wrap items-center gap-2">
+                            {dateOrDash(s.dob)}
+                            <StatusBadge status="warning">After the joining date: check</StatusBadge>
+                          </span>
+                        ) : (
+                          dateOrDash(s.dob)
+                        ),
+                      ],
                       ["Blood group", orDash(s.bloodGroup)],
                       ["Marital status", s.maritalStatus ? s.maritalStatus.charAt(0) + s.maritalStatus.slice(1).toLowerCase() : "—"],
                       [
@@ -470,9 +490,10 @@ export function StaffProfilePage({ staffId, tab, setTab }: { staffId: string; ta
 
             {tab === "history" && (
               <Panel id="history" title="History" description="Every change to this record, newest first." rise={1}>
-                <Timeline label="Record history" items={s.history.map((h) => ({ id: h.id, date: h.at.slice(0, 10), title: h.text, description: `${h.by} · ${formatDateTime(h.at)}${h.detail ? ` · ${h.detail}` : ""}` }))} />
+                <Timeline label="Record history" items={s.history.map((h) => ({ id: h.id, date: pakistanDate(h.at), title: h.text, description: `${h.by} · ${formatDateTime(h.at)}${h.detail ? ` · ${h.detail}` : ""}` }))} />
               </Panel>
             )}
+            </div>
 
             {editing === "personal" && <EditPersonalPanel s={s} onClose={() => setEditing(null)} />}
             {editing === "posting" && settings.data && <AddPostingPanel s={s} settings={settings.data} onClose={() => setEditing(null)} />}
@@ -520,13 +541,17 @@ export function StaffProfilePage({ staffId, tab, setTab }: { staffId: string; ta
 
 function PayTab({ s, canEdit, onEdit, onPrintSlip }: { s: HrStaffProfile; canEdit: boolean; onEdit: () => void; onPrintSlip: (runId: string) => void }) {
   const p = s.pay;
+  // The server's note ends "Turn it on in Staff & payroll → Settings.", but that switch needs payroll.manage at the
+  // campus, which nobody holds while the campus's Payroll module is off: then only head office can start it (F-023).
+  const canManagePayroll = useCan("payroll.manage");
   if (!p) return <Banner tone="info">Pay details are visible to the accountant and the principal.</Banner>;
+  const payrollNote = p.payrollNote && !canManagePayroll ? p.payrollNote.replace(/\s*Turn it on in[^.]*\.\s*$/, " Head office can switch Payroll on for this campus (Setup › Campuses › Modules).") : p.payrollNote;
   const hist = [...p.history].reverse();
   return (
     <div className="hr-split">
       <div className="grid gap-6">
         <Panel id="structure" title="Salary structure" description={p.basic ? "A full month, before absences, loans and child fees." : "No salary set yet."} rise={1} actions={canEdit ? <Button size="sm" icon="edit" onClick={onEdit}>Change pay</Button> : undefined}>
-          {p.payrollNote && <Banner tone="info" className="mb-4">{p.payrollNote}</Banner>}
+          {payrollNote && <Banner tone="info" className="mb-4">{payrollNote}</Banner>}
           {p.nextChange && (
             <Banner tone="success" className="mb-4" title={`${p.nextChange.reason === "INCREMENT" ? "Increment" : "New pay"} from ${formatDate(p.nextChange.effectiveFrom)}`}>
               Basic {formatRs(p.nextChange.basic)} ({p.nextChange.change >= 0 ? "+" : ""}

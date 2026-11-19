@@ -6,6 +6,7 @@
 export type Rupees = number;
 
 const grouped = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0, useGrouping: true });
+const lakhText = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2, useGrouping: true });
 const MINUS = "−"; // typographic minus, same width as digits
 
 export function isRupees(value: unknown): value is Rupees {
@@ -47,7 +48,8 @@ export function formatPercent(value: number, fractionDigits = 1): string {
 export function formatLakh(amount: Rupees): string {
   assertRupees(amount);
   const lakh = Math.abs(amount) / 100_000;
-  const text = lakh.toFixed(2).replace(/\.?0+$/, "");
+  // Whole lakhs grouped like any count ("Rs 2,667.31 lakh", not "Rs 2667.31 lakh"); trailing zeros still trimmed.
+  const text = lakhText.format(Number(lakh.toFixed(2)));
   return `${amount < 0 ? MINUS : ""}Rs ${text} lakh`;
 }
 

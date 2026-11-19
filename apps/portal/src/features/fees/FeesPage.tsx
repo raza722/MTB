@@ -2,7 +2,7 @@ import { portalQueries, type PortalDue, type PortalFees, type PortalReceiptRow }
 import { buttonClassName, cx, EmptyState, Icon, Panel, SegmentedBar, Skeleton, StatusBadge } from "@mtb/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { formatRs, formatSession } from "@mtb/domain";
+import { formatRs, formatSession, pakistanDate } from "@mtb/domain";
 import type { CSSProperties } from "react";
 import { DateL, firstName, Money, SessionL } from "../../app/format";
 import { Ltr, useLang } from "../../app/i18n";
@@ -18,7 +18,7 @@ function DueRow({ d, i }: { d: PortalDue; i: number }) {
         <span className="flex flex-wrap items-center gap-2 text-small text-ink-muted">
           <DateL value={d.dueDate} />
           <StatusBadge status={d.status} lang={lang} />
-          {d.daysOverdue > 0 && <span>{rich("fees.daysOverdue", { n: <Ltr className="tabular-nums">{d.daysOverdue}</Ltr> })}</span>}
+          {d.daysOverdue > 0 && <span>{rich(d.daysOverdue === 1 ? "fees.dayOverdue" : "fees.daysOverdue", { n: <Ltr className="tabular-nums">{d.daysOverdue}</Ltr> })}</span>}
         </span>
       </div>
       <div className="grid justify-items-end text-end">
@@ -129,7 +129,7 @@ function ReceiptRow({ r, i, today }: { r: PortalReceiptRow; i: number; today: st
           <Ltr mono className="font-medium text-ink">
             {r.receiptNo}
           </Ltr>
-          {r.postedAt.slice(0, 10) === today && <StatusBadge status="success">{t("fees.receiptToday")}</StatusBadge>}
+          {pakistanDate(r.postedAt) === today && <StatusBadge status="success">{t("fees.receiptToday")}</StatusBadge>}
           {r.status === "CANCEL_PENDING" && <StatusBadge status="pending">{t("fees.receiptReview")}</StatusBadge>}
           {r.status === "CANCELLED" && <StatusBadge status="cancelled">{t("fees.receiptCancelled")}</StatusBadge>}
         </span>

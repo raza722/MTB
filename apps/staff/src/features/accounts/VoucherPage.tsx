@@ -13,7 +13,7 @@ import {
   type AccountsVoucherType,
   type CampusCode,
 } from "@mtb/api";
-import { amountInWords, formatDate, formatDateTime, formatRs, formatSession, formatTime } from "@mtb/domain";
+import { amountInWords, formatDate, formatDateTime, formatRs, formatSession, formatTime, pakistanDate } from "@mtb/domain";
 import {
   AmountInput,
   Banner,
@@ -236,10 +236,15 @@ function VoucherForm({ initial, voucher }: { initial: Draft; voucher: AccountsVo
       setActionKey(null);
       setDirty(false);
       remember(v);
-      toast({ title: `${ACCOUNTS_VOUCHER_TYPE_LABEL[v.type]} ${v.voucherNo} posted`, message: `${v.campusName} · ${formatRs(v.totalDebit)} · ${v.lines.length} lines` });
+      setActionError(null);
+      toast({ title: `${ACCOUNTS_VOUCHER_TYPE_LABEL[v.type]} ${v.voucherNo} posted`, message: `${v.campusName} · ${formatRs(v.totalDebit)} · ${v.lines.length} ${v.lines.length === 1 ? "line" : "lines"}` });
       if (!draft.id || draft.id !== v.id) go("/accounts/vouchers/$voucherId", {}, { voucherId: v.id });
     },
-    onError: (e) => setActionError(e instanceof ApiError ? (e.isNetwork ? "Voucher not posted — safe to try again. The connection dropped before the server replied." : e.message) : "Voucher not posted. Try again."),
+    onError: (e) => {
+      // a second press while the first is still posting (same key): the first one answers (test run F-041)
+      if (e instanceof ApiError && e.code === "IDEMPOTENCY_IN_PROGRESS") return;
+      setActionError(e instanceof ApiError ? (e.isNetwork ? "Voucher not posted — safe to try again. The connection dropped before the server replied." : e.message) : "Voucher not posted. Try again.");
+    },
   });
 
   const approve = useMutation({
@@ -450,7 +455,7 @@ function VoucherForm({ initial, voucher }: { initial: Draft; voucher: AccountsVo
 
   const history: TimelineItem[] = (voucher?.history ?? []).map((h, i) => ({
     id: String(i),
-    date: h.at.slice(0, 10),
+    date: pakistanDate(h.at),
     title: `${{ CREATED: "Created", EDITED: "Changed", SUBMITTED: "Sent for approval", APPROVED: "Approved", REJECTED: "Sent back", POSTED: "Posted", REVERSED: "Reversed" }[h.action]} by ${h.by} at ${formatTime(h.at)}`,
     ...(h.note ? { description: h.note } : {}),
     icon: h.action === "POSTED" ? "lock" : h.action === "APPROVED" ? "check" : h.action === "REJECTED" ? "x" : h.action === "REVERSED" ? "refresh" : h.action === "SUBMITTED" ? "send" : "edit",
@@ -483,10 +488,13 @@ function VoucherForm({ initial, voucher }: { initial: Draft; voucher: AccountsVo
       }
     >
       {voucher?.system && (
-        <Banner tone="info" icon="bolt" title="Posted by the system.">
+        // a day's difference posted by hand is not "posted by the system" (test run F-043)
+        <Banner tone="info" icon="bolt" title={voucher.source?.kind === "FEE_BATCH" && voucher.postedBy && !/automatic/i.test(voucher.postedBy) ? "Posted from the fee office." : "Posted by the system."}>
           {voucher.source?.kind === "FEE_BATCH" ? (
             <>
-              The fee office's collection for {formatDate(voucher.source.date)} posts to the ledger automatically when the counter closes.{" "}
+              {voucher.postedBy && !/automatic/i.test(voucher.postedBy)
+                ? `The fee office's collection for ${formatDate(voucher.source.date)}, posted by ${voucher.postedBy} to bring the day into agreement.`
+                : `The fee office's collection for ${formatDate(voucher.source.date)} posts to the ledger automatically when the counter closes.`}{" "}
               <AccLink to="/accounts/fee-posting" search={{ month: voucher.source.date.slice(0, 7), batch: `${voucher.campus}:${voucher.source.date}` }}>
                 See the day's reconciliation
               </AccLink>

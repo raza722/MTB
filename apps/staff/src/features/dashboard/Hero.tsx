@@ -79,7 +79,7 @@ export function Hero({ s, approvals }: { s: DashboardSummary | undefined; approv
             <>
               {s.feesToday && (
                 <>
-                  <strong className="font-semibold text-ink">{formatRs(s.feesToday.amount)}</strong> collected so far today from {formatCount(s.feesToday.receipts)} receipts.{" "}
+                  <strong className="font-semibold text-ink">{formatRs(s.feesToday.amount)}</strong> collected so far today from {formatCount(s.feesToday.receipts)} {s.feesToday.receipts === 1 ? "receipt" : "receipts"}.{" "}
                 </>
               )}
               {percent === null ? (

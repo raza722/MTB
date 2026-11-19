@@ -1,5 +1,6 @@
 import { WAREHOUSE_COUNT_STATUS_LABEL, warehouseApi, warehouseQueries, type WarehouseCount, type WarehouseCountLine, type WarehouseCountStatus } from "@mtb/api";
-import { formatCount, formatDate, formatDateTime, formatRs, formatSession } from "@mtb/domain";
+import { formatCount, formatDate, formatDateTime, formatSession } from "@mtb/domain";
+import { formatRs } from "./money";
 import { AnimatedNumber, Banner, Button, DataTable, EmptyState, Input, Modal, Panel, Select, Skeleton, StatCard, StatusBadge, Switch, Textarea, useToast, type Column, type Status } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -191,7 +192,7 @@ export function WhCountPage({ countId }: { countId: string }) {
     onSuccess: (n) => {
       refresh(n);
       setDeciding(null);
-      toast({ title: n.status === "APPROVED" ? `${n.no} approved` : `${n.no} sent back`, message: n.status === "APPROVED" ? `${n.differences} adjustments posted to the stock ledger.` : "The counter can check and submit again." });
+      toast({ title: n.status === "APPROVED" ? `${n.no} approved` : `${n.no} sent back`, message: n.status === "APPROVED" ? `${n.differences === 1 ? "1 adjustment" : `${formatCount(n.differences)} adjustments`} posted to the stock ledger.` : "The counter can check and submit again." });
     },
   });
 
@@ -339,7 +340,7 @@ export function WhCountPage({ countId }: { countId: string }) {
         open={deciding !== null}
         onClose={() => setDeciding(null)}
         title={deciding === "APPROVE" ? `Approve ${c.no} and post the adjustment?` : `Send ${c.no} back?`}
-        description={deciding === "APPROVE" ? `${c.differences} items change: ${formatRs(c.gainValue)} found and ${formatRs(c.lossValue)} short at average cost. This posts to the stock ledger and can't be undone.` : "The counter sees your note and counts again."}
+        description={deciding === "APPROVE" ? `${c.differences === 1 ? "1 item changes" : `${formatCount(c.differences)} items change`}: ${formatRs(c.gainValue)} found and ${formatRs(c.lossValue)} short at average cost. This posts to the stock ledger and can't be undone.` : "The counter sees your note and counts again."}
         footer={
           <>
             <Button onClick={() => setDeciding(null)}>Cancel</Button>

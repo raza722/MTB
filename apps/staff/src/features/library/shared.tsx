@@ -1,5 +1,5 @@
 import { LIBRARY_COPY_STATUS_LABEL, LIBRARY_FINE_STATUS_LABEL, type LibraryCopyStatus, type LibraryLoan } from "@mtb/api";
-import { formatRs } from "@mtb/domain";
+import { formatCount, formatRs } from "@mtb/domain";
 import { StatusBadge, Urdu } from "@mtb/ui";
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
@@ -31,7 +31,7 @@ export function LoanStatus({ loan }: { loan: LibraryLoan }) {
   if (loan.lost) return <StatusBadge status="cancelled">Lost</StatusBadge>;
   if (loan.returnedOn) return loan.daysLate > 0 ? <StatusBadge status="late">Returned {loan.daysLate} days late</StatusBadge> : <StatusBadge status="paid">Returned</StatusBadge>;
   // Overdue comes from the server's daysLate (worked out to its today); "due today" only needs today's date.
-  if (loan.daysLate > 0) return <StatusBadge status="overdue">{loan.daysLate} {loan.daysLate === 1 ? "day" : "days"} overdue</StatusBadge>;
+  if (loan.daysLate > 0) return <StatusBadge status="overdue">{formatCount(loan.daysLate)} {loan.daysLate === 1 ? "day" : "days"} overdue</StatusBadge>;
   if (loan.dueOn === opsToday()) return <StatusBadge status="pending">Due today</StatusBadge>;
   return <StatusBadge status="info">On loan</StatusBadge>;
 }

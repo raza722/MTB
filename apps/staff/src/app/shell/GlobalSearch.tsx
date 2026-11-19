@@ -131,7 +131,8 @@ export function GlobalSearch({ open, onOpenChange }: { open: boolean; onOpenChan
                           {s.relation} {s.father} · {s.classSection} · {s.campusName}
                         </span>
                       </span>
-                      <StatusBadge status={s.feeStatus} />
+                      {/* sent only to accounts with fee rights (F-012) */}
+                      {s.feeStatus && <StatusBadge status={s.feeStatus} />}
                     </Command.Item>
                   ))}
                 </Command.Group>

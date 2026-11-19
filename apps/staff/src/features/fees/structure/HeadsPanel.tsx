@@ -1,11 +1,12 @@
-import { ApiError, FEE_BILLING_LABEL, feeSetupApi, newIdempotencyKey, type FeeBilling, type FeeHead, type FeeHeadCategory, type FeeHeadInput, type FeeStructure } from "@mtb/api";
+import { ApiError, FEE_BILLING_LABEL, feeSetupApi, type FeeBilling, type FeeHead, type FeeHeadCategory, type FeeHeadInput, type FeeStructure } from "@mtb/api";
 import { formatCount, formatRs } from "@mtb/domain";
 import { Banner, Button, Checkbox, Input, Panel, Segmented, Select, SidePanel, StatusBadge, Switch, Textarea, Tooltip, useToast } from "@mtb/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { z } from "zod";
 import { className, errorField, errorText, slide } from "../shared";
+import { useIdempotencyKey } from "../../../app/idempotency";
 
 const CATEGORY_LABEL: Record<FeeHeadCategory, string> = { FEE: "Fee", FINE: "Fine", APPLICATION: "Application (before admission)" };
 const PLAN_BILLINGS: FeeBilling[] = ["MONTHLY", "QUARTERLY", "TERMLY", "ANNUAL"];
@@ -34,7 +35,9 @@ const draftOf = (h: FeeHead | null, nextOrder: number): Draft =>
 function HeadEditor({ structure, head, onClose }: { structure: FeeStructure; head: FeeHead | null; onClose: () => void }) {
   const toast = useToast();
   const queryClient = useQueryClient();
-  const nextOrder = Math.max(0, ...structure.heads.map((h) => h.order)) + 1;
+  // The next order after the heads below the 999 limit: the migrated "Unidentified fee (old system)" sits at 999, and
+  // "highest + 1" offered 1000, which the form itself refuses.
+  const nextOrder = Math.min(999, Math.max(0, ...structure.heads.map((h) => h.order).filter((o) => o < 999)) + 1);
   const [d, setD] = useState<Draft>(() => draftOf(head, nextOrder));
   const [tried, setTried] = useState(false);
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((p) => ({ ...p, [k]: v }));
@@ -78,7 +81,7 @@ function HeadEditor({ structure, head, onClose }: { structure: FeeStructure; hea
     note: d.note.trim(),
     ...(head ? { rowVer: head.rowVer ?? 1 } : {}),
   };
-  const key = useMemo(() => newIdempotencyKey(), [JSON.stringify(body)]); // eslint-disable-line react-hooks/exhaustive-deps
+  const key = useIdempotencyKey(JSON.stringify(body));
   const save = useMutation({
     mutationFn: () => (head ? feeSetupApi.updateHead(structure.campus, head.code, body, key) : feeSetupApi.createHead(structure.campus, body, key)),
     onSuccess: (h) => {

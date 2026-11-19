@@ -1,11 +1,12 @@
-import { feesApi, feeSetupQueries, newIdempotencyKey, splitRupees, type CampusCode } from "@mtb/api";
+import { feesApi, feeSetupQueries, splitRupees, type CampusCode } from "@mtb/api";
 import { formatDate, formatRs, formatSession } from "@mtb/domain";
 import { AmountInput, Banner, Button, DatePicker, KeyValue, Modal, Select, SidePanel, Skeleton, Textarea, useToast } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { z } from "zod";
 import { useCtx } from "../../../app/session";
 import { addDaysIso, errorField, errorText, feeToday } from "../shared";
+import { useIdempotencyKey } from "../../../app/idempotency";
 
 /** "2026-11-10" + n months, keeping the day (capped at the month's end), as the server does. */
 function addMonthsIso(d: string, n: number): string {
@@ -59,7 +60,7 @@ export function AddChargePanel({ student, onClose, initialHead }: { student: Cha
   const parsed = schema.safeParse(values);
   const errors: Record<string, string> = {};
   if (!parsed.success) for (const i of parsed.error.issues) errors[String(i.path[0])] ??= i.message;
-  const key = useMemo(() => newIdempotencyKey(), [JSON.stringify(values)]); // eslint-disable-line react-hooks/exhaustive-deps
+  const key = useIdempotencyKey(JSON.stringify(values));
   const split = amount && amount >= n ? splitRupees(amount, n) : [];
   const title = heads.find((h) => h.code === head)?.title ?? "";
 
@@ -149,7 +150,7 @@ export function CancelChargeModal({ charge, onClose }: { charge: { chargeId: str
   const [reason, setReason] = useState("");
   const [tried, setTried] = useState(false);
   const err = reason.trim().length < 5 ? "Say why the charge should be cancelled; the principal reads this." : undefined;
-  const key = useMemo(() => newIdempotencyKey(), [charge.chargeId]);
+  const key = useIdempotencyKey(charge.chargeId);
   const send = useMutation({
     mutationFn: () => feesApi.cancelCharge(charge.chargeId, { reason: reason.trim() }, key),
     onSuccess: () => {

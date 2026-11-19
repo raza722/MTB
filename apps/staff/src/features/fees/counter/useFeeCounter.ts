@@ -1,8 +1,9 @@
-import { newIdempotencyKey, type Charge, type CounterData } from "@mtb/api";
-import { calculateLateFine, sumRs, type LateFine } from "@mtb/domain";
+import { type Charge, type CounterData, type CounterFine } from "@mtb/api";
+import { calculateLateFine, formatRs, sumRs, type LateFine } from "@mtb/domain";
 import { useMemo, useState } from "react";
 import { z } from "zod";
 import { EMPTY_PAYMENT, validatePayment, type PaymentDraft } from "../schemas";
+import { useIdempotencyKey } from "../../../app/idempotency";
 
 /** Who paid and the cashier's remarks: optional, printed on the receipt. */
 const extrasSchema = z.object({
@@ -15,6 +16,23 @@ export interface PreviewLine {
   fine: LateFine;
   outstanding: number;
   lineTotal: number;
+}
+
+/** "6 days × Rs 10", "6 days × Rs 10, Rs 60 already charged", "No late fine on this fee". */
+function serverFineText(f: CounterFine): string {
+  if (!f.fined) return f.daysOverdue > 0 ? "No late fine on this fee" : "No late fine";
+  if (f.chargeableDays <= 0) return f.daysOverdue > 0 ? "No late fine yet" : "No late fine";
+  const base = `${f.chargeableDays} ${f.chargeableDays === 1 ? "day" : "days"} × ${formatRs(f.ratePerDay)}`;
+  return f.raised > 0 ? `${base}, ${formatRs(f.raised)} already charged` : base;
+}
+
+/** A charge's late fine today: the server's figure when it sent one (it leaves out heads the rule does not fine, the
+ *  cut-over for charges from the old system and fines already raised), else the browser's preview by the rule. */
+export function chargeLateFine(data: Pick<CounterData, "today" | "policy" | "fines">, charge: Charge): LateFine {
+  const local = calculateLateFine(charge.dueDate, data.today, data.policy);
+  // The server's figure when it sent one (test run F-036): the local sum fined every head from the due date.
+  const f = data.fines?.find((x) => x.id === charge.id);
+  return f ? { ...local, chargeableDays: f.chargeableDays, fine: f.fine, capped: false, explanation: serverFineText(f) } : local;
 }
 
 /** Part-payment preview: oldest line first; each line's late fine is paid before its fee (same rule as the server). */
@@ -41,15 +59,13 @@ export function useFeeCounter(data: CounterData | undefined) {
   const [paidBy, setPaidBy] = useState("");
   const [note, setNote] = useState("");
 
-  const lines: PreviewLine[] = useMemo(
-    () =>
-      (data?.charges ?? []).map((charge) => {
-        const fine = calculateLateFine(charge.dueDate, data?.today ?? charge.dueDate, data?.policy);
-        const outstanding = charge.amount - charge.settledAmount;
-        return { charge, fine, outstanding, lineTotal: outstanding + fine.fine };
-      }),
-    [data],
-  );
+  const lines: PreviewLine[] = useMemo(() => {
+    return (data?.charges ?? []).map((charge) => {
+      const fine = chargeLateFine(data!, charge);
+      const outstanding = charge.amount - charge.settledAmount;
+      return { charge, fine, outstanding, lineTotal: outstanding + fine.fine };
+    });
+  }, [data]);
 
   const chosen = lines.filter((l) => selected.has(l.charge.id));
   const fees = sumRs(chosen.map((l) => l.outstanding));
@@ -65,7 +81,7 @@ export function useFeeCounter(data: CounterData | undefined) {
 
   // A new idempotency key for every new draft; the same key for retries of the same draft.
   const signature = JSON.stringify([data?.student.grNo, [...selected].sort(), payment, partial ? partialAmount : null, paidBy.trim(), note.trim()]);
-  const idempotencyKey = useMemo(() => newIdempotencyKey(), [signature]); // eslint-disable-line react-hooks/exhaustive-deps
+  const idempotencyKey = useIdempotencyKey(signature);
 
   const toggle = (id: string) => {
     const idx = lines.findIndex((l) => l.charge.id === id);

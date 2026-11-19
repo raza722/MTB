@@ -149,17 +149,20 @@ export function TestSlip({ a, test }: { a: AdmissionsApplicant; test?: Admission
         variant="slip"
         title="Admission Test Slip"
         sub={`Admission Test For Class: ${a.classApplied}`}
-        {...(a.testRollNo
-          ? {
-              right: (
-                <span className="adm-tslip-seat">
-                  Seat No.
-                  <br />
-                  <b className="text-[11pt]">{a.testRollNo}</b>
-                </span>
-              ),
-            }
-          : {})}
+        right={
+          // the application number too, so a slip is matched to its application (test run F-026)
+          <span className="adm-tslip-seat">
+            {a.testRollNo && (
+              <>
+                Seat No.
+                <br />
+                <b className="text-[11pt]">{a.testRollNo}</b>
+                <br />
+              </>
+            )}
+            <span className="tabular-nums">{a.applicationNo}</span>
+          </span>
+        }
       />
       <table>
         <colgroup>

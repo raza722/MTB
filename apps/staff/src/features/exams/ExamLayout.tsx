@@ -2,8 +2,8 @@ import { ApiError, EXAMS_CATEGORY_LABEL, examsApi, examsQueries, type ExamDetail
 import { formatCount, formatDateTime, formatSession } from "@mtb/domain";
 import { Banner, Button, Checkbox, ConfirmDialog, EmptyState, Modal, Skeleton, Textarea, Tooltip, useToast } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, Outlet, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { campusLabel } from "../../app/shell/campus";
 import { Page, PageHeader } from "../../app/shell/page";
 import { SubNav } from "../../app/shell/SubNav";
@@ -14,7 +14,16 @@ import { errorText, ExamProvider, ExamStatus, examTitle, LoadError, useCanOnExam
 /** /exams/$examId — the exam's header, declare and reopen actions, and its sub-pages. */
 export function ExamLayout({ examId }: { examId: string }) {
   const navigate = useNavigate();
-  const detail = useQuery(examsQueries.detail(examId));
+  // The header stays mounted while you move between the exam's pages, so the exam is fetched again on a page change
+  // or a return to the window once it is older than the usual 30 s: someone else may have declared or reopened it meanwhile.
+  const detail = useQuery({ ...examsQueries.detail(examId), refetchOnWindowFocus: true });
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { isStale, refetch } = detail;
+  useEffect(() => {
+    if (isStale) void refetch();
+    // Only a page change should trigger this, not a change of `isStale` itself.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
   const back = () => void navigate({ to: "/exams" } as never);
 
   if (detail.isLoading) {

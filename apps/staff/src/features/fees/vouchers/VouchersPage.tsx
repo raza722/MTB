@@ -1,4 +1,4 @@
-import { feeMonthLabel, feeSetupApi, feeSetupQueries, FEE_VOUCHER_STATUS_LABEL, newIdempotencyKey, type FeeVoucher, type FeeVoucherRun, type FeeVoucherStatus } from "@mtb/api";
+import { feeMonthLabel, feeSetupApi, feeSetupQueries, FEE_VOUCHER_STATUS_LABEL, type FeeVoucher, type FeeVoucherRun, type FeeVoucherStatus } from "@mtb/api";
 import { formatCount, formatDate, formatDateTime, formatRs } from "@mtb/domain";
 import {
   AnimatedNumber,
@@ -23,12 +23,13 @@ import {
 } from "@mtb/ui";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { campusLabel } from "../../../app/shell/campus";
 import { Page, PageHeader, RequirePermission } from "../../../app/shell/page";
 import { useCtx, useReadOnly } from "../../../app/session";
 import { errorText, feeToday, FeesNav, LoadError, PaperSize, slide, useCanAny, useFeeClasses } from "../shared";
 import { VoucherSheet } from "./VoucherSheet";
+import { useIdempotencyKey } from "../../../app/idempotency";
 
 const STATUS_TONE: Record<FeeVoucherStatus, "unpaid" | "pending" | "paid" | "overdue" | "cancelled"> = {
   ISSUED: "unpaid",
@@ -92,7 +93,7 @@ function VoucherPanel({ voucherNo, onClose }: { voucherNo: string; onClose: () =
   const [cancelling, setCancelling] = useState(false);
   const [reason, setReason] = useState("");
   const [tried, setTried] = useState(false);
-  const key = useMemo(() => newIdempotencyKey(), [voucherNo, cancelling]); // eslint-disable-line react-hooks/exhaustive-deps
+  const key = useIdempotencyKey(voucherNo, cancelling);
   const v = q.data;
   const cancel = useMutation({
     mutationFn: () => feeSetupApi.cancelVoucher(voucherNo, reason, key),

@@ -70,6 +70,14 @@ export function pakistanToday(now: Date = new Date()): IsoDate {
   return format(new TZDate(now, PK_TIME_ZONE), "yyyy-MM-dd");
 }
 
+/**
+ * The Pakistan calendar date of a moment: "2026-11-18T20:15:06Z" → "2026-11-19". A date-only value is returned as is.
+ * Use it instead of `at.slice(0, 10)`, which gives the UTC date (the day before, from midnight to 5 am in Pakistan).
+ */
+export function pakistanDate(value: IsoDate | IsoDateTime): IsoDate {
+  return ISO_DATE.test(value) ? value : format(toDisplayDate(value), "yyyy-MM-dd");
+}
+
 export function toIsoDate(date: Date): IsoDate {
   return format(date, "yyyy-MM-dd");
 }

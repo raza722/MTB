@@ -4,6 +4,7 @@ import { Banner, Button, Combobox, ConfirmDialog, Field, Input, Segmented, Selec
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { z } from "zod";
+import { useCanGroupWide, useCtx } from "../../app/session";
 import { CAMPUS_LABEL } from "../../app/shell/campus";
 import { suggestCode } from "./voucher-model";
 
@@ -45,6 +46,10 @@ const addSchema = z.object({
 function AddForm({ open, code: initialParent, accounts, onClose, onSaved }: AccountPanelProps) {
   const toast = useToast();
   const queryClient = useQueryClient();
+  const ctx = useCtx();
+  // A campus-level right adds accounts for its own campus only; accounts for every campus are added at head office.
+  const canShared = useCanGroupWide("accounts.post");
+  const ownCampus = !canShared && ctx.campus !== "ALL" ? (ctx.campus as CampusCode) : null;
   const codes = accounts.map((a) => a.code);
   const [parentCode, setParentCode] = useState<string | null>(initialParent);
   const [code, setCode] = useState(initialParent ? suggestCode(initialParent, codes) : "");
@@ -52,7 +57,7 @@ function AddForm({ open, code: initialParent, accounts, onClose, onSaved }: Acco
   const [what, setWhat] = useState<"account" | "group">(() => defaultWhat(initialParent, accounts));
   const [side, setSide] = useState<Side | null>(null);
   const [name, setName] = useState("");
-  const [campus, setCampus] = useState<CampusCode | "">("");
+  const [campus, setCampus] = useState<CampusCode | "">(ownCampus ?? "");
   const [kind, setKind] = useState<AccountsKind>("OTHER");
   const [bankName, setBankName] = useState("");
   const [branch, setBranch] = useState("");
@@ -91,7 +96,9 @@ function AddForm({ open, code: initialParent, accounts, onClose, onSaved }: Acco
     onError: (e) => {
       const f = e instanceof ApiError ? e.field : undefined;
       const msg = e instanceof ApiError && !e.isNetwork ? e.message : "Not saved — no response from the server. Try again.";
-      if (f === "parentCode" || f === "postable" || f === "code" || f === "name" || f === "normalSide" || f === "campus" || f === "kind" || f === "bankName" || f === "accountNo") setErrors({ [f]: msg });
+      // An account for every campus needs the accounts right at head office; a campus accountant has it at one campus only.
+      if (e instanceof ApiError && e.code === "FORBIDDEN" && !campus) setErrors({ campus: `Only head office can add an account for all campuses. Choose ${CAMPUS_LABEL[ctx.campus as CampusCode] ?? "your campus"} only, or ask head office to add it.` });
+      else if (f === "parentCode" || f === "postable" || f === "code" || f === "name" || f === "normalSide" || f === "campus" || f === "kind" || f === "bankName" || f === "accountNo") setErrors({ [f]: msg });
       else setErrors({ name: msg });
     },
   });
@@ -235,8 +242,8 @@ function AddForm({ open, code: initialParent, accounts, onClose, onSaved }: Acco
             setCampus(e.target.value as CampusCode | "");
             setErrors((er) => ({ ...er, campus: undefined }));
           }}
-          options={[{ value: "", label: "All campuses" }, ...CAMPUS_CODES.map((c) => ({ value: c, label: `${CAMPUS_LABEL[c]} only` }))]}
-          help="Choose one campus only for things that belong to it, such as a campus bank account."
+          options={ownCampus ? [{ value: ownCampus, label: `${CAMPUS_LABEL[ownCampus]} only` }] : [{ value: "", label: "All campuses" }, ...CAMPUS_CODES.map((c) => ({ value: c, label: `${CAMPUS_LABEL[c]} only` }))]}
+          help={ownCampus ? "Accounts for every campus are added at head office." : "Choose one campus only for things that belong to it, such as a campus bank account."}
           {...(errors.campus ? { error: errors.campus } : {})}
         />
         {kind === "BANK" && (

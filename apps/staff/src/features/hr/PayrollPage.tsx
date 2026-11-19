@@ -1,5 +1,5 @@
-import { HR_CATEGORY_LABEL, HR_PAYMENT_LABEL, HR_PAYROLL_STATUS_LABEL, hrApi, hrMonthLabel, hrMonthShort, hrQueries, newIdempotencyKey, type CampusCode, type HrPayrollRun, type HrPayslip, type HrSalaryStructureRow } from "@mtb/api";
-import { formatCount, formatDate, formatDateTime, formatLakh, formatRs, formatSession } from "@mtb/domain";
+import { HR_CATEGORY_LABEL, HR_PAYMENT_LABEL, HR_PAYROLL_STATUS_LABEL, hrApi, hrMonthLabel, hrMonthShort, hrQueries, type CampusCode, type HrPayrollRun, type HrPayslip, type HrSalaryStructureRow } from "@mtb/api";
+import { formatCount, formatDate, formatDateTime, formatLakh, formatRs, formatSession, pakistanDate } from "@mtb/domain";
 import {
   AmountInput,
   AnimatedNumber,
@@ -30,7 +30,7 @@ import {
 } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { z } from "zod";
 import { campusLabel } from "../../app/shell/campus";
 import { RequirePermission } from "../../app/shell/page";
@@ -38,6 +38,7 @@ import { useCan, useCtx, useReadOnly, useSessionUser } from "../../app/session";
 import { BankAdviceDoc, PayslipDoc, SalarySheetDoc } from "./print";
 import { issues } from "./StaffPanels";
 import { basicRs, DesignationSelect, downloadCsv, errorField, errorText, filterNote, HrShell, LoadError, RunBadge, slide, today, useDesignationTitle, usePayAccess, usePrint } from "./shared";
+import { useIdempotencyKey } from "../../app/idempotency";
 
 export interface PayrollSearch {
   month?: string;
@@ -66,7 +67,7 @@ function PayslipPanel({ run, slip, onClose, onPrint }: { run: HrPayrollRun; slip
   const earliest = run.paymentDate ?? `${run.month}-28`;
   const releaseSchema = z.object({ paymentDate: z.string({ error: "Enter the date it was paid." }).min(1, "Enter the date it was paid.").refine((v) => v >= earliest, `Can't be before the sheet was paid (${formatDate(earliest)}).`) });
   const releaseParsed = releaseSchema.safeParse({ paymentDate: releaseDate ?? "" });
-  const releaseKey = useMemo(() => newIdempotencyKey(), [run.id, slip.staffId]);
+  const releaseKey = useIdempotencyKey(run.id, slip.staffId);
   const release = useMutation({
     mutationFn: () => hrApi.releaseHeld(run.id, slip.staffId, { paymentDate: releaseDate ?? "" }, releaseKey),
     onSuccess: (r) => {
@@ -243,7 +244,7 @@ function RunView({ runId }: { runId: string }) {
   const [note, setNote] = useState("");
   const [payDate, setPayDate] = useState<string | null>(today());
   const r = q.data;
-  const payKey = useMemo(() => newIdempotencyKey(), [runId]);
+  const payKey = useIdempotencyKey(runId);
   const done = (title: string, message?: string) => {
     toast({ title, ...(message ? { message } : {}) });
     setConfirm(null);
@@ -426,7 +427,7 @@ function RunView({ runId }: { runId: string }) {
       />
 
       <Panel id="pay-history" title="History" rise={2}>
-        <Timeline label="Salary sheet history" items={r.history.map((h) => ({ id: h.id, date: h.at.slice(0, 10), title: h.text, description: `${h.by} · ${formatDateTime(h.at)}${h.detail ? ` · ${h.detail}` : ""}` }))} />
+        <Timeline label="Salary sheet history" items={r.history.map((h) => ({ id: h.id, date: pakistanDate(h.at), title: h.text, description: `${h.by} · ${formatDateTime(h.at)}${h.detail ? ` · ${h.detail}` : ""}` }))} />
       </Panel>
 
       {slip && <PayslipPanel run={r} slip={slip} onClose={() => setOpen(null)} onPrint={() => printSlips([slip])} />}
@@ -543,7 +544,7 @@ export function PayrollPage({ search, setSearch }: { search: PayrollSearch; setS
   const fallback = months.find((m) => m.canPrepare)?.month ?? withRun.at(-1)?.month ?? months.at(-1)?.month;
   const month = search.month && months.some((m) => m.month === search.month) ? search.month : fallback;
   const current = months.find((m) => m.month === month);
-  const key = useMemo(() => newIdempotencyKey(), [month, ctx.campus]);
+  const key = useIdempotencyKey(month, ctx.campus);
   const prepare = useMutation({
     mutationFn: () => hrApi.preparePayroll({ campus: ctx.campus as CampusCode, month: month! }, key),
     onSuccess: (r) => {

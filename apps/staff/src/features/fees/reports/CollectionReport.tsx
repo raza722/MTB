@@ -1,4 +1,4 @@
-import { COUNTER_PAYMENT_METHODS, feeSetupApi, feeSetupQueries, newIdempotencyKey, PAYMENT_METHOD_LABEL, type CampusCode, type CampusScope, type FeeCollectionGroup, type FeeCollectionMethod, type FeeCollectionRow } from "@mtb/api";
+import { COUNTER_PAYMENT_METHODS, feeSetupApi, feeSetupQueries, PAYMENT_METHOD_LABEL, type CampusCode, type CampusScope, type FeeCollectionGroup, type FeeCollectionMethod, type FeeCollectionRow } from "@mtb/api";
 import { formatCount, formatDate, formatDateTime, formatLongDate, formatRs, formatTime, formatWeekday, type IsoDate } from "@mtb/domain";
 import {
   AmountInput,
@@ -28,11 +28,12 @@ import {
 } from "@mtb/ui";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { campusLabel } from "../../../app/shell/campus";
 import { Page, PageHeader, RequirePermission } from "../../../app/shell/page";
 import { useCan, useCtx, useReadOnly, useSessionUser } from "../../../app/session";
 import { addDaysIso, errorText, feeToday, FeesNav, FeesDocHead, lakhTick, LoadError, PaperSize, slide, useFeeClasses } from "../shared";
+import { useIdempotencyKey } from "../../../app/idempotency";
 
 type Preset = "TODAY" | "YESTERDAY" | "MONTH" | "CUSTOM";
 
@@ -78,7 +79,7 @@ function CloseCashPanel({ campus, onClose }: { campus: CampusCode; onClose: () =
   const [note, setNote] = useState("");
   const [tried, setTried] = useState(false);
   const diff = counted === null ? 0 : counted - expected;
-  const key = useMemo(() => newIdempotencyKey(), [counted, note]);
+  const key = useIdempotencyKey(counted, note);
   const errors: Record<string, string> = {};
   if (counted === null) errors.counted = "Enter the cash you counted.";
   if (counted !== null && diff !== 0 && !note.trim()) errors.note = `The cash is ${diff < 0 ? "short" : "over"} by ${formatRs(Math.abs(diff))}. Say why before closing.`;

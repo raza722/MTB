@@ -17,7 +17,7 @@ export function NoAccess({ user }: { user: SessionUser }) {
     mutationFn: authApi.logout,
     onSettled: async () => {
       queryClient.clear();
-      await navigate({ to: "/login" });
+      await navigate({ to: "/login", replace: true });
     },
   });
   return (

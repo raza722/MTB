@@ -2,6 +2,7 @@ import type { CampusScope } from "@mtb/api";
 import { buttonClassName, EmptyState } from "@mtb/ui";
 import type { QueryClient } from "@tanstack/react-query";
 import { createRootRouteWithContext, Link, Outlet, retainSearchParams } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { CAMPUS_CODES } from "../app/shell/campus";
 
 /** Campus and session live in the URL, so links and bookmarks always reopen the same context. */
@@ -17,7 +18,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   }),
   search: { middlewares: [retainSearchParams<RootSearch>(["campus", "session"])] },
   component: () => <Outlet />,
-  notFoundComponent: () => (
+  notFoundComponent: () => <NotFound />,
+});
+
+/** The tab says so too (it kept the previous page's title, test run F-043). */
+function NotFound() {
+  useEffect(() => {
+    document.title = "Page not found · MTB";
+  }, []);
+  return (
     <div className="grid min-h-screen place-content-center bg-surface p-6">
       <div className="mtb-card max-w-md">
         <EmptyState
@@ -32,5 +41,5 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         />
       </div>
     </div>
-  ),
-});
+  );
+}

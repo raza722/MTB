@@ -55,9 +55,12 @@ export function VoucherPage() {
   const noDues = code === "NO_DUES";
   // Dues are open but the office has not issued this month's voucher (C2): the portal never issues one itself.
   const noVoucher = code === "NO_VOUCHER";
-  // The campus office's phone for the "no voucher yet" message (the profile page's figure, cached).
-  const phone = useQuery({ ...portalQueries.profile(child.grNo), enabled: noVoucher }).data?.school.phone;
-  const v = voucher.data;
+  // A concession, waiver or due-date change after the voucher was issued: its figures are no longer what the family
+  // owes (the staff Vouchers page tells the office to cancel it and issue a new one), so it is not handed out here.
+  const changed = voucher.data?.changedSinceIssue === true;
+  // The campus office's phone for the "no voucher yet" / "out of date" message (the profile page's figure, cached).
+  const phone = useQuery({ ...portalQueries.profile(child.grNo), enabled: noVoucher || changed }).data?.school.phone;
+  const v = changed ? undefined : voucher.data;
   return (
     <div key={child.grNo}>
       <PageHeader
@@ -69,7 +72,7 @@ export function VoucherPage() {
               <Icon name="arrowLeft" size={18} className="portal-flip" />
               {t("doc.backToFees")}
             </Link>
-            {!noDues && !noVoucher && (
+            {!noDues && !noVoucher && !changed && (
               <Button variant="primary" size="touch" icon="download" disabled={!v} onClick={() => window.print()}>
                 {t("doc.save")}
               </Button>
@@ -81,14 +84,14 @@ export function VoucherPage() {
         <div className="mtb-card">
           <EmptyState icon="checkCircle" title={t("doc.noVoucher")} description={t("doc.noVoucherDesc", { child: firstName(pick(child.name, child.nameUr)) })} />
         </div>
-      ) : noVoucher ? (
+      ) : noVoucher || changed ? (
         <div className="mtb-card">
           <EmptyState
             icon="receipt"
-            title={t("doc.noVoucherYet")}
+            title={t(changed ? "doc.voucherChanged" : "doc.noVoucherYet")}
             description={
               <>
-                {t("doc.noVoucherYetDesc")} {phone ? rich("doc.noVoucherYetCall", { phone: <Phone value={phone} call /> }) : null}
+                {t(changed ? "doc.voucherChangedDesc" : "doc.noVoucherYetDesc")} {phone ? rich("doc.noVoucherYetCall", { phone: <Phone value={phone} call /> }) : null}
               </>
             }
           />

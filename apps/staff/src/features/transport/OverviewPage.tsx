@@ -89,7 +89,7 @@ export function TransportOverviewPage() {
       {q.isError && <LoadError what="The transport summary" error={q.error} onRetry={() => void q.refetch()} />}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div className="mtb-rise" style={slide(0)}>
-          <StatCard loading={!o} label="Riding today" icon="students" value={o && <AnimatedNumber value={o.riders} format={formatCount} />} foot={o && `${o.routes} routes · ${o.activeVehicles} vehicles on the road`} onClick={() => go("/transport/riders")} />
+          <StatCard loading={!o} label="Riding today" icon="students" value={o && <AnimatedNumber value={o.riders} format={formatCount} />} foot={o && `${o.routes === 1 ? "1 route" : `${formatCount(o.routes)} routes`} · ${o.activeVehicles === 1 ? "1 vehicle" : `${formatCount(o.activeVehicles)} vehicles`} on the road`} onClick={() => go("/transport/riders")} />
         </div>
         <div className="mtb-rise" style={slide(1)}>
           <StatCard loading={!o} label="Free seats" icon="layers" value={o && <AnimatedNumber value={Math.max(0, o.seats - o.riders)} format={formatCount} />} foot={o && (o.fullRoutes ? `${o.fullRoutes} ${o.fullRoutes === 1 ? "route is" : "routes are"} full` : `of ${formatCount(o.seats)} seats`)} tone={o && o.fullRoutes ? "warning" : undefined} meter={o ? Math.round((o.riders / Math.max(1, o.seats)) * 100) : undefined} meterLabel="Seats taken" onClick={() => go("/transport/routes")} />

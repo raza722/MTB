@@ -233,7 +233,7 @@ function Entry({ sheet, paperRef }: { sheet: TeacherPaperSheet; paperRef: Teache
 
   const tools: ReactNode = locked ? null : activeStudent ? (
     <Keypad
-      who={`${activeStudent.rollNo} · ${activeStudent.name}`}
+      who={`${activeStudent.rollNo ? `${activeStudent.rollNo} · ` : ""}${activeStudent.name}`}
       buffer={buffer}
       error={checked.error}
       max={sheet.maxMarks}
@@ -341,7 +341,7 @@ function Entry({ sheet, paperRef }: { sheet: TeacherPaperSheet; paperRef: Teache
                       isActive ? (checked.error ? "border-danger bg-danger-tint" : "border-brand bg-brand-tint") : "border-border bg-surface-raised enabled:hover:border-border-strong",
                     )}
                   >
-                    <span className="w-6 shrink-0 text-end text-small text-ink-muted tabular-nums">{s.rollNo}</span>
+                    <span className="w-6 shrink-0 text-end text-small text-ink-muted tabular-nums">{s.rollNo || "—"}</span>
                     <span className="min-w-0 flex-1 truncate font-medium text-ink">{s.name}</span>
                     <span
                       className={cx(

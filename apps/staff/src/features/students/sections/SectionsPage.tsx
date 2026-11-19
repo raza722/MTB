@@ -9,7 +9,7 @@ import {
   type SectionAllotmentSection,
   type SectionAllotmentStudent,
 } from "@mtb/api";
-import { formatDate } from "@mtb/domain";
+import { formatCount, formatDate } from "@mtb/domain";
 import { Banner, Button, buttonClassName, Checkbox, ConfirmDialog, cx, DatePicker, EmptyState, Modal, Panel, Radio, Segmented, Select, Skeleton, StatusBadge, useToast } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -22,6 +22,8 @@ const REASONS = ["Class strength balancing", "Parent's request", "Sibling in the
 
 /** "Science (Biology)" → "Biology"; "Humanities" stays. For the small badge beside each name. */
 const groupShort = (g: string) => /\(([^)]+)\)/.exec(g)?.[1] ?? g;
+/** "1 girl", "35 girls". */
+const countOf = (n: number, one: string, many: string) => `${formatCount(n)} ${n === 1 ? one : many}`;
 
 function sortForRolls(list: SectionAllotmentStudent[], order: SectionAllotmentRollOrder) {
   return [...list].sort((a, b) => {
@@ -161,7 +163,8 @@ function MoveModal({
   const target = sections.find((s) => s.section === toSection);
   const from = new Map(sections.flatMap((s) => s.students.map((x) => [x.grNo, s.classSection] as const)));
   const movers = students.filter((s) => from.get(s.grNo) !== `${className}-${toSection}`);
-  const free = target ? target.seats - target.students.length : 0;
+  // Migrated sections can hold more students than seats: never show a negative number of free seats.
+  const free = target ? Math.max(0, target.seats - target.students.length) : 0;
   const move = useMutation({
     mutationFn: () => sectionAllotmentApi.move(ctx, { grNos: students.map((s) => s.grNo), toSection, effectiveDate: date ?? today(), reason, ...(stream ? { stream } : {}) }, key),
     onSuccess: (r) => {
@@ -203,7 +206,7 @@ function MoveModal({
           <Select label="Reason" required value={reason} error={tried && !reason ? "Choose a reason." : undefined} onChange={(e) => setReason(e.target.value)} options={[{ value: "", label: "Choose…" }, ...REASONS]} />
           {streams.length > 0 && <Select label="Group (optional)" value={stream} onChange={(e) => setStream(e.target.value)} options={[{ value: "", label: "Keep each student's group" }, ...streams]} />}
         </div>
-        {target && movers.length > free && <Banner tone="danger">{`${target.classSection} has ${free} free ${free === 1 ? "seat" : "seats"}; you selected ${movers.length}. Move fewer students.`}</Banner>}
+        {target && movers.length > free && <Banner tone="danger">{`${target.classSection} has ${free === 0 ? "no free seats" : `${free} free ${free === 1 ? "seat" : "seats"}`} (${target.students.length} students, ${target.seats} seats); you selected ${movers.length}. Move fewer students or raise the seats in Setup.`}</Banner>}
         {target && movers.length === 0 && tried && <Banner tone="warning">{`Everyone selected is already in ${target.classSection}.`}</Banner>}
         <ul className="m-0 grid max-h-52 list-none gap-0.5 overflow-y-auto rounded-md bg-surface-sunken p-2 text-small">
           {students.map((s) => (
@@ -319,7 +322,7 @@ export function SectionsPage({ cls, setCls }: { cls: string; setCls: (c: string)
                     <div className="grid gap-3">
                       <SeatMeter enrolled={s.students.length} seats={s.seats} label={s.classSection} />
                       <div className="flex flex-wrap items-center gap-2 text-small text-ink-muted">
-                        <span>{s.students.filter((x) => x.gender === "F").length} girls</span>·<span>{s.students.filter((x) => x.gender === "M").length} boys</span>
+                        <span>{countOf(s.students.filter((x) => x.gender === "F").length, "girl", "girls")}</span>·<span>{countOf(s.students.filter((x) => x.gender === "M").length, "boy", "boys")}</span>
                         {s.rollIssues > 0 && <StatusBadge status="warning">{`${s.rollIssues} roll number ${s.rollIssues === 1 ? "issue" : "issues"}`}</StatusBadge>}
                       </div>
                       {s.students.length === 0 ? (

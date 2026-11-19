@@ -68,6 +68,24 @@
 .setup-picker button[aria-current="true"] { background: var(--brand-tint); color: var(--brand-ink); font-weight: 500; }
 .setup-picker .setup-picker-sub { padding-left: var(--space-6); font-size: 13px; }
 
+/* Section sidebar (Teacher allotment): a search over the list, class headings that stay at the top while their sections
+   scroll, and, beside the editor on wide screens, a column that stays in view and fills the window under the top bar
+   (48px) so the list scrolls on its own instead of being cut off at a fixed height. */
+.setup-sidebar { display: flex; flex-direction: column; min-height: 0; }
+.setup-sidebar-head { display: grid; gap: var(--space-2); padding: var(--space-4) var(--space-4) var(--space-3); border-bottom: 1px solid var(--border); }
+.setup-sidebar .setup-picker { display: block; max-height: min(60vh, 520px); padding-top: 0; overscroll-behavior: contain; }
+.setup-picker-group > ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.setup-picker-heading {
+  position: sticky; top: 0; z-index: 1; display: block;
+  margin: 0 calc(-1 * var(--space-2)); padding: var(--space-3) var(--space-5) var(--space-1);
+  background: var(--surface-raised); color: var(--ink-subtle);
+  font-size: 12px; line-height: 16px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+}
+@media (min-width: 1000px) {
+  .setup-sidebar { position: sticky; top: calc(48px + var(--space-4)); max-height: calc(100vh - 48px - var(--space-8)); }
+  .setup-sidebar .setup-picker { flex: 1 1 auto; min-height: 0; max-height: none; overflow-y: auto; }
+}
+
 /* ---------- Meters that grow in on first show ---------- */
 .setup-meter-grow > span, .setup-bar .mtb-meter > span, .setup-campus-card .mtb-meter > span { transform-origin: left center; animation: mtb-grow-x 900ms var(--ease-out, ease) 300ms both; }
 

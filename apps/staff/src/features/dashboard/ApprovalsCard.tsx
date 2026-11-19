@@ -1,6 +1,6 @@
 import { dashboardApi, dashboardQueries, type Approval } from "@mtb/api";
 import { formatDate, formatDateTime, formatRs, formatTime } from "@mtb/domain";
-import { ATTENDANCE_CODE_LABEL, Button, ConfirmDialog, EmptyState, Icon, KeyValue, Segmented, SidePanel, Skeleton, StatusBadge, useToast } from "@mtb/ui";
+import { ATTENDANCE_CODE_LABEL, Banner, Button, ConfirmDialog, EmptyState, Icon, KeyValue, Segmented, SidePanel, Skeleton, StatusBadge, useToast } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
@@ -99,9 +99,12 @@ export function ApprovalsCard() {
       <header className="mtb-card-header flex-wrap">
         <div className="grid">
           <h2 id="approvals-title">Pending approvals</h2>
-          <span className="text-small text-ink-muted">
-            {counts.att} attendance corrections · {counts.cn} fee cancellations
-          </span>
+          {/* Counts only once the list has loaded: a failed or pending load is not "0 waiting". */}
+          {approvals.data && (
+            <span className="text-small text-ink-muted">
+              {counts.att} attendance {counts.att === 1 ? "correction" : "corrections"} · {counts.cn} fee {counts.cn === 1 ? "cancellation" : "cancellations"}
+            </span>
+          )}
         </div>
         <Segmented
           aria-label="Show"
@@ -109,8 +112,8 @@ export function ApprovalsCard() {
           onChange={(v) => setFilter(v as typeof filter)}
           options={[
             { value: "all", label: "All" },
-            { value: "ATTENDANCE_CORRECTION", label: `Attendance (${counts.att})` },
-            { value: "RECEIPT_CANCELLATION", label: `Fees (${counts.cn})` },
+            { value: "ATTENDANCE_CORRECTION", label: approvals.data ? `Attendance (${counts.att})` : "Attendance" },
+            { value: "RECEIPT_CANCELLATION", label: approvals.data ? `Fees (${counts.cn})` : "Fees" },
           ]}
         />
       </header>
@@ -119,6 +122,21 @@ export function ApprovalsCard() {
           {Array.from({ length: 4 }, (_, i) => (
             <Skeleton key={i} height={44} />
           ))}
+        </div>
+      )}
+      {approvals.isError && !approvals.data && (
+        <div className="p-5">
+          <Banner
+            tone="danger"
+            title="The approvals could not be loaded."
+            actions={
+              <Button size="sm" variant="secondary" loading={approvals.isFetching} loadingLabel="Trying…" onClick={() => void approvals.refetch()}>
+                Try again
+              </Button>
+            }
+          >
+            Requests may be waiting. Try again in a moment.
+          </Banner>
         </div>
       )}
       {approvals.data && list.length === 0 && <EmptyState icon="checkCircle" title="Nothing waiting for you" description="New corrections and cancellations will appear here." />}

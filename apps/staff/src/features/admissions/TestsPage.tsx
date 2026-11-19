@@ -143,6 +143,9 @@ function NewSittingModal({ open, onClose, tests, onCreated }: { open: boolean; o
   );
 }
 
+/** A mark as the server stores it: a whole number or up to two decimals ("18", "18.5"); never negative. */
+const isMark = (v: string) => /^\d{1,3}(\.\d{1,2})?$/.test(v);
+
 function MarksSheet({ testId }: { testId: string }) {
   const toast = useToast();
   const queryClient = useQueryClient();
@@ -170,8 +173,8 @@ function MarksSheet({ testId }: { testId: string }) {
       for (const s of admissionsPapersFor(t.subjects, a?.stream)) {
         const v = r.marks[s.subject] ?? "";
         if (v === "") continue;
-        const n = Number(v);
-        if (!Number.isFinite(n) || n < 0 || n > s.max) e[`${id}:${s.subject}`] = `0 to ${s.max}`;
+        if (!isMark(v)) e[`${id}:${s.subject}`] = `A number, 0 to ${s.max}`;
+        else if (Number(v) > s.max) e[`${id}:${s.subject}`] = `0 to ${s.max}`;
       }
     }
     return e;
@@ -196,7 +199,8 @@ function MarksSheet({ testId }: { testId: string }) {
   if (!t) return <Skeleton height={320} />;
   const upcoming = t.status === "UPCOMING";
   const editable = canManage && !readOnly && !upcoming;
-  const total = (a: AdmissionsApplicant, r: Row | undefined) => (r && !r.absent && papers(a).every((s) => (r.marks[s.subject] ?? "") !== "") ? papers(a).reduce((x, s) => x + Number(r.marks[s.subject] || 0), 0) : null);
+  const total = (a: AdmissionsApplicant, r: Row | undefined) =>
+    r && !r.absent && papers(a).every((s) => isMark(r.marks[s.subject] ?? "")) ? Math.round(papers(a).reduce((x, s) => x + Number(r.marks[s.subject]), 0) * 100) / 100 : null;
   const maxFor = (a: AdmissionsApplicant) => papers(a).reduce((x, s) => x + s.max, 0);
   const absentCount = [...rows.values()].filter((r) => r.absent).length;
   const appearedCount = list.filter((a) => !rows.get(a.id)?.absent && total(a, rows.get(a.id)) !== null).length;
@@ -288,12 +292,13 @@ function MarksSheet({ testId }: { testId: string }) {
                           <td key={s.subject} className="mtb-td-num">
                             <Input
                               aria-label={`${a.name} ${s.subject} out of ${s.max}`}
-                              inputMode="numeric"
+                              inputMode="decimal"
                               inputClassName="text-right tabular-nums"
                               disabled={!editable || due || r?.absent}
                               value={r?.marks[s.subject] ?? ""}
                               error={errors[k]}
-                              onChange={(e) => set(a.id, (x) => ({ ...x, marks: { ...x.marks, [s.subject]: e.target.value.replace(/[^\d]/g, "").slice(0, 3) } }))}
+                              // kept as typed: stripping the point turned "2.5" into 25 (test run F-031); a bad mark is flagged instead
+                              onChange={(e) => set(a.id, (x) => ({ ...x, marks: { ...x.marks, [s.subject]: e.target.value.replace(/\s/g, "").slice(0, 6) } }))}
                             />
                           </td>
                         );
@@ -334,7 +339,13 @@ function MarksSheet({ testId }: { testId: string }) {
           {...(fieldError(save.error, "remarks") ? { error: fieldError(save.error, "remarks") } : { help: "Saved with the marks and printed on the marks sheet." })}
         />
       )}
-      {Object.keys(errors).length > 0 && <Banner tone="danger">Some marks are above the paper's total. Fix the highlighted boxes, then save.</Banner>}
+      {Object.keys(errors).length > 0 && (
+        <Banner tone="danger">
+          {Object.values(errors).some((m) => m.startsWith("A number"))
+            ? "Some marks are not numbers (a mark is like 18 or 18.5) or are above the paper's total. Fix the highlighted boxes, then save."
+            : "Some marks are above the paper's total. Fix the highlighted boxes, then save."}
+        </Banner>
+      )}
       {save.error && <Banner tone="danger">{apiMessage(save.error)}</Banner>}
       <Modal
         open={printing !== null}
@@ -435,7 +446,7 @@ export function TestsPage({ testId, setTestId }: { testId: string; setTestId: (i
               </ul>
             )}
           </Panel>
-          <Panel id="marks" rise={2} title={current?.name ?? "Choose a sitting"} description={current ? `${current.candidates} candidates · marks per paper, totals add up as you type` : undefined}>
+          <Panel id="marks" rise={2} title={current?.name ?? "Choose a sitting"} description={current ? `${current.candidates} ${current.candidates === 1 ? "candidate" : "candidates"} · marks per paper, totals add up as you type` : undefined}>
             {selected ? <MarksSheet testId={selected} /> : <EmptyState icon="edit" title="No sitting chosen" description="Choose a sitting on the left." />}
           </Panel>
         </div>

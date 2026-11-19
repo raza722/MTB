@@ -1,5 +1,5 @@
 import { clockTime, setupApi, setupIsEmail, setupIsMobile, setupIsPhone, setupQueries, SETUP_MODULES, type SetupCampus, type SetupCampusInput, type SetupCampusTimings, type SetupModuleCode } from "@mtb/api";
-import { formatCount, formatDate, formatDateTime, sessionCode } from "@mtb/domain";
+import { formatCount, formatDate, formatDateTime, sessionCode, pakistanToday } from "@mtb/domain";
 import { AnimatedNumber, Banner, Button, buttonClassName, ConfirmDialog, DataTable, DatePicker, EmptyState, Input, Panel, Segmented, SidePanel, Skeleton, StatusBadge, Switch, Textarea, Urdu, useToast } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -21,7 +21,7 @@ const campusSchema = z.object({
   phone,
   smsPhone: z.string().trim().refine((v) => v === "" || setupIsMobile(v), { error: "Parents call back on a mobile. Enter an 11-digit number starting with 03, e.g. 0300-5550101." }),
   ownerName: z.string().trim().min(1, { error: "Enter who runs the campus, e.g. the trust or society." }).max(80, { error: "Keep it to 80 characters." }),
-  foundedOn: z.string().nullable().refine((v) => !v || v <= "2026-11-04", { error: "The start date can't be after today." }),
+  foundedOn: z.string().nullable().refine((v) => !v || v <= pakistanToday(), { error: "The start date can't be after today." }),
   phone2: phone,
   mobile1: mobile,
   mobile2: mobile,
@@ -206,7 +206,7 @@ function CampusEditor({ campus, onClose }: { campus: SetupCampus; onClose: () =>
             <Input label="Campus name" required value={form.name} onChange={(e) => set("name", e.target.value)} {...err(errors, "name")} />
             <Input label="Name in Urdu" required urdu value={form.nameUrdu} onChange={(e) => set("nameUrdu", e.target.value)} {...err(errors, "nameUrdu")} />
             <Input label="Run by" required value={form.ownerName} onChange={(e) => set("ownerName", e.target.value)} placeholder="The trust or society" {...(errors.ownerName ? { error: errors.ownerName } : { help: "The trust or society that owns the campus." })} />
-            <DatePicker label="Started on" value={form.foundedOn} onValueChange={(v) => set("foundedOn", v)} today="2026-11-04" maxDate="2026-11-04" disabled={!details} {...err(errors, "foundedOn")} />
+            <DatePicker label="Started on" value={form.foundedOn} onValueChange={(v) => set("foundedOn", v)} today={pakistanToday()} maxDate={pakistanToday()} disabled={!details} {...err(errors, "foundedOn")} />
             <Input label="City" value={form.city} onChange={(e) => set("city", e.target.value)} placeholder="Not recorded yet" />
             <Input
               label="Document prefix"

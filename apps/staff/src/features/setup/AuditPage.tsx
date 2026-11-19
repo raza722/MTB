@@ -1,5 +1,5 @@
 import { SETUP_AUDIT_AREAS, setupQueries, type SetupAuditArea, type SetupAuditEntry, type SetupAuditFilters } from "@mtb/api";
-import { formatCount, formatDate, formatDateTime, formatTime, type IsoDate } from "@mtb/domain";
+import { formatCount, formatDate, formatDateTime, formatTime, type IsoDate, pakistanDate, pakistanToday } from "@mtb/domain";
 import { AreaChart, Button, cx, DataTable, DatePicker, EmptyState, Icon, Input, KeyValue, Pagination, Panel, Segmented, Select, SidePanel, Skeleton, StatusBadge, type IconName } from "@mtb/ui";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
@@ -33,7 +33,7 @@ export function AuditRow({ entry, onOpen }: { entry: SetupAuditEntry; onOpen?: (
         <span className="truncate text-small text-ink-muted">{entry.summary || entry.changes.map((c) => `${c.field}: ${c.from} → ${c.to}`).join("; ")}</span>
       </div>
       <time dateTime={entry.at} className="shrink-0 text-small tabular-nums text-ink-muted">
-        {entry.at.slice(0, 10) === "2026-11-04" ? formatTime(entry.at) : formatDate(entry.at)}
+        {pakistanDate(entry.at) === pakistanToday() ? formatTime(entry.at) : formatDate(entry.at)}
       </time>
     </>
   );
@@ -246,8 +246,8 @@ export function AuditPage() {
                   aria-label="From date"
                   placeholder="From"
                   value={from}
-                  today="2026-11-04"
-                  maxDate="2026-11-04"
+                  today={pakistanToday()}
+                  maxDate={pakistanToday()}
                   onValueChange={(v) => {
                     setFrom(v);
                     setPage(1);
@@ -259,8 +259,8 @@ export function AuditPage() {
                   aria-label="To date"
                   placeholder="To"
                   value={to}
-                  today="2026-11-04"
-                  maxDate="2026-11-04"
+                  today={pakistanToday()}
+                  maxDate={pakistanToday()}
                   onValueChange={(v) => {
                     setTo(v);
                     setPage(1);

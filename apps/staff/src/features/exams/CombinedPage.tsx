@@ -111,6 +111,10 @@ export function CombinedPage() {
                   />
                 </div>
               )}
+              {/* A class can have nearly 200 exams, all ticked to start with: one press clears them to tick a few by hand. */}
+              <Button onClick={() => setPicked({})} disabled={Object.keys(picked).length === 0}>
+                Untick all
+              </Button>
             </div>
             <ul className="m-0 grid list-none gap-2 p-0">
               {group?.exams.map((e) => {
@@ -232,7 +236,7 @@ export function CombinedPage() {
                     label="Student"
                     value={visible.some((r) => r.id === cardStudent) ? cardStudent : ""}
                     onChange={(e) => setCardStudent(e.target.value)}
-                    options={[{ value: "", label: `Everyone shown (${visible.length} cards)` }, ...visible.map((r) => ({ value: r.id, label: `${r.classSection} · ${r.rollNo}. ${r.name}` }))]}
+                    options={[{ value: "", label: `Everyone shown (${visible.length} cards)` }, ...visible.map((r) => ({ value: r.id, label: `${r.classSection} · ${r.rollNo ? `${r.rollNo}. ` : ""}${r.name} · ${r.id}` }))]}
                   />
                 </div>
               )}

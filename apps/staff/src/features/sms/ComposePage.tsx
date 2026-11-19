@@ -150,7 +150,8 @@ function ClassPicker({ classes, loading, value, onChange, label, help, error }: 
           <Skeleton height={160} />
         ) : (
           <div className="grid gap-2">
-            {classes.map((c) => {
+            {/* A class with no sections this session has nobody to message, and showed as chosen (test run F-131). */}
+            {classes.filter((c) => c.sections.length > 0).map((c) => {
               const all = c.sections.map((s) => `${c.short}-${s}`);
               const allOn = all.every((cs) => value.includes(cs));
               return (
@@ -214,6 +215,8 @@ function ComposeForm({ search }: { search: ComposeSearch }) {
   const settings = useQuery(smsQueries.settings(ctx));
   // the newest 200 declared exams (the server pages the exam list, contract change C9)
   const exams = useQuery({ ...examsQueries.list(ctx, { status: "DECLARED", pageSize: 200 }), enabled: canSeeExams });
+  // and every declared term exam: hundreds of class tests pushed older term exams past the newest 200 (test run F-138)
+  const termExams = useQuery({ ...examsQueries.list(ctx, { status: "DECLARED", category: "TERM", pageSize: 200 }), enabled: canSeeExams });
   const sender = settings.data?.[0]?.senderName ?? "MTB";
 
   const [source, setSource] = useState<"template" | "custom">(search.template === "custom" ? "custom" : "template");
@@ -274,7 +277,14 @@ function ComposeForm({ search }: { search: ComposeSearch }) {
   const effectiveTitle = title || (source === "template" ? (template?.name ?? "") : "");
 
   // Declared exams of this campus and session (entrance and programme tests are messaged from Admissions).
-  const declared = useMemo(() => (exams.data?.items ?? []).filter((e) => e.status === "DECLARED" && e.category !== "ENTRANCE" && !e.programmeId && e.session === ctx.session), [exams.data, ctx.session]);
+  const declared = useMemo(() => {
+    const byId = new Map([...(termExams.data?.items ?? []), ...(exams.data?.items ?? [])].map((e) => [e.id, e]));
+    return [...byId.values()]
+      .filter((e) => e.status === "DECLARED" && e.category !== "ENTRANCE" && !e.programmeId && e.session === ctx.session)
+      .sort((a, b) => b.startDate.localeCompare(a.startDate));
+  }, [exams.data, termExams.data, ctx.session]);
+  // With classes chosen, only the exams of those classes are offered.
+  const examChoices = useMemo(() => (kind === "CLASS" && sections.length ? declared.filter((e) => e.classes.some((cs) => sections.includes(cs))) : declared), [declared, kind, sections]);
   const exam = declared.find((e) => e.id === examId);
   const months = useMemo(() => sessionMonths(ctx.session, today), [ctx.session, today]);
   // Default month: the latest month with a declared class test.
@@ -284,10 +294,13 @@ function ComposeForm({ search }: { search: ComposeSearch }) {
     setMonth(tests[tests.length - 1] ?? months[months.length - 1] ?? today.slice(0, 7));
   }, [declared, months, month, canSeeExams, exams.isPending, today]);
   useEffect(() => {
-    if (!examId && declared[0]) setExamId(declared[0].id);
-  }, [declared, examId]);
+    if ((!examId || !examChoices.some((e) => e.id === examId)) && examChoices[0]) setExamId(examChoices[0].id);
+  }, [examChoices, examId]);
   const period: { from: IsoDate; to: IsoDate } | null =
-    periodMode === "month" ? (month ? { from: `${month}-01`, to: lastDayOf(month) } : null) : periodMode === "week" ? { from: mondayOf(today), to: today } : from && to ? { from, to } : null;
+    periodMode === "month" ? (month ? { from: `${month}-01`, to: lastDayOf(month) } : null) : periodMode === "week" ? { from: mondayOf(today), to: today } : from && to && from <= to ? { from, to } : null;
+  // A reversed range shows its error at once: with SMS paused the send button is greyed, so a send never shows it (test run F-135).
+  const periodReversed = periodMode === "dates" && Boolean(from && to && from > to);
+  const regReversed = Boolean(regFrom && regTo && regFrom > regTo);
 
   // When the template changes, the app title follows it until someone types their own.
   useEffect(() => setTitle(""), [templateId, source]);
@@ -321,7 +334,7 @@ function ComposeForm({ search }: { search: ComposeSearch }) {
           : kind === "STAFF"
             ? { kind, group: staffGroup, ...(departments.length ? { departments } : {}), ...(staffGender ? { gender: staffGender } : {}), ...(staff.data && staffPicked.length < staffShown.length ? { staffIds: staffPicked.map((s) => s.id) } : {}) }
             : kind === "CANDIDATES"
-              ? { kind, ...(classApplied ? { classApplied } : {}), ...(regFrom ? { registeredFrom: regFrom } : {}), ...(regTo ? { registeredTo: regTo } : {}), ...(testFee ? { testFee } : {}), ...(testDate ? { testDate } : {}) }
+              ? { kind, ...(classApplied ? { classApplied } : {}), ...(regFrom && !regReversed ? { registeredFrom: regFrom } : {}), ...(regTo && !regReversed ? { registeredTo: regTo } : {}), ...(testFee ? { testFee } : {}), ...(testDate ? { testDate } : {}) }
               : kind === "LEFT"
                 ? { kind, status: leftStatus, session: leftSession, ...(sections.length ? { classSections: sections } : {}), ...(gender ? { gender } : {}) }
                 : { kind, numbers, label: `${formatCount(validNumbers)} typed or uploaded numbers` };
@@ -360,6 +373,8 @@ function ComposeForm({ search }: { search: ComposeSearch }) {
   // Recalculate the preview shortly after the choices stop changing (the schedule time doesn't change who gets it).
   const previewKey = JSON.stringify(request ? { ...request, scheduledFor: undefined } : null);
   const [debounced, setDebounced] = useState<SmsAudienceRequest | null>(request);
+  /** The recipient whose message the phone shows (clicked in the list). */
+  const [phoneKey, setPhoneKey] = useState<unknown>(null);
   useEffect(() => {
     const t = setTimeout(() => setDebounced(request ? ({ ...request, scheduledFor: undefined } as SmsAudienceRequest) : null), 350);
     return () => clearTimeout(t);
@@ -433,6 +448,8 @@ function ComposeForm({ search }: { search: ComposeSearch }) {
 
   const classList = classes.data ?? [];
   const showResult = Boolean(p?.sample.some((r) => r.result));
+  // the phone shows the recipient clicked in the list (test run S5.36: a chosen family's own result), else the first ticked one
+  const previewRow = p?.sample.find((r) => (r.key ?? r.mobile) === phoneKey) ?? p?.sample.find((r) => !r.unticked);
   const sessionOptions = (sessions.data ?? []).filter((s) => s.status !== "PLANNED" && s.startYear <= ctx.session).map((s) => ({ value: String(s.startYear), label: s.label }));
 
   const columns: Array<Column<SmsRecipientPreview>> = [
@@ -469,9 +486,9 @@ function ComposeForm({ search }: { search: ComposeSearch }) {
   const toText = (): string => {
     switch (kind) {
       case "CLASS":
-        return `${sections.length} sections${gender ? (gender === "F" ? ", girls" : ", boys") : ""}`;
+        return `${sections.length} ${sections.length === 1 ? "section" : "sections"}${gender ? (gender === "F" ? ", girls" : ", boys") : ""}`;
       case "DEFAULTERS":
-        return `Defaulters: over ${minDays} days and ${formatRs(minAmount ?? 0)}${defaulterSections.length ? `, ${defaulterSections.length} sections` : ""}`;
+        return `Defaulters: over ${minDays} days and ${formatRs(minAmount ?? 0)}${defaulterSections.length ? `, ${defaulterSections.length} ${defaulterSections.length === 1 ? "section" : "sections"}` : ""}`;
       case "ALL_PARENTS":
         return `All parents${gender ? (gender === "F" ? " of girls" : " of boys") : ""}`;
       case "STAFF":
@@ -479,7 +496,7 @@ function ComposeForm({ search }: { search: ComposeSearch }) {
       case "CANDIDATES":
         return `Admission candidates${classApplied ? `, class ${classApplied}` : ""}${testFee ? (testFee === "PAID" ? ", test fee paid" : ", test fee not paid") : ""}${testDate ? `, test on ${formatDate(testDate)}` : ""}`;
       case "LEFT":
-        return `${SMS_LEFT_STATUS_LABEL[leftStatus]} in ${formatSession(leftSession)}${sections.length ? `, ${sections.length} sections` : ""}${gender ? (gender === "F" ? ", girls" : ", boys") : ""}`;
+        return `${SMS_LEFT_STATUS_LABEL[leftStatus]} in ${formatSession(leftSession)}${sections.length ? `, ${sections.length} ${sections.length === 1 ? "section" : "sections"}` : ""}${gender ? (gender === "F" ? ", girls" : ", boys") : ""}`;
       case "NUMBERS":
         return `${formatCount(validNumbers)} numbers`;
     }
@@ -530,7 +547,7 @@ function ComposeForm({ search }: { search: ComposeSearch }) {
                 value={templateId}
                 onChange={(e) => setTemplateId(e.target.value)}
                 options={[{ value: "", label: "Choose…" }, ...active.map((t) => ({ value: t.id, label: `${SMS_CATEGORY_LABEL[t.category]} · ${t.name}` }))]}
-                {...(template ? { help: SMS_OPTIONAL_CATEGORIES.includes(template.category) ? "Families who opted out of notices are skipped." : "About the family's own child: sent even to families who opted out of notices." } : {})}
+                {...(template ? { help: template.category === "STAFF" ? "A message for staff; families' opt-outs don't apply." : SMS_OPTIONAL_CATEGORIES.includes(template.category) ? "Families who opted out of notices are skipped." : "About the family's own child: sent even to families who opted out of notices." } : {})}
                 {...(errors.templateId ? { error: errors.templateId } : {})}
               />
             ) : (
@@ -552,18 +569,26 @@ function ComposeForm({ search }: { search: ComposeSearch }) {
             )}
             {(needsEventDate || needsExamPick) && (
               <div className="grid gap-3 sm:grid-cols-2">
-                {needsEventDate && <DatePicker label="Date in the message" value={eventDate} onValueChange={setEventDate} today={today} {...(errors.eventDate ? { error: errors.eventDate } : {})} />}
+                {needsEventDate && (
+                  <DatePicker
+                    label="Date in the message"
+                    value={eventDate}
+                    onValueChange={setEventDate}
+                    today={today}
+                    {...(errors.eventDate ? { error: errors.eventDate } : !eventDate ? { help: "Choose the date to put in the message. Until then the preview shows “—”." } : {})}
+                  />
+                )}
                 {needsExamPick &&
                   (!canSeeExams ? (
                     <p className="m-0 self-end text-small text-ink-muted">Marks come from each student's latest declared result this session.</p>
-                  ) : exams.isPending ? (
+                  ) : exams.isPending || termExams.isPending ? (
                     <Skeleton height={64} />
                   ) : (
                     <Select
                       label="Exam (declared results)"
                       value={examId}
                       onChange={(e) => setExamId(e.target.value)}
-                      options={declared.length ? declared.map((e) => ({ value: e.id, label: `${e.name} · ${e.classes.join(", ")}` })) : [{ value: "", label: "No declared exams this session" }]}
+                      options={examChoices.length ? examChoices.map((e) => ({ value: e.id, label: `${e.name} · ${e.classes.join(", ")}` })) : [{ value: "", label: kind === "CLASS" && sections.length ? "No declared exams for these classes" : "No declared exams this session" }]}
                       help={exams.isError ? "Exams couldn't be loaded. Try again in a moment." : "Each family gets their own child's marks, grade and position."}
                       {...(errors.examId ? { error: errors.examId } : {})}
                     />
@@ -598,7 +623,7 @@ function ComposeForm({ search }: { search: ComposeSearch }) {
                 {periodMode === "dates" && (
                   <div className="grid gap-3 sm:grid-cols-2">
                     <DatePicker label="From" value={from} onValueChange={setFrom} today={today} maxDate={today} />
-                    <DatePicker label="To" value={to} onValueChange={setTo} today={today} maxDate={today} {...(errors.periodTo ? { error: errors.periodTo } : {})} />
+                    <DatePicker label="To" value={to} onValueChange={setTo} today={today} maxDate={today} {...(errors.periodTo ? { error: errors.periodTo } : periodReversed ? { error: "The first date must be on or before the second." } : {})} />
                   </div>
                 )}
               </div>
@@ -637,7 +662,7 @@ function ComposeForm({ search }: { search: ComposeSearch }) {
                   ]}
                 />
                 <DatePicker label="Applied from" value={regFrom} onValueChange={setRegFrom} today={today} maxDate={today} />
-                <DatePicker label="Applied to" value={regTo} onValueChange={setRegTo} today={today} maxDate={today} {...(errors.regTo ? { error: errors.regTo } : {})} />
+                <DatePicker label="Applied to" value={regTo} onValueChange={setRegTo} today={today} maxDate={today} {...(errors.regTo ? { error: errors.regTo } : regReversed ? { error: "The first date must be on or before the second." } : {})} />
                 <DatePicker label="Entry test on" value={testDate} onValueChange={setTestDate} today={today} help="Leave empty for every test date." />
               </div>
             )}
@@ -712,6 +737,7 @@ function ComposeForm({ search }: { search: ComposeSearch }) {
                         ]}
                         rows={staffShown}
                         rowKey="id"
+                        rowLabel={(st) => st.name}
                         loading={staff.isPending}
                         density="dense"
                         maxHeight={280}
@@ -793,7 +819,7 @@ function ComposeForm({ search }: { search: ComposeSearch }) {
               />
               {later && (
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <DatePicker label="Day" value={date} onValueChange={setDate} today={today} minDate={today} maxDate={sessionEnd} {...(errors.date ? { error: errors.date } : {})} />
+                  <DatePicker label="Day" value={date} onValueChange={setDate} today={today} minDate={today} maxDate={sessionEnd} {...(errors.date ? { error: errors.date } : date && date < today ? { error: "Choose today or a later day." } : {})} />
                   <Select label="Time" value={time} onChange={(e) => setTime(e.target.value)} options={TIME_SLOTS} help="SMS go out between 7:00 AM and 9:00 PM only." {...(errors.time ? { error: errors.time } : {})} />
                 </div>
               )}
@@ -831,7 +857,9 @@ function ComposeForm({ search }: { search: ComposeSearch }) {
                         : needsExamPick && !examId
                           ? "Choose a declared exam."
                           : needsPeriod && !period
-                            ? "Choose the dates of the tests."
+                            ? periodReversed
+                              ? "The first date must be on or before the second."
+                              : "Choose the dates of the tests."
                             : "Write or choose the message."
                 }
               />
@@ -859,7 +887,12 @@ function ComposeForm({ search }: { search: ComposeSearch }) {
                     {p.excludedNothingDue > 0 && <li>· {formatCount(p.excludedNothingDue)} with nothing due — skipped</li>}
                     {(p.excludedNoMobile ?? 0) > 0 && <li>· {formatCount(p.excludedNoMobile ?? 0)} have no valid mobile number — skipped</li>}
                     {(p.excludedNoResult ?? 0) > 0 && <li>· {formatCount(p.excludedNoResult ?? 0)} have no result to send (not in the exam, result withheld, or no tests in these dates) — skipped</li>}
-                    {(p.duplicates ?? 0) > 0 && <li>· {formatCount(p.duplicates ?? 0)} brothers and sisters share a phone — the family gets one message</li>}
+                    {(p.duplicates ?? 0) > 0 && (
+                      <li>
+                        · {formatCount(p.duplicates ?? 0)}{" "}
+                        {kind === "STAFF" ? "share a mobile number with another person on the list — that number gets one message" : kind === "NUMBERS" ? "numbers are on the list twice — each gets one message" : (p.duplicates ?? 0) === 1 ? "brother or sister shares a phone — the family gets one message" : "brothers and sisters share a phone — the family gets one message"}
+                      </li>
+                    )}
                     {(p.excludedNoApp ?? 0) > 0 && <li>· {formatCount(p.excludedNoApp ?? 0)} don't have the app — not reached by an app-only message</li>}
                     {(p.excludedByYou ?? 0) > 0 && (
                       <li>
@@ -893,8 +926,9 @@ function ComposeForm({ search }: { search: ComposeSearch }) {
                   />
                 ) : (
                   <>
-                    <PhonePreview text={p.sample.find((r) => !r.unticked)?.message ?? renderPreview(body, language)} language={language} title={effectiveTitle || "MTB"} sender={sender} showApp={(p.appRecipients ?? 0) > 0} showSms={(p.smsRecipients ?? p.sendable) > 0} />
-                    <DataTable caption="First recipients" columns={columns} rows={p.sample} rowKey="key" density="dense" stickyHeader={false} selectable selected={ticked} onSelectedChange={onTicked} />
+                    <PhonePreview text={previewRow?.message ?? renderPreview(body, language)} language={language} title={effectiveTitle || "MTB"} sender={sender} showApp={(p.appRecipients ?? 0) > 0} showSms={(p.smsRecipients ?? p.sendable) > 0} />
+                    {p.sample.length > 1 && <p className="m-0 text-small text-ink-muted">{previewRow?.studentName || previewRow?.guardian ? `The phone shows the message to ${previewRow.studentName || previewRow.guardian}'s family. ` : ""}Click a recipient to see their message.</p>}
+                    <DataTable caption="First recipients" columns={columns} rows={p.sample} rowKey="key" rowLabel={(r) => r.studentName || r.guardian || r.mobile} density="dense" stickyHeader={false} selectable selected={ticked} onSelectedChange={onTicked} onRowClick={(r) => setPhoneKey(r.key ?? r.mobile)} />
                     {p.sendable + (p.excludedByYou ?? 0) > p.sample.length && <p className="m-0 text-small text-ink-muted">Showing the first {p.sample.length} of {formatCount(p.sendable + (p.excludedByYou ?? 0))}.</p>}
                   </>
                 )}

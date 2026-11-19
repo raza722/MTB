@@ -124,6 +124,20 @@ export const mobileOrDash = (v: string | null | undefined) => (v ? formatMobile(
 export const basicRs = (n: number | null | undefined) => (n ? formatRs(n) : "—");
 
 export const years = (n: number) => `${n.toFixed(1)} ${n === 1 ? "year" : "years"}`;
+
+/** Employee numbers compare without case, spaces or punctuation: "MTB/N-5" = "mtb n5" = "MTB-N-5". */
+const plainEmployeeNo = (v: string) => v.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+/**
+ * When the search is someone's full employee number, only that person: "MTB/N-5" must not also list N-51, N-53,
+ * N-55 and N-58 (with the exact match last, F-020). A partial number ("N-5") or a name keeps the usual matches.
+ */
+export function exactEmployeeNoOnly<T extends { employeeNo: string }>(rows: T[], query: string): T[] {
+  const wanted = plainEmployeeNo(query);
+  if (wanted.length < 2 || !/\d/.test(wanted)) return rows;
+  const exact = rows.filter((r) => plainEmployeeNo(r.employeeNo) === wanted);
+  return exact.length > 0 ? exact : rows;
+}
 export const categoryLabel = (c: HrCategory) => HR_CATEGORY_LABEL[c];
 export const employmentLabel = HR_EMPLOYMENT_LABEL;
 export { hrMonthLabel as monthLabel };

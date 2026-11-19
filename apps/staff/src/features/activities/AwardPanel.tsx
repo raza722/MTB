@@ -1,5 +1,5 @@
 import { activitiesApi, activitiesQueries, type ActivitiesAward, type ActivitiesCertificate } from "@mtb/api";
-import { formatDate, formatDateTime, formatRs, formatSession } from "@mtb/domain";
+import { formatDate, formatDateTime, formatRs, formatSession, pakistanDate } from "@mtb/domain";
 import { Banner, Button, ConfirmDialog, DatePicker, EmptyState, Icon, KeyValue, Modal, SidePanel, Skeleton, Textarea, Timeline, useToast } from "@mtb/ui";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -203,7 +203,7 @@ function AwardBody({ award: a }: { award: ActivitiesAward }) {
 
       <section className="grid gap-2">
         <h3 className="m-0 text-body-strong">History</h3>
-        <Timeline items={[...a.history].reverse().map((h) => ({ id: h.id, date: h.at.slice(0, 10), title: `${h.action} · ${h.by}`, description: h.detail, tone: h.action === "Approved" ? ("success" as const) : h.action === "Rejected" ? ("danger" as const) : ("neutral" as const) }))} />
+        <Timeline items={[...a.history].reverse().map((h) => ({ id: h.id, date: pakistanDate(h.at), title: `${h.action} · ${h.by}`, description: h.detail, tone: h.action === "Approved" ? ("success" as const) : h.action === "Rejected" ? ("danger" as const) : ("neutral" as const) }))} />
       </section>
     </div>
   );

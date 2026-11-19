@@ -58,12 +58,31 @@ export function splitRupees(total: Rupees, n: number): Rupees[] {
   return Array.from({ length: parts }, (_, i) => (i === parts - 1 ? total - each * (parts - 1) : each));
 }
 
+/** One open charge's late fine today, as the server works it out. */
+export interface CounterFine {
+  /** Charge id. */
+  id: string;
+  /** Still to raise today (gross for the fined days, less what was raised or waived before). */
+  fine: Rupees;
+  /** Days that attract a fine (after grace and, for a charge from the old system, from the campus's cut-over). */
+  chargeableDays: number;
+  daysOverdue: number;
+  ratePerDay: Rupees;
+  /** Late fine already raised on this charge (by an earlier receipt). */
+  raised: Rupees;
+  /** False when the rule does not fine this fee head (e.g. tuition only). */
+  fined: boolean;
+}
+
 export interface CounterData {
   student: StudentSummary;
   /** Open charges, oldest first, including ones not yet due. */
   charges: Charge[];
   /** Server's rule; the browser uses it only for the live preview. */
   policy: LateFinePolicy;
+  /** Each open charge's late fine today by the server's rule (the fine the receipt raises): fee heads the rule leaves
+   *  out, the cut-over for charges from the old system and fines already raised are taken into account. */
+  fines?: CounterFine[];
   today: IsoDate;
   /** Set when the student is no longer enrolled (left, struck off, expelled, passed out): collect outstanding dues only. */
   left?: { on: IsoDate; reason: string; status?: "LEFT" | "STRUCK_OFF" | "EXPELLED" | "PASSED_OUT" };

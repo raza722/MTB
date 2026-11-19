@@ -13,7 +13,8 @@ import {
   type StudentDocIssued,
   type StudentDocType,
 } from "@mtb/api";
-import { formatCount, formatDate, formatDateTime, formatSession } from "@mtb/domain";
+import { formatCount, formatDate, formatDateTime, formatSession, pakistanDate } from "@mtb/domain";
+import { useStudentSearch } from "../useStudentSearch";
 import {
   AnimatedNumber,
   Banner,
@@ -256,7 +257,7 @@ function DocumentPanel({ doc, open, onClose }: { doc: StudentDocIssued | null; o
         </PrintSheet>
         <div className="grid gap-2">
           <span className="mtb-label">Print log</span>
-          <Timeline label="Print log" items={[...d.prints].reverse().map((pr, i) => ({ id: `${pr.at}-${i}`, date: pr.at.slice(0, 10), title: i === d.prints.length - 1 ? "Original printed" : `Reprint ${d.prints.length - i - 1}`, description: `${formatDateTime(pr.at)} · ${pr.by}${pr.reason ? ` · ${pr.reason}` : ""}`, icon: "printer", tone: i === d.prints.length - 1 ? "brand" : "neutral" }))} />
+          <Timeline label="Print log" items={[...d.prints].reverse().map((pr, i) => ({ id: `${pr.at}-${i}`, date: pakistanDate(pr.at), title: i === d.prints.length - 1 ? "Original printed" : `Reprint ${d.prints.length - i - 1}`, description: `${formatDateTime(pr.at)} · ${pr.by}${pr.reason ? ` · ${pr.reason}` : ""}`, icon: "printer", tone: i === d.prints.length - 1 ? "brand" : "neutral" }))} />
         </div>
       </div>
       <Modal
@@ -420,12 +421,12 @@ export function DocumentsPage({ type, setType }: { type: StudentDocType | ""; se
   const canEdit = useCan("students.edit");
   const readOnly = useReadOnly();
   const register = useQuery(studentDocsQueries.register(ctx, type));
-  const roster = useQuery({ ...studentsQueries.list(ctx, { status: "" }), enabled: ctx.campus !== "ALL" });
   const classes = useQuery(metaQueries.classes(ctx.campus));
   const [q, setQ] = useState("");
   const [open, setOpen] = useState<StudentDocIssued | null>(null);
   const [picking, setPicking] = useState<StudentDocType | null>(null);
   const [grNo, setGrNo] = useState("");
+  const roster = useStudentSearch(ctx, { status: "" }, ctx.campus !== "ALL" && picking !== null);
   const [issuing, setIssuing] = useState<{ grNo: string; type: StudentDocType } | null>(null);
   const [classCards, setClassCards] = useState(false);
   const [collection, setCollection] = useState(false);
@@ -438,7 +439,7 @@ export function DocumentsPage({ type, setType }: { type: StudentDocType | ""; se
     return (r?.items ?? []).filter((d) => !n || d.studentName.toLowerCase().includes(n) || d.grNo.toLowerCase().includes(n) || d.serialNo.toLowerCase().includes(n));
   }, [r, q]);
   const editable = canEdit && !readOnly;
-  const studentOptions = (roster.data?.items ?? []).map((s) => ({ value: s.grNo, label: s.name, hint: `${s.grNo} · ${s.classSection}`, keywords: [s.grNo, s.father], classSection: s.classSection }));
+  const studentOptions = roster.students.map((s) => ({ value: s.grNo, label: s.name, hint: `${s.grNo} · ${s.classSection}`, keywords: [s.grNo, s.father], classSection: s.classSection }));
 
   const columns: Array<Column<StudentDocIssued>> = [
     { key: "serialNo", header: "Serial no.", width: 170, render: (d) => <span className="mtb-mono">{d.serialNo}</span> },
@@ -621,7 +622,17 @@ export function DocumentsPage({ type, setType }: { type: StudentDocType | ""; se
             </>
           }
         >
-          <Combobox label="Student" required options={pickOptions} value={grNo || null} onValueChange={setGrNo} placeholder="Search by name or G.R. number" emptyText={picking && isHandoverDoc(picking) ? "No Class 9 or 10 student matches." : "No student matches."} />
+          <Combobox
+            label="Student"
+            required
+            options={pickOptions}
+            value={grNo || null}
+            onValueChange={(v) => {
+              roster.remember(v);
+              setGrNo(v);
+            }}
+            onSearchChange={roster.onSearchChange}
+            placeholder="Search by name or G.R. number" emptyText={picking && isHandoverDoc(picking) ? "No Class 9 or 10 student matches." : "No student matches."} />
         </Modal>
 
         <DocumentPanel doc={open} open={open !== null} onClose={() => setOpen(null)} />

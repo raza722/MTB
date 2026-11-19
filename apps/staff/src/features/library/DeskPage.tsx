@@ -2,7 +2,6 @@ import {
   LIBRARY_CONDITION_LABEL,
   libraryApi,
   libraryQueries,
-  newIdempotencyKey,
   type LibraryCondition,
   type LibraryFineAction,
   type LibraryLookup,
@@ -13,11 +12,12 @@ import { formatDate, formatRs, formatSession } from "@mtb/domain";
 import { Banner, Button, ConfirmDialog, DataTable, DatePicker, EmptyState, Icon, Input, KeyValue, Panel, Segmented, Select, Skeleton, Textarea, useToast } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { RequireSingleCampus } from "../../app/shell/page";
 import { addDays, errorCode, errorText, languageLabel, LoadError, opsToday, PersonPicker, Spine } from "./common";
 import { CopyStatusBadge, LibraryShell, LoanStatus, MemberLink, TitleText } from "./shared";
+import { useIdempotencyKey } from "../../app/idempotency";
 
 function CopyCard({ found }: { found: LibraryLookup }) {
   const { copy, title } = found;
@@ -48,7 +48,7 @@ function IssueForm({ found, onDone }: { found: LibraryLookup; onDone: () => void
   const [dueOn, setDueOn] = useState<string | null>(null);
   const [confirmOverdue, setConfirmOverdue] = useState(false);
   const [err, setErr] = useState<Record<string, string>>({});
-  const key = useMemo(() => newIdempotencyKey(), [found.copy.id, person?.id]);
+  const key = useIdempotencyKey(found.copy.id, person?.id);
   const member = useQuery(libraryQueries.member(ctx, person?.type ?? "STUDENT", person?.id ?? ""));
   const m = member.data;
   const today = opsToday();

@@ -15,7 +15,7 @@ export function TimetablePage() {
   const w = q.data;
   return (
     <Page>
-      <PageHeader title="Timetable" context={w ? `Week of ${formatDate(w.weekOf)} · ${w.periodsThisWeek} periods · ${line}` : line} />
+      <PageHeader title="Timetable" context={w ? `Week of ${formatDate(w.weekOf)} · ${w.periodsThisWeek} ${w.periodsThisWeek === 1 ? "period" : "periods"} · ${line}` : line} />
       <QueryState
         query={q}
         what="Your timetable"
@@ -68,7 +68,7 @@ function Week({ w }: { w: TeacherWeek }) {
                   type="button"
                   aria-pressed={on}
                   onClick={() => setDate(d.date)}
-                  aria-label={`${d.dayName} ${formatDate(d.date)}${d.date === w.today ? ", today" : ""}${d.closed ? `, ${d.closed.name}` : `, ${d.periods.length} periods`}`}
+                  aria-label={`${d.dayName} ${formatDate(d.date)}${d.date === w.today ? ", today" : ""}${d.closed ? `, ${d.closed.name}` : `, ${d.periods.length} ${d.periods.length === 1 ? "period" : "periods"}`}`}
                   className={cx(
                     "relative grid min-h-12 place-items-center rounded-lg border py-1.5 transition-colors",
                     on ? "border-brand bg-brand text-on-brand" : "border-border bg-surface-raised text-ink hover:bg-surface-hover",
@@ -101,14 +101,18 @@ function Week({ w }: { w: TeacherWeek }) {
 
 function DayList({ day, bell, isToday }: { day: TeacherWeekDay; bell: BellDay; isToday: boolean }) {
   if (day.closed) return <EmptyState icon="calendar" title={`No school — ${day.closed.name}`} description={`${formatLongDate(day.date)}. No lessons and no register.`} />;
-  const at = new Map(day.periods.map((p) => [p.period, p]));
-  type Row = { kind: "lesson"; p: TeacherPeriod } | { kind: "free"; no: number; start: string; end: string } | { kind: "break"; start: string; end: string };
-  const rows: Row[] = [];
+  type Row = { kind: "lesson"; p: TeacherPeriod; start: string } | { kind: "free"; no: number; start: string; end: string } | { kind: "break"; start: string; end: string };
+  // Each lesson keeps its own class's times: a class on other bell timings (or a cover in a
+  // period the campus's normal bell doesn't have) is placed by its time, never dropped.
+  const overlaps = (a: { start: string; end: string }, b: { start: string; end: string }) => a.start < b.end && b.start < a.end;
+  const rows: Row[] = day.periods.map((p) => ({ kind: "lesson", p, start: p.start }));
   for (const bp of bell.periods) {
-    const p = at.get(bp.no);
-    rows.push(p ? { kind: "lesson", p } : { kind: "free", no: bp.no, start: bp.start, end: bp.end });
-    if (bell.breakStart && bp.end === bell.breakStart) rows.push({ kind: "break", start: bell.breakStart, end: bell.breakEnd ?? bell.breakStart });
+    if (!day.periods.some((p) => p.period === bp.no || overlaps(p, bp))) rows.push({ kind: "free", no: bp.no, start: bp.start, end: bp.end });
   }
+  const brk = bell.breakStart ? { start: bell.breakStart, end: bell.breakEnd ?? bell.breakStart } : null;
+  if (brk && !day.periods.some((p) => overlaps(p, brk))) rows.push({ kind: "break", ...brk });
+  const order = { lesson: 0, break: 1, free: 2 } as const;
+  rows.sort((a, b) => (a.start === b.start ? order[a.kind] - order[b.kind] : a.start < b.start ? -1 : 1));
   return (
     <div className="grid gap-2">
       <p className="m-0 px-1 text-small text-ink-muted">
@@ -165,7 +169,8 @@ function DayList({ day, bell, isToday }: { day: TeacherWeekDay; bell: BellDay; i
 
 /** Six days by the periods of the day. Short subject names on a phone; choose a day to see it in full. */
 function WeekGrid({ w, onPick }: { w: TeacherWeek; onPick: (date: string) => void }) {
-  const maxPeriods = Math.max(w.normal.periods.length, w.friday.periods.length);
+  // Rows run to the highest period of the week: a class on other bell timings (KC's have up to 14) or a cover there still shows.
+  const maxPeriods = Math.max(w.normal.periods.length, w.friday.periods.length, ...w.days.flatMap((d) => d.periods.map((p) => p.period)));
   const short = (s: string) => (s.length > 7 ? `${s.slice(0, 5)}.` : s);
   return (
     <div className="grid gap-2">

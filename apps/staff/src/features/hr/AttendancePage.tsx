@@ -1,4 +1,4 @@
-import { HR_DAY_LABEL, hrApi, hrMonthLabel, hrQueries, hrSessionMonths, newIdempotencyKey, type CampusCode, type HrAttendanceMonth, type HrAttendanceRange, type HrDayRow, type HrDayStatus, type HrImportPreview, type HrImportResult, type HrMonthCode, type HrRangeCell } from "@mtb/api";
+import { HR_DAY_LABEL, hrApi, hrMonthLabel, hrQueries, hrSessionMonths, type CampusCode, type HrAttendanceMonth, type HrAttendanceRange, type HrDayRow, type HrDayStatus, type HrImportPreview, type HrImportResult, type HrMonthCode, type HrRangeCell } from "@mtb/api";
 import { formatCount, formatDate, formatDateTime, formatWeekday } from "@mtb/domain";
 import {
   AnimatedNumber,
@@ -30,7 +30,8 @@ import { RequirePermission, RequireSingleCampus } from "../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { ReportDoc } from "./print";
 import { issues } from "./StaffPanels";
-import { campusHeading, DesignationSelect, downloadCsv, errorField, errorText, filterNote, HrShell, LoadError, slide, staffOptions, thisMonth, today, useDesignationTitle, usePrint } from "./shared";
+import { campusHeading, DesignationSelect, downloadCsv, errorField, errorText, exactEmployeeNoOnly, filterNote, HrShell, LoadError, slide, staffOptions, thisMonth, today, useDesignationTitle, usePrint } from "./shared";
+import { useIdempotencyKey } from "../../app/idempotency";
 
 export type AttendanceView = "day" | "month" | "range" | "late" | "imports";
 export interface AttendanceSearch {
@@ -177,13 +178,16 @@ function DayView({ date, setDate, onImport }: { date: string; setDate: (d: strin
   // Sundays, holidays and a shared person's days at the other campus come from the calendar; a day off given to one
   // person (OFF by hand) stays on the register.
   const working = (d?.rows ?? []).filter((r) => r.source !== "CALENDAR");
-  const rows = working.filter((r) => {
-    if (query && !`${r.name} ${r.employeeNo}`.toLowerCase().includes(query.toLowerCase())) return false;
-    if (des && r.designationId !== des) return false;
-    if (filter === "NOT") return r.status === null;
-    if (filter) return r.status === filter;
-    return true;
-  });
+  const rows = exactEmployeeNoOnly(
+    working.filter((r) => {
+      if (query && !`${r.name} ${r.employeeNo}`.toLowerCase().includes(query.toLowerCase())) return false;
+      if (des && r.designationId !== des) return false;
+      if (filter === "NOT") return r.status === null;
+      if (filter) return r.status === filter;
+      return true;
+    }),
+    query,
+  );
   const shown = {
     present: rows.filter((r) => r.status === "PRESENT" || r.status === "HALF_DAY").length,
     late: rows.filter((r) => r.status === "LATE").length,
@@ -479,7 +483,7 @@ function MonthView({ month, setMonth }: { month: string; setMonth: (m: string) =
         )}
       </div>
       {q.isError && <LoadError what="The monthly sheet" error={q.error} onRetry={() => void q.refetch()} />}
-      <Panel id="sheet" title={`${hrMonthLabel(m)} · ${campusLabel(ctx.campus)}`} description={d ? `${d.workingDays} working days so far. Click a column header letter to read the legend below.` : undefined} rise={0}>
+      <Panel id="sheet" title={`${hrMonthLabel(m)} · ${campusLabel(ctx.campus)}`} description={d ? `${d.workingDays} working days${m === thisMonth() ? " so far" : ""}. Click a column header letter to read the legend below.` : undefined} rise={0}>
         {!d ? (
           <Skeleton height={320} />
         ) : (
@@ -928,7 +932,7 @@ function ImportModal({ campus, deviceName, onClose, onDone }: { campus: CampusCo
   const [remember, setRemember] = useState(true);
   const [result, setResult] = useState<HrImportResult | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const key = useMemo(() => newIdempotencyKey(), [preview?.previewId]);
+  const key = useIdempotencyKey(preview?.previewId);
   const read = useMutation({
     mutationFn: (file: { name: string; text: string }) => hrApi.importPreview({ campus, fileName: file.name, text: file.text }),
     onSuccess: (p) => {

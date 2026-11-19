@@ -1,5 +1,6 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { ExamsPage } from "../../../features/exams/ExamsPage";
+import { idParam } from "../../../app/search";
 
 /** Old links: /exams?exam=<id> opens that exam; /exams?view=grading opens the grading rules. */
 interface LegacySearch {
@@ -9,7 +10,7 @@ interface LegacySearch {
 
 export const Route = createFileRoute("/_app/exams/")({
   validateSearch: (s: Record<string, unknown>): LegacySearch => ({
-    ...(typeof s.exam === "string" && s.exam ? { exam: s.exam } : {}),
+    ...(idParam(s.exam) ? { exam: idParam(s.exam)! } : {}),
     ...(s.view === "grading" ? { view: "grading" as const } : {}),
   }),
   beforeLoad: ({ search }) => {

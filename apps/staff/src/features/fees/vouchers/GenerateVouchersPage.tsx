@@ -1,4 +1,4 @@
-import { feeMonthLabel, feeMonthLongLabel, feeSetupApi, feeSetupQueries, newIdempotencyKey, type CampusCode, type FeeStructure, type FeeVoucherGenerateResult, type FeeVoucherPreview, type FeeVoucherRequest } from "@mtb/api";
+import { feeMonthLabel, feeMonthLongLabel, feeSetupApi, feeSetupQueries, type CampusCode, type FeeStructure, type FeeVoucherGenerateResult, type FeeVoucherPreview, type FeeVoucherRequest } from "@mtb/api";
 import { formatCount, formatDate, formatRs, formatSession } from "@mtb/domain";
 import {
   AnimatedNumber,
@@ -29,6 +29,7 @@ import { Page, PageHeader, RequirePermission, RequireSingleCampus } from "../../
 import { useCtx, useReadOnly } from "../../../app/session";
 import { addDaysIso, errorField, errorText, feeToday, FeesNav, monthEndIso, sessionMonthList, slide, useCanAny, useFeeClasses } from "../shared";
 import { VoucherSheet } from "./VoucherSheet";
+import { useIdempotencyKey } from "../../../app/idempotency";
 
 const schema = z
   .object({
@@ -93,7 +94,7 @@ function FormBody({ campus, structure }: { campus: CampusCode; structure: FeeStr
     if (!parsed.success) for (const i of parsed.error.issues) out[String(i.path[0])] ??= i.message;
     return out;
   }, [parsed]);
-  const key = useMemo(() => newIdempotencyKey(), [JSON.stringify(req)]); // eslint-disable-line react-hooks/exhaustive-deps
+  const key = useIdempotencyKey(JSON.stringify(req));
 
   const previewM = useMutation({ mutationFn: () => feeSetupApi.previewVouchers(req), onSuccess: setPreview });
   const generate = useMutation({

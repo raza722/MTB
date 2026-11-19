@@ -9,7 +9,7 @@ import {
   type StudentPromotionItem,
   type StudentPromotionOutcome,
 } from "@mtb/api";
-import { formatCount, formatDate, formatDateTime, formatSession } from "@mtb/domain";
+import { formatCount, formatDate, formatDateTime, formatSession, pakistanDate } from "@mtb/domain";
 import { AnimatedNumber, Banner, Button, buttonClassName, ConfirmDialog, cx, DataTable, EmptyState, Icon, Modal, Panel, Segmented, Select, Skeleton, StatCard, StatusBadge, useToast, type Column } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -43,8 +43,12 @@ function ClassDetail({ cs, detail, onDone }: { cs: string; detail: StudentPromot
     if (!list.length) return "";
     return [cur, c.stream, c.suggestedStream].find((g) => g && list.includes(g)) ?? list[0] ?? "";
   };
-  const initial = () => new Map<string, Decision>(detail.candidates.map((c) => [c.grNo, { outcome: c.suggestion, toSection: destSections.includes(curSec) ? curSec : (destSections[0] ?? curSec), stream: groupIn(c, c.suggestion) }]));
+  const suggested = (c: StudentPromotionCandidate): Decision => ({ outcome: c.suggestion, toSection: destSections.includes(curSec) ? curSec : (destSections[0] ?? curSec), stream: groupIn(c, c.suggestion) });
+  const initial = () => new Map<string, Decision>(detail.candidates.map((c) => [c.grNo, suggested(c)]));
   const [decisions, setDecisions] = useState<Map<string, Decision>>(initial);
+  // The decisions are reset after a render when the class or the session changes; until then (or when a student joins
+  // the list on a refetch) a student without a decision gets the suggested one instead of crashing the page.
+  const decisionOf = (c: StudentPromotionCandidate): Decision => decisions.get(c.grNo) ?? suggested(c);
   const [filter, setFilter] = useState<"all" | "review">("all");
   const [gender, setGender] = useState<Gender>("all");
   const [bulkFrom, setBulkFrom] = useState("*");
@@ -62,7 +66,7 @@ function ClassDetail({ cs, detail, onDone }: { cs: string; detail: StudentPromot
   }, [cs, detail.done?.id, detail.candidates.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const items: StudentPromotionItem[] = detail.candidates.map((c) => {
-    const d = decisions.get(c.grNo)!;
+    const d = decisionOf(c);
     return { grNo: c.grNo, outcome: d.outcome, ...(d.outcome === "PROMOTE" || d.outcome === "DETAIN" ? { toSection: d.toSection } : {}), ...(d.stream && groupsFor(d.outcome).includes(d.stream) ? { stream: d.stream } : {}) };
   });
   const groupCount = (g: string) => items.filter((i) => i.outcome === (next ? "PROMOTE" : "DETAIN") && i.stream === g).length;
@@ -74,7 +78,7 @@ function ClassDetail({ cs, detail, onDone }: { cs: string; detail: StudentPromot
   const rows = (filter === "review" ? review : detail.candidates).filter((c) => gender === "all" || c.gender === gender);
   const boys = detail.candidates.filter((c) => c.gender === "M").length;
   const nowGroups = [...new Set(detail.candidates.map((c) => c.stream).filter((g): g is string => Boolean(g)))].sort();
-  const bulkRows = rows.filter((c) => (bulkFrom === "*" ? true : bulkFrom === "" ? !c.stream : c.stream === bulkFrom) && groupsFor(decisions.get(c.grNo)!.outcome).includes(bulkTo));
+  const bulkRows = rows.filter((c) => (bulkFrom === "*" ? true : bulkFrom === "" ? !c.stream : c.stream === bulkFrom) && groupsFor(decisionOf(c).outcome).includes(bulkTo));
   const setGroupFor = () => {
     setDecisions((m) => {
       const n = new Map(m);
@@ -101,9 +105,9 @@ function ClassDetail({ cs, detail, onDone }: { cs: string; detail: StudentPromot
   const set = (grNo: string, patch: Partial<Decision>) =>
     setDecisions((m) => {
       const n = new Map(m);
-      const cur = n.get(grNo)!;
-      const outcome = patch.outcome ?? cur.outcome;
       const c = byGr.get(grNo)!;
+      const cur = n.get(grNo) ?? suggested(c);
+      const outcome = patch.outcome ?? cur.outcome;
       // Repeating stays in this class: default back to the student's own section.
       n.set(grNo, {
         outcome,
@@ -118,7 +122,7 @@ function ClassDetail({ cs, detail, onDone }: { cs: string; detail: StudentPromot
     const b = detail.done;
     return (
       <div className="grid gap-4">
-        <Banner tone="success" title={`${cs} was promoted on ${formatDate(b.at.slice(0, 10))}`}>
+        <Banner tone="success" title={`${cs} was promoted on ${formatDate(pakistanDate(b.at))}`}>
           {b.summary}. Recorded by {b.by} at {formatDateTime(b.at)}. Each student's class history shows the decision.
         </Banner>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -183,7 +187,7 @@ function ClassDetail({ cs, detail, onDone }: { cs: string; detail: StudentPromot
       header: "Decision",
       width: 160,
       render: (c) => {
-        const d = decisions.get(c.grNo)!;
+        const d = decisionOf(c);
         return (
           <Select
             aria-label={`Decision for ${c.name}`}
@@ -200,7 +204,7 @@ function ClassDetail({ cs, detail, onDone }: { cs: string; detail: StudentPromot
       header: next ? `Section in ${classLabel(next)}` : "Section",
       width: 130,
       render: (c) => {
-        const d = decisions.get(c.grNo)!;
+        const d = decisionOf(c);
         if (d.outcome === "LEFT" || d.outcome === "PASS_OUT") return <span className="text-small text-ink-muted">—</span>;
         const opts = d.outcome === "PROMOTE" ? destSections.map((s) => ({ value: s, label: `${next}-${s}` })) : [{ value: curSec, label: `${curShort}-${curSec}` }];
         return <Select aria-label={`Section for ${c.name}`} value={d.toSection} disabled={readOnly || !canEdit || d.outcome === "DETAIN"} onChange={(e) => set(c.grNo, { toSection: e.target.value })} options={opts} />;
@@ -213,7 +217,7 @@ function ClassDetail({ cs, detail, onDone }: { cs: string; detail: StudentPromot
             header: "Group",
             width: 190,
             render: (c: StudentPromotionCandidate) => {
-              const d = decisions.get(c.grNo)!;
+              const d = decisionOf(c);
               const list = groupsFor(d.outcome);
               if (!list.length) return <span className="text-small text-ink-muted">—</span>;
               return <Select aria-label={`Group for ${c.name}`} value={d.stream} disabled={readOnly || !canEdit} onChange={(e) => set(c.grNo, { stream: e.target.value })} options={list} />;
@@ -293,7 +297,7 @@ function ClassDetail({ cs, detail, onDone }: { cs: string; detail: StudentPromot
           <span className="text-small text-ink-muted">Follows the boys/girls and "Needs a look" filters. Students leaving or passing out get no group.</span>
         </div>
       )}
-      <DataTable caption={`Students of ${cs}`} rows={rows} rowKey="grNo" columns={columns} density="dense" maxHeight={520} rowClassName={(c) => (decisions.get(c.grNo)?.outcome !== (next ? "PROMOTE" : "PASS_OUT") ? "is-selected" : undefined)} empty={<EmptyState icon="checkCircle" title="Nothing needs a look" description="Every student here can go up with the class." />} />
+      <DataTable caption={`Students of ${cs}`} rows={rows} rowKey="grNo" columns={columns} density="dense" maxHeight={520} rowClassName={(c) => (decisionOf(c).outcome !== (next ? "PROMOTE" : "PASS_OUT") ? "is-selected" : undefined)} empty={<EmptyState icon="checkCircle" title="Nothing needs a look" description="Every student here can go up with the class." />} />
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-surface-sunken px-4 py-3">
         <span className="text-small text-ink-muted" aria-live="polite">
           {next ? (

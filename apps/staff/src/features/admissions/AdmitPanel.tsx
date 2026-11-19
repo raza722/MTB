@@ -22,6 +22,14 @@ import { AdmissionSlip } from "../students/documents/templates";
 import { apiMessage, SeatMeter } from "../students/shared";
 import { dateOrBlank, feeOrDash, orDash, scoreOf, today } from "./shared";
 
+/** A timed-out admission may already be saved: the procedure commits, then builds its reply (test run F-029). Pressing
+ * Admit again is safe: an admission that went through is shown again, never made twice. */
+function admitMessage(error: unknown): string | undefined {
+  if (error instanceof ApiError && error.code === "DB_TIMEOUT")
+    return "The system is slow right now and the admission may already be saved. Press Admit again: if it went through, it is shown (never admitted twice); if not, it is saved now.";
+  return apiMessage(error);
+}
+
 /**
  * Completes an offered admission: section and roll number, the G.R. number (a new one, or the child's earlier one for a
  * former pupil or a pupil joining next year's intake), and the admission slip. Houses are given in Activities later.
@@ -234,7 +242,7 @@ export function AdmitPanel({ applicant: a, open, onClose }: { applicant: Admissi
               </span>
             </div>
           )}
-          {admit.error && !confirming && <Banner tone="danger">{apiMessage(admit.error)}</Banner>}
+          {admit.error && !confirming && <Banner tone="danger">{admitMessage(admit.error)}</Banner>}
         </div>
       )}
       <ConfirmDialog
@@ -259,7 +267,7 @@ export function AdmitPanel({ applicant: a, open, onClose }: { applicant: Admissi
         confirmLabel="Admit and issue G.R. number"
         loading={admit.isPending}
         loadingLabel="Admitting…"
-        error={admit.error ? apiMessage(admit.error) : undefined}
+        error={admit.error ? admitMessage(admit.error) : undefined}
       />
     </SidePanel>
   );

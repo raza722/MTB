@@ -1,15 +1,16 @@
-import { ApiError, can, CURRENT_SESSION, HR_EMPLOYMENT_LABEL, HR_PAYMENT_LABEL, hrApi, newIdempotencyKey, type CampusCode, type HrDuplicateDetails, type HrEmploymentType, type HrPaymentMethod } from "@mtb/api";
+import { ApiError, can, CURRENT_SESSION, HR_EMPLOYMENT_LABEL, HR_PAYMENT_LABEL, hrApi, type CampusCode, type HrDuplicateDetails, type HrEmploymentType, type HrPaymentMethod } from "@mtb/api";
 import { formatSession, isValidCnic, type IsoDate } from "@mtb/domain";
 import { AmountInput, Banner, Button, Checkbox, DatePicker, Input, Panel, Select, Skeleton, Switch, useToast } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { z } from "zod";
 import { campusLabel } from "../../app/shell/campus";
 import { RequirePermission } from "../../app/shell/page";
 import { useCtx, useReadOnly, useSessionUser } from "../../app/session";
 import { emptyPersonal, issues, PersonalFields, personalSchema, toPersonalInput, useHrSettings, type PersonalForm } from "./StaffPanels";
 import { errorField, errorText, HrShell, today } from "./shared";
+import { useIdempotencyKey } from "../../app/idempotency";
 
 const CAMPUSES: CampusCode[] = ["KC", "SM", "UC", "MC", "HC"];
 
@@ -74,7 +75,7 @@ export function NewStaffPage() {
   const values = { ...f, dob: f.dob ?? "", designationId, departmentId, joining: joining ?? "", degree, institution, year, basic: basic ?? undefined, accountTitle, accountNo };
   const parsed = schema.safeParse(values);
   const errors = issues(parsed);
-  const key = useMemo(() => newIdempotencyKey(), [JSON.stringify(values), campus, designationId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const key = useIdempotencyKey(JSON.stringify(values), campus, designationId);
 
   const save = useMutation({
     mutationFn: () =>

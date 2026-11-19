@@ -1,14 +1,15 @@
-import { ApiError, CANCEL_REASON_LABEL, feesApi, feesQueries, newIdempotencyKey, type CancelReason, type Receipt } from "@mtb/api";
+import { ApiError, CANCEL_REASON_LABEL, feesApi, feesQueries, type CancelReason, type Receipt } from "@mtb/api";
 import { formatDate, formatDateTime, formatRs } from "@mtb/domain";
 import { Banner, Button, EmptyState, KeyValue, Select, SidePanel, Skeleton, StatusBadge, Textarea, useToast } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Page, PageHeader, RequirePermission } from "../../../app/shell/page";
 import { useCan, useReadOnly } from "../../../app/session";
 import { ReceiptA5 } from "./ReceiptA5";
 import { ReceiptActionButtons } from "./ReceiptActions";
 import { FeesNav } from "../shared";
+import { useIdempotencyKey } from "../../../app/idempotency";
 
 const STATUS: Record<Receipt["status"], { status: "paid" | "pending" | "cancelled"; label: string }> = {
   POSTED: { status: "paid", label: "Posted" },
@@ -23,7 +24,7 @@ function CancelReceiptPanel({ receipt, open, onClose }: { receipt: Receipt; open
   const [tried, setTried] = useState(false);
   const toast = useToast();
   const queryClient = useQueryClient();
-  const key = useMemo(() => newIdempotencyKey(), [receipt.receiptNo, open]); // eslint-disable-line react-hooks/exhaustive-deps
+  const key = useIdempotencyKey(receipt.receiptNo, open);
   const cancel = useMutation({
     mutationFn: () => feesApi.requestCancellation(receipt.receiptNo, { reason: reason as CancelReason, note }, key),
     onSuccess: (cn) => {

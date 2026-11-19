@@ -9,7 +9,7 @@ import { RequirePermission } from "../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { ReportDoc } from "./print";
 import { useHrSettings } from "./StaffPanels";
-import { campusHeading, CampusTags, cnicOrDash, dateOrDash, downloadCsv, filterNote, HrShell, LoadError, mobileOrDash, slide, StaffStatusBadge, usePayAccess, usePrint, years } from "./shared";
+import { campusHeading, CampusTags, cnicOrDash, dateOrDash, downloadCsv, exactEmployeeNoOnly, filterNote, HrShell, LoadError, mobileOrDash, slide, StaffStatusBadge, usePayAccess, usePrint, years } from "./shared";
 
 const CAT_COLOR: Record<HrCategory, string> = {
   TEACHING: "var(--chart-1)",
@@ -57,8 +57,8 @@ export function StaffDirectoryPage() {
   );
   const noDepartment = useMemo(() => all.some((s) => !s.departmentId), [all]);
   const q = query.trim().toLowerCase().replace(/-/g, "");
-  const rows = all
-    .filter((s) => {
+  const rows = exactEmployeeNoOnly(
+    all.filter((s) => {
       if (q && !`${s.name} ${s.employeeNo} ${s.cnic} ${s.mobile} ${s.designation}`.toLowerCase().replace(/-/g, "").includes(q)) return false;
       if (campus && s.campus !== campus && !s.otherCampuses.includes(campus)) return false;
       if (category && s.category !== category) return false;
@@ -73,8 +73,9 @@ export function StaffDirectoryPage() {
       if (status === "LEAVE" && !s.onLeaveToday) return false;
       if (status === "DOCS" && (s.status !== "ACTIVE" || s.missingDocuments === 0)) return false;
       return true;
-    })
-    .sort((a, b) => {
+    }),
+    query,
+  ).sort((a, b) => {
       const dir = sort.dir === "asc" ? 1 : -1;
       const strip = (n: string) => n.replace(/^(Mr|Ms|Mrs|Dr|Qari)\s+/, "");
       if (sort.key === "service") return (a.serviceYears - b.serviceYears) * dir;

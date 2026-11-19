@@ -1,5 +1,6 @@
 import { WAREHOUSE_MOVEMENT_LABEL, warehouseQueries, type WarehouseItem, type WarehouseItemDetail, type WarehouseMovement, type WarehouseRoomStock } from "@mtb/api";
-import { formatCount, formatDate, formatRs, type IsoDate } from "@mtb/domain";
+import { formatCount, formatDate, type IsoDate } from "@mtb/domain";
+import { formatRs } from "./money";
 import { AnimatedNumber, Button, DataTable, DatePicker, EmptyState, Input, KeyValue, Pagination, Segmented, Select, SidePanel, Skeleton, StatCard, type Column } from "@mtb/ui";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";

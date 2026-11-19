@@ -158,7 +158,7 @@ function ClassList({ d }: { d: TeacherClassDetail }) {
             {list.map((s, i) => (
               <li key={s.grNo} className={cx("border-t border-border first:border-t-0", i < 14 && "mtb-slide-in")} style={i < 14 ? ({ "--i": i } as CSSProperties) : undefined}>
                 <button type="button" onClick={() => setOpen(s)} className="flex min-h-14 w-full items-center gap-3 px-5 py-2 text-start hover:bg-surface-hover">
-                  <span className="w-6 shrink-0 text-end text-small text-ink-muted tabular-nums">{s.rollNo}</span>
+                  <span className="w-6 shrink-0 text-end text-small text-ink-muted tabular-nums">{s.rollNo || "—"}</span>
                   <Avatar {...(showPhotos ? { src: photoUrl.student(s.grNo) } : {})} name={s.name} />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-medium text-ink">{s.name}</span>
@@ -175,7 +175,7 @@ function ClassList({ d }: { d: TeacherClassDetail }) {
         )}
       </Panel>
 
-      <SidePanel open={open !== null} onClose={() => setOpen(null)} title={open?.name ?? ""} description={open ? `Roll ${open.rollNo} · G.R. ${open.grNo} · ${d.classSection}` : ""}>
+      <SidePanel open={open !== null} onClose={() => setOpen(null)} title={open?.name ?? ""} description={open ? `${open.rollNo ? `Roll ${open.rollNo} · ` : ""}G.R. ${open.grNo} · ${d.classSection}` : ""}>
         {open && (
           <div className="grid gap-4">
             <KeyValue

@@ -60,7 +60,7 @@ export function ExamResults() {
     });
 
   const columns: Array<Column<ExamsResultRow>> = [
-    { key: "rollNo", header: "Roll", align: "right", width: 60, render: (r) => <span className="mtb-num">{r.rollNo}</span> },
+    { key: "rollNo", header: "Roll", align: "right", width: 60, render: (r) => <span className="mtb-num">{r.rollNo || "—"}</span> },
     {
       key: "name",
       header: candidate,
@@ -125,7 +125,7 @@ export function ExamResults() {
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Average" icon="trendUp" tone="info" value={average === null ? "—" : <AnimatedNumber value={average} format={(v) => formatPercent(v)} />} foot={`${complete.length} complete results`} />
+        <StatCard label="Average" icon="trendUp" tone="info" value={average === null ? "—" : <AnimatedNumber value={average} format={(v) => formatPercent(v)} />} foot={`${complete.length} complete ${complete.length === 1 ? "result" : "results"}`} />
         <StatCard label="Passed" icon="checkCircle" value={<AnimatedNumber value={passed} format={String} />} meter={complete.length ? Math.round((passed / complete.length) * 100) : 0} meterLabel={`${passed} of ${complete.length} passed`} foot={complete.length ? `${formatPercent((passed / complete.length) * 100)} pass rate` : "No complete results yet"} />
         <StatCard label="Re-sit or fail" icon="alert" tone={failed + supply > 0 ? "danger" : "neutral"} value={<AnimatedNumber value={failed + supply} format={String} />} foot={`${supply} re-sit (${rules.supplyMaxSubjects} subjects or fewer) · ${failed} failed`} />
         <StatCard label="Highest" icon="award" value={top?.percent != null ? formatPercent(top.percent) : "—"} foot={top ? `${top.name} · ${top.classSection}` : undefined} />
@@ -202,7 +202,7 @@ function StudentResultPanel({ exam, row, onClose }: { exam: ExamDetail; row: Exa
       open
       onClose={onClose}
       title={row.name}
-      description={`${row.classSection} · Roll ${row.rollNo} · ${row.id}`}
+      description={`${row.classSection}${row.rollNo ? ` · Roll ${row.rollNo}` : ""} · ${row.id}`}
       footer={
         <>
           {row.hasProfile ? (

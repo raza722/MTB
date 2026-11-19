@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { DeliveryPage, type DeliverySearch } from "../../../features/sms";
+import { idParam } from "../../../app/search";
 
 const STATUSES = ["queued", "sent", "delivered", "failed", "optedout"];
 
@@ -7,7 +8,7 @@ const STATUSES = ["queued", "sent", "delivered", "failed", "optedout"];
 export const Route = createFileRoute("/_app/sms/delivery")({
   validateSearch: (s: Record<string, unknown>): DeliverySearch => ({
     ...(typeof s.status === "string" && STATUSES.includes(s.status) ? { status: s.status as DeliverySearch["status"] } : {}),
-    ...(typeof s.batch === "string" && s.batch ? { batch: s.batch } : {}),
+    ...(idParam(s.batch) ? { batch: idParam(s.batch)! } : {}),
   }),
   component: function DeliveryRoute() {
     const navigate = Route.useNavigate();

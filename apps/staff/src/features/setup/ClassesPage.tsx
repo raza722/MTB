@@ -159,6 +159,7 @@ function SectionEditor({ section, classes, levels, onClose }: { section: SetupSe
   const cls = classes.find((c) => c.id === form.classId);
   const degree = Boolean(cls && levels.find((l) => l.id === cls.levelId)?.degree);
   const classGroups = groups.filter((g) => g.active && cls?.groupIds.includes(g.id));
+  const mixed = Boolean(section && section.groupId === null);
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => {
     setForm((f) => ({ ...f, [k]: v }));
     setErrors((e) => ({ ...e, [k]: undefined }));
@@ -184,7 +185,8 @@ function SectionEditor({ section, classes, levels, onClose }: { section: SetupSe
     setFailure(null);
     const r = sectionSchema(section, name, form.seats).safeParse({ ...form, name });
     const next = r.success ? {} : zodErrors(r.error);
-    if (classGroups.length && !form.groupId) next.groupId = `${cls?.name} has groups. Choose the group this section studies.`;
+    // As the server: a section stored without a group (mixed groups, as migrated) may stay so; new ones need a group.
+    if (classGroups.length && !form.groupId && !mixed) next.groupId = `${cls?.name} has groups. Choose the group this section studies.`;
     if (section && form.seats < section.strength) next.seats = `${section.strength} students are already in ${section.label}. Seats can't be fewer than that.`;
     if (Object.keys(next).length) return setErrors(next);
     save.mutate();
@@ -239,7 +241,7 @@ function SectionEditor({ section, classes, levels, onClose }: { section: SetupSe
           placeholder={kind === "BATCH" ? "Batch 2026" : "D or Khadija"}
           {...(errors.name ? { error: errors.name } : { help: <>Shows as <b className="text-ink">{label}</b>. A letter, a word or a batch name; up to {SETUP_SECTION_NAME_MAX} characters.</> })}
         />
-        {classGroups.length > 0 && <Select label="Group" required value={form.groupId ?? ""} onChange={(e) => set("groupId", e.target.value || null)} options={[{ value: "", label: "Choose…" }, ...classGroups.map((g) => ({ value: g.id, label: g.name }))]} {...err(errors, "groupId")} />}
+        {classGroups.length > 0 && <Select label="Group" required={!mixed} value={form.groupId ?? ""} onChange={(e) => set("groupId", e.target.value || null)} options={[{ value: "", label: mixed ? "Mixed groups" : "Choose…" }, ...classGroups.map((g) => ({ value: g.id, label: g.name }))]} {...(mixed && !errors.groupId ? { help: "Students of more than one group study here, as in the old system." } : {})} {...err(errors, "groupId")} />}
         <div className="grid gap-4 sm:grid-cols-2">
           <Input label="Seats" required inputMode="numeric" value={String(form.seats || "")} onChange={(e) => set("seats", Number(e.target.value.replace(/\D/g, "")) || 0)} {...(errors.seats ? { error: errors.seats } : { help: section ? `${section.strength} students now.` : "Admissions stops at this number." })} />
           <Input label="Room" value={form.room} onChange={(e) => set("room", e.target.value)} placeholder="Room 12" {...err(errors, "room")} />
@@ -391,7 +393,8 @@ function SectionsTable({ onEdit }: { onEdit: (s: SetupSection | null) => void })
   const [classId, setClassId] = useState("");
   const [search, setSearch] = useState("");
   const all = q.data ?? [];
-  const rows = all.filter((s) => (!classId || s.classId === classId) && (!search.trim() || `${s.label} ${s.room} ${s.classTeacherName ?? ""}`.toLowerCase().includes(search.trim().toLowerCase())));
+  // The label is "Class 10 – Mumtaz Mahal-II" for long names; the rest of the app writes "10-Mumtaz Mahal-II", so both are searched.
+  const rows = all.filter((s) => (!classId || s.classId === classId) && (!search.trim() || `${s.label} ${s.classShort}-${s.name} ${s.className} ${s.room} ${s.classTeacherName ?? ""}`.toLowerCase().includes(search.trim().toLowerCase())));
   const seats = all.filter((s) => s.active).reduce((a, s) => a + s.seats, 0);
   const students = all.filter((s) => s.active).reduce((a, s) => a + s.strength, 0);
   const full = all.filter((s) => s.active && s.strength >= s.seats).length;

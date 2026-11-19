@@ -1,14 +1,15 @@
-import { feeSetupApi, feeSetupQueries, newIdempotencyKey, type FeeCandidate, type FeeCandidatesData } from "@mtb/api";
+import { feeSetupApi, feeSetupQueries, type FeeCandidate, type FeeCandidatesData } from "@mtb/api";
 import { formatCount, formatDate, formatRs, formatSession } from "@mtb/domain";
 import { AmountInput, AnimatedNumber, Banner, Button, Checkbox, DataTable, DatePicker, EmptyState, Input, Radio, Select, SidePanel, StatCard, StatusBadge, useToast, type Column } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { z } from "zod";
 import { campusLabel } from "../../../app/shell/campus";
 import { Page, PageHeader, RequirePermission } from "../../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../../app/session";
 import { errorField, errorText, feeToday, FeesNav, FeesDocHead, LoadError, PaperSize } from "../shared";
 import { FeeSlip } from "../receipt/FeeSlip";
+import { useIdempotencyKey } from "../../../app/idempotency";
 
 /**
  * The slip handed to the candidate, laid out as the old "Candidate Fee Slip" (SCHOOLS/COLLEGES FEE SLIP · Fee Payment
@@ -99,7 +100,7 @@ function PayCandidatePanel({ c, heads, onClose, onPaid }: { c: FeeCandidate; hea
   if (!parsed.success) for (const i of parsed.error.issues) errors[i.path.join(".")] ??= i.message;
   const total = chosen.reduce((a, h) => a + (lines[h.code]?.amount ?? 0), 0);
   const received = chosen.reduce((a, h) => a + (lines[h.code]?.paid ?? 0), 0);
-  const key = useMemo(() => newIdempotencyKey(), [JSON.stringify(body)]); // eslint-disable-line react-hooks/exhaustive-deps
+  const key = useIdempotencyKey(JSON.stringify(body));
 
   const pay = useMutation({
     mutationFn: () =>
@@ -328,7 +329,7 @@ export function CandidatesPage() {
         <FeesNav />
         {q.isError && <LoadError what="Candidate fees" error={q.error} onRetry={() => void q.refetch()} />}
         <div className="grid gap-4 sm:grid-cols-3">
-          <StatCard label="Received today" icon="fees" loading={q.isLoading} value={<AnimatedNumber value={d?.summary.paidToday.amount ?? 0} format={formatRs} />} foot={`${formatCount(d?.summary.paidToday.count ?? 0)} candidates · ${formatDate(feeToday())}`} onClick={() => { setFrom(feeToday()); setTo(feeToday()); }} />
+          <StatCard label="Received today" icon="fees" loading={q.isLoading} value={<AnimatedNumber value={d?.summary.paidToday.amount ?? 0} format={formatRs} />} foot={`${formatCount(d?.summary.paidToday.count ?? 0)} ${(d?.summary.paidToday.count ?? 0) === 1 ? "candidate" : "candidates"} · ${formatDate(feeToday())}`} onClick={() => { setFrom(feeToday()); setTo(feeToday()); }} />
           <StatCard label={`Received in ${formatSession(ctx.session)}`} icon="checkCircle" loading={q.isLoading} value={<AnimatedNumber value={d?.summary.paidSession.amount ?? 0} format={formatRs} />} foot={`${formatCount(d?.summary.paidSession.count ?? 0)} candidates`} onClick={() => setStatus("PAID")} />
           <StatCard label="Not paid yet" icon="clock" tone={(d?.summary.due.count ?? 0) > 0 ? "warning" : "neutral"} loading={q.isLoading} value={<AnimatedNumber value={d?.summary.due.count ?? 0} format={formatCount} />} foot={`${formatRs(d?.summary.due.amount ?? 0)} · no test slip until paid`} onClick={() => setStatus("DUE")} />
         </div>
