@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import { campusLabel } from "../../app/shell/campus";
 import { RequirePermission } from "../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
-import { ReportDoc } from "./print";
+import { BlankProfileDoc, ReportDoc } from "./print";
 import { useHrSettings } from "./StaffPanels";
 import { campusHeading, CampusTags, cnicOrDash, dateOrDash, downloadCsv, exactEmployeeNoOnly, filterNote, HrShell, LoadError, mobileOrDash, slide, StaffStatusBadge, usePayAccess, usePrint, years } from "./shared";
 
@@ -193,16 +193,19 @@ export function StaffDirectoryPage() {
             </Button>
             <Menu
               trigger={
-                <Button icon="printer" iconRight="chevronDown" disabled={!rows.length}>
+                <Button icon="printer" iconRight="chevronDown">
                   Print list
                 </Button>
               }
             >
-              <MenuItem icon="file" onSelect={printList}>
+              <MenuItem icon="file" disabled={!rows.length} onSelect={printList}>
                 Staff list
               </MenuItem>
-              <MenuItem icon="listChecks" onSelect={printBioData}>
+              <MenuItem icon="listChecks" disabled={!rows.length} onSelect={printBioData}>
                 Bio-data list (A4 landscape)
+              </MenuItem>
+              <MenuItem icon="file" onSelect={() => print(<BlankProfileDoc campus={heading} />, "A4")}>
+                Blank staff form (A4)
               </MenuItem>
             </Menu>
             {canManage && !readOnly && (

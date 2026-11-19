@@ -72,6 +72,9 @@
 .hr-oldform .v { font-weight: 700; font-size: 9pt; }
 .hr-oldform .k2 { text-align: right; }
 .hr-oldform .photo { position: absolute; right: 0; top: 0; width: 30mm; height: 34mm; border: 0.6pt solid #a0a0a0; display: grid; place-items: center; color: #808080; font-size: 8pt; }
+/* The blank staff form: a line to write on under each value, taller table rows */
+.hr-oldform .hr-blank { border-bottom: 0.6pt solid #000; min-height: 4.6mm; }
+.hr-doc .hr-blank-cell { height: 7mm; }
 .hr-oldsign { display: flex; justify-content: space-between; margin-top: 12mm; font: 700 10pt Arial, sans-serif; text-align: center; }
 .hr-oldsign > div { border-top: 1pt solid #000; padding-top: 1mm; min-width: 34mm; }
 .hr-oldsign > div + div { min-width: 60mm; margin-right: 15mm; }

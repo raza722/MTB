@@ -1056,13 +1056,16 @@ const yesNo = (v: boolean | undefined) => (v === undefined ? "" : v ? "Yes" : "N
 
 /**
  * The legacy "Admission Form" (Student Registration Print): one A4 page per student with the record filled in —
- * personal, academic, family and guardian and other information — as the old report printed it. Prints for one
- * student (profile) or a whole section (Documents).
+ * personal, academic, family and guardian and other information — as the old report printed it, plus the facts of
+ * the full (blank) admission form that the record holds: parents' qualifications and CNIC, city, house, the emergency
+ * contact and the brothers and sisters at MTB. A fact not on record prints as an empty line, to fill in by hand.
+ * Prints for one student (profile) or a whole section (Documents).
  */
 export function StudentRecordForm({ s, printedOn }: { s: StudentDocSnapshot; printedOn: IsoDate }) {
   const r = s.record;
   const brothers = r ? r.siblings.filter((x) => x.relation === "Brother").length : "";
   const sisters = r ? r.siblings.filter((x) => x.relation === "Sister").length : "";
+  const ec = r?.emergencyContact;
   return (
     <article className="mtb-doc mtb-doc-a4 od od-rec flex flex-col" aria-label={`Admission form ${s.name}`}>
       <Letterhead campus={s.campus} campusName={s.campusName} />
@@ -1083,13 +1086,15 @@ export function StudentRecordForm({ s, printedOn }: { s: StudentDocSnapshot; pri
           ["First Name :", s.name, "Last Name :", ""],
           ["Father Name :", s.father, "Mother Name :", r?.mother ?? ""],
           ["Father Occupation:", r?.fatherOccupation ?? "", "Mother Occupation:", r?.motherOccupation ?? ""],
+          ["Father Qualification:", r?.fatherQualification ?? "", "Mother Qualification:", r?.motherQualification ?? ""],
+          ["Father's CNIC :", r?.fatherCnic ? formatCnic(r.fatherCnic) : "", "City :", r?.city ?? ""],
           ["DOB :", dobOf(s), "Gender :", s.gender === "F" ? "Female" : "Male"],
-          ["Cast:", "", "Disability :", r?.disability && r.disability !== "None" ? r.disability : ""],
+          ["Cast:", r?.caste ?? "", "Disability :", r?.disability && r.disability !== "None" ? r.disability : ""],
           ["CNIC :", r?.bForm ? formatCnic(r.bForm) : "", "Blood Group :", s.bloodGroup ?? ""],
           ["No Of Brothers :", brothers, "No Of Sisters:", sisters],
           ["Mobile No.", s.guardianMobile ? formatMobile(s.guardianMobile) : "", "Home Phone :", r?.homePhone ?? ""],
           ["Email :", r?.email ?? "", "Religion :", r?.religion ?? ""],
-          ["Hostelized", yesNo(r?.hostel) || "No"],
+          ["Hostelized", yesNo(r?.hostel) || "No", "House :", r?.house ?? ""],
           ["Permanent Address :", s.address],
           ["Temporary Address:", r?.tempAddress ?? ""],
         ]}
@@ -1101,13 +1106,42 @@ export function StudentRecordForm({ s, printedOn }: { s: StudentDocSnapshot; pri
         rows={[
           ["Guardian Name :", r?.guardian.name ?? "", "Relation :", r?.guardian.relation ?? ""],
           ["Guardian CNIC :", r?.guardian.cnic ? formatCnic(r.guardian.cnic) : "", "Profession :", r?.guardian.occupation ?? ""],
-          ["Mobile No :", r?.guardian.mobile ? formatMobile(r.guardian.mobile) : "", "Email :", ""],
+          ["Mobile No :", r?.guardian.mobile ? formatMobile(r.guardian.mobile) : "", "Email :", r?.guardian.email ?? ""],
+          ["Emergency Contact :", ec?.name ?? "", "Emergency Mobile :", [ec?.mobile1, ec?.mobile2].filter((m): m is string => Boolean(m)).map(formatMobile).join(", ")],
         ]}
       />
+      <RecBar>Brothers and Sisters at MTB</RecBar>
+      {r && r.siblings.length > 0 ? (
+        <table className="od-grid od-rec-sibs">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>G.R. No.</th>
+              <th>Class / Section</th>
+              <th>Relationship</th>
+              <th>Campus</th>
+            </tr>
+          </thead>
+          <tbody>
+            {r.siblings.map((x) => (
+              <tr key={x.grNo}>
+                <td className="l">{x.name}</td>
+                <td>{x.grNo}</td>
+                <td>{x.classSection}</td>
+                <td>{x.relation}</td>
+                <td>{x.campusName}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <p className="od-rec-none">{r ? "None enrolled at MTB." : ""}</p>
+      )}
       <RecBar>Other Information</RecBar>
       <RecRows
         rows={[
-          ["Admission Reference :", r?.admissionReference ?? "", "Pick & Drop By :", ""],
+          ["Admission Reference :", r?.admissionReference ?? "", "Pick & Drop By :", r?.pickDrop ?? ""],
+          ["Identification Mark :", r?.identificationMark ?? "", "Birth Certificate No. :", r?.birthCertificateNo ?? ""],
           ["Admission Date :", formatDate(s.admissionDate), "Guardian Signature :", ""],
         ]}
       />
@@ -1122,7 +1156,7 @@ export function StudentRecordForm({ s, printedOn }: { s: StudentDocSnapshot; pri
   );
 }
 
-/* ---------------------------------------------------------------- Blank admission form, two A4 pages */
+/* ---------------------------------------------------------------- Blank admission form, four A4 pages */
 
 /** A label with a line to write on. */
 function Blank({ label, w }: { label: string; w?: string }) {
@@ -1172,8 +1206,10 @@ const ATTACHMENTS = [
 ];
 
 /**
- * The legacy blank admission form, two A4 pages, for families to fill in by hand: Section A student, B guardian,
- * C emergency contact, D additional information, E siblings, F attachments and G previous academic record.
+ * The legacy blank admission form, four A4 pages, for families to fill in by hand: Section A student, B guardian,
+ * C emergency contact, D additional information, E siblings, F attachments, G previous academic record,
+ * H co-curricular activities and house, I group / subjects, J the student's declaration, K the student's and
+ * parent's signatures and L the office's (accountant, office superintendent, principal's remarks).
  * `campus` (the campus code) prints the campus town in the letterhead.
  */
 export function BlankAdmissionForm({ campusName, session, campus }: { campusName: string; session: number; campus?: string }) {
@@ -1363,6 +1399,150 @@ export function BlankAdmissionForm({ campusName, session, campus }: { campusName
           </tbody>
         </table>
       </article>
+      <article className="mtb-doc mtb-doc-a4 od od-af flex flex-col" style={{ breakBefore: "page" }} aria-label="Blank admission form, page 3">
+        {head}
+        <AfBar wide>SECTION: H CO-CURRICULAR ACTIVITIES</AfBar>
+        <table className="od-grid od-af-table">
+          <thead>
+            <tr>
+              {["Sports Name", "Speech", "Another", "Position If any"].map((h) => (
+                <th key={h}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {[0, 1].map((i) => (
+              <tr key={i}>
+                {[0, 1, 2, 3].map((j) => (
+                  <td key={j} className="od-af-empty" />
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <table className="od-grid od-af-table od-af-houses">
+          <thead>
+            <tr>
+              <th colSpan={4} className="l">
+                House (For Office Use Only)
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {[0, 2, 4, 6].map((i) => (
+              <tr key={i}>
+                {OLD_HOUSES.slice(i, i + 2).map((h) => (
+                  <Fragment key={h}>
+                    <td className="od-af-att">{h}</td>
+                    <td className="c" style={{ width: "14mm" }}>
+                      <span className="od-af-box" />
+                    </td>
+                  </Fragment>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <AfBar wide>Section I: Group/Subjects Combinations</AfBar>
+        <table className="od-grid od-af-table od-af-groups">
+          <thead>
+            <tr>
+              <th colSpan={2} className="l">
+                Please Tick the Relevant Group/ Subjects Combination
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {OLD_GROUPS.map(([program, options]) => (
+              <tr key={program}>
+                <th scope="row" className="l" style={{ width: "36mm" }}>
+                  {program}
+                </th>
+                <td className="l">
+                  <span className="od-af-groupopts">
+                    {options.map((o) => (
+                      <span key={o} className="inline-flex items-center gap-1.5">
+                        <span className="od-af-box od-af-box-sm" />
+                        {o}
+                      </span>
+                    ))}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </article>
+      <article className="mtb-doc mtb-doc-a4 od od-af flex flex-col" style={{ breakBefore: "page" }} aria-label="Blank admission form, page 4">
+        {head}
+        <AfBar wide>Section J: Declaration by Student</AfBar>
+        <table className="od-grid od-af-table">
+          <tbody>
+            {OLD_DECLARATION.map((d, i) => (
+              <tr key={i}>
+                <td className="c" style={{ width: "6mm" }}>
+                  {i + 1}
+                </td>
+                <td className="l">{d}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <AfBar>Section K: Signature</AfBar>
+        <div className="od-af-signs">
+          <span>Student&apos;s Signature</span>
+          <span>Parent&apos;s / Guardian&apos;s Signature</span>
+        </div>
+        <AfBar>Section L: Signature</AfBar>
+        <table className="od-grid od-af-table od-af-office">
+          <thead>
+            <tr>
+              <th colSpan={2}>FOR OFFICE USE ONLY</th>
+            </tr>
+            <tr>
+              <th>Action By Accountant</th>
+              <th>Action by Office Superintendent</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td className="od-af-officecell" />
+              <td className="od-af-officecell" />
+            </tr>
+            <tr>
+              <td className="l">Signature:</td>
+              <td className="l">Signature:</td>
+            </tr>
+            <tr>
+              <th colSpan={2} className="l">
+                Remarks by Principal
+              </th>
+            </tr>
+            <tr>
+              <td colSpan={2} className="od-af-officecell" />
+            </tr>
+          </tbody>
+        </table>
+      </article>
     </>
   );
 }
+
+/** The old form's eight houses (Section H, for office use), as Activities › Houses lists them at Khalid Campus. */
+const OLD_HOUSES = ["Chand Bibi", "Sir Syed", "Zaib-un-Nisa", "Khawaja Fareed", "Fatima Jinnah", "Iqbal", "Razia Sultana", "Jinnah"];
+
+/** Section I of the old form: the groups and subject combinations a family ticks, by programme. */
+const OLD_GROUPS: Array<[string, string[]]> = [
+  ["Matric Programs", ["Biology", "Computer Science"]],
+  ["Intermediate Program", ["Pre Medical", "ICS (Phy, Math, CS)", "ICS (Stat, Eco, CS)", "General Science", "General Group"]],
+  ["Graduate Programs", ["B.Sc. (Zool, Bot, Chem)", "B.Sc. (Math A, Math B, Phy)", "B.Sc. (Stat, Eco, Comp)", "B.A. (Eco, Lib, Persian)", "B.A. (Eco, Psych, Persian)", "B.A. (Psych, Lib, Persian)", "BSCS (4 Years Program)"]],
+  ["Masters Programs", ["M.Sc. (Mathematics)", "M.Sc. (Physics)", "M.Sc. (Chemistry)", "M.A. (English)", "MSc"]],
+];
+
+/** Section J of the old form, word for word apart from its typing slips. */
+const OLD_DECLARATION = [
+  "I undertake to abide by all rules and regulations of the college regarding academic, discipline, attendance, conduct and punctuality.",
+  "I undertake to accept all the decision of the principal to be final and irrevocable.",
+  "I undertake to abide by all the rules/policies of the college and that admission form for the Board/University exam may be withheld if I am unable to clear the send up/Pre-board examination.",
+  "I shall maintain my scholarship percentage at which the admission is granted. In case, the Scholarship is cancelled, I shall pay the dues of the remaining term.",
+];

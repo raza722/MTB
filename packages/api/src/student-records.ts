@@ -485,7 +485,9 @@ export interface StudentRecordSheet extends StudentPersonalExtras {
   bForm?: string;
   previousSchool?: string;
   house?: string;
-  guardian: { name: string; relation: string; cnic: string; mobile: string; occupation?: string };
+  /** The old form's "Pick & Drop By :": "School transport, route TR-1" while the student rides one; absent otherwise. */
+  pickDrop?: string;
+  guardian: { name: string; relation: string; cnic: string; mobile: string; occupation?: string; email?: string };
   /** Brothers and sisters at MTB (same father's CNIC). */
   siblings: Array<{ grNo: string; name: string; relation: "Brother" | "Sister"; classSection: string; campusName: string }>;
 }

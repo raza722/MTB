@@ -29,9 +29,9 @@ import { Link } from "@tanstack/react-router";
 import { useRef, useState, type ReactNode } from "react";
 import { RequirePermission } from "../../app/shell/page";
 import { useCan, useCtx, useReadOnly, useSessionUser } from "../../app/session";
-import { AppointmentLetterDoc, IdCardDoc, PayslipDoc, ProfileDoc } from "./print";
+import { AppointmentLetterDoc, BlankProfileDoc, IdCardDoc, PayslipDoc, ProfileDoc } from "./print";
 import { AddPostingPanel, EditPersonalPanel, EndPostingPanel, PayPanel, QualificationsPanel, RejoinPanel, TeachingPanel, useHrSettings } from "./StaffPanels";
-import { basicRs, cnicOrDash, dateOrDash, errorText, HrShell, LoadError, LoanBadge, Ltr, mobileOrDash, orDash, RunBadge, sessionOf, slide, StaffStatusBadge, thisMonth, today, usePayAccess, usePrint, years } from "./shared";
+import { basicRs, campusHeading, cnicOrDash, dateOrDash, errorText, HrShell, LoadError, LoanBadge, Ltr, mobileOrDash, orDash, RunBadge, sessionOf, slide, StaffStatusBadge, thisMonth, today, usePayAccess, usePrint, years } from "./shared";
 
 export type ProfileTab = "overview" | "employment" | "qualifications" | "pay" | "leave" | "documents" | "history";
 
@@ -146,6 +146,9 @@ export function StaffProfilePage({ staffId, tab, setTab }: { staffId: string; ta
                 </MenuItem>
                 <MenuItem icon="idCard" onSelect={() => print(<IdCardDoc s={s} />, "CARD")}>
                   Staff ID card
+                </MenuItem>
+                <MenuItem icon="file" onSelect={() => print(<BlankProfileDoc campus={campusHeading((s.postings.find((x) => x.primary) ?? s.postings[0]!).campus)} />, "A4")}>
+                  Blank staff form (A4)
                 </MenuItem>
               </Menu>
               {edit && (

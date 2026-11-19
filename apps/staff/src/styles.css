@@ -52,6 +52,51 @@
   .mtb-no-print {
     display: none !important;
   }
+  /*
+   * A print area inside a dialog or side panel (admission forms, application forms, certificates…), or one a page
+   * puts straight under <body> for a print job (staff, library, store and activities papers): it prints as the whole
+   * document. Otherwise the browser prints as many pages as the page behind is long: a fixed dialog repeated on each
+   * (a one-page form came out as three copies), a longer document cut off at that length (the four-page blank
+   * admission form printed two), or empty pages after a print job's paper. The page behind leaves the layout; the
+   * dialog's boxes stop being fixed, clipped or zoomed, so every page of the document prints once.
+   */
+  body:has([role="dialog"] .mtb-print-area),
+  body:has(> .mtb-print-area) {
+    overflow: visible !important;
+    height: auto !important;
+  }
+  /* the page behind (and any print area of its own, e.g. the fee ledger's) leaves the layout */
+  body:has([role="dialog"] .mtb-print-area) > :not(:has([role="dialog"] .mtb-print-area)):not([role="dialog"]:has(.mtb-print-area)),
+  body:has(> .mtb-print-area) > :not(.mtb-print-area),
+  /* inside the dialog: everything but the paper (title, buttons, switches) */
+  body:has([role="dialog"] .mtb-print-area) [role="dialog"] :not(:has(.mtb-print-area)):not(.mtb-print-area):not(.mtb-print-area *) {
+    display: none !important;
+  }
+  /* the boxes that hold the paper: the dialog's backdrop and centring wrappers, the dialog, its body and preview desk */
+  body:has([role="dialog"] .mtb-print-area) > :has([role="dialog"] .mtb-print-area),
+  body:has([role="dialog"] .mtb-print-area) > :has([role="dialog"] .mtb-print-area) :has([role="dialog"] .mtb-print-area),
+  [role="dialog"]:has(.mtb-print-area),
+  [role="dialog"] :has(.mtb-print-area) {
+    position: static !important;
+    display: block !important;
+    overflow: visible !important;
+    width: auto !important;
+    max-width: none !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: none !important;
+    box-shadow: none !important;
+    transform: none !important;
+    zoom: 1 !important;
+  }
+  body:has([role="dialog"] .mtb-print-area) .mtb-print-area,
+  body:has(> .mtb-print-area) > .mtb-print-area {
+    position: static !important;
+  }
 }
 @page {
   size: A5 portrait;

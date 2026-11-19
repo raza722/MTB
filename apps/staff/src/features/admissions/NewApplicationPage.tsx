@@ -13,7 +13,7 @@ import { BlankAdmissionForm } from "../students/documents/templates";
 import { apiMessage, fieldError } from "../students/shared";
 import { ChildExtrasFields, childExtrasSchema, EMPTY_EXTRAS, extrasBody, FamilyExtrasFields, familyExtrasSchema, type ExtrasForm } from "./extras";
 import { AdmissionsSubNav, feeOrDash, sittingWhen, sittingWhenWhere, today } from "./shared";
-import { ApplicationForm, TestSlip, TestSlipSheet } from "./slips";
+import { ApplicationForm, BlankApplicationForm, TestSlip, TestSlipSheet } from "./slips";
 
 const CHILD_FIELDS = ["name", "dob", "classApplied", "bForm", "birthCertificateNo", "religion", "disability", "identificationMark"];
 const FAMILY_FIELDS = ["father", "fatherCnic", "mobile", "address", "email", "homePhone", "city", "tempAddress", "emergencyName", "emergencyMobile1", "emergencyMobile2"];
@@ -50,16 +50,25 @@ function ageOn(dob: string, session: number): string {
   return `${years} ${years === 1 ? "year" : "years"} on 01-Apr-${session}`;
 }
 
-/** The blank two-page admission form, for families who fill it in by hand. */
+/**
+ * Blank forms, for families who fill them in by hand: the four-page admission form (sections A to L) or the A4
+ * application form (the old registration form). The office types them into a new application.
+ */
 export function BlankFormModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const ctx = useCtx();
+  const [kind, setKind] = useState<"admission" | "application">("admission");
+  const campusName = ctx.campus === "ALL" ? "" : campusLabel(ctx.campus);
   return (
     <Modal
       open={open}
       onClose={onClose}
       size="lg"
-      title="Blank admission form"
-      description="Two A4 pages: the family fills them in by hand; the office types them into a new application."
+      title="Blank forms"
+      description={
+        kind === "admission"
+          ? "Admission form, four A4 pages: the family fills it in by hand; the office types it into a new application."
+          : "Application form, one A4 page: the family fills it in by hand; the office types it into a new application."
+      }
       footer={
         <>
           <Button onClick={onClose}>Close</Button>
@@ -69,11 +78,21 @@ export function BlankFormModal({ open, onClose }: { open: boolean; onClose: () =
         </>
       }
     >
-      {open && (
-        <PrintSheet paper="A4" label="Blank admission form" zoom={0.55}>
-          <BlankAdmissionForm campusName={ctx.campus === "ALL" ? "" : campusLabel(ctx.campus)} session={ctx.session} />
-        </PrintSheet>
-      )}
+      <fieldset className="m-0 mb-3 flex flex-wrap items-center gap-4 border-0 p-0">
+        <legend className="mtb-label mb-1">Form</legend>
+        <Radio name="blank-form-kind" label="Admission form (A4, 4 pages)" checked={kind === "admission"} onChange={() => setKind("admission")} />
+        <Radio name="blank-form-kind" label="Application form (A4)" checked={kind === "application"} onChange={() => setKind("application")} />
+      </fieldset>
+      {open &&
+        (kind === "admission" ? (
+          <PrintSheet paper="A4" label="Blank admission form" zoom={0.55}>
+            <BlankAdmissionForm {...(ctx.campus === "ALL" ? {} : { campus: ctx.campus })} campusName={campusName} session={ctx.session} />
+          </PrintSheet>
+        ) : (
+          <PrintSheet paper="A4" label="Blank application form" zoom={0.55}>
+            <BlankApplicationForm campus={ctx.campus} campusName={campusName} session={ctx.session} />
+          </PrintSheet>
+        ))}
     </Modal>
   );
 }
@@ -405,7 +424,7 @@ export function NewApplicationPage({ enquiryId }: { enquiryId: string }) {
         }
       >
         {done && (
-          <PrintSheet paper={printing === "slip" ? "A4" : "A5"} label="Application papers" zoom={printing === "slip" ? 0.55 : 0.7}>
+          <PrintSheet paper="A4" label="Application papers" zoom={0.55}>
             {printing === "slip" ? (
               <TestSlipSheet>
                 <TestSlip a={done} test={setup.data?.tests.find((t) => t.id === done.testId)} />

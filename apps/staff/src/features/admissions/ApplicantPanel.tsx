@@ -6,7 +6,7 @@ import {
   type AdmissionsApplicant,
 } from "@mtb/api";
 import { formatCnic, formatDate, formatDateTime, formatMobile, formatRs, pakistanDate } from "@mtb/domain";
-import { Banner, Button, buttonClassName, ConfirmDialog, KeyValue, Modal, Select, SidePanel, Skeleton, StatusBadge, Timeline, Urdu, useToast } from "@mtb/ui";
+import { Banner, Button, buttonClassName, ConfirmDialog, KeyValue, Modal, Select, SidePanel, Skeleton, StatusBadge, Switch, Timeline, Urdu, useToast } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
@@ -14,7 +14,7 @@ import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { PrintSheet, printNow } from "../students/documents/print";
 import { apiMessage } from "../students/shared";
 import { dateOrBlank, DiamondMindsBadge, mobileOrDash, offerDeadline, orDash, scoreOf, sittingWhen, sittingWhenWhere, StageBadge, today } from "./shared";
-import { ApplicationForm, TestSlip, TestSlipSheet } from "./slips";
+import { ApplicationForm, BlankApplicationForm, TestSlip, TestSlipSheet } from "./slips";
 
 /** One applicant: details, candidate fee, test booking and marks, offer, history, and the next step. */
 export function ApplicantPanel({ id, onClose, onAdmit }: { id: string | null; onClose: () => void; onAdmit: (a: AdmissionsApplicant) => void }) {
@@ -28,6 +28,8 @@ export function ApplicantPanel({ id, onClose, onAdmit }: { id: string | null; on
   const setup = useQuery({ ...admissionsQueries.setup({ campus: a?.campus ?? ctx.campus, session: a?.session ?? ctx.session }), enabled: Boolean(a) });
   const [testId, setTestId] = useState("");
   const [printing, setPrinting] = useState<null | "form" | "slip">(null);
+  /** The application form printed blank, for another family to fill in by hand. */
+  const [blankForm, setBlankForm] = useState(false);
   const [withdrawing, setWithdrawing] = useState(false);
   const [reason, setReason] = useState("");
   const [offering, setOffering] = useState(false);
@@ -270,12 +272,19 @@ export function ApplicantPanel({ id, onClose, onAdmit }: { id: string | null; on
           </>
         }
       >
+        {printing === "form" && (
+          <div className="mb-3">
+            <Switch label="Blank form, to fill in by hand" checked={blankForm} onChange={(e) => setBlankForm(e.target.checked)} />
+          </div>
+        )}
         {a && (
-          <PrintSheet paper={printing === "slip" ? "A4" : "A5"} label={printing === "slip" ? "Test slip" : "Application form"} zoom={printing === "slip" ? 0.55 : 0.7}>
+          <PrintSheet paper="A4" label={printing === "slip" ? "Test slip" : blankForm ? "Blank application form" : "Application form"} zoom={0.55}>
             {printing === "slip" ? (
               <TestSlipSheet>
                 <TestSlip a={a} test={test} />
               </TestSlipSheet>
+            ) : blankForm ? (
+              <BlankApplicationForm campus={a.campus} campusName={a.campusName} session={a.session} />
             ) : (
               <ApplicationForm a={a} />
             )}

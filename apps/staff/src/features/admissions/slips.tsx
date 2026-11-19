@@ -72,7 +72,7 @@ function Table({ rows }: { rows: Array<[string, ReactNode]> }) {
 
 export function ApplicationForm({ a }: { a: AdmissionsApplicant }) {
   return (
-    <article className="mtb-doc mtb-doc-a5 flex flex-col" aria-label={`Application ${a.applicationNo}`}>
+    <article className="mtb-doc mtb-doc-a4 adm-appform flex flex-col" aria-label={`Application ${a.applicationNo}`}>
       <Header campus={a.campus} campusName={a.campusName} title="Application for admission" sub={`Session ${formatSession(a.session)} · ${a.classApplied}`} refNo={a.applicationNo} date={a.appliedOn} />
       <Table
         rows={[
@@ -117,6 +117,68 @@ export function ApplicationForm({ a }: { a: AdmissionsApplicant }) {
         <div className="mtb-doc-sign" style={{ minWidth: 0 }}>
           Principal
         </div>
+      </footer>
+    </article>
+  );
+}
+
+/** A tick box with its label, for the blank form. */
+function Tick({ label }: { label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className="inline-block h-[4mm] w-[6mm] border border-black" />
+      {label}
+    </span>
+  );
+}
+
+/**
+ * The application form blank, for a family to fill in by hand at the desk or at home (the old "REGISTRATION FORM" was
+ * printed blank): the same boxes and signatures as the filled form, City on its own line, gender to tick and the
+ * test, seat and candidate fee left for the office. A4, like the old registration form and the filled one.
+ */
+export function BlankApplicationForm({ campus, campusName, session }: { campus: string; campusName: string; session: number }) {
+  const line = <span className="block h-[5mm]" />;
+  return (
+    <article className="mtb-doc mtb-doc-a4 adm-appform flex flex-col" aria-label="Blank application form">
+      <Header campus={campus} campusName={campusName} title="Application for admission" sub={`Session ${formatSession(session)}`} />
+      <Table
+        rows={[
+          ["Form no. and date (office)", line],
+          ["Child's name", line],
+          ["Date of birth", line],
+          [
+            "Gender",
+            <span className="flex gap-6">
+              <Tick label="Male" />
+              <Tick label="Female" />
+            </span>,
+          ],
+          ["B-form no.", line],
+          ["Father's name", line],
+          ["Father's CNIC", line],
+          ["Mother's name", line],
+          ["Mobile", line],
+          ["Email", line],
+          ["Address", line],
+          ["City", line],
+          ["Previous school", line],
+          ["Class applied for", line],
+          ["Entrance test (office)", line],
+          ["Candidate fee (office)", line],
+        ]}
+      />
+      <p className="mt-3 text-[9pt] text-ink-muted">I confirm the details above are correct. Admission is offered on merit and available seats; an offer must be accepted by the date written on it.</p>
+      <div className="mt-3 grid gap-1 text-[9pt]">
+        <span className="text-ink-muted">Principal's remarks</span>
+        <span className="block h-[12mm] border border-border" />
+      </div>
+      <footer className="mt-auto grid grid-cols-3 gap-x-4 gap-y-8 pt-8 text-[8.5pt]">
+        {["Parent's signature", "Student's signature", "Admissions office", "Accountant", "Office superintendent", "Principal"].map((l) => (
+          <div key={l} className="mtb-doc-sign" style={{ minWidth: 0 }}>
+            {l}
+          </div>
+        ))}
       </footer>
     </article>
   );

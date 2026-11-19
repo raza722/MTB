@@ -34,6 +34,7 @@ export const familyExtrasSchema = z
 /** Flat form values for the fields below. */
 export interface ExtrasForm {
   religion: string;
+  caste: string;
   disability: string;
   identificationMark: string;
   birthCertificateNo: string;
@@ -53,6 +54,7 @@ export interface ExtrasForm {
 
 export const EMPTY_EXTRAS: ExtrasForm = {
   religion: "Islam",
+  caste: "",
   disability: "",
   identificationMark: "",
   birthCertificateNo: "",
@@ -73,6 +75,7 @@ export const EMPTY_EXTRAS: ExtrasForm = {
 export function extrasFrom(x: StudentPersonalExtras): ExtrasForm {
   return {
     religion: x.religion ?? "",
+    caste: x.caste ?? "",
     disability: x.disability ?? "",
     identificationMark: x.identificationMark ?? "",
     birthCertificateNo: x.birthCertificateNo ?? "",
@@ -95,7 +98,7 @@ export function extrasFrom(x: StudentPersonalExtras): ExtrasForm {
 export function extrasBody(f: ExtrasForm): StudentPersonalExtras {
   const t = (v: string) => v.trim();
   const out: StudentPersonalExtras = {};
-  for (const k of ["religion", "disability", "identificationMark", "birthCertificateNo", "email", "homePhone", "city", "tempAddress", "fatherQualification", "fatherOccupation", "motherQualification", "motherOccupation", "admissionReference"] as const) {
+  for (const k of ["religion", "caste", "disability", "identificationMark", "birthCertificateNo", "email", "homePhone", "city", "tempAddress", "fatherQualification", "fatherOccupation", "motherQualification", "motherOccupation", "admissionReference"] as const) {
     if (t(f[k])) out[k] = t(f[k]);
   }
   if (t(f.emergencyName) || t(f.emergencyMobile1)) out.emergencyContact = { name: t(f.emergencyName), mobile1: t(f.emergencyMobile1), ...(t(f.emergencyMobile2) ? { mobile2: t(f.emergencyMobile2) } : {}) };
@@ -104,11 +107,12 @@ export function extrasBody(f: ExtrasForm): StudentPersonalExtras {
 
 type Errs = Record<string, string | undefined>;
 
-/** Religion, disability, mark of identification, birth certificate no. */
-export function ChildExtrasFields({ value, onChange, errors = {}, disabled }: { value: ExtrasForm; onChange: (patch: Partial<ExtrasForm>) => void; errors?: Errs; disabled?: boolean }) {
+/** Religion, caste (with `withCaste`: the student's record, not yet a new application), disability, mark of identification, birth certificate no. */
+export function ChildExtrasFields({ value, onChange, errors = {}, disabled, withCaste }: { value: ExtrasForm; onChange: (patch: Partial<ExtrasForm>) => void; errors?: Errs; disabled?: boolean; withCaste?: boolean }) {
   return (
     <>
       <Select label="Religion" disabled={disabled} value={value.religion} onChange={(e) => onChange({ religion: e.target.value })} options={[{ value: "", label: "Not given" }, ...RELIGIONS]} />
+      {withCaste && <Input label="Caste" disabled={disabled} value={value.caste} maxLength={40} onChange={(e) => onChange({ caste: e.target.value })} error={errors.caste} placeholder="e.g. Arain" />}
       <Input label="Birth certificate no." disabled={disabled} value={value.birthCertificateNo} onChange={(e) => onChange({ birthCertificateNo: e.target.value })} {...(errors.birthCertificateNo ? { error: errors.birthCertificateNo } : { help: "From the union council certificate, if the family has one." })} />
       <Input label="Disability" disabled={disabled} value={value.disability} onChange={(e) => onChange({ disability: e.target.value })} placeholder="None" help="Anything teachers should know, e.g. needs a front seat." />
       <Input label="Mark of identification" disabled={disabled} value={value.identificationMark} onChange={(e) => onChange({ identificationMark: e.target.value })} placeholder="e.g. Mole on the left cheek" />

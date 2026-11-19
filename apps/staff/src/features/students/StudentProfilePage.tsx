@@ -809,7 +809,7 @@ function EditPanel({ p, open, onClose }: { p: StudentProfile; open: boolean; onC
   const classes = useQuery(metaQueries.classes(p.campus));
   const boardClass = isBoardClass(classes.data, classShortOf(p.classSection)) ?? true;
   const [form, setForm] = useState(initial);
-  // The rest of the admission form: religion, contact, parents' work and education, emergency contact, hostel.
+  // The rest of the admission form: religion, caste, contact, parents' work and education, emergency contact, hostel.
   const [extras, setExtras] = useState<ExtrasForm>(() => extrasFrom(p));
   const [hostel, setHostel] = useState(Boolean(p.hostel));
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -837,7 +837,7 @@ function EditPanel({ p, open, onClose }: { p: StudentProfile; open: boolean; onC
         keys.add(k);
       }
     }
-    for (const k of ["religion", "disability", "identificationMark", "birthCertificateNo", "email", "homePhone", "city", "tempAddress", "fatherQualification", "fatherOccupation", "motherQualification", "motherOccupation", "admissionReference"] as const) {
+    for (const k of ["religion", "caste", "disability", "identificationMark", "birthCertificateNo", "email", "homePhone", "city", "tempAddress", "fatherQualification", "fatherOccupation", "motherQualification", "motherOccupation", "admissionReference"] as const) {
       if (extras[k].trim() !== startExtras[k].trim()) {
         body[k] = extras[k].trim();
         keys.add(k);
@@ -917,7 +917,7 @@ function EditPanel({ p, open, onClose }: { p: StudentProfile; open: boolean; onC
         )}
         <Select label="Blood group" value={form.bloodGroup} onChange={(e) => set({ bloodGroup: e.target.value })} options={BLOOD.map((b) => ({ value: b, label: b || "Not known" }))} />
         <div className="grid gap-4 sm:grid-cols-2">
-          <ChildExtrasFields value={extras} onChange={(x) => setExtras((v) => ({ ...v, ...x }))} errors={{ birthCertificateNo: err("birthCertificateNo") }} />
+          <ChildExtrasFields withCaste value={extras} onChange={(x) => setExtras((v) => ({ ...v, ...x }))} errors={{ birthCertificateNo: err("birthCertificateNo"), caste: err("caste") }} />
           <FamilyExtrasFields value={extras} onChange={(x) => setExtras((v) => ({ ...v, ...x }))} errors={{ email: err("email"), homePhone: err("homePhone"), emergencyName: err("emergencyName"), emergencyMobile1: err("emergencyMobile1"), emergencyMobile2: err("emergencyMobile2") }} />
           <Input label="Admission reference" value={extras.admissionReference} onChange={(e) => setExtras((v) => ({ ...v, admissionReference: e.target.value }))} />
         </div>
@@ -1238,7 +1238,7 @@ export function StudentProfilePage({ grNo, tab, setTab }: { grNo: string; tab: P
                 <LedgerTable
                   grNo={grNo}
                   defaultSession={ctx.session}
-                  {...(p ? { student: { grNo: p.grNo, name: p.name, relation: p.relation, father: p.father, classSection: p.classSection, campus: p.campus, campusName: p.campusName, status: p.status } } : {})}
+                  {...(p ? { student: { grNo: p.grNo, name: p.name, relation: p.relation, father: p.father, classSection: p.classSection, campus: p.campus, campusName: p.campusName, status: p.status, mobile: p.guardian.mobile, admissionDate: p.admissionDate } } : {})}
                 />
               </div>
             </TabPanel>

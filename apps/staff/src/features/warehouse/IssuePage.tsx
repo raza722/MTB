@@ -348,6 +348,8 @@ function IssueDoc({ i, campus }: { i: WarehouseIssue; campus: string }) {
             <th className="n">Qty</th>
             <th>Unit</th>
             <th className="n">Returned</th>
+            {/* the old issuance slip's "Remaining": issued less returned */}
+            <th className="n">Remaining</th>
             <th>For</th>
           </tr>
         </thead>
@@ -358,6 +360,7 @@ function IssueDoc({ i, campus }: { i: WarehouseIssue; campus: string }) {
               <td className="n">{l.qty}</td>
               <td>{l.unit}</td>
               <td className="n">{l.returned || "—"}</td>
+              <td className="n">{l.qty - (l.returned || 0)}</td>
               <td>{orDash(l.remarks)}</td>
             </tr>
           ))}

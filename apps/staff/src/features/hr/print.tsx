@@ -310,6 +310,82 @@ export function ProfileDoc({ s }: { s: HrStaffProfile }) {
   );
 }
 
+/**
+ * The staff profile printed blank, for a new member of staff to fill in by hand: the old Employee Profile's fields
+ * (name, date of birth, shift, CNIC, caste, reference, address, contact numbers, blood group, city, email, joining
+ * date, emergency contact, salary, working hours), the father or husband, designation and marital status that the
+ * filled profile prints under "Other Information", and empty employment, qualification and experience tables.
+ */
+export function BlankProfileDoc({ campus }: { campus: string }) {
+  const field = (k: string, k2?: string) => (
+    <>
+      <span className="k">{k}</span>
+      <span className="v hr-blank" />
+      <span className="k k2">{k2 ?? ""}</span>
+      <span className={k2 ? "v hr-blank" : "v"} />
+    </>
+  );
+  const rows = (cols: string[], n: number) => (
+    <table>
+      <thead>
+        <tr>
+          {cols.map((c) => (
+            <th key={c}>{c}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {Array.from({ length: n }, (_, i) => (
+          <tr key={i}>
+            {cols.map((c) => (
+              <td key={c} className="hr-blank-cell" />
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+  return (
+    <div className="hr-doc">
+      <DocHead campus={campus} title="" />
+      <span className="hr-boxtitle">Employee Profile</span>
+      <div className="hr-oldform">
+        {field("Name :", "Name in Urdu :")}
+        <span className="photo" aria-hidden="true">
+          Photo
+        </span>
+        {field("Father / Husband :", "Marital status :")}
+        {field("Date Of Birth :", "Shift :")}
+        {field("C.N.I.C number:", "Caste :")}
+        {field("Designation :", "Department :")}
+        {field("Reference")}
+        {field("Address(Home) :")}
+        {field("Contact Number:", "Second mobile :")}
+        {field("Other Information :")}
+        {field("Blood Group :", "City :")}
+        {field("Email :", "Joining Date:")}
+        {field("Emergency :", "Relation :")}
+        {field("Emergency Contact:")}
+        {field("Salary :", "Working Hrs :")}
+      </div>
+      <h2>Employment</h2>
+      {rows(["Campus", "Designation", "Department", "Type", "Scale", "From", "To"], 2)}
+      <h2>Qualifications</h2>
+      {rows(["Degree", "Institution", "Year", "Result"], 3)}
+      <h2>Earlier experience</h2>
+      {rows(["Organisation", "Role", "From – to"], 2)}
+      <div className="hr-oldsign">
+        <div>
+          Employee's
+          <br />
+          signature
+        </div>
+        <div>Admin's signature</div>
+      </div>
+    </div>
+  );
+}
+
 /** Staff ID card, 86 × 54 mm (front). */
 export function IdCardDoc({ s }: { s: HrStaffProfile }) {
   const p = s.postings.find((x) => x.primary) ?? s.postings[0]!;

@@ -1,5 +1,5 @@
 import { feesQueries, metaQueries, type CampusCode, type LedgerDocType, type LedgerEntry } from "@mtb/api";
-import { formatDate, formatRs, formatSession } from "@mtb/domain";
+import { formatDate, formatMobile, formatRs, formatSession, type IsoDate } from "@mtb/domain";
 import { Button, cx, EmptyState, Icon, IconButton, Money, Select, Skeleton, StatusBadge, Tooltip } from "@mtb/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -28,6 +28,9 @@ export interface LedgerStudent {
   campus: CampusCode;
   campusName: string;
   status: string;
+  /** The old fee card's "Contact No :" and "Admission Date :". */
+  mobile?: string;
+  admissionDate?: IsoDate;
 }
 
 function DocCell({ e }: { e: LedgerEntry }) {
@@ -147,6 +150,10 @@ export function LedgerTable({ grNo, defaultSession, student }: { grNo: string; d
             <dd className="m-0">{student.father}</dd>
             <dt className="text-ink-muted">Class</dt>
             <dd className="m-0">{student.classSection}</dd>
+            <dt className="text-ink-muted">Contact no.</dt>
+            <dd className="m-0 tabular-nums">{student.mobile ? formatMobile(student.mobile) : ""}</dd>
+            <dt className="text-ink-muted">Admission date</dt>
+            <dd className="m-0 tabular-nums">{student.admissionDate ? formatDate(student.admissionDate) : ""}</dd>
           </dl>
         </div>
       )}

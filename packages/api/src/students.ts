@@ -100,6 +100,8 @@ export interface NextSessionPlacement {
 /** The rest of the legacy admission form: identity, contact, parents' work and education, emergency contact. */
 export interface StudentPersonalExtras {
   religion?: string;
+  /** The old admission form's "Cast" (free text, up to 40 letters). */
+  caste?: string;
   /** "None", or what the school should know. */
   disability?: string;
   identificationMark?: string;
@@ -304,6 +306,8 @@ export interface StudentUpdate {
   fatherCnic?: string;
   bloodGroup?: string;
   religion?: string;
+  /** Up to 40 letters; an empty string clears it. */
+  caste?: string;
   bForm?: string;
   /** Board roll numbers; an empty string clears one. */
   boardRollNo?: StudentBoardRollNo;
