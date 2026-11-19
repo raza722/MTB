@@ -206,10 +206,16 @@ function ProgrammeView({ prog, all, search, onSearch }: { prog: ExamsProgramme; 
       >
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard label="Participants" icon="students" value={<AnimatedNumber value={prog.participants} format={formatCount} />} foot={`${prog.centres.length} test centres`} />
-          <StatCard label="Results in" icon="checkSquare" value={<AnimatedNumber value={resultCount} format={formatCount} />} foot={prog.examId ? (prog.examStatus === "DECLARED" ? "Declared" : "Provisional until declared") : "The test isn't set up yet"} />
-          <StatCard label="Girls · boys" icon="user" value={`${(everyone.data ?? []).filter((p) => p.gender === "F").length} · ${(everyone.data ?? []).filter((p) => p.gender === "M").length}`} foot="Registered so far" />
-          <StatCard label="Applied for admission" icon="admissions" tone="info" value={(everyone.data ?? []).filter((p) => p.applicantId).length} foot="Started from this list" />
+          {/* These three count the full participant list: loading while it loads, "—" when it could not be read (never 0). */}
+          <StatCard label="Results in" icon="checkSquare" loading={everyone.isLoading} value={everyone.data ? <AnimatedNumber value={resultCount} format={formatCount} /> : "—"} foot={prog.examId ? (prog.examStatus === "DECLARED" ? "Declared" : "Provisional until declared") : "The test isn't set up yet"} />
+          <StatCard label="Girls · boys" icon="user" loading={everyone.isLoading} value={everyone.data ? `${formatCount(everyone.data.filter((p) => p.gender === "F").length)} · ${formatCount(everyone.data.filter((p) => p.gender === "M").length)}` : "—"} foot="Registered so far" />
+          <StatCard label="Applied for admission" icon="admissions" tone="info" loading={everyone.isLoading} value={everyone.data ? formatCount(everyone.data.filter((p) => p.applicantId).length) : "—"} foot="Started from this list" />
         </div>
+        {everyone.isError && (
+          <div className="mt-3">
+            <LoadError what="The participant counts" error={everyone.error} onRetry={() => void everyone.refetch()} />
+          </div>
+        )}
         {prog.examId && exam.data && (
           <p className="m-0 mt-3 text-small text-ink-muted">
             Test:{" "}
@@ -340,6 +346,11 @@ function ParticipantPanel({ prog, participant, editable, canAdmit, onClose }: { 
       return examsApi.saveParticipant(prog.id, body, participant?.regNo);
     },
     onSuccess: (p) => {
+      // Put the saved row (with its new version) into the cached lists first: reopening it before the refetch lands
+      // would otherwise send the old version and be refused as "changed by someone else".
+      queryClient.setQueriesData<ExamsParticipant[]>({ predicate: (q) => q.queryKey.includes("participants") && q.queryKey.includes(prog.id) }, (old) =>
+        Array.isArray(old) ? old.map((x) => (x.regNo === p.regNo ? { ...x, ...p } : x)) : old,
+      );
       done();
       toast({ title: participant ? "Participant updated" : "Participant registered", message: `${p.regNo} · ${p.name}${prog.examStatus === "DRAFT" ? ". They are on the test's marks sheet." : "."}` });
       onClose();

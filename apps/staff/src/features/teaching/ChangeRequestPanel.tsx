@@ -120,7 +120,7 @@ export function ChangeRequestPanel({ open, onClose, reg, initialGrNo }: { open: 
           error={errors.grNo}
           options={[
             { value: "", label: "Choose a student" },
-            ...reg.students.map((s) => ({ value: s.grNo, label: `${s.rollNo} · ${s.name} — now ${MARK_LABEL[s.mark]}${s.pending ? " (change waiting)" : ""}` })),
+            ...reg.students.map((s) => ({ value: s.grNo, label: `${s.rollNo ? `${s.rollNo} · ` : ""}${s.name} · ${s.grNo} — now ${MARK_LABEL[s.mark]}${s.pending ? " (change waiting)" : ""}` })), // G.R. to tell two Kashafs apart; no "0 ·" without a roll number (test run F-045)
           ]}
         />
         <Field label="New status" required error={errors.to}>

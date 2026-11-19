@@ -1,6 +1,6 @@
 import { setupApi, setupQueries, type SetupSectionStaffing, type SetupStaffing, type SetupTeacher } from "@mtb/api";
 import { formatSession } from "@mtb/domain";
-import { Banner, Button, cx, DataTable, EmptyState, Icon, Input, Panel, Segmented, Select, Skeleton, StatusBadge, useToast } from "@mtb/ui";
+import { Banner, Button, cx, DataTable, EmptyState, Icon, IconButton, Input, Panel, Segmented, Select, Skeleton, StatusBadge, useToast } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { useCtx, useReadOnly } from "../../app/session";
@@ -157,34 +157,96 @@ function SectionStaffingEditor({ section, data, readOnly }: { section: SetupSect
   );
 }
 
+/** A section matches the search when its label, class or class teacher contains every typed word ("10 zub", "anum"). */
+function matchesSearch(s: SetupSectionStaffing, words: string[]) {
+  if (words.length === 0) return true;
+  const text = `${s.label} ${s.className} ${s.classTeacherName ?? ""}`.toLowerCase();
+  return words.every((w) => text.includes(w));
+}
+
 function BySection({ data }: { data: SetupStaffing }) {
   const readOnly = useReadOnly();
   const [selected, setSelected] = useState<string>(() => data.sections.find((s) => s.label === "7-B")?.sectionId ?? data.sections[0]?.sectionId ?? "");
   const [onlyGaps, setOnlyGaps] = useState(false);
+  const [search, setSearch] = useState("");
   const section = data.sections.find((s) => s.sectionId === selected);
-  const list = data.sections.filter((s) => !onlyGaps || gapsOf(s) > 0);
+  const words = search.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const list = data.sections.filter((s) => (!onlyGaps || gapsOf(s) > 0) && matchesSearch(s, words));
+  // Grouped by class (in the server's order), so a long campus list reads Play, Nursery … Class 10 under sticky headings.
+  const groups: Array<{ className: string; sections: SetupSectionStaffing[] }> = [];
+  for (const s of list) {
+    const last = groups.at(-1);
+    if (last && last.className === s.className) last.sections.push(s);
+    else groups.push({ className: s.className, sections: [s] });
+  }
+  const filtered = onlyGaps || words.length > 0;
   return (
     <div className="setup-split">
-      <div className="mtb-card">
-        <div className="flex items-center justify-between gap-2 px-4 pt-4">
-          <span className="text-small font-medium text-ink-muted">Sections</span>
-          <button type="button" className="border-0 bg-transparent p-0 text-small text-brand-ink underline-offset-2 hover:underline" onClick={() => setOnlyGaps((v) => !v)} aria-pressed={onlyGaps}>
-            {onlyGaps ? "Show all" : "Only gaps"}
-          </button>
+      <div className="mtb-card setup-sidebar">
+        <div className="setup-sidebar-head">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-small font-medium text-ink-muted">
+              Sections <span className="font-normal text-ink-subtle tabular-nums">{filtered ? `${list.length} of ${data.sections.length}` : data.sections.length}</span>
+            </span>
+            <button type="button" className="border-0 bg-transparent p-0 text-small text-brand-ink underline-offset-2 hover:underline" onClick={() => setOnlyGaps((v) => !v)} aria-pressed={onlyGaps}>
+              {onlyGaps ? "Show all" : "Only gaps"}
+            </button>
+          </div>
+          <Input
+            enterKeyHint="search"
+            aria-label="Search sections"
+            icon="search"
+            placeholder="Section, class or class teacher"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => {
+              // Enter opens the first match; Escape clears the search.
+              if (e.key === "Enter" && list[0]) {
+                e.preventDefault();
+                setSelected(list[0].sectionId);
+              } else if (e.key === "Escape" && search) {
+                e.preventDefault();
+                setSearch("");
+              }
+            }}
+            action={search ? <IconButton icon="x" size="sm" label="Clear search" onClick={() => setSearch("")} /> : undefined}
+          />
         </div>
         <ul className="setup-picker" aria-label="Choose a section">
-          {list.map((s) => (
-            <li key={s.sectionId}>
-              <button type="button" aria-current={s.sectionId === selected ? "true" : undefined} onClick={() => setSelected(s.sectionId)}>
-                <span className="grid">
-                  <span>{s.label}</span>
-                  <span className="text-small text-ink-muted">{s.classTeacherName ?? "No class teacher"}</span>
-                </span>
-                {gapsOf(s) > 0 ? <StatusBadge status="warning">{gapsOf(s)}</StatusBadge> : <Icon name="checkCircle" size={16} className="text-success" />}
-              </button>
+          {groups.map((g) => (
+            <li key={g.className} className="setup-picker-group">
+              <span className="setup-picker-heading" aria-hidden="true">
+                {g.className}
+              </span>
+              <ul aria-label={g.className}>
+                {g.sections.map((s) => (
+                  <li key={s.sectionId}>
+                    <button type="button" aria-current={s.sectionId === selected ? "true" : undefined} onClick={() => setSelected(s.sectionId)}>
+                      <span className="grid min-w-0">
+                        <span className="truncate">{s.label}</span>
+                        <span className="truncate text-small text-ink-muted">{s.classTeacherName ?? "No class teacher"}</span>
+                      </span>
+                      {gapsOf(s) > 0 ? <StatusBadge status="warning">{gapsOf(s)}</StatusBadge> : <Icon name="checkCircle" size={16} className="text-success" />}
+                    </button>
+                  </li>
+                ))}
+              </ul>
             </li>
           ))}
-          {list.length === 0 && <li className="p-3 text-small text-ink-muted">Every section has all its teachers.</li>}
+          {list.length === 0 && (
+            <li className="p-3 text-small text-ink-muted">
+              {words.length > 0 ? (
+                <>
+                  No section matches “{search.trim()}”{onlyGaps ? " among the sections with gaps" : ""}.{" "}
+                  <button type="button" className="border-0 bg-transparent p-0 text-small text-brand-ink underline-offset-2 hover:underline" onClick={() => setSearch("")}>
+                    Clear the search
+                  </button>
+                </>
+              ) : (
+                "Every section has all its teachers."
+              )}
+            </li>
+          )}
         </ul>
       </div>
       {section ? <SectionStaffingEditor key={`${section.sectionId}:${section.rowVer}`} section={section} data={data} readOnly={readOnly} /> : <EmptyState icon="students" title="Choose a section" />}

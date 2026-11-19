@@ -8,6 +8,9 @@ import { campusLabel } from "../../app/shell/campus";
 import { accountOptions, AccountsShell, accToday, asOfFor, Bal, balText, DocFoot, DocHead, errorText, lakhTick, LoadError, printAmt, printBal, sessionStartOf, shortDate, slide, TypeChip, useChart } from "./shared";
 import { VoucherPeek } from "./VoucherPeek";
 
+/** "1 line", "6,661 lines" ("1 lines" before, test run F-043). */
+const plural = (n: number, one: string) => `${formatCount(n)} ${n === 1 ? one : `${one}s`}`;
+
 export interface LedgerSearch {
   account?: string;
   from?: string;
@@ -167,8 +170,8 @@ export function LedgerPage({ search, setSearch }: { search: LedgerSearch; setSea
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {[
               { label: "Opening balance", value: l?.opening, hint: `Before ${formatDate(from)}` },
-              { label: "Debits", value: l?.totalDebit, hint: `${formatCount(l?.lines.filter((x) => x.debit).length ?? 0)} lines` },
-              { label: "Credits", value: l?.totalCredit, hint: `${formatCount(l?.lines.filter((x) => x.credit).length ?? 0)} lines` },
+              { label: "Debits", value: l?.totalDebit, hint: plural(l?.lines.filter((x) => x.debit).length ?? 0, "line") },
+              { label: "Credits", value: l?.totalCredit, hint: plural(l?.lines.filter((x) => x.credit).length ?? 0, "line") },
               { label: "Closing balance", value: l?.closing, hint: `At ${formatDate(to)}` },
             ].map((c, i) => (
               <div key={c.label} className="mtb-rise" style={slide(i)}>

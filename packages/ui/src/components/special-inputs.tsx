@@ -205,6 +205,24 @@ export interface ComboboxProps {
   emptyText?: string;
   disabled?: boolean;
   className?: string;
+  /** Called with the typed text, so a long list (students) can be searched on the server; the options are still filtered as typed. */
+  onSearchChange?: (search: string) => void;
+}
+
+/** The option's own value follows this mark in cmdk's item value, so it keeps items apart without being searched. */
+const VALUE_MARK = "\u0001";
+
+/**
+ * Every typed word must be found in the option's label or hint; options whose label starts with the text come first.
+ * cmdk's fuzzy default also matched scattered letters and the internal id, so "1101" listed 1201 and 1301 and
+ * "office" listed Staff fines first, and a "nothing matches" note could never show (test run F-141).
+ */
+export function comboboxFilter(value: string, search: string, keywords?: string[]): number {
+  const q = search.trim().toLowerCase();
+  if (!q) return 1;
+  const text = `${value.split(VALUE_MARK)[0] ?? ""} ${(keywords ?? []).join(" ")}`.toLowerCase();
+  if (!q.split(/\s+/).every((w) => text.includes(w))) return 0;
+  return text.startsWith(q) ? 1 : 0.5;
 }
 
 /** Searchable select for long lists (accounts, students, classes). Type to filter, arrows to move, Enter to pick. */
@@ -221,6 +239,7 @@ export function Combobox({
   emptyText = "No matches",
   disabled,
   className,
+  onSearchChange,
 }: ComboboxProps) {
   const [open, setOpen] = useState(false);
   const current = options.find((o) => o.value === value);
@@ -244,14 +263,15 @@ export function Combobox({
           </Popover.Trigger>
           <Popover.Portal>
             <Popover.Content className="mtb-popover mtb-combobox" align="start" sideOffset={6}>
-              <Command label={typeof label === "string" ? label : "Options"}>
-                <Command.Input className="mtb-input" placeholder={searchPlaceholder} autoFocus />
+              {/* A list searched on the server (onSearchChange) is already the matches: a student found by the father's CNIC has no CNIC in its label. */}
+              <Command label={typeof label === "string" ? label : "Options"} filter={comboboxFilter} shouldFilter={!onSearchChange}>
+                <Command.Input className="mtb-input" placeholder={searchPlaceholder} autoFocus {...(onSearchChange ? { onValueChange: onSearchChange } : {})} />
                 <Command.List>
                   <Command.Empty>{emptyText}</Command.Empty>
                   {options.map((o) => (
                     <Command.Item
                       key={o.value}
-                      value={`${o.label} ${o.hint ?? ""} ${o.value}`}
+                      value={`${o.label} ${o.hint ?? ""}${VALUE_MARK}${o.value}`}
                       {...(o.keywords ? { keywords: o.keywords } : {})}
                       data-checked={o.value === value}
                       onSelect={() => {

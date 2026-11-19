@@ -175,6 +175,7 @@ export function TeacherTextsDialog({ date: initialDate, preselect, onClose }: Te
               columns={columns}
               rows={rows}
               rowKey="teacherId"
+              rowLabel={(r) => r.name}
               maxHeight={300}
               selectable
               selected={selected}

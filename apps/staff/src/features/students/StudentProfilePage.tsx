@@ -162,7 +162,23 @@ function ClassHistoryTab({ p }: { p: StudentProfile }) {
               ),
             },
             { key: "reason", header: "How", render: (r) => <span className="text-small">{r.reason}</span> },
-            { key: "outcome", header: "Outcome", width: 130, render: (r) => (r.outcome ? <StatusBadge status={r.outcome === "Promoted" || r.outcome === "Passed out" ? "success" : r.outcome === "Expelled" ? "danger" : "neutral"}>{r.outcome}</StatusBadge> : r.session > CURRENT_SESSION ? <StatusBadge status="info">Next session</StatusBadge> : <StatusBadge status="pending">Current</StatusBadge>) },
+            {
+              key: "outcome",
+              header: "Outcome",
+              width: 130,
+              // Without a session outcome a placement is "Current" only while it is open; one that closed during the session
+              // (a section change) reads "Moved", so the history never shows two current classes.
+              render: (r) =>
+                r.outcome ? (
+                  <StatusBadge status={r.outcome === "Promoted" || r.outcome === "Passed out" ? "success" : r.outcome === "Expelled" ? "danger" : "neutral"}>{r.outcome}</StatusBadge>
+                ) : r.session > CURRENT_SESSION ? (
+                  <StatusBadge status="info">Next session</StatusBadge>
+                ) : r.to ? (
+                  <StatusBadge status="neutral">Moved</StatusBadge>
+                ) : (
+                  <StatusBadge status="pending">Current</StatusBadge>
+                ),
+            },
           ]}
         />
       </section>
@@ -685,6 +701,7 @@ function GuardianCard({ p }: { p: StudentProfile }) {
 }
 
 function SiblingsCard({ p }: { p: StudentProfile }) {
+  const canSeeFees = useCan("fees.view");
   return (
     <section className="mtb-card mtb-rise" style={stagger(2)} aria-labelledby="siblings-title">
       <header className="mtb-card-header">
@@ -711,7 +728,8 @@ function SiblingsCard({ p }: { p: StudentProfile }) {
                     <span className="mtb-mono">{s.grNo}</span> · {s.classSection} · {s.campusName}
                   </span>
                 </span>
-                {s.status !== "ACTIVE" ? <EnrolmentBadge status={s.status} /> : <StatusBadge status={s.feeStatus} />}
+                {/* the fee badge only for accounts with fee rights (the API leaves feeStatus out for the others) */}
+                {s.status !== "ACTIVE" || !canSeeFees || !s.feeStatus ? <EnrolmentBadge status={s.status} /> : <StatusBadge status={s.feeStatus} />}
               </Link>
             </li>
           ))}
@@ -757,7 +775,12 @@ function SendSmsModal({ p, open, onClose }: { p: StudentProfile; open: boolean; 
 
 const editSchema = z.object({
   mobile: z.string().refine((v) => normalizeMobile(v) !== null, { error: "Enter a Pakistani mobile number, e.g. 0300-1234567." }),
-  address: z.string().trim().min(8, { error: "Enter the full address: house, street and area." }),
+  address: z
+    .string()
+    .trim()
+    .min(8, { error: "Enter the full address: house, street and area." })
+    // the family record keeps 300 characters; longer text used to be cut off without a word (F-019)
+    .max(300, { error: (iss) => `An address can be up to 300 characters (this one has ${String(iss.input).trim().length}).` }),
   fatherCnic: z.string().refine((v) => isValidCnic(v), { error: "A CNIC has 13 digits, e.g. 36302-4567890-1." }),
   bForm: z.string().refine((v) => !v || isValidCnic(v), { error: "A B-form number has 13 digits." }),
   boardRollPartI: z.string().trim().refine((v) => !v || /^\d{4,9}$/.test(v), { error: "The board roll no. Part-I is 4 to 9 digits." }),
@@ -867,7 +890,10 @@ function EditPanel({ p, open, onClose }: { p: StudentProfile; open: boolean; onC
       description={`${p.name} · ${p.grNo}`}
       footer={
         <>
-          <Button onClick={onClose}>Cancel</Button>
+          {/* a save already sent can't be called back, so Cancel waits for it */}
+          <Button onClick={onClose} disabled={save.isPending}>
+            Cancel
+          </Button>
           <Button variant="primary" loading={save.isPending} loadingLabel="Saving…" onClick={submit}>
             Save changes
           </Button>
@@ -1022,7 +1048,9 @@ export function StudentProfilePage({ grNo, tab, setTab }: { grNo: string; tab: P
       <Page>
         <PageHeader
           title={p?.name ?? "Student"}
-          context={p ? `${p.campusName} · Session ${formatSession(p.session)}` : undefined}
+          // the student's campus, and the session the app is in (as on every page; in last session's read-only view the
+          // line must not say the current session). The header below still shows the student's own enrolment session.
+          context={p ? `${p.campusName} · Session ${formatSession(ctx.session)}` : undefined}
           actions={
             p ? (
               <>

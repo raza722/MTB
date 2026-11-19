@@ -34,7 +34,11 @@ const familySchema = z.object({
   father: z.string().trim().min(3, { error: "Enter the father's name." }),
   fatherCnic: z.string().refine((v) => !v || isValidCnic(v), { error: "A CNIC has 13 digits, e.g. 36302-4567890-1." }),
   mobile: z.string().refine((v) => normalizeMobile(v) !== null, { error: "Enter a Pakistani mobile number, e.g. 0300-1234567." }),
-  address: z.string().trim().min(8, { error: "Enter the full address: house, street and area." }),
+  address: z
+    .string()
+    .trim()
+    .min(8, { error: "Enter the full address: house, street and area." })
+    .max(300, { error: (iss) => `An address can be up to 300 characters (this one has ${String(iss.input).trim().length}).` }),
 });
 
 /** Age on 1 April of the session applied for, the way admission rules count it. */
@@ -117,8 +121,17 @@ export function NewApplicationPage({ enquiryId }: { enquiryId: string }) {
     },
   });
 
-  const set = (patch: Partial<Form>) => setForm((f) => ({ ...f, ...patch }));
-  const setX = (patch: Partial<ExtrasForm>) => setExtras((x) => ({ ...x, ...patch }));
+  /** A field's error goes as soon as the field changes; Continue checks it again (test run F-030). */
+  const clearErrors = (fields: string[]) =>
+    setErrors((e) => (fields.some((f) => f in e) ? Object.fromEntries(Object.entries(e).filter(([k]) => !fields.includes(k))) : e));
+  const set = (patch: Partial<Form>) => {
+    setForm((f) => ({ ...f, ...patch }));
+    clearErrors(Object.keys(patch));
+  };
+  const setX = (patch: Partial<ExtrasForm>) => {
+    setExtras((x) => ({ ...x, ...patch }));
+    clearErrors(Object.keys(patch));
+  };
   const err = (f: string) => errors[f] ?? fieldError(apply.error, f);
   const next = () => {
     const found: Record<string, string> = {};

@@ -6,7 +6,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useCtx } from "../../app/session";
 import { downloadExcel } from "./export";
-import { errorText, FormatIcon, formatLabel, JobStatus, LoadError, ReportsShell, slide, timeText } from "./shell";
+import { errorText, FormatIcon, formatLabel, JobStatus, LoadError, ReportsShell, rowsText, slide, timeText } from "./shell";
 
 /** /reports/jobs — reports prepared in the background and exports: progress, download, retry. Kept 7 days. */
 export function JobsPage() {
@@ -87,7 +87,7 @@ export function JobsPage() {
       key: "size",
       header: "Size",
       width: 140,
-      render: (j) => (j.status === "READY" ? <span className="grid text-small"><span className="mtb-num">{formatCount(j.rowCount ?? 0)} rows{j.sizeKb ? ` · ${formatCount(j.sizeKb)} KB` : ""}</span>{j.expiresAt && <span className="mtb-cell-secondary">Kept until {formatDate(j.expiresAt)}</span>}</span> : j.status === "FAILED" ? <span className="text-small text-danger-ink">{j.error}</span> : <span className="text-small text-ink-subtle">—</span>),
+      render: (j) => (j.status === "READY" ? <span className="grid text-small"><span className="mtb-num">{rowsText(j.rowCount ?? 0)}{j.sizeKb ? ` · ${formatCount(j.sizeKb)} KB` : ""}</span>{j.expiresAt && <span className="mtb-cell-secondary">Kept until {formatDate(j.expiresAt)}</span>}</span> : j.status === "FAILED" ? <span className="text-small text-danger-ink">{j.error}</span> : <span className="text-small text-ink-subtle">—</span>),
     },
     {
       key: "actions",

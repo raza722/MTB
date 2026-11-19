@@ -1,12 +1,13 @@
-import { libraryApi, libraryQueries, newIdempotencyKey, smsSegments, type LibraryLoan } from "@mtb/api";
+import { libraryApi, libraryQueries, smsSegments, type LibraryLoan } from "@mtb/api";
 import { formatCount, formatDate, formatDateTime, formatMobile, formatRs } from "@mtb/domain";
 import { AnimatedNumber, Banner, Button, DataTable, EmptyState, Input, KeyValue, Modal, Segmented, StatCard, StatusBadge, Urdu, useToast, type Column } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { campusLabel } from "../../app/shell/campus";
 import { addDays, DocHead, errorCode, errorText, LoadError, opsToday, slide, Spine, usePrinter } from "./common";
 import { LibraryShell, MemberLink, TitleText } from "./shared";
+import { useIdempotencyKey } from "../../app/idempotency";
 
 // Preview of the built-in "Library book overdue" template (Messages, purpose Library overdue reminder). The server
 // renders the real text from the template as it stands, so an admin's rewording shows in the outbox, not here. The
@@ -37,7 +38,7 @@ function ReminderModal({ rows, onClose, onSent }: { rows: LibraryLoan[]; onClose
   const toast = useToast();
   const qc = useQueryClient();
   const [lang, setLang] = useState<"en" | "ur">("en");
-  const key = useMemo(() => newIdempotencyKey(), [rows, lang]);
+  const key = useIdempotencyKey(rows, lang);
   const first = rows[0];
   const campus = campusLabel(ctx.campus);
   const text = first ? englishText(first, campus) : "";
@@ -149,7 +150,7 @@ export function OverduePage() {
   const [reminding, setReminding] = useState(false);
   const printer = usePrinter();
   useEffect(() => setSelected(new Set()), [ctx.campus, ctx.session, type]);
-  const rows = (q.data ?? []).filter((l) => (!type || l.borrowerType === type) && (!search.trim() || `${l.borrowerName} ${l.title} ${l.borrowerDetail}`.toLowerCase().includes(search.trim().toLowerCase())));
+  const rows = (q.data ?? []).filter((l) => (!type || l.borrowerType === type) && (!search.trim() || `${l.borrowerName} ${l.borrowerId} ${l.title} ${l.accessionNo} ${l.borrowerDetail}`.toLowerCase().includes(search.trim().toLowerCase())));
   const chosen = rows.filter((r) => selected.has(r.id));
   const weekAgo = addDays(opsToday(), -7);
   const totals = {
@@ -230,6 +231,7 @@ export function OverduePage() {
         loading={q.isLoading}
         columns={columns}
         selectable={canSend}
+        rowLabel={(l) => `${l.borrowerName}, ${l.accessionNo}`}
         selected={selected}
         onSelectedChange={setSelected}
         isRowSelectable={(l) => Boolean(l.mobile)}
@@ -246,11 +248,17 @@ export function OverduePage() {
               ]}
             />
             <div className="min-w-[220px] flex-1">
-              <Input label="Search" icon="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Borrower, class or book" />
+              <Input label="Search" icon="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Borrower, G.R., class or book" />
             </div>
           </div>
         }
-        empty={<EmptyState icon="checkCircle" title="Nothing is overdue" description="Every book is back or not yet due." />}
+        empty={
+          (q.data ?? []).length > 0 ? (
+            <EmptyState icon="search" title="No overdue book matches" description="Clear the search or choose Students and staff to see every overdue book." />
+          ) : (
+            <EmptyState icon="checkCircle" title="Nothing is overdue" description="Every book is back or not yet due." />
+          )
+        }
       />
       {reminding && chosen.length > 0 && (
         <ReminderModal

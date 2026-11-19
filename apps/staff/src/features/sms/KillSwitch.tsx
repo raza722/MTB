@@ -61,7 +61,7 @@ export function KillSwitch() {
             <span className="text-small text-ink-muted">
               Paused by {s.pausedBy ?? "Admin"}
               {s.pausedAt ? <> at <span className="mtb-num">{formatDateTime(s.pausedAt)}</span></> : null}
-              {s.reason ? ` · ${s.reason}` : ""}. New messages can't be sent until you resume. Sending is switched off in this system either way: messages stay held in the outbox.
+              {s.reason ? ` · ${s.reason.replace(/\.+$/, "")}` : ""}. New messages can't be sent until you resume. Sending is switched off in this system either way: messages stay held in the outbox.
             </span>
           ) : (
             <span className="text-small text-ink-muted">

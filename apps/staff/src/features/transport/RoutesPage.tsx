@@ -1,5 +1,5 @@
 import { TRANSPORT_DIRECTION_LABEL, transportApi, transportQueries, type TransportRoute, type TransportRouteSheet } from "@mtb/api";
-import { formatMobile, formatRs } from "@mtb/domain";
+import { formatCount, formatMobile, formatRs } from "@mtb/domain";
 import { AmountInput, Banner, Button, EmptyState, IconButton, Input, Panel, Select, SidePanel, Skeleton, StatusBadge, Switch, useToast } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -10,13 +10,16 @@ import { campusLabel } from "../../app/shell/campus";
 import { CampusNote, DocHead, errorField, errorText, LoadError, RequireSingleCampusOverlay, usePrinter, validate } from "../library/common";
 import { Load, TransportShell } from "./shared";
 
+/* "1 rider", "2 riders" (test run F-131). */
+const plural = (n: number, one: string) => `${formatCount(n)} ${n === 1 ? one : `${one}s`}`;
+
 /* ---------------------------------------------------------------- Route sheet (A4) */
 
 function RouteSheet({ s }: { s: TransportRouteSheet }) {
   const v = s.vehicle;
   return (
     <div className="ops-doc">
-      <DocHead title={`Route sheet ${s.route.code} · ${s.route.name}`} subtitle={`${s.route.riders} riders · ${s.route.stops.length} stops`} campus={s.campusName} />
+      <DocHead title={`Route sheet ${s.route.code} · ${s.route.name}`} subtitle={`${plural(s.route.riders, "rider")} · ${plural(s.route.stops.length, "stop")}`} campus={s.campusName} />
       <dl className="ops-doc-kv">
         <dt>Vehicle</dt>
         <dd>{v ? `${v.regNo} · ${v.make} ${v.model} · ${v.capacity} seats` : "None"}</dd>
@@ -269,7 +272,7 @@ export function RoutesPage() {
                           {s.fare !== null ? ` · ${formatRs(s.fare)} a month` : ""}
                         </span>
                       </span>
-                      <span className="mtb-num text-small text-ink-muted">{s.riders} riders</span>
+                      <span className="mtb-num text-small text-ink-muted">{plural(s.riders, "rider")}</span>
                     </li>
                   ))}
                 </ol>

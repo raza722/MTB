@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { TemplatesPage } from "../../../features/sms";
+import { idParam } from "../../../app/search";
 
 /** /sms/templates — ready-made messages in English and Urdu with variables, counts and previews. */
 export const Route = createFileRoute("/_app/sms/templates")({
-  validateSearch: (s: Record<string, unknown>): { id?: string } => (typeof s.id === "string" && s.id ? { id: s.id } : {}),
+  validateSearch: (s: Record<string, unknown>): { id?: string } => (idParam(s.id) ? { id: idParam(s.id)! } : {}),
   component: function TemplatesRoute() {
     const navigate = Route.useNavigate();
     const { id } = Route.useSearch();

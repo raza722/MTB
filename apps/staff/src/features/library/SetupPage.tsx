@@ -313,7 +313,8 @@ function PolicyCard({ p, i, editable }: { p: LibraryFinePolicy; i: number; edita
     },
   });
   const num = (v: string) => (v.trim() === "" ? null : Number(v.replace(/\D/g, "")));
-  const example = (p.ratePerDay > 0 ? `A book 10 days late costs ${formatRs(Math.max(0, 10 - p.graceDays) * p.ratePerDay)}` : "No late fine") + (p.capAtCost ? ", never more than the book's price." : ".");
+  // With no fine a day there is nothing to cap: "No late fine." alone (not "No late fine, never more than the book's price.").
+  const example = p.ratePerDay > 0 ? `A book 10 days late costs ${formatRs(Math.max(0, 10 - p.graceDays) * p.ratePerDay)}${p.capAtCost ? ", never more than the book's price." : "."}` : "No late fine.";
   return (
     <Panel
       id={`policy-${p.borrowerType}`}
@@ -524,7 +525,7 @@ export function LibrarySetupPage() {
                   <h3 className="m-0 text-body font-semibold">
                     {l.name}
                     <span className="ml-2 text-small font-normal text-ink-muted">
-                      {cabs.length} cabinets · {formatCount(cabs.reduce((a, c) => a + c.copies, 0))} copies{ctx.campus === "ALL" ? ` · ${campusLabel(l.campus)}` : ""}
+                      {formatCount(cabs.length)} {cabs.length === 1 ? "cabinet" : "cabinets"} · {formatCount(cabs.reduce((a, c) => a + c.copies, 0))} {cabs.reduce((a, c) => a + c.copies, 0) === 1 ? "copy" : "copies"}{ctx.campus === "ALL" ? ` · ${campusLabel(l.campus)}` : ""}
                       {l.active ? "" : " · not in use"}
                     </span>
                   </h3>

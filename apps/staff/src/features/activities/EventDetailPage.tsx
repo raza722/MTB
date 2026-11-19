@@ -9,7 +9,7 @@ import {
   type ActivitiesPosition,
   type ActivitiesRole,
 } from "@mtb/api";
-import { formatDate, formatLongDate, formatSession } from "@mtb/domain";
+import { formatDate, formatLongDate, formatSession, pakistanDate } from "@mtb/domain";
 import { Banner, Button, ConfirmDialog, EmptyState, IconButton, KeyValue, Panel, Select, Skeleton, StatusBadge, Textarea, Timeline, Urdu, useToast, buttonClassName } from "@mtb/ui";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -252,11 +252,11 @@ function EventView({ ev }: { ev: ActivitiesEventDetail }) {
           </Panel>
           {ev.houseEvent && houseRows.length > 0 && (
             <Panel id="ev-houses" title="House points from this event" description={dirty ? "With the places you have chosen (not saved yet)" : ev.status === "DONE" ? "Posted to the points table" : "So far, for taking part"} rise={3}>
-              <BarList label="House points from this event" format={(v) => `${v} pts`} rows={houseRows} />
+              <BarList label="House points from this event" format={(v) => `${v} ${v === 1 ? "pt" : "pts"}`} rows={houseRows} />
             </Panel>
           )}
           <Panel id="ev-history" title="History" rise={4}>
-            <Timeline items={[...ev.history].reverse().map((h) => ({ id: h.id, date: h.at.slice(0, 10), title: `${h.action} · ${h.by}`, description: h.detail }))} />
+            <Timeline items={[...ev.history].reverse().map((h) => ({ id: h.id, date: pakistanDate(h.at), title: `${h.action} · ${h.by}`, description: h.detail }))} />
           </Panel>
         </div>
       </div>

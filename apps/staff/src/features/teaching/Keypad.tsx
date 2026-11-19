@@ -9,7 +9,7 @@ export function checkBuffer(buffer: string, max: number): { value: number | "A" 
   if (!/^\d{1,3}(\.\d?)?$/.test(buffer)) return { value: null, error: "Type a number, or tap Absent." };
   const n = Number(buffer.endsWith(".") ? buffer.slice(0, -1) : buffer);
   if (n > max) return { value: n, error: `Maximum is ${max}` };
-  if (Math.round(n * 2) !== n * 2) return { value: n, error: "Use whole or half marks, for example 12.5." };
+  if (Math.round(n * 2) !== n * 2) return { value: n, error: `Use whole or half marks, for example ${Math.floor(n)} or ${Math.floor(n)}.5.` };
   return { value: n, error: null };
 }
 

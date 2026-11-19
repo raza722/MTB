@@ -171,6 +171,7 @@ export const ur: Record<MessageKey, string> = {
   "fees.colFine": "جرمانہ",
   "fees.colTotal": "کل",
   "fees.daysOverdue": "{n} دن تاخیر",
+  "fees.dayOverdue": "{n} دن تاخیر",
   "fees.voucher": "فیس واؤچر ڈاؤن لوڈ کریں",
   "fees.voucherHint": "{bank} کی کسی بھی برانچ یا اسکول کے فیس کاؤنٹر پر جمع کروائیں۔",
   "fees.voucherHintCounter": "اسکول کے فیس کاؤنٹر پر جمع کروائیں۔",
@@ -222,6 +223,8 @@ export const ur: Record<MessageKey, string> = {
   "doc.noVoucherYet": "اس مہینے کا واؤچر ابھی جاری نہیں ہوا",
   "doc.noVoucherYetDesc": "اس مہینے کا فیس واؤچر ابھی جاری نہیں ہوا۔ کیمپس آفس میں فیس جمع کروائیں، یا دفتر سے واؤچر جاری کرنے کو کہیں۔",
   "doc.noVoucherYetCall": "دفتر کا فون: {phone}",
+  "doc.voucherChanged": "یہ واؤچر اب درست نہیں",
+  "doc.voucherChangedDesc": "واؤچر جاری ہونے کے بعد اس پر درج فیس بدل گئی ہے، اس لیے بینک غلط رقم لے گا۔ کیمپس آفس میں فیس جمع کروائیں، یا دفتر سے نیا واؤچر لیں۔",
   "doc.preview": "پیش منظر",
 
   // ---- Attendance ----

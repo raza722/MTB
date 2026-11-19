@@ -1,5 +1,5 @@
 import { EXAMS_CATEGORY_HELP, EXAMS_CATEGORY_LABEL, examsApi, examsQueries, setupQueries, type ExamsCategory, type ExamsType, type ExamsTypeInput } from "@mtb/api";
-import { formatRs } from "@mtb/domain";
+import { formatCount, formatRs } from "@mtb/domain";
 import { Banner, Button, Checkbox, DataTable, EmptyState, Input, Panel, Segmented, Select, SidePanel, StatusBadge, Switch, Urdu, useToast, type Column } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -60,7 +60,7 @@ export function ExamTypesPage() {
     { key: "rank", header: "Positions", width: 170, render: (t) => (t.category === "TEST" && t.rankScope === "MONTH" ? "Over the month's tests" : "Within the exam") },
     { key: "promo", header: "Promotion", width: 110, render: (t) => (t.countsForPromotion ? "Counts" : "—") },
     { key: "fine", header: "Absence fine", align: "right", width: 130, render: (t) => (t.absenceFine ? <span className="mtb-num">{formatRs(t.absenceFine)}</span> : <span className="text-ink-muted">None</span>) },
-    { key: "exams", header: "Exams this session", align: "right", width: 150, render: (t) => <span className="mtb-num">{t.exams}</span> },
+    { key: "exams", header: "Exams this session", align: "right", width: 150, render: (t) => <span className="mtb-num">{formatCount(t.exams)}</span> },
     { key: "active", header: "Status", width: 110, render: (t) => (t.active ? <StatusBadge status="success">In use</StatusBadge> : <StatusBadge status="neutral">Switched off</StatusBadge>) },
   ];
 
@@ -171,7 +171,7 @@ function TypePanel({ type, onClose }: { type: ExamsType | null; onClose: () => v
       open
       onClose={onClose}
       title={type ? `Edit ${type.name}` : "Add exam type"}
-      description={type && type.exams > 0 ? `Used by ${type.exams} ${type.exams === 1 ? "exam" : "exams"} this session.` : "Shared by every campus."}
+      description={type && type.exams > 0 ? `Used by ${formatCount(type.exams)} ${type.exams === 1 ? "exam" : "exams"} this session.` : "Shared by every campus."}
       footer={
         <>
           <Button onClick={onClose}>Cancel</Button>

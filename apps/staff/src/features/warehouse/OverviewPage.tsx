@@ -1,5 +1,6 @@
 import { WAREHOUSE_MOVEMENT_LABEL, warehouseQueries, type WarehouseOverview } from "@mtb/api";
-import { formatCount, formatDateTime, formatLakh, formatRs } from "@mtb/domain";
+import { formatCount, formatDateTime } from "@mtb/domain";
+import { formatLakh, formatRs } from "./money";
 import { AnimatedNumber, Banner, buttonClassName, ColumnChart, DataTable, EmptyState, Icon, Panel, Skeleton, StatCard } from "@mtb/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -112,7 +113,7 @@ export function WarehouseOverviewPage() {
           <StatCard loading={!o} label="Stock in the store" icon="warehouse" value={o && <AnimatedNumber value={o.stockValue} format={formatRs} />} foot={o && `${formatCount(o.items)} items · at average cost`} onClick={() => go("/warehouse/stock")} />
         </div>
         <div className="mtb-rise" style={slide(1)}>
-          <StatCard loading={!o} label="Low or out of stock" icon="alert" tone={o && o.outOfStock > 0 ? "danger" : o && o.lowStock > 0 ? "warning" : undefined} value={o && <AnimatedNumber value={o.lowStock + o.outOfStock} format={formatCount} />} foot={o && `${o.outOfStock} out · ${o.lowStock} below reorder level`} onClick={() => go("/warehouse/stock", { status: "LOW" })} />
+          <StatCard loading={!o} label="Low or out of stock" icon="alert" tone={o && o.outOfStock > 0 ? "danger" : o && o.lowStock > 0 ? "warning" : undefined} value={o && <AnimatedNumber value={o.lowStock + o.outOfStock} format={formatCount} />} foot={o && `${formatCount(o.outOfStock)} out · ${formatCount(o.lowStock)} below reorder level`} onClick={() => go("/warehouse/stock", { status: "LOW" })} />
         </div>
         <div className="mtb-rise" style={slide(2)}>
           <StatCard loading={!o} label="Requests waiting" icon="inbox" tone={o && o.openRequests > 0 ? "info" : undefined} value={o && <AnimatedNumber value={o.openRequests} format={formatCount} />} foot="From departments and classes" onClick={() => go("/warehouse/issue", { tab: "requests" })} />

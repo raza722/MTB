@@ -127,7 +127,7 @@ export function ExamsPage() {
       {exams.isError && <LoadError what="Exams" error={exams.error} onRetry={() => void exams.refetch()} />}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Exams this session" icon="exams" loading={exams.isLoading} value={<AnimatedNumber value={counts?.exams ?? 0} format={formatCount} />} foot={`${counts?.declared ?? 0} declared · ${counts?.draft ?? 0} in draft`} />
+        <StatCard label="Exams this session" icon="exams" loading={exams.isLoading} value={<AnimatedNumber value={counts?.exams ?? 0} format={formatCount} />} foot={`${formatCount(counts?.declared ?? 0)} declared · ${formatCount(counts?.draft ?? 0)} in draft`} />
         <StatCard label="Ready to declare" icon="lock" loading={exams.isLoading} value={<AnimatedNumber value={counts?.ready ?? 0} format={formatCount} />} foot={counts?.ready ? "Every mark is in" : "None waiting"} onClick={() => {
             setStatus("READY");
             setPage(1);

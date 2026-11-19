@@ -207,7 +207,7 @@ export function ExamPrint({ search, onSearch }: { search: ExamPrintSearch; onSea
             )}
             {doc.id === "card" && (
               <>
-                <Select label="Student" value={student?.id ?? ""} onChange={(e) => set({ student: e.target.value || undefined })} options={[{ value: "", label: `Everyone (${rowsInSection.length} cards)` }, ...rowsInSection.map((r) => ({ value: r.id, label: `${r.rollNo}. ${r.name}` }))]} />
+                <Select label="Student" value={student?.id ?? ""} onChange={(e) => set({ student: e.target.value || undefined })} options={[{ value: "", label: `Everyone (${rowsInSection.length} cards)` }, ...rowsInSection.map((r) => ({ value: r.id, label: `${r.rollNo ? `${r.rollNo}. ` : ""}${r.name} · ${r.id}` }))]} />
                 <Segmented aria-label="Cards per page" value={search.layout ?? "full"} onChange={(v) => set({ layout: v === "half" ? "half" : undefined })} options={[{ value: "full", label: "One per page" }, { value: "half", label: "Two side by side" }]} />
               </>
             )}

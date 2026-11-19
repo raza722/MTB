@@ -1,12 +1,13 @@
 import { newIdempotencyKey, warehouseApi, warehouseQueries, type WarehouseGrn } from "@mtb/api";
-import { amountInWords, formatCount, formatDate, formatDateTime, formatRs } from "@mtb/domain";
+import { formatCount, formatDate, formatDateTime } from "@mtb/domain";
+import { amountInWords, formatRs } from "./money";
 import { AmountInput, Banner, Button, Combobox, DataTable, DatePicker, EmptyState, Input, KeyValue, Modal, Select, SidePanel, StatusBadge, Textarea, useToast, type Column } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Fragment, useMemo, useState } from "react";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { campusLabel } from "../../app/shell/campus";
 import { CampusNote, DocHead, errorField, errorText, inRange, LoadError, opsToday, periodText, RequireSingleCampusOverlay, SignLines, usePrinter } from "../library/common";
-import { checkLines, itemOptions, LineEditor, newLine, orDash, WarehouseShell, type LineDraft } from "./shared";
+import { checkLines, itemOptions, LineEditor, newLine, orDash, qtyText, WarehouseShell, type LineDraft } from "./shared";
 
 function GrnDoc({ g, campus }: { g: WarehouseGrn; campus: string }) {
   return (
@@ -219,7 +220,7 @@ function GrnPanel({ g, onClose }: { g: WarehouseGrn; onClose: () => void }) {
           density="dense"
           columns={[
             { key: "item", header: "Item", render: (l) => l.itemName },
-            { key: "qty", header: "Qty", align: "right", render: (l) => <span className="mtb-num">{formatCount(l.qty)} {l.unit.toLowerCase()}</span> },
+            { key: "qty", header: "Qty", align: "right", render: (l) => <span className="mtb-num">{qtyText(l.qty, l.unit)}</span> },
             { key: "price", header: "Price", align: "right", render: (l) => <span className="mtb-num">{formatRs(l.unitPrice)}</span> },
             { key: "disc", header: "Discount", align: "right", render: (l) => (l.discountPct ? `${l.discountPct}%` : "—") },
             { key: "total", header: "Total", align: "right", render: (l) => <span className="mtb-num font-medium">{formatRs(l.total)}</span> },
@@ -314,7 +315,7 @@ function PurchaseRegister({ receipts, kindOf, subtitle, campus }: { receipts: Re
                         <td>{l.itemName}</td>
                         <td>{kindOf(l.itemId)}</td>
                         <td className="n">
-                          {formatCount(l.qty)} {l.unit.toLowerCase()}
+                          {qtyText(l.qty, l.unit)}
                         </td>
                         <td className="n">{formatRs(l.unitPrice)}</td>
                         <td className="n">{formatRs(l.qty * l.unitPrice)}</td>

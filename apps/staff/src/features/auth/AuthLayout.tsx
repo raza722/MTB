@@ -1,5 +1,5 @@
 import { AuthScene, type AuthSceneHighlight } from "@mtb/ui";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 
 const HIGHLIGHTS: readonly AuthSceneHighlight[] = [
   { icon: "building", text: "Every campus in one place" },
@@ -10,6 +10,10 @@ const HIGHLIGHTS: readonly AuthSceneHighlight[] = [
 
 /** The shared sign-in frame (school crest and the MTB name beside or above the form) with the staff app's wording. */
 export function AuthLayout({ title, subtitle, children, aside }: { title: string; subtitle?: ReactNode; children: ReactNode; aside?: ReactNode }) {
+  // The browser tab names the sign-in step, not the page that was open before sign-out ("Campuses · MTB").
+  useEffect(() => {
+    document.title = `${title} · MTB`;
+  }, [title]);
   return (
     <AuthScene name="MTB" tagline="Madrasat-ul-Banat Schools and Colleges" highlights={HIGHLIGHTS} motto="Inspiring success & changing lives · since 1907">
       <main className="mtb-card mtb-auth-card grid gap-5 p-6 sm:p-8">

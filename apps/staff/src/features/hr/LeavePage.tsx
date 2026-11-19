@@ -1,8 +1,8 @@
-import { hrApi, hrQueries, newIdempotencyKey, type CampusCode, type HrLeaveBalanceRow, type HrLeaveRequest, type HrLeaveStatus, type HrLeaveType } from "@mtb/api";
-import { formatCount, formatDate, formatDateTime, formatSession } from "@mtb/domain";
+import { hrApi, hrQueries, type CampusCode, type HrLeaveBalanceRow, type HrLeaveRequest, type HrLeaveStatus, type HrLeaveType } from "@mtb/api";
+import { formatCount, formatDate, formatDateTime, formatSession, pakistanDate } from "@mtb/domain";
 import { AnimatedNumber, Banner, Button, Checkbox, Combobox, DataTable, DatePicker, EmptyState, IconButton, Input, KeyValue, Menu, MenuItem, Panel, Segmented, Select, SidePanel, StatCard, StatusBadge, Textarea, Timeline, useToast, type Column } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { z } from "zod";
 import { campusLabel } from "../../app/shell/campus";
 import { RequirePermission } from "../../app/shell/page";
@@ -10,6 +10,7 @@ import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { ReportDoc } from "./print";
 import { issues, useHrSettings } from "./StaffPanels";
 import { campusHeading, DesignationSelect, errorField, errorText, filterNote, HrShell, LeaveBadge, LoadError, slide, staffOptions, today, useDesignationTitle, usePrint } from "./shared";
+import { useIdempotencyKey } from "../../app/idempotency";
 
 /* ---------------------------------------------------------------- Record leave */
 
@@ -46,7 +47,7 @@ function NewLeavePanel({ campus, types, onClose }: { campus: CampusCode; types: 
   const values = { staffId: several ? (many[0] ?? "") : (staffId ?? ""), from: from ?? "", to: to ?? "", reason };
   const parsed = schema.safeParse(values);
   const errors = issues(parsed);
-  const key = useMemo(() => newIdempotencyKey(), [JSON.stringify(values), typeId, half, approved]); // eslint-disable-line react-hooks/exhaustive-deps
+  const key = useIdempotencyKey(JSON.stringify(values), typeId, half, approved);
   const body = (id: string) => ({ campus, session: ctx.session, staffId: id, typeId, from: from!, to: to!, halfDay: half, reason: reason.trim(), approved });
   const save = useMutation({
     mutationFn: () => hrApi.requestLeave(body(staffId!), key),
@@ -265,7 +266,7 @@ function LeavePanel({ r, onClose }: { r: HrLeaveRequest; onClose: () => void }) 
         )}
         {(mode === "reject" || mode === "cancel") && <Textarea label={mode === "reject" ? "Why is it rejected?" : "Why is it cancelled?"} required={mode === "reject"} rows={3} value={note} onChange={(e) => setNote(e.target.value)} help={mode === "reject" ? "The staff member sees this under Teaching › Leave." : undefined} />}
         {error && <Banner tone="danger">{errorText(error)}</Banner>}
-        <Timeline label="Request history" items={r.history.map((h) => ({ id: h.id, date: h.at.slice(0, 10), title: h.text, description: `${h.by}${h.detail ? ` · ${h.detail}` : ""}`, tone: h.text === "Approved" ? ("success" as const) : h.text === "Rejected" ? ("danger" as const) : ("neutral" as const) }))} />
+        <Timeline label="Request history" items={r.history.map((h) => ({ id: h.id, date: pakistanDate(h.at), title: h.text, description: `${h.by}${h.detail ? ` · ${h.detail}` : ""}`, tone: h.text === "Approved" ? ("success" as const) : h.text === "Rejected" ? ("danger" as const) : ("neutral" as const) }))} />
       </div>
     </SidePanel>
   );

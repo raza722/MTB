@@ -139,7 +139,7 @@ export function LibraryOverviewPage() {
                   <div key={c.name} className="mtb-slide-in grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1" style={slide(i)}>
                     <span className="truncate text-small">{c.name}</span>
                     <span className="mtb-num text-small text-ink-muted">
-                      {c.onLoan} of {c.copies} out
+                      {formatCount(c.onLoan)} of {formatCount(c.copies)} out
                     </span>
                     <div className="col-span-2 ops-meter" aria-hidden="true">
                       <span style={{ width: `${Math.round((c.copies / Math.max(1, o.copies)) * 100)}%` }} />

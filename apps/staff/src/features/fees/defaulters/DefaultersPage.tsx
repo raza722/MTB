@@ -1,4 +1,4 @@
-import { feeSetupApi, feeSetupQueries, newIdempotencyKey, smsRender, smsSegments, type FeeDefaulter } from "@mtb/api";
+import { feeSetupApi, feeSetupQueries, smsRender, smsSegments, type FeeDefaulter } from "@mtb/api";
 import { formatCount, formatDate, formatDateTime, formatMobile, formatRs, formatSession } from "@mtb/domain";
 import {
   AmountInput,
@@ -30,11 +30,12 @@ import {
 } from "@mtb/ui";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { campusLabel } from "../../../app/shell/campus";
 import { Page, PageHeader, RequirePermission } from "../../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../../app/session";
 import { addDaysIso, errorText, feeToday, FeesNav, FeesDocHead, HeadPicker, LoadError, PaperSize, sessionMonthList, useFeeClasses, type FeeClasses } from "../shared";
+import { useIdempotencyKey } from "../../../app/idempotency";
 
 /** Variables a fee reminder can carry (each family's own figures). */
 const ALLOWED_VARS = ["student_name", "class", "amount_due", "due_date", "campus"];
@@ -99,7 +100,7 @@ function ReminderModal({ rows, template, paused, onClose, onSent }: { rows: FeeD
   const [enText, setEnText] = useState(template.en);
   const [urText, setUrText] = useState(template.ur);
   const [tried, setTried] = useState(false);
-  const key = useMemo(() => newIdempotencyKey(), [rows, lang, own, enText, urText]);
+  const key = useIdempotencyKey(rows, lang, own, enText, urText);
   const first = rows[0];
   const body = own ? (lang === "ur" ? urText : enText) : lang === "ur" ? template.ur : template.en;
   const message = first ? smsRender(body, { amount_due: formatCount(first.total), student_name: first.studentName, class: first.classSection, due_date: formatDate(first.oldestDue), campus: first.campusName }) : "";
@@ -421,7 +422,7 @@ export function DefaultersPage() {
             </div>
           }
           pagination={d && d.total > 100 ? <Pagination page={d.page} pageSize={d.pageSize} total={d.total} onPageChange={setPage} pageSizes={[100, 250, 500]} onPageSizeChange={setPageSize} /> : undefined}
-          footer={rows.length ? { student: d && d.total > rows.length ? `${formatCount(rows.length)} on this page` : `${formatCount(rows.length)} students`, session: formatRs(rows.reduce((a, r) => a + r.sessionTotal, 0)), fees: formatRs(rows.reduce((a, r) => a + r.outstanding, 0)), fine: formatRs(rows.reduce((a, r) => a + r.fine, 0)), total: formatRs(rows.reduce((a, r) => a + r.total, 0)) } : undefined}
+          footer={rows.length ? { student: d && d.total > rows.length ? `${formatCount(rows.length)} on this page` : `${formatCount(rows.length)} ${rows.length === 1 ? "student" : "students"}`, session: formatRs(rows.reduce((a, r) => a + r.sessionTotal, 0)), fees: formatRs(rows.reduce((a, r) => a + r.outstanding, 0)), fine: formatRs(rows.reduce((a, r) => a + r.fine, 0)), total: formatRs(rows.reduce((a, r) => a + r.total, 0)) } : undefined}
           empty={<EmptyState icon="checkCircle" title={filtered ? "Nobody matches these filters" : "No overdue fees"} description={filtered ? "Loosen the filters to see more students." : "Every student is up to date. Nice."} />}
         />
 
@@ -471,7 +472,7 @@ export function DefaultersPage() {
                   ))}
                 <tr>
                   <td colSpan={5}>
-                    <strong>{formatCount(rows.length)} students</strong>
+                    <strong>{formatCount(rows.length)} {rows.length === 1 ? "student" : "students"}</strong>
                   </td>
                   <td className="n">
                     <strong>{formatRs(rows.reduce((a, r) => a + r.sessionTotal, 0))}</strong>

@@ -1,3 +1,4 @@
+import { formatCount } from "@mtb/domain";
 import { useEffect, useRef, type KeyboardEvent, type ReactNode } from "react";
 import { Icon, type IconName } from "../icons";
 import { cx } from "../lib/cx";
@@ -67,7 +68,7 @@ export function Tabs({ tabs, value, onChange, touch, idPrefix = "", className, "
         >
           {t.icon && <Icon name={t.icon} size={16} />}
           {t.label}
-          {t.count !== undefined && <span className="mtb-tab-count">{t.count}</span>}
+          {t.count !== undefined && <span className="mtb-tab-count">{formatCount(t.count)}</span>}
         </button>
       ))}
     </div>

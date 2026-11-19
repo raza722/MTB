@@ -287,7 +287,7 @@ export function StudentsPage({ search, setSearch }: { search: StudentsSearch; se
   const pageRows = rows.slice((page - 1) * 25, page * 25);
 
   const columns: Array<Column<StudentSummary>> = [
-    { key: "photo", header: <span className="mtb-sr-only">Photo</span>, width: 52, render: (s) => <Avatar src={photoUrl.student(s.grNo)} name={s.name} size="sm" /> },
+    { key: "photo", header: <span className="mtb-sr-only">Photo</span>, width: 52, render: (s) => <Avatar src={s.hasPhoto === false ? undefined : photoUrl.student(s.grNo)} name={s.name} size="sm" /> },
     {
       key: "name",
       header: "Name",

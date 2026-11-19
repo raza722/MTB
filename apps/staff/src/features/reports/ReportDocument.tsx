@@ -70,6 +70,10 @@ export function filterLine(subtitle: string, filters: ReportFilterDef[] = []): A
   const parts = subtitle.split(" · ").slice(1);
   for (const p of parts) {
     let m: RegExpMatchArray | null;
+    // the exam reports repeat the chosen exam's id ("781"): the exam's title follows, so the id is left out (test run F-149)
+    if (/^\d+$/.test(p) && filters.some((x) => x.key === "exam")) continue;
+    // the same for a bank account's code ("1102") when another part names it ("Bank account: 1102 Hbl Bank")
+    if (/^\d+$/.test(p) && parts.some((q) => q !== p && q.includes(`${p} `))) continue;
     if ((m = p.match(/^Session (.+)$/))) out.push(["Session", m[1]!]);
     else if ((m = p.match(new RegExp(`^(${DAY}) to (${DAY})$`)))) out.push(["Date From", m[1]!], ["Date To", m[2]!]);
     else if (new RegExp(`^${DAY}$`).test(p)) out.push([filters.find((f) => f.kind === "date")?.label ?? "Date", p]);
@@ -87,7 +91,8 @@ export function filterLine(subtitle: string, filters: ReportFilterDef[] = []): A
     }
   }
   // a report's own extras can repeat a filter ("Class 9" twice on the exam reports): print each once
-  return out.filter(([l, v], i) => out.findIndex(([l2, v2]) => l2 === l && v2 === v) === i);
+  // (the exam reports also name their exam twice once the filter summary names it: print each value once)
+  return out.filter(([, v], i) => out.findIndex(([, v2]) => v2 === v) === i);
 }
 
 /**

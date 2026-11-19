@@ -115,7 +115,7 @@ export function KpiCards({ s }: { s: DashboardSummary | undefined }) {
         icon="fees"
         value={<AnimatedNumber value={s.feesToday.amount} format={formatRs} />}
         side={<Sparkline values={fees.map((f) => f.amount)} label={`Collections over the last ${fees.length} school days; today so far ${formatRs(s.feesToday.amount)}`} />}
-        foot={`${formatCount(s.feesToday.receipts)} receipts so far`}
+        foot={`${formatCount(s.feesToday.receipts)} ${s.feesToday.receipts === 1 ? "receipt" : "receipts"} so far`}
         onClick={canFees ? () => navigate({ to: "/fees/counter" }) : undefined}
       />
       <Kpi
@@ -136,7 +136,7 @@ export function KpiCards({ s }: { s: DashboardSummary | undefined }) {
         tone="danger"
         value={<AnimatedNumber value={s.arrears!.amount} format={(v) => money(v, showLakh)} />}
         foot={`${formatCount(s.arrears!.students)} students overdue`}
-        onClick={canStudents ? () => navigate({ to: "/students", search: (p: Record<string, unknown>) => ({ ...p, fee: "overdue" }) } as never) : undefined}
+        onClick={canStudents ? () => navigate({ to: "/students", search: (p: Record<string, unknown>) => ({ ...p, fee: "overdue", status: "ACTIVE" }) } as never) : undefined}
       />
       )}
     </div>

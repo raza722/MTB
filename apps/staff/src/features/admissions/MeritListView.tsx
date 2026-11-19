@@ -36,7 +36,11 @@ export function MeritListView({ ctx, cls, onClassChange }: { ctx: Ctx; cls: stri
   const [confirming, setConfirming] = useState(false);
   const [offerKey, setOfferKey] = useState(newIdempotencyKey);
   const [printing, setPrinting] = useState(false);
+  /** The last offer made here, shown until the class or a filter is changed. */
+  const [offered, setOffered] = useState<{ classApplied: string; names: string; until: string | undefined } | null>(null);
   const [title, setTitle] = useState("");
+  /** The list just saved: printed under its own title until the list or a filter changes (the page moves on to the next round). */
+  const [savedTitle, setSavedTitle] = useState<string | null>(null);
   const [titleError, setTitleError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveKey, setSaveKey] = useState(newIdempotencyKey);
@@ -50,6 +54,16 @@ export function MeritListView({ ctx, cls, onClassChange }: { ctx: Ctx; cls: stri
 
   const eligible = useMemo(() => (data?.rows ?? []).filter((r) => r.rank <= data!.seats && r.applicant.stage === "MERIT"), [data]);
   const chosen = eligible.filter((r) => selected.has(r.applicant.id));
+  // Every class with a marked sitting this session, so its saved merit lists stay reachable once all its candidates
+  // were offered (the server lists only the classes that still have candidates on a list).
+  const setup = useQuery({ ...admissionsQueries.setup(ctx), enabled: ctx.campus !== "ALL" });
+  const classOptions = useMemo(() => {
+    const marked = (setup.data?.tests ?? []).filter((t) => t.marked > 0).map((t) => t.classApplied);
+    const have = new Set([...(data?.classes ?? []), ...marked, ...(data?.classApplied ? [data.classApplied] : [])]);
+    const order = (setup.data?.classes ?? []).map((c) => c.classApplied);
+    const rank = (c: string) => (order.includes(c) ? order.indexOf(c) : order.length);
+    return [...have].sort((a, b) => rank(a) - rank(b));
+  }, [data, setup.data]);
   const canAct = canManage && !readOnly;
 
   const offer = useMutation({
@@ -61,6 +75,8 @@ export function MeritListView({ ctx, cls, onClassChange }: { ctx: Ctx; cls: stri
       void queryClient.invalidateQueries({ queryKey: admissionsQueries.all() });
       const names = res.offered.map((a) => a.name).join(", ");
       const until = res.offered.find((a) => a.offerValidUntil)?.offerValidUntil;
+      setOffered({ classApplied: data!.classApplied, names, until });
+      setSavedTitle(null);
       toast({ title: `Admission offered to ${res.offered.length} ${res.offered.length === 1 ? "applicant" : "applicants"}`, message: `${names} · now under Offers & admission${until ? `, valid until ${formatDate(until)}` : ""}` });
     },
   });
@@ -71,6 +87,7 @@ export function MeritListView({ ctx, cls, onClassChange }: { ctx: Ctx; cls: stri
     onSuccess: (l) => {
       setSaving(false);
       setSaveKey(newIdempotencyKey());
+      setSavedTitle(l.title);
       void queryClient.invalidateQueries({ queryKey: admissionsQueries.all() });
       toast({ title: `${l.title} saved`, message: `${l.selected.length} selected for ${l.seats} seats. Offer them their seats; the next list leaves out everyone offered.` });
     },
@@ -87,7 +104,7 @@ export function MeritListView({ ctx, cls, onClassChange }: { ctx: Ctx; cls: stri
     return <Skeleton height={360} style={{ borderRadius: "var(--radius-lg)" }} />;
   }
 
-  if (data.classes.length === 0) {
+  if (classOptions.length === 0) {
     return (
       <div className="mtb-card">
         <EmptyState icon="listChecks" title="No merit lists yet" description="A merit list appears here once an entrance test has been marked for this campus and session." />
@@ -107,8 +124,11 @@ export function MeritListView({ ctx, cls, onClassChange }: { ctx: Ctx; cls: stri
   const offeredCount = data.rows.filter((r) => r.applicant.stage === "OFFERED" || r.applicant.stage === "ADMITTED").length;
   const papers = data.subjects;
   const cols = (canAct ? 1 : 0) + 6 + papers.length;
+  const printTitle = savedTitle ?? (title.trim() || undefined);
   const resetFilters = () => {
     setSelected(new Set());
+    setSavedTitle(null);
+    setOffered(null);
     offer.reset();
   };
 
@@ -126,7 +146,7 @@ export function MeritListView({ ctx, cls, onClassChange }: { ctx: Ctx; cls: stri
               setSeatsText("");
               onClassChange(c);
             }}
-            options={data.classes}
+            options={classOptions}
           />
         </div>
         <Button size="sm" icon="printer" onClick={() => setPrinting(true)}>
@@ -176,7 +196,7 @@ export function MeritListView({ ctx, cls, onClassChange }: { ctx: Ctx; cls: stri
           />
         </div>
         <div className="w-full sm:w-56">
-          <Input label="List title" value={title} onChange={(e) => setTitle(e.target.value)} {...(titleError ? { error: titleError } : { help: data.saved.length ? `Last saved: ${data.saved[0]!.title}, ${formatDate(data.saved[0]!.savedOn)}` : "Shown on the printed list." })} />
+          <Input label="List title" value={title} onChange={(e) => { setTitle(e.target.value); setSavedTitle(null); }} {...(titleError ? { error: titleError } : { help: data.saved.length ? `Last saved: ${data.saved[0]!.title}, ${formatDate(data.saved[0]!.savedOn)}` : "Shown on the printed list." })} />
         </div>
         {canAct && (
           <Button
@@ -225,6 +245,15 @@ export function MeritListView({ ctx, cls, onClassChange }: { ctx: Ctx; cls: stri
 
       {readOnly && <Banner tone="info">Merit lists from past sessions can be viewed but not changed.</Banner>}
       {!canManage && !readOnly && <Banner tone="neutral">Your role can view the merit list but not offer admission.</Banner>}
+      {offered && (
+        // offered applicants leave the list (and a class with nobody left leaves the class buttons), so say where they
+        // went instead of only flashing a toast (test run F-027)
+        <Banner tone="success">
+          {offered.classApplied !== data.classApplied || !data.classes.includes(offered.classApplied)
+            ? `Everyone left on the ${offered.classApplied} list has been offered admission: ${offered.names}${offered.until ? `, valid until ${formatDate(offered.until)}` : ""}. Complete their admission under Offers & admission.`
+            : `Offer sent to ${offered.names}${offered.until ? `, valid until ${formatDate(offered.until)}` : ""}. Offered applicants leave this list; complete their admission under Offers & admission.`}
+        </Banner>
+      )}
 
       <div className="mtb-table-wrap" style={{ opacity: merit.isFetching ? 0.7 : 1, transition: "opacity 160ms ease" }}>
         {canAct && (
@@ -417,7 +446,7 @@ export function MeritListView({ ctx, cls, onClassChange }: { ctx: Ctx; cls: stri
         open={printing}
         onClose={() => setPrinting(false)}
         size="lg"
-        title={`${title.trim() || "Merit list"} · ${data.classApplied}`}
+        title={`${printTitle ?? "Merit list"} · ${data.classApplied}`}
         footer={
           <>
             <Button onClick={() => setPrinting(false)}>Close</Button>
@@ -428,7 +457,7 @@ export function MeritListView({ ctx, cls, onClassChange }: { ctx: Ctx; cls: stri
         }
       >
         <PrintSheet paper="A4" label="Merit list" zoom={0.55}>
-          <MeritListPrint m={data} campus={ctx.campus} campusName={data.rows[0]?.applicant.campusName ?? ctx.campus} title={title.trim() || undefined} />
+          <MeritListPrint m={data} campus={ctx.campus} campusName={data.rows[0]?.applicant.campusName ?? ctx.campus} title={printTitle} />
         </PrintSheet>
       </Modal>
       <ConfirmDialog

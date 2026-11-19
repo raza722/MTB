@@ -1,5 +1,6 @@
 import { WAREHOUSE_STOCK_STATUS_LABEL, type WarehouseItem, type WarehouseStockStatus } from "@mtb/api";
-import { formatCount, formatRs } from "@mtb/domain";
+import { formatCount } from "@mtb/domain";
+import { formatRs } from "./money";
 import { AmountInput, Button, Combobox, IconButton, Input, StatusBadge, type ComboboxOption } from "@mtb/ui";
 import type { ReactNode } from "react";
 import type { SubNavItem } from "../../app/shell/SubNav";
@@ -30,7 +31,7 @@ export function StockBadge({ status }: { status: WarehouseStockStatus }) {
  */
 export const orDash = (s: string | null | undefined): string => (s && s.trim() ? s : "—");
 
-export const qtyText =(n: number, unit: string) => `${formatCount(n)} ${unit.toLowerCase()}${n === 1 || unit.endsWith("s") ? "" : unit === "Box" ? "es" : "s"}`;
+export const qtyText = (n: number, unit: string) => `${n.toLocaleString("en-US", { maximumFractionDigits: 2 })} ${unit.toLowerCase()}${n === 1 || unit.endsWith("s") ? "" : unit === "Box" ? "es" : "s"}`;
 
 export function itemOptions(items: WarehouseItem[], showStock = true): ComboboxOption[] {
   return items

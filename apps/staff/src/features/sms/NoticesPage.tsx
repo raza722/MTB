@@ -97,6 +97,8 @@ export function NoticesPage({ search, setSearch }: { search: NoticesSearch; setS
           }
         : {})}
     >
+      {/* On All campuses the list below only reads; adding or changing a notice is one campus's work (test run 15.12) */}
+      {ctx.campus === "ALL" && <RequireSingleCampus action="notices">{null}</RequireSingleCampus>}
       <div className="flex flex-wrap items-center gap-3">
         <Segmented
           aria-label="Show"
@@ -185,7 +187,8 @@ export function NoticesPage({ search, setSearch }: { search: NoticesSearch; setS
               ) : (
                 <p className="m-0 text-small text-ink-muted">Draft by {n.createdBy || n.publishedBy || "—"}{n.updatedAt ? `, last changed ${formatDateTime(n.updatedAt)}` : ""}. Families can't see it yet.</p>
               )}
-              {canEdit && (
+              {/* All campuses only reads: changing a notice is one campus's work (RequireSingleCampus in the editor). */}
+              {canEdit && ctx.campus !== "ALL" && (
                 <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-3">
                   {n.status === "DRAFT" && !n.unpublishedAt && (
                     <Button size="sm" variant="quiet" icon="trash" onClick={() => { remove.reset(); setRemoving(n); }}>
@@ -354,6 +357,8 @@ function NoticeEditor({ open, notice, onClose }: { open: boolean; notice: Notice
 
   const classList = classes.data ?? [];
   const busy = save.isPending || publishNow.isPending;
+  // On All campuses the form is replaced by the campus picker, so nothing can be saved from here.
+  const noCampus = ctx.campus === "ALL";
   const apiError = (save.error && !errorField(save.error) ? save.error : null) ?? publishNow.error;
 
   return (
@@ -368,11 +373,11 @@ function NoticeEditor({ open, notice, onClose }: { open: boolean; notice: Notice
           <Button onClick={onClose}>Cancel</Button>
           <div className="flex gap-2">
             {!published && (
-              <Button loading={save.isPending && save.variables === false} loadingLabel="Saving…" disabled={busy} onClick={() => validate() && save.mutate(false)}>
+              <Button loading={save.isPending && save.variables === false} loadingLabel="Saving…" disabled={busy || noCampus} onClick={() => validate() && save.mutate(false)}>
                 Save draft
               </Button>
             )}
-            <Button variant="primary" icon={published ? "check" : "send"} disabled={busy} onClick={() => validate() && (published ? save.mutate(false) : setConfirm(true))}>
+            <Button variant="primary" icon={published ? "check" : "send"} disabled={busy || noCampus} onClick={() => validate() && (published ? save.mutate(false) : setConfirm(true))}>
               {published ? "Save correction" : "Publish"}
             </Button>
           </div>
@@ -487,7 +492,7 @@ function NoticeEditor({ open, notice, onClose }: { open: boolean; notice: Notice
         title={`Publish “${title}”?`}
         message={`${audience === "STAFF" ? "Staff" : "Families"} see it straight away${sendApp || sendSms ? `, and get ${[sendApp && "an app notification", sendSms && "an SMS (held in the outbox: nothing is sent from this system)"].filter(Boolean).join(" or ")}` : ""}. You can take it down later.`}
         details={[
-          ["For", audience === "CLASS" ? `${sections.length} sections` : NOTICE_AUDIENCE_LABEL[audience]],
+          ["For", audience === "CLASS" ? `${sections.length} ${sections.length === 1 ? "section" : "sections"}` : NOTICE_AUDIENCE_LABEL[audience]],
           ["About", date ? formatDate(date) : "—"],
           ["Notify", [sendApp && "App", sendSms && "SMS"].filter(Boolean).join(" + ") || "No — portal only"],
         ]}

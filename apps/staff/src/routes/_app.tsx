@@ -8,7 +8,9 @@ export const Route = createFileRoute("/_app")({
     try {
       await context.queryClient.ensureQueryData(authQueries.session());
     } catch {
-      throw redirect({ to: "/login", search: { redirect: location.href } as never });
+      // replace: the signed-out page swaps itself for the sign-in page, so Back after sign-out never lands on an address
+      // that only shows the sign-in form (and the address bar always reads /login)
+      throw redirect({ to: "/login", search: { redirect: location.href } as never, replace: true });
     }
   },
   component: () => <AppShell />,

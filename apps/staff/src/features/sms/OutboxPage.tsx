@@ -266,7 +266,7 @@ function BatchPanel({ id, onClose }: { id: string | null; onClose: () => void })
           <div className="flex flex-wrap items-center gap-2">
             <BatchStatus status={b.status} />
             <span className="text-small text-ink-muted">
-              {b.status === "SCHEDULED" ? `Goes ${whenText(b.scheduledFor!)}` : b.status === "AWAITING_APPROVAL" ? `Asked ${whenText(b.createdAt)}${b.scheduledFor ? ` · to go ${whenText(b.scheduledFor)}` : ""}` : b.sentAt ? `Sent ${whenText(b.sentAt)}` : ""}
+              {b.status === "SCHEDULED" ? `Goes ${whenText(b.scheduledFor!)}` : b.status === "AWAITING_APPROVAL" ? `Asked ${whenText(b.createdAt)}${b.scheduledFor ? ` · to go ${whenText(b.scheduledFor)}` : ""}` : b.sentAt ? `${b.counts.sent + b.counts.delivered + b.counts.failed === 0 && b.counts.queued > 0 ? "Held since" : "Sent"} ${whenText(b.sentAt)}` : ""}
             </span>
           </div>
           {b.status === "REJECTED" && b.decisionNote && <Banner tone="danger" title={`Not approved by ${b.decidedBy}.`}>{b.decisionNote}</Banner>}

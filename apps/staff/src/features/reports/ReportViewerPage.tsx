@@ -22,6 +22,7 @@ import {
   Button,
   buttonClassName,
   ColumnChart,
+  Combobox,
   DataTable,
   DatePicker,
   DateText,
@@ -52,7 +53,7 @@ import { RequireSingleCampus } from "../../app/shell/page";
 import { downloadExcel } from "./export";
 import { ReportDocument } from "./ReportDocument";
 import { ScheduleEditor } from "./SchedulesPage";
-import { cellText, errorText, formatLabel, LoadError, MODULE_ICON, moduleLabel, ReportsShell, statusTone, timeText } from "./shell";
+import { cellText, errorText, formatLabel, LoadError, MODULE_ICON, moduleLabel, ReportsShell, rowsText, statusTone, timeText } from "./shell";
 
 export interface ViewerSearch {
   /** Show the copy a background job prepared. */
@@ -224,7 +225,7 @@ function Viewer({ def, search, setSearch }: { def: ReportCatalogueItem; search: 
         if (format === "EXCEL") {
           const data = onScreen ?? (await reportsApi.jobResult(j.id));
           downloadExcel(data, ctx.campus, def.filters);
-          toast({ title: `Excel file saved · ${def.name}`, message: `${formatCount(data.rows.length)} rows. Opens in Excel; also kept in Downloads for 7 days.` });
+          toast({ title: `Excel file saved · ${def.name}`, message: `${rowsText(data.rows.length)}. Opens in Excel; also kept in Downloads for 7 days.` });
         } else if (onScreen) setTimeout(() => window.print(), 100);
         else setSearch({ job: j.id, print: 1 });
         return;
@@ -320,8 +321,9 @@ function Viewer({ def, search, setSearch }: { def: ReportCatalogueItem; search: 
         </RequireSingleCampus>
       ) : (
         <>
-          {def.filters.length > 0 && (
-            <Panel id="rpt-filters" rise={0} title="Filters" description={def.background ? REPORT_BACKGROUND_NOTE : "Change the filters, then run the report."}>
+          {/* also for a report with no filters, whose only way to run is this panel's button (test run F-155) */}
+          {(
+            <Panel id="rpt-filters" rise={0} title="Filters" description={def.filters.length === 0 ? "This report has no filters: it covers the whole campus." : def.background ? REPORT_BACKGROUND_NOTE : "Change the filters, then run the report."}>
               <form
                 className="grid gap-4"
                 onSubmit={(e) => {
@@ -329,24 +331,26 @@ function Viewer({ def, search, setSearch }: { def: ReportCatalogueItem; search: 
                   apply();
                 }}
               >
-                <div className="rpt-filters">
+                {def.filters.length > 0 && <div className="rpt-filters">
                   {def.filters.map((f) => (
                     <FilterControl key={f.key} def={f} value={draft[f.key] ?? ""} onChange={(v) => setDraft((d) => ({ ...d, [f.key]: v }))} error={errors[f.key]} classFilter={draft.class ?? ""} />
                   ))}
-                </div>
+                </div>}
                 <div className="rpt-filters-actions">
                   <Button type="submit" variant="primary" icon={def.background ? "clock" : "play"} loading={def.background ? startJob.isPending && startJob.variables === "SCREEN" : run.isFetching} loadingLabel={def.background ? "Starting…" : "Running…"}>
                     {def.background ? "Prepare in the background" : "Run report"}
                   </Button>
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      setDraft(defaultsOf(def.filters));
-                      setErrors({});
-                    }}
-                  >
-                    Reset filters
-                  </Button>
+                  {def.filters.length > 0 && (
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        setDraft(defaultsOf(def.filters));
+                        setErrors({});
+                      }}
+                    >
+                      Reset filters
+                    </Button>
+                  )}
                 </div>
               </form>
             </Panel>
@@ -394,7 +398,7 @@ function Viewer({ def, search, setSearch }: { def: ReportCatalogueItem; search: 
             )
           ) : !request ? (
             <div className="mtb-card">
-              <EmptyState icon={def.background ? "clock" : "file"} title={def.background ? "Choose the filters, then prepare it" : "Choose the filters, then run the report"} description={def.background ? "It is prepared in the background; you can keep working and open it from the bell or Downloads." : "The report opens here, on screen, before you print or export it."} />
+              <EmptyState icon={def.background ? "clock" : "file"} title={def.filters.length === 0 ? (def.background ? "Prepare it when you are ready" : "Run the report when you are ready") : def.background ? "Choose the filters, then prepare it" : "Choose the filters, then run the report"} description={def.background ? "It is prepared in the background; you can keep working and open it from the bell or Downloads." : "The report opens here, on screen, before you print or export it."} />
             </div>
           ) : run.error && !run.data ? (
             <Banner tone="danger" title="The report couldn't be run." actions={<Button size="sm" icon="refresh" onClick={() => void run.refetch()}>Try again</Button>}>
@@ -461,8 +465,27 @@ function FilterControl({ def, value, onChange, error, classFilter }: { def: Repo
       return <Select label={def.label} value={value} onChange={(e) => onChange(e.target.value)} options={(classes.data ?? []).flatMap((c) => c.sections.map((s) => ({ value: `${c.short}-${s}`, label: `${c.short === "Prep" ? "Prep" : `Class ${c.short}`}-${s}` })))} {...errorProps} />;
     case "gender":
       return <Select label={def.label} value={value} onChange={(e) => onChange(e.target.value)} options={[{ value: "", label: "Everyone" }, { value: "F", label: "Girls" }, { value: "M", label: "Boys" }]} {...errorProps} />;
-    case "select":
-      return <Select label={def.label} value={value} onChange={(e) => onChange(e.target.value)} options={def.options ?? []} {...errorProps} />;
+    case "select": {
+      // A group list follows the chosen class, as the section list does: it listed every group of the campus (test run F-146).
+      const groups = def.key === "group" && classFilter ? classes.data?.find((c) => c.short === classFilter)?.groups : undefined;
+      const options = groups?.length ? (def.options ?? []).filter((o) => o.value === "" || groups.includes(o.value) || groups.includes(o.label)) : (def.options ?? []);
+      // a long list (the exam filters hold every class test of the last 62 days, over a thousand at a big campus) is searched
+      // by typing, e.g. "10-Mumtaz Mahal-II Oct" (test run F-150)
+      if (options.length > 40)
+        return (
+          <Combobox
+            label={def.label}
+            value={value}
+            onValueChange={onChange}
+            options={options.map((o) => ({ value: o.value, label: o.label }))}
+            placeholder="Choose…"
+            searchPlaceholder="Type a name, class or date"
+            emptyText="Nothing matches."
+            {...errorProps}
+          />
+        );
+      return <Select label={def.label} value={value} onChange={(e) => onChange(e.target.value)} options={options} {...errorProps} />;
+    }
     case "number":
       return <Input label={def.label} inputMode="numeric" value={value} onChange={(e) => onChange(e.target.value.replace(/[^\d]/g, ""))} {...helpProps} {...errorProps} />;
     case "text":
@@ -549,7 +572,8 @@ function ResultView({ result, def, busy }: { result: ReportResult; def: ReportCa
     : undefined;
 
   const chart = result.chart;
-  const chartRows = chart ? result.rows.filter((r) => typeof r[chart.y] === "number" && !r[REPORT_SUBTOTAL_KEY]).slice(0, chart.kind === "column" ? 30 : 120) : [];
+  const listedNotes = (result.notes ?? []).slice(view === "table" && result.rows.length === 0 ? 1 : 0);
+  const chartRows = chart ?result.rows.filter((r) => typeof r[chart.y] === "number" && !r[REPORT_SUBTOTAL_KEY]).slice(0, chart.kind === "column" ? 30 : 120) : [];
   const yCol = chart ? result.columns.find((c) => c.key === chart.y) : undefined;
   const fmt = (v: number) => (yCol?.kind === "money" ? formatRs(v) : yCol?.kind === "percent" ? formatPercent(v) : formatCount(v));
   const axis = (v: number) => (yCol?.kind === "money" ? (v >= 100000 ? `${(v / 100000).toFixed(v % 100000 === 0 ? 0 : 1)} lakh` : formatCount(v)) : yCol?.kind === "percent" ? `${v}%` : formatCount(v));
@@ -651,9 +675,10 @@ function ResultView({ result, def, busy }: { result: ReportResult; def: ReportCa
           />
         </div>
       )}
-      {(result.notes?.length ?? 0) > 0 && (
+      {/* With no rows the table's empty state already says the first note; don't repeat it below. */}
+      {listedNotes.length > 0 && (
         <ul className="m-0 grid list-none gap-1 px-5 py-3 text-small text-ink-muted">
-          {result.notes!.map((n) => (
+          {listedNotes.map((n) => (
             <li key={n}>· {n}</li>
           ))}
         </ul>

@@ -1,5 +1,9 @@
-import { newIdempotencyKey, warehouseApi, warehouseQueries, type OperationsPerson, type WarehouseBookSet, type WarehouseSale } from "@mtb/api";
-import { formatCount, formatDate, formatDateTime, formatRs, formatTime, pakistanToday } from "@mtb/domain";
+import { warehouseApi, warehouseQueries, type OperationsPerson, type WarehouseBookSet, type WarehouseSale } from "@mtb/api";
+import { formatCount, formatDate, formatDateTime, formatTime, pakistanToday } from "@mtb/domain";
+import { formatRs } from "./money";
+
+/* A set holds books, uniform and stationery, so it counts items (test run F-133). */
+const itemsText = (n: number) => (n === 1 ? "1 item" : `${formatCount(n)} items`);
 import {
   AmountInput,
   AnimatedNumber,
@@ -24,11 +28,12 @@ import {
   type Column,
 } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { RequireSingleCampus } from "../../app/shell/page";
 import { errorText, LoadError, opsToday, PersonPicker, slide, usePrinter } from "../library/common";
 import { WarehouseShell } from "./shared";
+import { useIdempotencyKey } from "../../app/idempotency";
 
 /* ---------------------------------------------------------------- Receipt (A5) */
 
@@ -209,7 +214,7 @@ function Counter() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [done, setDone] = useState<WarehouseSale | null>(null);
   const [open, setOpen] = useState<WarehouseSale | null>(null);
-  const key = useMemo(() => newIdempotencyKey(), [student?.id, cart, payment]);
+  const key = useIdempotencyKey(student?.id, cart, payment);
   const printer = usePrinter();
   const items = shop.data?.items ?? [];
   const byId = new Map(items.map((i) => [i.id, i]));
@@ -283,10 +288,10 @@ function Counter() {
                   <span className="grid flex-1">
                     <span className="font-medium">{set.name}</span>
                     <span className="text-small text-ink-muted">
-                      {set.lines.length} books · {formatRs(set.total)}
+                      {itemsText(set.lines.length)} · {formatRs(set.total)}
                     </span>
                   </span>
-                  <Button size="sm" icon="plus" onClick={() => set.lines.forEach((l) => add(l.itemId, l.qty))}>
+                  <Button size="sm" icon="plus" disabled={set.lines.length === 0} onClick={() => set.lines.forEach((l) => add(l.itemId, l.qty))}>
                     Add the whole set
                   </Button>
                 </div>
@@ -445,7 +450,7 @@ function BookSets() {
   const save = useMutation({
     mutationFn: () => warehouseApi.saveBookSet(ctx, editing!.id, lines),
     onSuccess: (b) => {
-      toast({ title: `${b.name} saved`, message: `${b.lines.length} items · ${formatRs(b.total)}` });
+      toast({ title: `${b.name} saved`, message: `${itemsText(b.lines.length)} · ${formatRs(b.total)}` });
       void qc.invalidateQueries({ queryKey: ["warehouse"] });
       setEditing(null);
     },
@@ -468,7 +473,7 @@ function BookSets() {
               id={`set-${b.id}`}
               rise={i}
               title={b.name}
-              description={`${b.lines.length} items · ${formatRs(b.total)}`}
+              description={`${itemsText(b.lines.length)} · ${formatRs(b.total)}`}
               actions={
                 canManage ? (
                   <Button
@@ -534,6 +539,7 @@ function BookSets() {
               setPick(null);
             }}
           />
+          {lines.length === 0 && <p className="m-0 text-small text-ink-muted">A set needs at least one item. Add one to save the set.</p>}
           {save.isError && <Banner tone="danger">{errorText(save.error)}</Banner>}
         </div>
       </Modal>

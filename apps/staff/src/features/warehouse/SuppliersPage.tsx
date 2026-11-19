@@ -1,5 +1,6 @@
 import { warehouseApi, warehouseQueries, type WarehouseSupplier } from "@mtb/api";
-import { formatCount, formatDate, formatMobile, formatRs } from "@mtb/domain";
+import { formatCount, formatDate, formatMobile } from "@mtb/domain";
+import { formatRs } from "./money";
 import { Banner, Button, DataTable, EmptyState, Input, SidePanel, StatusBadge, Switch, useToast, type Column } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";

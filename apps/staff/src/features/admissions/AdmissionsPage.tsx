@@ -136,7 +136,7 @@ export function AdmissionsPage({ view, applicant, onChange }: AdmissionsPageProp
     <Page>
       <PageHeader
         title="Admissions"
-        meta={total !== undefined ? <span className="text-small text-ink-muted tabular-nums">{total} applications this session</span> : undefined}
+        meta={total !== undefined ? <span className="text-small text-ink-muted tabular-nums">{formatCount(total)} applications this session</span> : undefined}
         actions={
           canManage && !readOnly ? (
             <>

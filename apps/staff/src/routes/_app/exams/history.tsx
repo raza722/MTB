@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { HistoryPage } from "../../../features/exams/HistoryPage";
+import { idParam } from "../../../app/search";
 
 export const Route = createFileRoute("/_app/exams/history")({
-  validateSearch: (s: Record<string, unknown>): { id?: string } => (typeof s.id === "string" && s.id ? { id: s.id } : {}),
+  validateSearch: (s: Record<string, unknown>): { id?: string } => (idParam(s.id) ? { id: idParam(s.id)! } : {}),
   component: function HistoryRoute() {
     const { id } = Route.useSearch();
     const navigate = Route.useNavigate();

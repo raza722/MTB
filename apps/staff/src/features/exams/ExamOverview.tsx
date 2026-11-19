@@ -40,7 +40,15 @@ export function ExamOverview() {
   return (
     <>
       {declared ? (
-        <Banner tone="success" title={`Declared${exam.declaredOn ? ` on ${formatDateTime(exam.declaredOn)}` : ""}${exam.declaredBy ? ` by ${exam.declaredBy}` : ""}.`}>
+        <Banner
+          tone="success"
+          // A migrated exam has the migration as its "declarer" and a date without a time: "Declared in the old system on 19-Oct-2026."
+          title={
+            exam.declaredBy === "Migrated from the old system"
+              ? `Declared in the old system${exam.declaredOn ? ` on ${formatDate(exam.declaredOn)}` : ""}.`
+              : `Declared${exam.declaredOn ? ` on ${formatDateTime(exam.declaredOn)}` : ""}${exam.declaredBy ? ` by ${exam.declaredBy}` : ""}.`
+          }
+        >
           Results are read-only and visible in the parent portal. Grades and positions are kept exactly as declared.
           {exam.missingMarks > 0 && ` Declared in the old system with ${formatCount(exam.missingMarks)} ${exam.missingMarks === 1 ? "mark" : "marks"} missing: those papers show “—”.`}
         </Banner>
@@ -85,7 +93,7 @@ export function ExamOverview() {
           label={`${exam.candidateLabel ?? "Student"}s`}
           icon="students"
           value={<AnimatedNumber value={exam.students} format={formatCount} />}
-          foot={`${exam.classes.length} ${exam.programmeId ? (exam.classes.length === 1 ? "centre" : "centres") : exam.classes.length === 1 ? "group" : "sections"} · ${exam.subjects.length} papers${exam.groups?.length ? ` · ${exam.groups.length} groups` : ""}`}
+          foot={`${exam.classes.length} ${exam.programmeId ? (exam.classes.length === 1 ? "centre" : "centres") : exam.classes.length === 1 ? "section" : "sections"} · ${exam.subjects.length} ${exam.subjects.length === 1 ? "paper" : "papers"}${exam.groups?.length ? ` · ${exam.groups.length} ${exam.groups.length === 1 ? "group" : "groups"}` : ""}`}
         />
         <StatCard
           label="Papers submitted"

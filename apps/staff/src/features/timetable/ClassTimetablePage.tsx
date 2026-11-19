@@ -225,6 +225,11 @@ function WeekSheet({ board, idx, sections, periods }: { board: TimetableBoard; i
   );
 }
 
+/** "Normal timings", "Timings 13" — a bell-timings name, with "timings" added only when the name lacks it. */
+const timingsName = (name: string) => (/timings/i.test(name) ? name : `${name} timings`);
+/** "a 72-period week", "an 84-period week", "an 11-period week". */
+const aPeriodWeek = (n: number) => `${/^8/.test(String(n)) || n === 11 || n === 18 ? "an" : "a"} ${n}-period week`;
+
 /** Build each class's week period by period, with clashes shown as you choose; print one class or all of them. */
 export function ClassTimetablePage({ search, setSearch }: { search: ClassTimetableSearch; setSearch: (s: ClassTimetableSearch) => void }) {
   const ctx = useCtx();
@@ -356,7 +361,7 @@ export function ClassTimetablePage({ search, setSearch }: { search: ClassTimetab
                       id="tt-class"
                       rise={0}
                       title={`${section.classSection} timetable`}
-                      description={`Class teacher ${idx.teacher(section.classTeacherId)?.name ?? "not set"} · ${section.room || "—"} · ${section.strength} students · ${scheduleOf(board, section.classSection).name} timings · ${st.have} of ${st.need} curriculum periods placed, ${periodsInWeek(scheduleOf(board, section.classSection)) - new Set(board.slots.filter((s) => s.classSection === section.classSection).map((s) => `${s.day}|${s.period}`)).size} free in a ${periodsInWeek(scheduleOf(board, section.classSection))}-period week.${section.streams.length ? ` G: the class's groups (${section.streams.join(", ")}); a split period has one lesson per group.` : ""}${canEdit ? " Choose a period to change it." : ""}`}
+                      description={`Class teacher ${idx.teacher(section.classTeacherId)?.name ?? "not set"} · ${section.room ? `${section.room} · ` : ""}${section.strength} students · ${timingsName(scheduleOf(board, section.classSection).name)} · ${st.have} of ${st.need} curriculum periods placed, ${periodsInWeek(scheduleOf(board, section.classSection)) - new Set(board.slots.filter((s) => s.classSection === section.classSection).map((s) => `${s.day}|${s.period}`)).size} free in ${aPeriodWeek(periodsInWeek(scheduleOf(board, section.classSection)))}.${section.streams.length ? ` G: the class's groups (${section.streams.join(", ")}); a split period has one lesson per group.` : ""}${canEdit ? " Choose a period to change it." : ""}`}
                     >
                       <TimetableGrid
                         board={board}

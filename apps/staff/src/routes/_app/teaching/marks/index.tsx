@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { RequirePermission } from "../../../../app/shell/page";
 import { MarksPage } from "../../../../features/teaching";
+import { idParam } from "../../../../app/search";
 
 interface MarksSearch {
   exam?: string;
@@ -10,7 +11,7 @@ interface MarksSearch {
 /** /teaching/marks?exam=&cls= — choose the exam, the class and the subject. */
 export const Route = createFileRoute("/_app/teaching/marks/")({
   validateSearch: (s: Record<string, unknown>): MarksSearch => ({
-    ...(typeof s.exam === "string" && s.exam ? { exam: s.exam } : {}),
+    ...(idParam(s.exam) ? { exam: idParam(s.exam)! } : {}),
     ...(typeof s.cls === "string" && s.cls ? { cls: s.cls } : {}),
   }),
   component: function TeachingMarksRoute() {

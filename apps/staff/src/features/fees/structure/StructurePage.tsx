@@ -2,7 +2,6 @@ import {
   ApiError,
   feeSetupApi,
   feeSetupQueries,
-  newIdempotencyKey,
   type CampusCode,
   type FeeClassStructure,
   type FeeCopyPreview,
@@ -12,7 +11,7 @@ import {
   type FeeSectionOverride,
   type FeeStructure,
 } from "@mtb/api";
-import { formatCount, formatDate, formatDateTime, formatRs, formatSession } from "@mtb/domain";
+import { formatCount, formatDate, formatDateTime, formatRs, formatSession, pakistanDate } from "@mtb/domain";
 import {
   AmountInput,
   AnimatedNumber,
@@ -40,13 +39,14 @@ import {
   type Column,
 } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { z } from "zod";
 import { campusLabel } from "../../../app/shell/campus";
 import { Page, PageHeader, RequirePermission, RequireSingleCampus } from "../../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../../app/session";
 import { className, errorText, feeToday, FeesNav, LoadError, slide } from "../shared";
 import { HeadsPanel } from "./HeadsPanel";
+import { useIdempotencyKey } from "../../../app/idempotency";
 
 /** Heads that can carry an amount per class (transport is priced by route). */
 const priceable = (h: FeeHead) => (h.category === "FEE" || h.category === "APPLICATION") && !h.linked;
@@ -158,7 +158,7 @@ function EditClassPanel({ structure, cls, onClose }: { structure: FeeStructure; 
     sectionOverrides: overrides.map((o): FeeSectionOverride => ({ section: o.section, head: o.head, amount: o.amount ?? 0 })),
     rowVer: structure.rowVer,
   };
-  const key = useMemo(() => newIdempotencyKey(), [JSON.stringify(body)]); // eslint-disable-line react-hooks/exhaustive-deps
+  const key = useIdempotencyKey(JSON.stringify(body));
 
   const save = useMutation({
     mutationFn: () => feeSetupApi.saveClass(structure.campus, structure.session, cls.classShort, body, key),
@@ -349,7 +349,7 @@ function CopyPanel({ campus, fromSession, toSession, replacing, onClose }: { cam
   const pctNum = Number(pct);
   const pctError = pct.trim() === "" || !Number.isInteger(pctNum) || pctNum < 0 || pctNum > 25 ? "Enter a whole number from 0 to 25." : undefined;
   const req = { campus, fromSession, toSession, increasePct: pctNum, roundTo: Number(roundTo) as 50 | 100 | 500 };
-  const key = useMemo(() => newIdempotencyKey(), [JSON.stringify(req)]); // eslint-disable-line react-hooks/exhaustive-deps
+  const key = useIdempotencyKey(JSON.stringify(req));
   const previewM = useMutation({ mutationFn: () => feeSetupApi.copyPreview(req), onSuccess: setPreview });
   const copy = useMutation({
     mutationFn: () => feeSetupApi.copy(req, key),
@@ -475,7 +475,7 @@ function DueDateModal({ structure, plan, inst, onClose }: { structure: FeeStruct
   const errors: Record<string, string> = {};
   if (!parsed.success) for (const i of parsed.error.issues) errors[String(i.path[0])] ??= i.message;
   const input = { plan: plan.code, no: inst.no, dueDate: date ?? "", ...(scope !== "CAMPUS" && cls ? { classShort: cls } : {}), ...(scope === "SECTION" && section ? { section } : {}), ...(head ? { head } : {}) };
-  const key = useMemo(() => newIdempotencyKey(), [JSON.stringify(input)]); // eslint-disable-line react-hooks/exhaustive-deps
+  const key = useIdempotencyKey(JSON.stringify(input));
   const who = scope === "CAMPUS" ? structure.campusName : scope === "CLASS" ? (structure.classes.find((c) => c.classShort === cls)?.className ?? className(cls || "?")) : `${cls}-${section}`;
   const save = useMutation({
     mutationFn: () => feeSetupApi.setDueDate(structure.campus, structure.session, input, key),
@@ -753,7 +753,7 @@ function CampusStructure({ campus }: { campus: CampusCode }) {
             ) : (
               <Timeline
                 label="Fee structure changes"
-                items={s.history.slice(0, 8).map((h) => ({ id: h.id, date: h.at.slice(0, 10), title: h.text, description: `${h.by}${h.detail ? ` · ${h.detail}` : ""}`, icon: "edit" as const, tone: "neutral" as const }))}
+                items={s.history.slice(0, 8).map((h) => ({ id: h.id, date: pakistanDate(h.at), title: h.text, description: `${h.by}${h.detail ? ` · ${h.detail}` : ""}`, icon: "edit" as const, tone: "neutral" as const }))}
               />
             )}
           </Panel>

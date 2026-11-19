@@ -129,7 +129,7 @@ function NavLink({ item, mode, active, onNavigate }: { item: NavItem; mode: "ful
 function useNavItems(): NavItem[] {
   const user = useSessionUser();
   const { campus } = useCtx();
-  return NAV.filter((n) => !n.permission || (Array.isArray(n.permission) ? n.permission : [n.permission]).some((p) => (p === "teacher.app" ? canTeach(user, campus) : can(user, p, campus))));
+  return NAV.filter((n) => !n.permission || (Array.isArray(n.permission) ? n.permission : [n.permission]).some((p) => (n.group === "teaching" ? canTeach(user, campus, p) : can(user, p, campus))));
 }
 
 /**
@@ -327,14 +327,17 @@ function Notifications() {
   const navigate = useNavigate();
   const canApprove = useCan("approvals.decide");
   const approvals = useQuery({ ...dashboardQueries.approvals(ctx), enabled: canApprove });
-  // The dashboard figures (failed SMS today) only for those who can open the dashboard; anyone else gets a 403.
+  // Failed SMS today comes from the dashboard figures. The bell only reads them when the Dashboard has already loaded
+  // them (enabled: false never fetches): that query is the heaviest in the app, and the bell is on every page.
   const canDashboard = useCan("dashboard.view");
-  const summary = useQuery({ ...dashboardQueries.summary(ctx), enabled: canDashboard });
+  const summary = useQuery({ ...dashboardQueries.summary(ctx), enabled: false });
   // Report notifications (ready, failed, scheduled report sent) are the user's own, from GET /notifications.
   const canReports = useCan("reports.view");
   const reportUnread = useReportNotificationCount(canReports);
-  // A teacher's own notifications (register reminders, marks returned, leave decisions), at the campus on screen.
-  const canTeachHere = useCan("teacher.app");
+  // A teacher's own notifications (register reminders, marks returned, leave decisions), at the campus on screen; not
+  // for head office through the super admin's every-permission role (see canTeach).
+  const user = useSessionUser();
+  const canTeachHere = canTeach(user, ctx.campus) && ctx.campus !== "ALL";
   const teaching = useQuery({ ...teacherQueries.notifications(ctx), enabled: canTeachHere });
   const teachingUnread = teaching.data?.filter((n) => !n.read).length ?? 0;
   const count = (approvals.data?.length ?? 0) + (canDashboard && summary.data?.sms?.failed ? 1 : 0) + reportUnread + teachingUnread;
@@ -381,7 +384,8 @@ function UserMenu() {
     mutationFn: authApi.logout,
     onSettled: async () => {
       queryClient.clear();
-      await navigate({ to: "/login" });
+      // replace: Back must not return to the signed-in page that was just left
+      await navigate({ to: "/login", replace: true });
     },
   });
   if (!user) return null;
@@ -450,7 +454,8 @@ function SmsPausedBanner() {
         ) : undefined
       }
     >
-      {s.reason ? `Reason: ${s.reason}. ` : ""}No new messages can be sent until SMS is resumed.
+      {/* the reason may end with its own full stop ("…never sent.." before, test run F-033) */}
+      {s.reason ? `Reason: ${s.reason.trim().replace(/[.\s]+$/, "")}. ` : ""}No new messages can be sent until SMS is resumed.
     </Banner>
   );
 }

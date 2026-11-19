@@ -88,7 +88,8 @@ const GROUP_SHORT: Record<string, string> = { "Science (Biology)": "Bio", "Scien
 /** Short group code for narrow print columns (Setup's short names): "Science (Biology)" → "Bio". */
 export function examsGroupShort(group: string | undefined | null): string {
   if (!group) return "";
-  return GROUP_SHORT[group] ?? (group.length > 6 ? group.slice(0, 5) + "." : group);
+  // "General-10" → "Gener.", "Comp. Sci.10" → "Comp." (not "Comp..": a cut that ends on a dot, space or dash drops it first).
+  return GROUP_SHORT[group] ?? (group.length > 6 ? `${group.slice(0, 5).replace(/[.\s-]+$/, "")}.` : group);
 }
 
 export interface ExamsReopenRequest {

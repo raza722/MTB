@@ -132,7 +132,7 @@ function TitleForm({ existing, setup, onClose, onSaved }: { existing: LibraryTit
   const save = useMutation({
     mutationFn: (body: Parameters<typeof libraryApi.saveTitle>[1]) => libraryApi.saveTitle(ctx, { ...body, ...(existing ? { rowVer: existing.rowVer } : {}) }, existing?.id),
     onSuccess: (t) => {
-      toast({ title: existing ? `${t.title || t.titleUr} updated` : `${t.title || t.titleUr} added`, message: existing ? undefined : `${t.copies} ${t.copies === 1 ? "copy" : "copies"}: ${t.copyList.map((c) => c.accessionNo).slice(0, 3).join(", ")}${t.copies > 3 ? " …" : ""}. Write these on the spine labels.` });
+      toast({ title: existing ? `${t.title || t.titleUr} updated` : `${t.title || t.titleUr} added`, message: existing ? undefined : `${t.copies} ${t.copies === 1 ? "copy" : "copies"}: ${t.copyList.map((c) => c.accessionNo).slice(0, 3).join(", ")}${t.copies > 3 ? " …" : ""}. Write ${t.copies === 1 ? "it on the spine label" : "these on the spine labels"}.` });
       void qc.invalidateQueries({ queryKey: ["library"] });
       onSaved(t.id);
     },
@@ -353,7 +353,7 @@ function AddCopiesForm({ title, setup, onDone }: { title: LibraryTitleDetail; se
     mutationFn: (body: z.infer<typeof copiesSchema>) => libraryApi.addCopies(ctx, title.id, body),
     onSuccess: (t) => {
       const added = t.copyList.filter((c) => !title.copyList.some((x) => x.id === c.id));
-      toast({ title: `${added.length} ${added.length === 1 ? "copy" : "copies"} added`, message: `${added.map((c) => c.accessionNo).join(", ")}. Write these on the spine labels.` });
+      toast({ title: `${added.length} ${added.length === 1 ? "copy" : "copies"} added`, message: `${added.map((c) => c.accessionNo).join(", ")}. Write ${added.length === 1 ? "it" : "these"} on the spine ${added.length === 1 ? "label" : "labels"}.` });
       void qc.invalidateQueries({ queryKey: ["library"] });
       onDone();
     },

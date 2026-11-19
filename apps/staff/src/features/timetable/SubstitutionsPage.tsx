@@ -1,4 +1,4 @@
-import { clockTime, countLessons, newIdempotencyKey, periodsOn, TIMETABLE_DAYS, timetableApi, timetableQueries, type CampusCode, type TimetableBoard, type TimetableCover, type TimetableCoverDay, type TimetableDay, type TimetableSlot } from "@mtb/api";
+import { clockTime, countLessons, newIdempotencyKey, periodsOn, scheduleOf, TIMETABLE_DAYS, timetableApi, timetableQueries, type CampusCode, type TimetableBoard, type TimetableCover, type TimetableCoverDay, type TimetableDay, type TimetableSlot } from "@mtb/api";
 import { formatCount, formatDate, formatLongDate, formatTime, type IsoDate } from "@mtb/domain";
 import { AnimatedNumber, Avatar, Banner, Button, Combobox, DataTable, DatePicker, EmptyState, Panel, Select, SidePanel, Skeleton, StatCard, StatusBadge, Textarea, useToast, type Column } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -214,6 +214,8 @@ export function SubstitutionsPage({ date, onDate }: { date: IsoDate | undefined;
       : [];
   const covered = needs.filter((n) => n.cover).length;
   const finder = board ? freeTeachers(board, fDay, finderPeriod, { away: fDay === wd ? awayIds : [], covers: fDay === wd ? (cover?.covers ?? []) : [] }) : [];
+  // A campus's classes can follow several bell timings (KC's run to period 14): the day has the periods of its longest timings.
+  const dayPeriods = (d: TimetableDay) => (board ? Math.max(periodsOn(board.schedule, d), ...board.sections.map((x) => periodsOn(scheduleOf(board, x.classSection), d))) : 0);
 
   const columns: Array<Column<Need & { id: string }>> = idx
     ? [
@@ -282,7 +284,7 @@ export function SubstitutionsPage({ date, onDate }: { date: IsoDate | undefined;
                 <StatCard label="Covered" icon="checkCircle" value={<AnimatedNumber value={covered} format={formatCount} />} meter={needs.length ? (covered / needs.length) * 100 : 100} meterLabel="Covered" foot={`${needs.length - covered} still open`} />
               </div>
               <div style={{ "--i": 3 } as CSSProperties}>
-                <StatCard label="Periods in the day" icon="calendar" tone="info" value={formatCount(periodsOn(board.schedule, wd))} foot={`School closes ${clockTime((wd === 5 ? board.friday : board.normal).offTime)}`} />
+                <StatCard label="Periods in the day" icon="calendar" tone="info" value={formatCount(dayPeriods(wd))} foot={`School closes ${clockTime((wd === 5 ? board.friday : board.normal).offTime)}`} />
               </div>
             </div>
 
@@ -334,7 +336,7 @@ export function SubstitutionsPage({ date, onDate }: { date: IsoDate | undefined;
                 <Panel id="tt-finder" rise={3} title="Who is free?" description="Find a free teacher in any period, for cover or a meeting.">
                   <div className="grid grid-cols-2 gap-3">
                     <Select aria-label="Day" value={String(fDay)} onChange={(e) => setFinderDay(Number(e.target.value) as TimetableDay)} options={TIMETABLE_DAYS.map((d) => ({ value: String(d.day), label: d.long }))} />
-                    <Select aria-label="Period" value={String(finderPeriod)} onChange={(e) => setFinderPeriod(Number(e.target.value))} options={Array.from({ length: periodsOn(board.schedule, fDay) }, (_, i) => ({ value: String(i + 1), label: `Period ${i + 1}` }))} />
+                    <Select aria-label="Period" value={String(finderPeriod)} onChange={(e) => setFinderPeriod(Number(e.target.value))} options={Array.from({ length: dayPeriods(fDay) }, (_, i) => ({ value: String(i + 1), label: `Period ${i + 1}` }))} />
                   </div>
                   <ul className="tt-list mt-3">
                     {finder.slice(0, 8).map((x) => (

@@ -5,7 +5,7 @@ import {
   newIdempotencyKey,
   type AdmissionsApplicant,
 } from "@mtb/api";
-import { formatCnic, formatDate, formatDateTime, formatMobile, formatRs } from "@mtb/domain";
+import { formatCnic, formatDate, formatDateTime, formatMobile, formatRs, pakistanDate } from "@mtb/domain";
 import { Banner, Button, buttonClassName, ConfirmDialog, KeyValue, Modal, Select, SidePanel, Skeleton, StatusBadge, Timeline, Urdu, useToast } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -243,7 +243,7 @@ export function ApplicantPanel({ id, onClose, onAdmit }: { id: string | null; on
 
           <section className="grid gap-2" aria-label="History">
             <span className="mtb-label">History</span>
-            <Timeline label="Application history" items={[...(a.history ?? [])].reverse().map((h, i) => ({ id: `${h.at}-${i}`, date: h.at.slice(0, 10), title: h.text, description: `${formatDateTime(h.at)}${h.by ? ` · ${h.by}` : ""}`, icon: "clock", tone: "neutral" }))} />
+            <Timeline label="Application history" items={[...(a.history ?? [])].reverse().map((h, i) => ({ id: `${h.at}-${i}`, date: pakistanDate(h.at), title: h.text, description: `${formatDateTime(h.at)}${h.by ? ` · ${h.by}` : ""}`, icon: "clock", tone: "neutral" }))} />
           </section>
 
           {editable && a.stage !== "ADMITTED" && a.stage !== "WITHDRAWN" && (

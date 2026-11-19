@@ -1,4 +1,4 @@
-import { admissionsQueries, type AdmissionsApplicant } from "@mtb/api";
+import { admissionsQueries, metaQueries, type AdmissionsApplicant } from "@mtb/api";
 import { formatCount, formatDate, formatMobile } from "@mtb/domain";
 import { AnimatedNumber, Banner, Button, DataTable, DatePicker, EmptyState, Modal, Panel, Select, StatCard, StatusBadge, type Column } from "@mtb/ui";
 import { useQuery } from "@tanstack/react-query";
@@ -47,9 +47,16 @@ export function OffersPage() {
   // Soonest expiry first; offers without an expiry (migrated from the old system) last.
   const offered = all.filter((a) => a.stage === "OFFERED").sort((a, b) => (a.offerValidUntil ?? "9999").localeCompare(b.offerValidUntil ?? "9999"));
   const admittedAll = all.filter((a) => a.stage === "ADMITTED").sort((a, b) => (b.admittedOn ?? "").localeCompare(a.admittedOn ?? ""));
-  const classes = useMemo(() => [...new Set(admittedAll.map(classOfCs))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })), [admittedAll]);
-  /** Class short name → the class's name as applied for ("7" → "Class 7"), from the rows themselves. */
-  const className = useMemo(() => new Map(admittedAll.map((a) => [classOfCs(a), a.classApplied])), [admittedAll]);
+  /** The campus's classes in school order ("10" → "Class 10", "P9" → "Pre 9th"). */
+  const campusClasses = useQuery(metaQueries.classes(ctx.campus)).data;
+  const classOrder = useMemo(() => new Map((campusClasses ?? []).map((c, i) => [c.short, i])), [campusClasses]);
+  const classes = useMemo(
+    () => [...new Set(admittedAll.map(classOfCs))].sort((a, b) => (classOrder.get(a) ?? 999) - (classOrder.get(b) ?? 999) || a.localeCompare(b, undefined, { numeric: true })),
+    [admittedAll, classOrder],
+  );
+  /** Class short name → the class's own name. Not the rows' "class applied for": a child who applied for Class 9 and
+   *  was admitted to Class 10 renamed Class 10 "Class 9" (test run F-032). */
+  const className = useMemo(() => new Map((campusClasses ?? []).map((c) => [c.short, c.name])), [campusClasses]);
   const classLabel = (c: string) => className.get(c) ?? c;
   const sections = useMemo(() => [...new Set(admittedAll.filter((a) => classOfCs(a) === cls).map((a) => (a.admittedClassSection ?? "").split("-")[1] ?? "").filter(Boolean))].sort(), [admittedAll, cls]);
   const rangeBad = Boolean(from && to && from > to);

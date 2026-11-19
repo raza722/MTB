@@ -304,7 +304,7 @@ export function RegisterPage({ classSection, date, onDate }: RegisterPageProps) 
                 }
               >
                 {reg.submittedAt
-                  ? `${reg.source === "Office" ? "Marked by the office" : reg.source ? "Submitted under Teaching" : "Carried over from the old software"}${reg.submittedBy ? ` by ${reg.submittedBy}` : ""} on ${formatDate(reg.submittedAt)} at ${formatTime(reg.submittedAt)}. `
+                  ? `${reg.source === "Office" ? `Marked by the office${reg.submittedBy ? ` (${reg.submittedBy})` : ""}` : `${reg.source ? "Submitted under Teaching" : "Carried over from the old software"}${reg.submittedBy ? ` by ${reg.submittedBy}` : ""}`} on ${formatDate(reg.submittedAt)} at ${formatTime(reg.submittedAt)}. `
                   : ""}
                 {canMark ? "To correct a mark, use “Request change” on the student." : "Changes are requested by the teacher or the office."}
               </Banner>

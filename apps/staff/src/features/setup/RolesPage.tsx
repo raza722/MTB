@@ -215,7 +215,7 @@ function Matrix({ roles, selected, onOpen, search }: { roles: SetupRole[]; selec
                     {r.system && <Icon name="lock" size={12} className="text-ink-subtle" />}
                     {r.name}
                   </span>
-                  <span className="text-caption font-normal text-ink-muted">{formatCount(r.userCount)} people</span>
+                  <span className="text-caption font-normal text-ink-muted">{formatCount(r.userCount)} {r.userCount === 1 ? "person" : "people"}</span>
                 </button>
               </th>
             ))}
@@ -311,7 +311,7 @@ export function RolesPage() {
             <span className="line-clamp-2 text-small text-ink-muted">{r.description}</span>
             <span className="flex flex-wrap gap-1">
               <StatusBadge status="neutral" dot={false}>
-                {r.permissions.length} permissions
+                {formatCount(r.permissions.length)} {r.permissions.length === 1 ? "permission" : "permissions"}
               </StatusBadge>
               {r.twoStepRequired && <StatusBadge status="success" dot={false}>Two-step</StatusBadge>}
               {r.scope === "ANY" && <StatusBadge status="info" dot={false}>All campuses</StatusBadge>}

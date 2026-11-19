@@ -1,8 +1,8 @@
-import { hrApi, hrMonthLabel, hrQueries, newIdempotencyKey, type CampusCode, type HrLoan, type HrLoanStatus, type HrLoanType } from "@mtb/api";
-import { formatCount, formatDate, formatDateTime, formatRs } from "@mtb/domain";
+import { hrApi, hrMonthLabel, hrQueries, type CampusCode, type HrLoan, type HrLoanStatus, type HrLoanType } from "@mtb/api";
+import { formatCount, formatDate, formatDateTime, formatRs, pakistanDate } from "@mtb/domain";
 import { AmountInput, AnimatedNumber, Banner, Button, Combobox, DataTable, DatePicker, EmptyState, Input, KeyValue, Select, SidePanel, StatCard, StatusBadge, Textarea, Timeline, useToast, type Column } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { z } from "zod";
 import { campusLabel } from "../../app/shell/campus";
 import { RequirePermission } from "../../app/shell/page";
@@ -10,6 +10,7 @@ import { useCan, useCtx, useReadOnly, useSessionUser } from "../../app/session";
 import { ReportDoc } from "./print";
 import { issues } from "./StaffPanels";
 import { campusHeading, DesignationSelect, errorField, errorText, filterNote, HrShell, LoadError, LoanBadge, staffOptions, thisMonth, today, useDesignationTitle, usePayAccess, usePrint } from "./shared";
+import { useIdempotencyKey } from "../../app/idempotency";
 
 const nextMonths = (n: number) => {
   const out: string[] = [];
@@ -53,7 +54,7 @@ function NewLoanPanel({ campus, types, onClose }: { campus: CampusCode; types: H
   const parsed = schema.safeParse(values);
   const errors = issues(parsed);
   const per = amount && Number(installments) ? Math.ceil(amount / Number(installments)) : 0;
-  const key = useMemo(() => newIdempotencyKey(), [JSON.stringify(values), typeId, firstMonth]); // eslint-disable-line react-hooks/exhaustive-deps
+  const key = useIdempotencyKey(JSON.stringify(values), typeId, firstMonth);
   const save = useMutation({
     mutationFn: () => hrApi.requestLoan({ campus, staffId: staffId!, typeId, amount: amount!, installments: Number(installments), firstMonth, reason: reason.trim() }, key),
     onSuccess: (l) => {
@@ -129,7 +130,7 @@ function LoanPanel({ l, onClose }: { l: HrLoan; onClose: () => void }) {
   const [note, setNote] = useState("");
   const [amount, setAmount] = useState<number | null>(l.balance);
   const [date, setDate] = useState<string | null>(today());
-  const key = useMemo(() => newIdempotencyKey(), [l.id, mode]);
+  const key = useIdempotencyKey(l.id, mode);
   const done = (title: string, message?: string) => {
     toast({ title, ...(message ? { message } : {}) });
     void queryClient.invalidateQueries({ queryKey: ["hr"] });
@@ -227,7 +228,7 @@ function LoanPanel({ l, onClose }: { l: HrLoan; onClose: () => void }) {
           </ul>
           {l.recoveries.some((x) => x.source === "CASH") && <p className="m-0 text-small text-ink-muted">Cash repayments: {l.recoveries.filter((x) => x.source === "CASH").map((x) => `${formatRs(x.amount)} on ${formatDate(x.date)}`).join(", ")}.</p>}
         </div>
-        <Timeline label="Loan history" items={l.history.map((h) => ({ id: h.id, date: h.at.slice(0, 10), title: h.text, description: `${h.by}${h.detail ? ` · ${h.detail}` : ""}` }))} />
+        <Timeline label="Loan history" items={l.history.map((h) => ({ id: h.id, date: pakistanDate(h.at), title: h.text, description: `${h.by}${h.detail ? ` · ${h.detail}` : ""}` }))} />
       </div>
     </SidePanel>
   );
@@ -295,7 +296,7 @@ export function LoansPage() {
                     small
                     head={["#", "Loan", "Staff", "Designation", "Kind", "Issued on", "First deduction", "Amount", "Installment", "Paid back", "Owed", "Status"]}
                     numeric={[7, 8, 9, 10]}
-                    rows={rows.map((l, i) => [i + 1, l.loanNo, `${l.staffName} (${l.employeeNo})`, l.designation, l.typeName, l.decidedAt && l.status !== "REJECTED" ? formatDate(l.decidedAt.slice(0, 10)) : "", hrMonthLabel(l.firstMonth), formatRs(l.principal), formatRs(l.installment), formatRs(l.recovered), formatRs(l.balance), statusText(l.status)])}
+                    rows={rows.map((l, i) => [i + 1, l.loanNo, `${l.staffName} (${l.employeeNo})`, l.designation, l.typeName, l.decidedAt && l.status !== "REJECTED" ? formatDate(pakistanDate(l.decidedAt)) : "", hrMonthLabel(l.firstMonth), formatRs(l.principal), formatRs(l.installment), formatRs(l.recovered), formatRs(l.balance), statusText(l.status)])}
                     total={["", "", "Total", "", "", "", "", formatRs(rows.reduce((a, l) => a + l.principal, 0)), "", formatRs(rows.reduce((a, l) => a + l.recovered, 0)), formatRs(rows.filter((l) => l.status === "ACTIVE").reduce((a, l) => a + l.balance, 0)), ""]}
                     signatures={["Accountant", "Principal"]}
                   />,

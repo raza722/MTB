@@ -1,5 +1,5 @@
 import { activitiesApi, activitiesQueries, type ActivitiesCandidate, type ActivitiesFeeHead, type ActivitiesMark, type ActivitiesProposeOverride, type ActivitiesTestDetail } from "@mtb/api";
-import { formatDate, formatSession } from "@mtb/domain";
+import { formatDate, formatSession, pakistanDate } from "@mtb/domain";
 import { Banner, Button, ConfirmDialog, DataTable, EmptyState, IconButton, Input, Modal, Panel, Select, Skeleton, StatusBadge, Stepper, TabPanel, Tabs, Timeline, useToast, type Column } from "@mtb/ui";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -135,7 +135,7 @@ function TestView({ test: t, tab, onTab }: { test: ActivitiesTestDetail; tab: Te
         {tab === "marks" && <MarksTab test={t} canManage={canManage} />}
         {tab === "history" && (
           <Panel id="test-history" title="History" rise={1}>
-            <Timeline items={[...t.history].reverse().map((h) => ({ id: h.id, date: h.at.slice(0, 10), title: `${h.action} · ${h.by}`, description: h.detail }))} />
+            <Timeline items={[...t.history].reverse().map((h) => ({ id: h.id, date: pakistanDate(h.at), title: `${h.action} · ${h.by}`, description: h.detail }))} />
           </Panel>
         )}
       </TabPanel>
@@ -258,7 +258,7 @@ function MeritTab({ test: t, canManage }: { test: ActivitiesTestDetail; canManag
         </span>
       ),
     },
-    { key: "marks", header: "Marks", align: "right", width: 110, render: (c) => <span className="mtb-num">{c.percent === null ? "—" : `${c.obtained} / ${t.maxMarks}`}</span> },
+    { key: "marks", header: "Marks", align: "right", width: 110, render: (c) => <span className="mtb-num">{c.percent === null ? "—" : t.maxMarks ? `${c.obtained} / ${t.maxMarks}` : c.obtained}</span> },
     { key: "pct", header: "%", align: "right", width: 80, render: (c) => <span className="mtb-num">{c.percent === null ? "—" : c.percent.toFixed(1)}</span> },
     {
       key: "result",

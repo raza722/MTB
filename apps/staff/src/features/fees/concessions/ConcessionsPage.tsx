@@ -1,7 +1,6 @@
 import {
   feeSetupApi,
   feeSetupQueries,
-  newIdempotencyKey,
   type CampusCode,
   type FeeConcession,
   type FeeConcessionClassRow,
@@ -9,7 +8,7 @@ import {
   type FeeConcessionType,
   type FeeConcessionTypeInfo,
 } from "@mtb/api";
-import { formatCount, formatDate, formatDateTime, formatRs, formatSession } from "@mtb/domain";
+import { formatCount, formatDate, formatDateTime, formatRs, formatSession, pakistanDate } from "@mtb/domain";
 import {
   AnimatedNumber,
   Banner,
@@ -37,12 +36,14 @@ import {
   type Column,
 } from "@mtb/ui";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { useStudentSearch } from "../../students/useStudentSearch";
 import { z } from "zod";
 import { campusLabel } from "../../../app/shell/campus";
 import { Page, PageHeader, RequirePermission } from "../../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../../app/session";
 import { addDaysIso, DecisionBadge, errorField, errorText, feeToday, FeesNav, FeesDocHead, lakhTick, LoadError, monthEndIso, PaperSize, pctText, slide, useCanAny, useFeeClasses } from "../shared";
+import { useIdempotencyKey } from "../../../app/idempotency";
 
 const TYPE_COLOR: Record<FeeConcessionType, string> = {
   SIBLING: "var(--chart-1)",
@@ -71,7 +72,7 @@ function NewConcessionPanel({ campus, types, heads, prefill, onClose }: { campus
   const ctx = useCtx();
   const toast = useToast();
   const queryClient = useQueryClient();
-  const students = useQuery(feeSetupQueries.students(ctx));
+  const students = useStudentSearch(ctx, {}, true, { searchOnly: true, ...(prefill?.grNo ? { initialSearch: prefill.grNo } : {}) });
   const structure = useQuery(feeSetupQueries.structure(campus, ctx.session));
   const nextMonth = addDaysIso(monthEndIso(feeToday().slice(0, 7)), 1);
   const [grNo, setGrNo] = useState<string | null>(prefill?.grNo ?? null);
@@ -102,7 +103,7 @@ function NewConcessionPanel({ campus, types, heads, prefill, onClose }: { campus
   const errors: Record<string, string> = {};
   if (!parsed.success) for (const i of parsed.error.issues) errors[String(i.path[0])] ??= i.message;
 
-  const student = students.data?.find((s) => s.grNo === grNo);
+  const student = students.students.find((s) => s.grNo === grNo);
   const cls = student?.classSection.split("-")[0] ?? "";
   const classLine = (code: string) => structure.data?.classes.find((c) => c.classShort === cls)?.lines.find((l) => l.head === code)?.amount ?? 0;
   // The structure's amount is per installment of the head's plan (tuition is billed quarterly at some campuses).
@@ -111,7 +112,7 @@ function NewConcessionPanel({ campus, types, heads, prefill, onClose }: { campus
     return billing === "MONTHLY" ? " (a month)" : billing === "QUARTERLY" ? " (a quarter)" : billing === "TERMLY" ? " (a term)" : "";
   };
   const pctNum = Number(pct) || 0;
-  const key = useMemo(() => newIdempotencyKey(), [JSON.stringify(values), type]); // eslint-disable-line react-hooks/exhaustive-deps
+  const key = useIdempotencyKey(JSON.stringify(values), type);
 
   const save = useMutation({
     mutationFn: () => feeSetupApi.requestConcession({ campus, session: ctx.session, grNo: grNo!, type, pct: pctNum, heads: chosenHeads, validFrom: from!, validTo: to!, ...(reference.trim() ? { reference: reference.trim() } : {}), reason: reason.trim() }, key),
@@ -153,9 +154,13 @@ function NewConcessionPanel({ campus, types, heads, prefill, onClose }: { campus
           label="Student"
           required
           value={grNo}
-          onValueChange={setGrNo}
-          placeholder={students.isLoading ? "Loading students…" : "Search by name or G.R. number"}
-          options={(students.data ?? []).map((s) => ({ value: s.grNo, label: `${s.name} (${s.classSection})`, hint: s.grNo, keywords: [s.grNo, s.father] }))}
+          onValueChange={(v) => {
+            students.remember(v);
+            setGrNo(v);
+          }}
+          placeholder="Search by name or G.R. number"
+          options={students.students.map((s) => ({ value: s.grNo, label: `${s.name} (${s.classSection})`, hint: s.grNo, keywords: [s.grNo, s.father] }))}
+          onSearchChange={students.onSearchChange}
           error={err("grNo")}
         />
         <Select
@@ -225,7 +230,7 @@ function ConcessionPanel({ c, types, onClose }: { c: FeeConcession; types: FeeCo
   const [note, setNote] = useState("");
   const [stopFrom, setStopFrom] = useState<string | null>(addDaysIso(monthEndIso(feeToday().slice(0, 7)), 1));
   const [tried, setTried] = useState(false);
-  const key = useMemo(() => newIdempotencyKey(), [c.id, mode]);
+  const key = useIdempotencyKey(c.id, mode);
   const t = types.find((x) => x.code === c.type);
   const done = (title: string, message: string) => {
     toast({ title, message });
@@ -234,7 +239,15 @@ function ConcessionPanel({ c, types, onClose }: { c: FeeConcession; types: FeeCo
   };
   const decide = useMutation({
     mutationFn: (approve: boolean) => feeSetupApi.decideConcession(c.id, { approve, note }, key),
-    onSuccess: (r) => done(r.status === "APPROVED" ? "Concession approved" : "Concession rejected", r.status === "APPROVED" ? `${r.studentName} pays ${formatRs(r.example.net)} a month from ${formatDate(r.validFrom)}.${r.repriced ? ` ${r.repriced} unpaid charges re-priced.` : ""}` : `${r.studentName}: the office tells the family.`),
+    // What happened to this student's charges, not the class example: "pays Rs 3,360 a month" was 10% of the class's fee
+    // while Kashaf's own charges are lower (test run F-035); "1 unpaid charges" (F-039).
+    onSuccess: (r) =>
+      done(
+        r.status === "APPROVED" ? "Concession approved" : "Concession rejected",
+        r.status === "APPROVED"
+          ? `${r.studentName}: ${r.pct}% off from ${formatDate(r.validFrom)}. ${r.repriced ? `${r.repriced} unpaid ${r.repriced === 1 ? "charge" : "charges"} re-priced; the fee ledger shows the new amounts.` : "Charges falling due from now on are priced with it."}`
+          : `${r.studentName}: the office tells the family.`,
+      ),
   });
   const stop = useMutation({
     mutationFn: () => feeSetupApi.stopConcession(c.id, { reason: note, from: stopFrom! }, key),
@@ -318,7 +331,7 @@ function ConcessionPanel({ c, types, onClose }: { c: FeeConcession; types: FeeCo
             ["Applies to", c.byHead.length ? c.byHead.map((h) => h.title).join(", ") : c.heads.join(", ")],
             ["Father", c.father],
             ["Session fee for the class", formatRs(c.sessionFee)],
-            ["Off while it runs", c.byHead.map((h) => `${h.title} ${formatRs(h.amount)}`).join(" · ") || formatRs(0)],
+            ["Off while it runs, on the class fee", c.byHead.map((h) => `${h.title} ${formatRs(h.amount)}`).join(" · ") || formatRs(0)],
             ["Reason", c.reason],
             ["Requested", `${c.requestedBy}, ${formatDateTime(c.requestedAt)}`],
             ...(c.decidedBy ? ([["Decided", `${c.decidedBy}, ${c.decidedAt ? formatDateTime(c.decidedAt) : ""}${c.decisionNote ? ` · ${c.decisionNote}` : ""}`]] as Array<[string, string]>) : []),
@@ -326,7 +339,7 @@ function ConcessionPanel({ c, types, onClose }: { c: FeeConcession; types: FeeCo
           ]}
         />
         <div className="rounded-md border border-border bg-surface-sunken p-4">
-          <p className="m-0 mb-2 text-small font-medium">Worked example</p>
+          <p className="m-0 mb-2 text-small font-medium">Worked example on the class fee (this student's own charges may differ; the fee ledger shows them)</p>
           <KeyValue
             items={[
               [c.example.head, formatRs(c.example.gross)],
@@ -345,7 +358,7 @@ function ConcessionPanel({ c, types, onClose }: { c: FeeConcession; types: FeeCo
         {error && <Banner tone="danger">{errorText(error)}</Banner>}
         <div className="grid gap-2">
           <span className="text-small font-medium">History</span>
-          <Timeline label="Concession history" items={c.history.map((h) => ({ id: h.id, date: h.at.slice(0, 10), title: h.text, description: `${h.by}${h.detail ? ` · ${h.detail}` : ""}`, tone: h.text.startsWith("Approved") ? ("success" as const) : h.text.startsWith("Rejected") || h.text.startsWith("Stopped") ? ("danger" as const) : ("neutral" as const) }))} />
+          <Timeline label="Concession history" items={c.history.map((h) => ({ id: h.id, date: pakistanDate(h.at), title: h.text, description: `${h.by}${h.detail ? ` · ${h.detail}` : ""}`, tone: h.text.startsWith("Approved") ? ("success" as const) : h.text.startsWith("Rejected") || h.text.startsWith("Stopped") ? ("danger" as const) : ("neutral" as const) }))} />
         </div>
       </div>
     </SidePanel>
@@ -428,8 +441,8 @@ export function ConcessionsPage() {
         </span>
       ),
     },
-    { key: "value", header: "Off each month", align: "right", render: (c) => <span className="mtb-num">{formatRs(c.monthlyValue)}</span> },
-    { key: "session", header: "Off while it runs", align: "right", render: (c) => <span className="mtb-num">{formatRs(c.sessionValue)}</span> },
+    { key: "value", header: "Off a month (class fee)", align: "right", render: (c) => <span className="mtb-num">{formatRs(c.monthlyValue)}</span> },
+    { key: "session", header: "Off while it runs (class fee)", align: "right", render: (c) => <span className="mtb-num">{formatRs(c.sessionValue)}</span> },
     { key: "runs", header: "Runs", render: (c) => <span className="mtb-num text-small">{`${formatDate(c.validFrom)} – ${formatDate(c.validTo)}`}</span> },
     { key: "status", header: "Status", render: (c) => <DecisionBadge status={c.status} /> },
     { key: "by", header: "Requested by", render: (c) => <span className="text-small">{c.requestedBy}</span> },
@@ -809,7 +822,7 @@ export function ConcessionsPage() {
                       ))}
                       <tr>
                         <td colSpan={5}>
-                          <strong>{formatCount(sum.students.length)} students</strong>
+                          <strong>{formatCount(sum.students.length)} {sum.students.length === 1 ? "student" : "students"}</strong>
                         </td>
                         <td className="n">
                           <strong>{formatRs(sum.students.reduce((a, s) => a + s.sessionFee, 0))}</strong>

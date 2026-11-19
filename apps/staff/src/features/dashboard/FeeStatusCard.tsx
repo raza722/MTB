@@ -60,7 +60,7 @@ export function FeeStatusCard({ s }: { s: DashboardSummary | undefined }) {
               return (
                 <li key={p.key} className="mtb-slide-in" style={stagger(i + 6)}>
                   {canStudents ? (
-                    <Link to="/students" search={(prev: Record<string, unknown>) => ({ ...prev, fee: p.key }) as never} className="mtb-dash-legend-row" aria-label={`${p.label}: ${formatCount(n)} students. Open the list`}>
+                    <Link to="/students" search={(prev: Record<string, unknown>) => ({ ...prev, fee: p.key, status: "ACTIVE" }) as never} className="mtb-dash-legend-row" aria-label={`${p.label}: ${formatCount(n)} students. Open the list`}>
                       {row}
                     </Link>
                   ) : (

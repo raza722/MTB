@@ -39,7 +39,7 @@ export function parseCell(raw: string, col: GridCol): { value: ExamsMark; error?
   if (!/^\d+(\.\d+)?$/.test(t)) return { value: null, error: col.allowAbsent ? `Type a number${col.allowLeave ? ", A for absent or L for leave" : " or A for absent"}.` : "Type a number." };
   const n = Number(t);
   if (n > col.max) return { value: null, error: col.percent ? "Attendance can't be above 100%." : `Maximum is ${col.max}.` };
-  if (col.percent ? !Number.isInteger(n) : Math.round(n * 2) !== n * 2) return { value: null, error: col.percent ? "Use a whole %." : "Use whole or half marks (32.5)." };
+  if (col.percent ? !Number.isInteger(n) : Math.round(n * 2) !== n * 2) return { value: null, error: col.percent ? "Use a whole %." : `Use whole or half marks, for example ${Math.floor(n)} or ${Math.floor(n)}.5.` };
   return { value: n };
 }
 
@@ -158,7 +158,7 @@ export function MarksGrid({
         <tbody>
           {rows.map((row, r) => (
             <tr key={row.id}>
-              <td className="exams-grid-num text-ink-muted">{row.roll ?? r + 1}</td>
+              <td className="exams-grid-num text-ink-muted">{row.roll || (row.roll === 0 ? "—" : r + 1)}</td>
               <td className="exams-grid-sticky">
                 <span className="grid">
                   <span className="font-medium">{row.name}</span>
@@ -199,7 +199,8 @@ export function MarksGrid({
                       onFocus={(e) => e.currentTarget.select()}
                       onKeyDown={(e) => onKey(e, r, c)}
                       onChange={(e) => {
-                        const v = e.target.value.replace(/[^0-9.aAlL]/g, "");
+                        // Keep what was typed: dropping other characters turned "abc" into "a", an absent mark saved without a word.
+                        const v = e.target.value;
                         onChange(row.id, col.key, /^[aAlL]$/.test(v) ? v.toUpperCase() : v);
                       }}
                     />

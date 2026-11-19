@@ -168,6 +168,7 @@ export const en = {
   "fees.colFine": "Late fine",
   "fees.colTotal": "Total",
   "fees.daysOverdue": "{n} days late",
+  "fees.dayOverdue": "{n} day late",
   "fees.voucher": "Download fee voucher",
   "fees.voucherHint": "Pay at any branch of {bank} or at the school's fee counter.",
   "fees.voucherHintCounter": "Pay at the school's fee counter.",
@@ -219,6 +220,8 @@ export const en = {
   "doc.noVoucherYet": "No voucher for this month yet",
   "doc.noVoucherYetDesc": "There is no fee voucher for this month yet. Pay at the campus office, or ask the office to issue one.",
   "doc.noVoucherYetCall": "Call the office on {phone}.",
+  "doc.voucherChanged": "This voucher is out of date",
+  "doc.voucherChangedDesc": "The fees on it changed after the office issued it, so the bank would take the wrong amount. Pay at the campus office, or ask the office for a new voucher.",
   "doc.preview": "Preview",
 
   // ---- Attendance ----

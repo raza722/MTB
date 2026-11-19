@@ -1037,7 +1037,10 @@ export function RollSlips({ exam, section, urdu }: { exam: ExamDetail; section: 
       {pages.map((page) => (
         <article key={page[0]!.id} className="exams-doc exams-doc-a4" aria-label="Roll number slips">
           <div className="exams-slip-sheet">
-            {page.map((r) => (
+            {page.map((r) => {
+              // Only the papers of the student's group (classes 9–10), as on the result card (test run F-142).
+              const papers = exam.subjects.filter((s) => examsSits(s, r.group));
+              return (
               <div key={r.id} className="exams-slip">
                 <Letterhead
                   campus={exam.campus}
@@ -1074,14 +1077,14 @@ export function RollSlips({ exam, section, urdu }: { exam: ExamDetail; section: 
                 <table style={{ fontSize: "8.5pt" }}>
                   <thead>
                     <tr>
-                      {exam.subjects.map((s) => (
+                      {papers.map((s) => (
                         <th key={s.id}>{s.name}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     <tr>
-                      {exam.subjects.map((s) => (
+                      {papers.map((s) => (
                         <td key={s.id}>
                           {s.date ? formatDate(s.date) : "—"}
                           {s.startTime ? ` · ${s.startTime}` : ""}
@@ -1095,7 +1098,8 @@ export function RollSlips({ exam, section, urdu }: { exam: ExamDetail; section: 
                   <span>Controller of examinations ____________</span>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </article>
       ))}

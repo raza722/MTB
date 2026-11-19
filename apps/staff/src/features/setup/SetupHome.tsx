@@ -51,7 +51,16 @@ function SetupTile({ tile, o, i }: { tile: Tile; o: SetupOverview | undefined; i
 const TONE_ICON: Record<SetupAttention["tone"], IconName> = { danger: "lock", warning: "alert", info: "info" };
 
 function AttentionList({ items }: { items: SetupAttention[] }) {
-  if (items.length === 0) return <EmptyState icon="checkCircle" title="Everything is in order" description="No locked accounts, missing teachers or unfinished sessions." />;
+  // The list only holds what this account looks after, so the all-clear names only those checks: an admin without
+  // Teacher allotment must not read "no missing teachers" while sections have no class teacher.
+  const seesUsers = useCanAny(["users.manage"]);
+  const seesTeachers = useCanAny(["setup.manage", "setup.campus"]);
+  const seesSessions = useCanAny(["setup.manage"]);
+  if (items.length === 0) {
+    const checked = [seesUsers && "locked accounts", seesTeachers && "sections without a class teacher", seesSessions && "unfinished sessions"].filter((c): c is string => Boolean(c));
+    const sentence = checked.length === 0 ? "Nothing that you look after needs attention." : `No ${checked.length === 1 ? checked[0] : `${checked.slice(0, -1).join(", ")} or ${checked.at(-1)}`}.`;
+    return <EmptyState icon="checkCircle" title={checked.length === 0 ? "Nothing for you to fix" : "Everything is in order"} description={sentence} />;
+  }
   return (
     <ul className="setup-list">
       {items.map((a, i) => (

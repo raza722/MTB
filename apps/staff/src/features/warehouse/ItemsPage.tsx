@@ -1,5 +1,6 @@
 import { warehouseApi, warehouseQueries, type WarehouseCategory, type WarehouseDepartment, type WarehouseItem } from "@mtb/api";
-import { formatCount, formatRs } from "@mtb/domain";
+import { formatCount } from "@mtb/domain";
+import { formatRs } from "./money";
 import { AmountInput, Banner, Button, Checkbox, DataTable, EmptyState, IconButton, Input, Modal, Select, SidePanel, StatusBadge, Switch, TabPanel, Tabs, useToast, type Column } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Fragment, useState } from "react";
@@ -196,7 +197,7 @@ function DepartmentForm({ dep, onClose }: { dep: WarehouseDepartment | null; onC
   const m = useMutation({
     mutationFn: (body: z.infer<typeof deptSchema>) => warehouseApi.saveDepartment(ctx, { ...body, rooms: body.rooms.map((r) => ({ ...r, roomNo: r.roomNo.toUpperCase() })), ...(dep ? { rowVer: dep.rowVer } : {}) }, dep?.id),
     onSuccess: (x) => {
-      toast({ title: `${x.name} saved`, message: `${x.rooms.length} rooms and classes.` });
+      toast({ title: `${x.name} saved`, message: x.rooms.length === 1 ? "1 room or class." : `${x.rooms.length} rooms and classes.` });
       void qc.invalidateQueries({ queryKey: ["warehouse"] });
       onClose();
     },

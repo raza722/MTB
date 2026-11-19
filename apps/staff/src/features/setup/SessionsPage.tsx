@@ -1,5 +1,5 @@
 import { newIdempotencyKey, setupApi, setupQueries, type CampusCode, type SetupSession, type SetupSessionStatus } from "@mtb/api";
-import { daysBetween, formatCount, formatDate, formatDateTime, formatSession, type IsoDate } from "@mtb/domain";
+import { daysBetween, formatCount, formatDate, formatDateTime, formatSession, type IsoDate, pakistanToday } from "@mtb/domain";
 import { Banner, Button, Checkbox, ConfirmDialog, DataTable, DatePicker, Modal, Panel, Skeleton, StatusBadge, useToast, type Status } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -95,8 +95,8 @@ function NewSessionModal({ current, onClose }: { current: SetupSession; onClose:
       <div className="grid gap-5">
         {failure && <Banner tone="danger" title="Not created.">{failure}</Banner>}
         <div className="grid gap-4 sm:grid-cols-2">
-          <DatePicker label="First day" required value={startsOn} onValueChange={(v) => { setStartsOn(v); setErrors((e) => ({ ...e, startsOn: undefined })); }} today="2026-11-04" {...err(errors, "startsOn")} />
-          <DatePicker label="Last day" required value={endsOn} onValueChange={(v) => { setEndsOn(v); setErrors((e) => ({ ...e, endsOn: undefined })); }} today="2026-11-04" {...err(errors, "endsOn")} />
+          <DatePicker label="First day" required value={startsOn} onValueChange={(v) => { setStartsOn(v); setErrors((e) => ({ ...e, startsOn: undefined })); }} today={pakistanToday()} {...err(errors, "startsOn")} />
+          <DatePicker label="Last day" required value={endsOn} onValueChange={(v) => { setEndsOn(v); setErrors((e) => ({ ...e, endsOn: undefined })); }} today={pakistanToday()} {...err(errors, "endsOn")} />
         </div>
         <fieldset className="m-0 grid gap-3 rounded-md border border-border p-4">
           <legend className="px-1 text-small font-medium text-ink">Copy from {current.label}</legend>
@@ -166,8 +166,8 @@ function CampusDatesModal({ session, campus, onClose }: { session: SetupSession;
         {conflict && <ConflictBanner conflict={conflict} onReload={() => void qc.invalidateQueries({ queryKey: ["setup"] }).then(onClose)} />}
         {failure && <Banner tone="danger" title="Not saved.">{failure}</Banner>}
         <div className="grid gap-4 sm:grid-cols-2">
-          <DatePicker label="First day" required value={startsOn} onValueChange={setStartsOn} today="2026-11-04" {...err(errors, "startsOn")} />
-          <DatePicker label="Last day" required value={endsOn} onValueChange={setEndsOn} today="2026-11-04" {...err(errors, "endsOn")} />
+          <DatePicker label="First day" required value={startsOn} onValueChange={setStartsOn} today={pakistanToday()} {...err(errors, "startsOn")} />
+          <DatePicker label="Last day" required value={endsOn} onValueChange={setEndsOn} today={pakistanToday()} {...err(errors, "endsOn")} />
         </div>
       </div>
     </Modal>
@@ -202,7 +202,7 @@ export function SessionsPage() {
     onError: (e) => setActionError(conflictOf(e) ? "This session was changed by someone else. Close this and try again." : errorText(e)),
   });
 
-  const day = current ? Math.max(1, daysBetween(current.startsOn, "2026-11-04") + 1) : 0;
+  const day = current ? Math.max(1, daysBetween(current.startsOn, pakistanToday()) + 1) : 0;
   const days = current ? daysBetween(current.startsOn, current.endsOn) + 1 : 1;
 
   return (
@@ -352,7 +352,7 @@ export function SessionsPage() {
         title={pending ? `Make ${pending.session.label} the current session?` : ""}
         message="Every campus will open it by default. The session before it becomes read-only for daily work."
         details={pending && current ? [["Current now", current.label], ["Will be current", pending.session.label], ["Starts", formatDate(pending.session.startsOn)]] : []}
-        {...(pending && pending.session.startsOn > "2026-11-04" ? { warning: `${pending.session.label} doesn't start until ${formatDate(pending.session.startsOn)}. Usually this is done on that day.` } : {})}
+        {...(pending && pending.session.startsOn > pakistanToday() ? { warning: `${pending.session.label} doesn't start until ${formatDate(pending.session.startsOn)}. Usually this is done on that day.` } : {})}
         {...(actionError ? { error: actionError } : {})}
         requireText="CURRENT"
         confirmLabel={pending ? `Make ${pending.session.label} current` : "Make current"}

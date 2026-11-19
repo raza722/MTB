@@ -7,6 +7,9 @@ import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
 import { useCtx } from "../../app/session";
 import { Page, PageHeader } from "../../app/shell/page";
 import { SubNav, type SubNavItem } from "../../app/shell/SubNav";
+
+/** "1 row", "2,867 rows": a report's size in words. */
+export const rowsText = (n: number): string => (n === 1 ? "1 row" : `${formatCount(n)} rows`);
 import "./reports.css";
 
 export const MODULE_ICON: Record<ReportModule, IconName> = {
@@ -68,7 +71,7 @@ export function ReportJobsWatcher({ jobs }: { jobs: ReportJob[] | undefined }) {
         void queryClient.invalidateQueries({ queryKey: notificationsQueries.list().queryKey });
         toast({
           title: `${j.reportName} is ready`,
-          message: `${j.format === "SCREEN" ? "Open it on screen" : j.format === "EXCEL" ? "Excel file" : "PDF"} · ${formatCount(j.rowCount ?? 0)} rows. It is also under the bell and in Downloads.`,
+          message: `${j.format === "SCREEN" ? "Open it on screen" : j.format === "EXCEL" ? "Excel file" : "PDF"} · ${rowsText(j.rowCount ?? 0)}. It is also under the bell and in Downloads.`,
           duration: 9000,
           action: (
             <Button size="sm" onClick={() => void navigate({ to: j.format === "SCREEN" || j.format === "PDF" ? "/reports/$reportId" : "/reports/jobs", ...(j.format === "SCREEN" || j.format === "PDF" ? { params: { reportId: j.reportId }, search: { job: j.id } } : {}) } as never)}>

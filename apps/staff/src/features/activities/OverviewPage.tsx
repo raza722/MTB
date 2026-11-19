@@ -22,7 +22,8 @@ export function OverviewPage() {
   const o = q.data;
   const [reliefView, setReliefView] = useState<"chart" | "table">("chart");
   const [houseView, setHouseView] = useState<"chart" | "table">("chart");
-  const leader = o?.houses[0];
+  // No house leads while every house is still at 0 (or below): the card says so instead of naming the first one alphabetically.
+  const leader = o?.houses[0] && o.houses[0].points > (o.houses[1]?.points ?? -Infinity) ? o.houses[0] : undefined;
   const reliefTotal = o?.reliefByScheme.reduce((s, r) => s + r.monthly, 0) ?? 0;
   const otherParts = (o?.reliefByScheme ?? []).slice(4);
   const parts = [
@@ -80,14 +81,14 @@ export function OverviewPage() {
           foot="Approved awards · the fees office applies them"
         />
         {ctx.campus === "ALL" ? (
-          <StatCard label="Events held this session" icon="calendar" loading={q.isLoading} value={<AnimatedNumber value={o?.eventsDone ?? 0} format={formatCount} />} foot={o ? `${formatCount(o.certificates)} certificates issued` : undefined} />
+          <StatCard label="Events held this session" icon="calendar" loading={q.isLoading} value={<AnimatedNumber value={o?.eventsDone ?? 0} format={formatCount} />} foot={o ? `${plural(o.certificates, "certificate")} issued` : undefined} />
         ) : (
           <StatCard
             label="House in the lead"
             icon="flag"
             loading={q.isLoading}
             value={leader ? leader.name : "—"}
-            foot={leader ? `${formatCount(leader.points)} points · ${o && o.houses[1] ? `${formatCount(leader.points - o.houses[1].points)} ahead` : ""}` : undefined}
+            foot={leader ? `${plural(leader.points, "point")}${o && o.houses[1] ? ` · ${formatCount(leader.points - o.houses[1].points)} ahead` : ""}` : o?.houses.length ? "No house is ahead yet" : undefined}
             onClick={() => void navigate({ to: "/activities/houses" })}
           />
         )}
@@ -243,7 +244,7 @@ export function OverviewPage() {
 
       {o && (
         <p className="m-0 text-small text-ink-muted">
-          {plural(o.tests.open, "scholarship test")} taking names · {o.tests.marking} being marked · {plural(o.tests.ready, "merit list")} ready · {plural(o.eventsDone, "event")} held · {formatCount(o.certificates)} certificates issued
+          {plural(o.tests.open, "scholarship test")} taking names · {o.tests.marking} being marked · {plural(o.tests.ready, "merit list")} ready · {plural(o.eventsDone, "event")} held · {plural(o.certificates, "certificate")} issued
         </p>
       )}
     </Page>

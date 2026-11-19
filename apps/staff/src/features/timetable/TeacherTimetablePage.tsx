@@ -254,7 +254,11 @@ export function TeacherTimetablePage({ search, setSearch }: { search: TeacherTim
   const perDay = TIMETABLE_DAYS.map((d) => ({ ...d, n: countLessons(mine.filter((s) => s.day === d.day)) }));
   const busiest = [...perDay].sort((a, b) => b.n - a.n)[0];
   const classes = [...new Set(mine.map((s) => s.classSection))];
-  const totalPeriods = board ? periodsInWeek(board.schedule) : 0;
+  // the week of the timings the teacher's first class of the week follows (as the Teacher timetables and load report,
+  // test run F-148); the school's main timings for a teacher with no periods
+  const firstSlot = [...mine].sort((a, b) => a.day * 100 + a.period - (b.day * 100 + b.period))[0];
+  const totalPeriods = board ? periodsInWeek(firstSlot ? scheduleOf(board, firstSlot.classSection) : board.schedule) : 0;
+  const weekOf = firstSlot ? `a week of ${firstSlot.classSection}'s timings` : "the school day's week";
   const levelName = board && filter.level ? (boardLevels(board).levels.find((l) => l.value === filter.level)?.label ?? "") : "All levels";
   const genderName = filter.gender === "F" ? "women" : filter.gender === "M" ? "men" : "";
   const setFilter = (f: StaffFilter) => {
@@ -398,7 +402,7 @@ export function TeacherTimetablePage({ search, setSearch }: { search: TeacherTim
                     />
                   </div>
                   <div style={{ "--i": 1 } as CSSProperties}>
-                    <StatCard label="Free periods" icon="calendar" value={<AnimatedNumber value={Math.max(0, totalPeriods - load)} format={formatCount} />} foot={`of ${totalPeriods} in the school day's week`} />
+                    <StatCard label="Free periods" icon="calendar" value={<AnimatedNumber value={Math.max(0, totalPeriods - load)} format={formatCount} />} foot={`of ${totalPeriods} in ${weekOf}`} />
                   </div>
                   <div style={{ "--i": 2 } as CSSProperties}>
                     <StatCard label="Busiest day" icon="trendUp" tone="info" value={busiest ? busiest.long : "—"} foot={busiest ? `${busiest.n} periods` : ""} />

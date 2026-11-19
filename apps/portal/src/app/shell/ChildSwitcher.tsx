@@ -69,7 +69,8 @@ export function ChildSwitcher() {
 
       {/* Computer: every child as a chip. */}
       {many && (
-        <div role="group" aria-label={t("shell.childrenLabel")} className="hidden min-w-0 items-center gap-2 lg:flex">
+        <div role="group" aria-label={t("shell.childrenLabel")} className="hidden min-w-0 items-center gap-2 overflow-x-auto lg:flex">
+          {/* Chips keep their width and the row scrolls when a family has many children (text never wraps letter by letter). */}
           {account.children.map((c) => {
             const active = c.grNo === child.grNo;
             return (
@@ -79,18 +80,19 @@ export function ChildSwitcher() {
                 aria-pressed={active}
                 onClick={() => switchTo(c.grNo)}
                 className={cx(
-                  "flex min-h-11 items-center gap-2 rounded-full border px-2 py-1 pe-3 transition-colors",
+                  "flex min-h-11 shrink-0 items-center gap-2 rounded-2xl border px-2 py-1 pe-3 transition-colors",
                   active ? "border-brand bg-brand-tint text-brand-ink" : "border-border bg-surface-raised text-ink hover:bg-surface-hover",
                 )}
               >
                 <Avatar src={photoUrl.portalChild(c.grNo)} name={c.name} size="sm" />
-                <span className="grid text-start leading-tight">
+                <span className="grid justify-items-start whitespace-nowrap text-start leading-tight">
                   <span className="font-semibold">{name(c.name, c.nameUr)}</span>
                   <span className="text-caption text-ink-muted">
                     <Cls value={c.classSection} /> · {pick(c.campusName, c.campusNameUr)}
                   </span>
+                  {/* In words, not a coloured dot alone: "Rs 13,610 due" or "No dues" (the phone sheet shows the same badge). */}
+                  <DueBadge c={c} />
                 </span>
-                {c.due > 0 && <span className={cx("size-2 rounded-full", c.feeStatus === "overdue" ? "bg-status-overdue" : "bg-status-unpaid")} aria-hidden="true" />}
               </button>
             );
           })}

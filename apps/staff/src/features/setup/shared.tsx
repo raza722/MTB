@@ -1,5 +1,5 @@
 import { ApiError, can, CURRENT_SESSION, type Permission, type SetupConflictDetails, setupPasswordChecks } from "@mtb/api";
-import { formatDate, formatSession, formatTime, type IsoDateTime } from "@mtb/domain";
+import { formatDate, formatSession, formatTime, type IsoDateTime, pakistanDate, pakistanToday } from "@mtb/domain";
 import { Banner, Button, buttonClassName, Icon, PermissionDenied, Tooltip, type ButtonProps } from "@mtb/ui";
 import { Link } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
@@ -185,9 +185,9 @@ export const err = (errors: FieldErrors, key: string) => (errors[key] ? { error:
 /* ------------------------------------------------------------------ Small pieces */
 
 /** "Today, 08:02 AM", "Yesterday, 04:48 PM" or "02-Nov-2026". */
-export function whenText(at: IsoDateTime | null, today = "2026-11-04"): string {
+export function whenText(at: IsoDateTime | null, today: string = pakistanToday()): string {
   if (!at) return "Never";
-  const day = at.slice(0, 10);
+  const day = pakistanDate(at);
   if (day === today) return `Today, ${formatTime(at)}`;
   const y = new Date(`${today}T00:00:00Z`);
   y.setUTCDate(y.getUTCDate() - 1);
@@ -241,7 +241,7 @@ export function PrintSheet({ title, scope, children, signatures = ["Prepared by"
           <h1>{title}</h1>
           <div>{scope}</div>
         </div>
-        <div style={{ fontSize: "9pt" }}>Printed {formatDate("2026-11-04")}</div>
+        <div style={{ fontSize: "9pt" }}>Printed {formatDate(pakistanToday())}</div>
       </header>
       {children}
       <div className="setup-print-sign">

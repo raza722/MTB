@@ -10,14 +10,15 @@ import {
   type WarehouseRequestStatus,
   type WarehouseReturn,
 } from "@mtb/api";
-import { formatCount, formatDate, formatDateTime, formatRs, type IsoDate } from "@mtb/domain";
+import { formatCount, formatDate, formatDateTime, type IsoDate } from "@mtb/domain";
+import { formatRs } from "./money";
 import { Banner, Button, Combobox, DataTable, DatePicker, EmptyState, IconButton, Input, KeyValue, Modal, Select, SidePanel, StatusBadge, TabPanel, Tabs, Textarea, useToast, type Column } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Fragment, useMemo, useState, type ReactNode } from "react";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { campusLabel } from "../../app/shell/campus";
 import { CampusNote, DocHead, errorField, errorText, inRange, LoadError, periodText, RequireSingleCampusOverlay, SignLines, usePrinter } from "../library/common";
-import { checkLines, itemOptions, LineEditor, newLine, orDash, WarehouseShell, type LineDraft } from "./shared";
+import { checkLines, itemOptions, LineEditor, newLine, orDash, qtyText, WarehouseShell, type LineDraft } from "./shared";
 
 /* ---------------------------------------------------------------- Rooms */
 
@@ -480,7 +481,7 @@ function RequestDoc({ requests, kindOf: kind, subtitle, campus, single }: { requ
                   <td>{l.itemName}</td>
                   <td>{kind(l.itemId)}</td>
                   <td>
-                    {formatCount(l.qty)} {l.unit.toLowerCase()}
+                    {qtyText(l.qty, l.unit)}
                   </td>
                   <td>{formatCount(l.issued)}</td>
                 </tr>
@@ -669,7 +670,9 @@ export function IssuePage({ tab, setTab, openNew, setOpenNew }: { tab: IssueTab;
   const [issueF, setIssueF] = useState<Filters>(NO_FILTERS);
   const [reqF, setReqF] = useState<Filters>(NO_FILTERS);
   const [retF, setRetF] = useState<Filters>(NO_FILTERS);
-  const [open, setOpen] = useState<WarehouseIssue | null>(null);
+  /* The panel follows the refetched list, so a saved remark or a return shows at once (test run F-132). */
+  const [openId, setOpenId] = useState<string | null>(null);
+  const open = openId ? (issues.data ?? []).find((x) => x.id === openId) ?? null : null;
   const [fromRequest, setFromRequest] = useState<WarehouseRequest | null>(null);
   const [requesting, setRequesting] = useState(false);
   const [cancelling, setCancelling] = useState<WarehouseRequest | null>(null);
@@ -813,7 +816,7 @@ export function IssuePage({ tab, setTab, openNew, setOpenNew }: { tab: IssueTab;
           rows={issueRows}
           loading={issues.isLoading}
           columns={issueCols}
-          onRowClick={setOpen}
+          onRowClick={(x) => setOpenId(x.id)}
           toolbar={
             <div className="grid w-full gap-3">
               <RegisterFilters f={issueF} set={setIssueF} departments={departments} items={allItems} show={{ kind: true, search: true }} searchLabel="Issue or request no., person or item" />
@@ -887,7 +890,7 @@ export function IssuePage({ tab, setTab, openNew, setOpenNew }: { tab: IssueTab;
         />
       </TabPanel>
       <CampusNote />
-      {open && <IssuePanel i={open} onClose={() => setOpen(null)} />}
+      {open && <IssuePanel i={open} onClose={() => setOpenId(null)} />}
       {(openNew || fromRequest) && (
         <RequireSingleCampusOverlay
           onClose={() => {

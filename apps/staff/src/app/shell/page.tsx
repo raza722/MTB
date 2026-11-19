@@ -48,6 +48,14 @@ export function Page({ children }: { children: ReactNode }) {
 export function RequirePermission({ permission, page, children }: { permission: Permission; page: string; children: ReactNode }) {
   const allowed = useCan(permission);
   const role = useRoleLabel();
+  // The way back names the page the account actually starts on: a teacher has no dashboard (it opens Teaching › Today).
+  const hasDashboard = useCan("dashboard.view");
+  // the tab names the page like every other page, not "MTB Staff" (test run F-033)
+  useEffect(() => {
+    // "the defaulters list" → "Defaulters list · MTB"
+    const name = page.replace(/^the /i, "");
+    if (!allowed) document.title = `${name.charAt(0).toUpperCase()}${name.slice(1)} · MTB`;
+  }, [allowed, page]);
   if (allowed) return <>{children}</>;
   return (
     <Page>
@@ -57,7 +65,7 @@ export function RequirePermission({ permission, page, children }: { permission: 
           page={page}
           action={
             <Link to="/dashboard" className={buttonClassName({ variant: "primary", size: "sm" })}>
-              Go to dashboard
+              {hasDashboard ? "Go to dashboard" : "Go to my start page"}
             </Link>
           }
         />

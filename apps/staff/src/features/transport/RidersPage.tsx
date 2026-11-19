@@ -1,13 +1,14 @@
-import { newIdempotencyKey, TRANSPORT_DIRECTION_LABEL, transportApi, transportQueries, type OperationsPerson, type TransportDirection, type TransportRider, type TransportRoute } from "@mtb/api";
+import { TRANSPORT_DIRECTION_LABEL, transportApi, transportQueries, type OperationsPerson, type TransportDirection, type TransportRider, type TransportRoute } from "@mtb/api";
 import { formatCount, formatDate, formatMobile, formatRs } from "@mtb/domain";
 import { Banner, Button, buttonClassName, ConfirmDialog, DataTable, DatePicker, EmptyState, Icon, Input, Modal, Segmented, Select, SidePanel, StatusBadge, Textarea, useToast, type Column } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { campusLabel } from "../../app/shell/campus";
 import { CampusNote, errorCode, errorText, LoadError, opsToday, PersonPicker, RequireSingleCampusOverlay } from "../library/common";
 import { Load, TransportShell } from "./shared";
+import { useIdempotencyKey } from "../../app/idempotency";
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const monthName = (d: string) => `${MONTHS[Number(d.slice(5, 7)) - 1]} ${d.slice(0, 4)}`;
@@ -61,7 +62,7 @@ function AssignPanel({ onClose }: { onClose: () => void }) {
   const [fromDate, setFrom] = useState<string | null>(today);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [confirmFull, setConfirmFull] = useState(false);
-  const key = useMemo(() => newIdempotencyKey(), [person?.id, routeId, stopId]);
+  const key = useIdempotencyKey(person?.id, routeId, stopId);
   const list = routes.data ?? [];
   const route = list.find((r) => r.id === routeId);
   const stop = route?.stops.find((s) => s.id === stopId);

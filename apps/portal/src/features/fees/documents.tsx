@@ -136,7 +136,7 @@ export function ReceiptA5({ receipt: r }: { receipt: PortalReceipt }) {
                 <td className="py-1.5 text-right">{formatRs(l.amount)}</td>
                 <td className="py-1.5 text-right">
                   {l.lateFine > 0 ? formatRs(l.lateFine) : "—"}
-                  {l.lateFine > 0 && <span className="block text-[10px] text-ink-muted">{l.daysOverdue} days late</span>}
+                  {l.lateFine > 0 && <span className="block text-[10px] text-ink-muted">{l.daysOverdue} {l.daysOverdue === 1 ? "day" : "days"} late</span>}
                 </td>
                 <td className="py-1.5 text-right font-medium">{formatRs(l.applied)}</td>
               </tr>

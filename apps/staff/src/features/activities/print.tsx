@@ -16,7 +16,7 @@ import {
   type ActivitiesTestDetail,
   type CampusCode,
 } from "@mtb/api";
-import { formatDate, formatRs, formatSession } from "@mtb/domain";
+import { formatDate, formatRs, formatSession, pakistanToday } from "@mtb/domain";
 import { Urdu } from "@mtb/ui";
 import type { ReactNode } from "react";
 import { campusPlace, CREST_SRC, Letterhead, SCHOOL_NAME } from "../../app/print/letterhead";
@@ -238,7 +238,7 @@ export function MeritListDoc({ test, feeHeads }: { test: ActivitiesTestDetail; f
     ["ANNUAL", "Annual"],
     ["TUITION", "TU.FEE"],
   ];
-  const dated = (test.date ?? new Date().toISOString().slice(0, 10)).split("-").reverse().join(" - ");
+  const dated = (test.date ?? pakistanToday()).split("-").reverse().join(" - ");
   return (
     <article className="act-doc act-doc-land" aria-label={`Merit list, ${test.title}`}>
       {test.status === "MARKING" || test.status === "REGISTRATION" ? <span className="act-doc-mark">PROVISIONAL</span> : null}
@@ -285,7 +285,7 @@ export function MeritListDoc({ test, feeHeads }: { test: ActivitiesTestDetail; f
                 {c.isApplicant ? " (applicant)" : ""}
               </td>
               <td className="c">
-                {c.obtained} / {test.maxMarks}
+                {test.maxMarks ? `${c.obtained} / ${test.maxMarks}` : c.obtained}
               </td>
               <td className="c">{test.schemeName}</td>
               <td>{c.previousSchool ?? (c.isApplicant ? "" : "MTB")}</td>

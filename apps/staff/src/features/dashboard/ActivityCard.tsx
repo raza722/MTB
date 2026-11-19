@@ -1,5 +1,5 @@
 import type { DashboardActivity, DashboardActivityKind, DashboardEvent, DashboardSummary } from "@mtb/api";
-import { formatDate, formatRs, formatTime, type IsoDate } from "@mtb/domain";
+import { formatDate, formatRs, formatTime, type IsoDate, pakistanDate } from "@mtb/domain";
 import { cx, EmptyState, Icon, Skeleton, type IconName } from "@mtb/ui";
 import { Link } from "@tanstack/react-router";
 import { DashCard } from "./DashCard";
@@ -16,7 +16,7 @@ const KIND: Record<DashboardActivityKind, { icon: IconName; tone: string }> = {
 };
 
 function when(at: string, today: IsoDate) {
-  const day = at.slice(0, 10);
+  const day = pakistanDate(at);
   return day === today ? formatTime(at) : `${fromToday(day, today) === "Yesterday" ? "Yesterday" : formatDate(day)}, ${formatTime(at)}`;
 }
 
