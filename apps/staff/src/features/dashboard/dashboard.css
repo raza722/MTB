@@ -28,6 +28,25 @@
   from { transform: translate(0, 0) scale(1); }
   to { transform: translate(-48px, 28px) scale(1.12); }
 }
+/* The school crest beside the greeting (design option A, 19-Nov-2026): on a white plate so its black lines read in
+   dark mode, lit from behind by the sign-in page's torch glow. On a phone it sits above the greeting, smaller. */
+.mtb-dash-intro { display: flex; align-items: center; gap: var(--space-8); }
+.mtb-dash-crest { position: relative; flex: none; display: grid; place-items: center; }
+.mtb-dash-crest-glow {
+  position: absolute; width: 280px; aspect-ratio: 1; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(closest-side, rgb(246 198 91 / 0.42), rgb(255 138 60 / 0.16) 50%, transparent 74%);
+}
+.mtb-dash-crest-plate {
+  position: relative; display: grid; place-items: center; padding: 14px 18px; border-radius: 18px; background: #fff;
+  box-shadow: 0 0 0 1px var(--border), var(--shadow-md);
+}
+.mtb-dash-crest-plate .mtb-crest { padding: 0 !important; border-radius: 0 !important; }
+@media (max-width: 639.98px) {
+  .mtb-dash-intro { flex-direction: column; align-items: flex-start; gap: var(--space-5); }
+  .mtb-dash-crest-plate { padding: 10px 12px; border-radius: 14px; }
+  .mtb-dash-crest-plate .mtb-crest { height: 72px !important; }
+  .mtb-dash-crest-glow { width: 160px; }
+}
 .mtb-dash-hello {
   background: linear-gradient(92deg, var(--ink) 30%, var(--brand-ink));
   -webkit-background-clip: text; background-clip: text; color: transparent;

@@ -1,0 +1,23 @@
+/*
+ * Class strength as tiles (design option B, user's choice 19-Nov-2026): one equal-size tile per class with a small
+ * column chart, one column per section, so an oversized or nearly empty section stands out. Built only from
+ * design-system tokens. A class at 85% of its seats or more turns to the warning colour.
+ */
+.stu-tiles { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
+.stu-tile {
+  display: grid; gap: var(--space-3); width: 100%; height: 100%; padding: var(--space-4); text-align: left; font: inherit; color: inherit; cursor: pointer;
+  border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface-raised);
+  transition: border-color var(--motion-fast) ease, transform var(--motion-base) var(--ease-out), background-color var(--motion-fast) ease;
+}
+.stu-tile:hover { border-color: var(--border-strong); transform: translateY(-2px); }
+.stu-tile[aria-pressed="true"] { border-color: var(--brand); background: color-mix(in srgb, var(--brand-tint) 45%, var(--surface-raised)); }
+.stu-tile-pill { flex: none; padding: 2px 8px; border-radius: var(--radius-full); font-size: 13px; line-height: 18px; font-weight: 600; font-variant-numeric: tabular-nums; background: var(--brand-tint); color: var(--brand-ink); }
+.stu-tile-cols { display: flex; align-items: flex-end; gap: 3px; height: 56px; padding: 0 2px; border-bottom: 1px solid var(--border); }
+.stu-tile-cols > span { flex: 1 1 0; min-width: 2px; max-width: 28px; border-radius: 3px 3px 0 0; background: var(--chart-1); transition: opacity var(--motion-fast) ease; }
+.stu-tile:hover .stu-tile-cols > span { opacity: 0.75; }
+.stu-tile:hover .stu-tile-cols > span:hover { opacity: 1; }
+.stu-tile.is-nearly-full .stu-tile-pill { background: var(--warning-tint); color: var(--warning-ink); }
+.stu-tile.is-nearly-full .stu-tile-cols > span { background: var(--chart-2); }
+.stu-tile-detail { display: grid; gap: var(--space-3); padding: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface-sunken); }
+.stu-chip { display: inline-flex; align-items: center; gap: var(--space-2); padding: 3px 8px 3px 10px; border: 1px solid var(--border); border-radius: var(--radius-full); background: var(--surface-raised); font-size: 13px; line-height: 18px; color: var(--ink-muted); }
+.stu-chip b { font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }

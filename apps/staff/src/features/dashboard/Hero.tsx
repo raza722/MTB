@@ -1,10 +1,9 @@
 import { admissionsQueries, type DashboardSummary } from "@mtb/api";
 import { formatCount, formatLongDate, formatRs, formatSession } from "@mtb/domain";
-import { buttonClassName, Icon, Kbd, Skeleton, type IconName } from "@mtb/ui";
+import { buttonClassName, Crest, Icon, Skeleton, type IconName } from "@mtb/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { campusLabel } from "../../app/shell/campus";
-import { openGlobalSearch } from "../../app/shell/GlobalSearch";
 import { useCan, useCtx, useSessionUser } from "../../app/session";
 import { firstName, greeting, percentOrDash, stagger } from "./format";
 
@@ -33,7 +32,11 @@ function Glance({ icon, value, label, i, to }: { icon: IconName; value: string; 
   );
 }
 
-/** Greeting, today's headline in one sentence, the main actions, and three small figures. */
+/**
+ * The school crest beside the greeting, today's headline in one sentence, Collect fee, and the small figures.
+ * The crest took the place of the "Find a student" button (user's choice, 19-Nov-2026: design option A); search stays
+ * in the top bar and on Ctrl+K.
+ */
 export function Hero({ s, approvals }: { s: DashboardSummary | undefined; approvals: number | undefined }) {
   const user = useSessionUser();
   const ctx = useCtx();
@@ -56,7 +59,14 @@ export function Hero({ s, approvals }: { s: DashboardSummary | undefined; approv
         <span className="mtb-dash-orb mtb-dash-orb-a" />
         <span className="mtb-dash-orb mtb-dash-orb-b" />
       </div>
-      <div className="relative grid min-w-0 content-start gap-3">
+      <div className="mtb-dash-intro relative min-w-0">
+      <div className="mtb-dash-crest" aria-hidden="true">
+        <span className="mtb-dash-crest-glow" />
+        <span className="mtb-dash-crest-plate">
+          <Crest size={112} />
+        </span>
+      </div>
+      <div className="grid min-w-0 content-start gap-3">
         <p className="m-0 flex flex-wrap items-center gap-x-2 text-small font-medium text-ink-muted">
           <span className="mtb-dash-live" aria-hidden="true" />
           <span>Dashboard</span>
@@ -95,22 +105,15 @@ export function Hero({ s, approvals }: { s: DashboardSummary | undefined; approv
             <Skeleton width="80%" />
           )}
         </p>
-        <div className="mt-1 flex flex-wrap items-center gap-2">
-          {canCollect && ctx.campus !== "ALL" && (
+        {canCollect && ctx.campus !== "ALL" && (
+          <div className="mt-1 flex flex-wrap items-center gap-2">
             <Link to="/fees/counter" className={buttonClassName({ variant: "primary" })}>
               <Icon name="fees" size={18} />
               Collect fee
             </Link>
-          )}
-          <button type="button" className={buttonClassName({ variant: "secondary" })} onClick={openGlobalSearch} aria-keyshortcuts="Control+K">
-            <Icon name="search" size={18} />
-            Find a student
-            <span className="ml-1 hidden items-center gap-1 sm:inline-flex" aria-hidden="true">
-              <Kbd>Ctrl</Kbd>
-              <Kbd>K</Kbd>
-            </span>
-          </button>
-        </div>
+          </div>
+        )}
+      </div>
       </div>
       <ul className="mtb-dash-glances" aria-label="At a glance">
         {s ? (

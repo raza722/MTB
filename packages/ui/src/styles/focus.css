@@ -1,0 +1,18 @@
+/*
+ * MTB change to the design system: the focus colour follows the brand colour.
+ *
+ * The MTB Campus design system gives focus its own blue (--focus-ring: #1f6fd1 light, #7ab4f5 dark), so a clicked
+ * box or a tabbed-to button showed a blue ring and border on the green theme (user report, 19-Nov-2026: "should match
+ * the theme"). Here --focus-ring takes the brand colour of the element's theme: green in light (#0e5a3a) and dark
+ * (#3fb37f), and navy when the navy accent is on. Every focus outline and focused-box border uses --focus-ring, so they
+ * all follow. The brand colour keeps the ring well above 3:1 on every surface (about 8:1 light, 6.8:1 dark).
+ *
+ * tokens.css (generated from tokens.json) still holds the design system's blue; this file is hand-written and loaded
+ * after it, so the change survives a token rebuild. Set on every themed element because tokens.css sets the token on
+ * each [data-theme] element (the portal's printed documents carry their own data-theme="light").
+ */
+
+:root,
+[data-theme] {
+  --focus-ring: var(--brand);
+}

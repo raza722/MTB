@@ -1,0 +1,73 @@
+/*
+ * Rows of form fields that line up on their boxes' bottom edge: Tailwind `items-end` (and its sm/md/lg forms) and the
+ * report and attendance filter bars. A field that shows help or an error under its box is taller, so a bottom-aligned
+ * row lined everything up on that message: the other fields' labels and boxes, and the row's buttons, dropped by a
+ * line (user report, 19-Nov-2026, Reports › Filters).
+ *
+ * While a field in such a row shows a message, the row lines up at the top instead: labels and boxes stay on one line,
+ * and the row's other items (buttons, text, an unlabelled box) move down by a label's height (16px label + 6px gap) so
+ * they sit level with the boxes. Rows without a message keep their bottom alignment, untouched.
+ *
+ * Unlayered on purpose: it must win over the Tailwind utilities (`items-end`, `mt-*`), which sit in a layer.
+ * A field is found as a child, grandchild or great-grandchild of the row (fields inside a sizing wrapper).
+ */
+
+:is(.items-end, .rpt-filters, .att-filters):has(
+    > .mtb-field > :is(.mtb-error, .mtb-help),
+    > * > .mtb-field > :is(.mtb-error, .mtb-help),
+    > * > * > .mtb-field > :is(.mtb-error, .mtb-help)
+  ) {
+  align-items: flex-start;
+}
+
+/* with a labelled field in the row: everything that is not a labelled field comes down to the boxes' line */
+:is(.items-end, .rpt-filters, .att-filters):has(
+    > .mtb-field > :is(.mtb-error, .mtb-help),
+    > * > .mtb-field > :is(.mtb-error, .mtb-help),
+    > * > * > .mtb-field > :is(.mtb-error, .mtb-help)
+  ):has(> .mtb-field > .mtb-label, > * > .mtb-field > .mtb-label, > * > * > .mtb-field > .mtb-label) {
+  /* buttons, button groups, notes and other items beside the fields */
+  & > :not(.mtb-field):not(:has(.mtb-field)) {
+    margin-top: 22px;
+  }
+  /* a small button (32px) sits in the middle of a 40px box */
+  & > .mtb-btn-sm:not(.mtb-field):not(:has(.mtb-field)) {
+    margin-top: 26px;
+  }
+  /* a line of text sits in the middle of a 40px box */
+  & > :is(span, p, small):not(:has(button, input, select, .mtb-btn, .mtb-field)) {
+    padding-top: 10px;
+  }
+  /* a field without a label (a search box) lines up with the labelled boxes */
+  & > .mtb-field:not(:has(> .mtb-label)),
+  & > * > .mtb-field:not(:has(> .mtb-label)),
+  & > * > * > .mtb-field:not(:has(> .mtb-label)) {
+    margin-top: 22px;
+  }
+}
+
+/* the same for rows that are bottom-aligned only from a breakpoint up (sm 40rem, md 48rem, lg 64rem) */
+@media (min-width: 40rem) {
+  .sm\:items-end:has(> .mtb-field > :is(.mtb-error, .mtb-help), > * > .mtb-field > :is(.mtb-error, .mtb-help)) {
+    align-items: flex-start;
+    &:has(> .mtb-field > .mtb-label, > * > .mtb-field > .mtb-label) > :not(.mtb-field):not(:has(.mtb-field)) {
+      margin-top: 22px;
+    }
+  }
+}
+@media (min-width: 48rem) {
+  .md\:items-end:has(> .mtb-field > :is(.mtb-error, .mtb-help), > * > .mtb-field > :is(.mtb-error, .mtb-help)) {
+    align-items: flex-start;
+    &:has(> .mtb-field > .mtb-label, > * > .mtb-field > .mtb-label) > :not(.mtb-field):not(:has(.mtb-field)) {
+      margin-top: 22px;
+    }
+  }
+}
+@media (min-width: 64rem) {
+  .lg\:items-end:has(> .mtb-field > :is(.mtb-error, .mtb-help), > * > .mtb-field > :is(.mtb-error, .mtb-help)) {
+    align-items: flex-start;
+    &:has(> .mtb-field > .mtb-label, > * > .mtb-field > .mtb-label) > :not(.mtb-field):not(:has(.mtb-field)) {
+      margin-top: 22px;
+    }
+  }
+}

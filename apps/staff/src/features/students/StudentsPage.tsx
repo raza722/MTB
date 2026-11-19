@@ -28,7 +28,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Page, PageHeader, RequirePermission } from "../../app/shell/page";
 import { useCan, useCtx } from "../../app/session";
 import { AddressLabelsPanel } from "./documents/AddressLabelsPanel";
-import { EnrolmentBadge, LoadError, SeatMeter, stagger, StudentsSubNav } from "./shared";
+import { EnrolmentBadge, LoadError, stagger, StudentsSubNav } from "./shared";
+import "./students.css";
 
 export { EnrolmentBadge };
 
@@ -86,10 +87,26 @@ function StrengthCards({ s }: { s: StudentStrength | undefined }) {
   );
 }
 
-/** Seats filled per class, as meters (chart) or a table. */
+/** A class at this share of its seats or more is shown in the warning colour. */
+const NEARLY_FULL = 85;
+
+/** Whole percent of seats filled; null when the class has no seats set. */
+function fillPercent(enrolled: number, seats: number): number | null {
+  return seats > 0 ? Math.round((enrolled / seats) * 100) : null;
+}
+
+/**
+ * Seats filled per class, as tiles (chart) or a table. Each tile draws one column per section; choosing a tile lists
+ * its sections below, with a button that filters the student list to that class (design option B, 19-Nov-2026).
+ */
 function StrengthPanel({ s, onPick }: { s: StudentStrength | undefined; onPick: (cls: string) => void }) {
   const [view, setView] = useState<"chart" | "table">("chart");
+  const [picked, setPicked] = useState<string | null>(null);
   const classes = (s?.classes ?? []).filter((c) => c.enrolled > 0);
+  // Columns in every tile share one scale (the largest section anywhere), so tiles compare with each other.
+  const largest = Math.max(1, ...classes.flatMap((c) => c.sections.map((x) => x.enrolled)));
+  const open = classes.find((c) => c.className === picked) ?? classes[0];
+  const openSections = open ? open.sections.filter((x) => x.enrolled > 0) : [];
   const girls = s?.girls ?? 0;
   const boys = s?.boys ?? 0;
   return (
@@ -97,7 +114,7 @@ function StrengthPanel({ s, onPick }: { s: StudentStrength | undefined; onPick: 
       id="strength"
       rise={5}
       title="Class strength"
-      description="Enrolled students against seats, per class"
+      description={view === "chart" ? "Enrolled students against seats. Each column is one section; taller means more students." : "Enrolled students against seats, per class"}
       actions={
         <Segmented
           aria-label="Show as"
@@ -138,19 +155,62 @@ function StrengthPanel({ s, onPick }: { s: StudentStrength | undefined; onPick: 
               </span>
             </div>
           </div>
-          <ul className="m-0 grid list-none gap-3 p-0 md:grid-cols-2 xl:grid-cols-3">
-            {classes.map((c, i) => (
-              <li key={c.className} className="mtb-slide-in" style={stagger(i)}>
-                <button type="button" onClick={() => onPick(c.className)} className="grid w-full gap-1.5 rounded-lg border border-border px-3 py-2.5 text-left hover:bg-surface-hover" aria-label={`${c.label}: ${c.enrolled} of ${c.seats} seats. Show these students`}>
-                  <span className="flex items-baseline justify-between gap-2">
-                    <b className="font-medium text-ink">{c.label}</b>
-                    <span className="text-small text-ink-muted">{c.sections.filter((x) => x.enrolled > 0).map((x) => `${x.section} ${x.enrolled}`).join(" · ")}</span>
-                  </span>
-                  <SeatMeter enrolled={c.enrolled} seats={c.seats} label={c.label} />
-                </button>
-              </li>
-            ))}
+          <ul className="stu-tiles">
+            {classes.map((c, i) => {
+              const filled = fillPercent(c.enrolled, c.seats);
+              const sections = c.sections.filter((x) => x.enrolled > 0);
+              return (
+                <li key={c.className} className="mtb-slide-in" style={stagger(i)}>
+                  <button
+                    type="button"
+                    onClick={() => setPicked(c.className)}
+                    aria-pressed={c.className === open?.className}
+                    className={filled !== null && filled >= NEARLY_FULL ? "stu-tile is-nearly-full" : "stu-tile"}
+                    aria-label={`${c.label}: ${c.enrolled} of ${c.seats} seats, ${sections.length} sections. Show its sections`}
+                  >
+                    <span className="flex items-center justify-between gap-2">
+                      <b className="truncate text-title-3 font-semibold text-ink">{c.label}</b>
+                      {filled !== null && <span className="stu-tile-pill">{filled}% full</span>}
+                    </span>
+                    <span className="stu-tile-cols" aria-hidden="true">
+                      {sections.map((x) => (
+                        <span key={x.section} title={`${x.section}: ${x.enrolled} students`} style={{ height: Math.max(3, Math.round((x.enrolled / largest) * 52)) }} />
+                      ))}
+                    </span>
+                    <span className="flex items-baseline justify-between gap-2 text-small text-ink-muted">
+                      <span className="tabular-nums">
+                        <b className="text-title-2 font-semibold text-ink">{formatCount(c.enrolled)}</b> of {formatCount(c.seats)} seats
+                      </span>
+                      <span className="tabular-nums">{formatCount(Math.max(0, c.seats - c.enrolled))} free</span>
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
           </ul>
+          {open && (
+            <div className="stu-tile-detail" aria-live="polite">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="grid gap-0.5">
+                  <h3 className="m-0 text-body font-semibold text-ink">{open.label} sections</h3>
+                  <span className="text-small tabular-nums text-ink-muted">
+                    {openSections.length} {openSections.length === 1 ? "section" : "sections"} · largest {Math.max(...openSections.map((x) => x.enrolled))} · smallest {Math.min(...openSections.map((x) => x.enrolled))}
+                  </span>
+                </div>
+                <Button variant="secondary" size="sm" onClick={() => onPick(open.className)}>
+                  Show these students
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {openSections.map((x) => (
+                  <span key={x.section} className="stu-chip">
+                    {x.section}
+                    <b>{x.enrolled}</b>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <DataTable

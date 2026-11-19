@@ -117,10 +117,20 @@ export interface SelectProps extends ComponentProps<"select">, FieldOwnProps {
 
 /** Native select: fastest for keyboard users and reliable on every device. */
 export function Select({ label, required, help, error, options = [], className, children, id, ...rest }: SelectProps) {
+  // A value that matches no option (nothing chosen yet, or a choice no longer offered) shows "Choose…": a native select
+  // would show its first option, which looks chosen while the form says to choose (user report, 19-Nov-2026).
+  const value = rest.value;
+  const unmatched =
+    !children && value !== undefined && value !== null && !Array.isArray(value) && !options.some((o) => (typeof o === "string" ? o : o.value) === String(value));
   return (
     <Field label={label} required={required} help={help} error={error} className={className} {...(id ? { htmlFor: id } : {})}>
       {(c) => (
         <select id={c.id} className={cx("mtb-select", c.invalid && "is-invalid")} aria-invalid={c.invalid || undefined} aria-describedby={c.describedBy} {...rest}>
+          {unmatched && (
+            <option value={String(value)} disabled hidden>
+              Choose…
+            </option>
+          )}
           {children ??
             options.map((o) =>
               typeof o === "string" ? (

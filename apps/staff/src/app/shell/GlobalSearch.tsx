@@ -38,7 +38,7 @@ function Highlight({ text, query }: { text: string; query: string }): ReactNode 
 
 const OPEN_SEARCH = "mtb:open-search";
 
-/** Opens global search from anywhere (the dashboard's "Find a student" button). */
+/** Opens global search from anywhere (the dashboard no longer has a button for it: the top bar and Ctrl+K do). */
 export function openGlobalSearch() {
   window.dispatchEvent(new Event(OPEN_SEARCH));
 }
