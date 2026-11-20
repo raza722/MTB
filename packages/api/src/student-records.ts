@@ -54,6 +54,21 @@ export interface StudentFamilyList {
   stats: { families: number; multiChild: number; crossCampus: number; withDues: number; balance: Rupees };
 }
 
+/** One of a child's student records. The old software made a new one, with a new G.R. number, at every admission. */
+export interface StudentFamilyChildRecord {
+  grNo: string;
+  classSection: string;
+  session: number;
+  status: EnrolmentStatusCode;
+  campusName: string;
+  /** Absent for a caller who can't see fees at the child's campus. */
+  balance?: Rupees;
+}
+
+/**
+ * A child of the family, once. The summary fields describe the record that stands for the child (enrolled now, else one
+ * that owes fees, else the latest admission); feeStatus, balance and the fee figures are the child's across all records.
+ */
 export interface StudentFamilyChild extends StudentSummary {
   rollNo: number;
   /** Monthly tuition for the child's class. */
@@ -61,6 +76,10 @@ export interface StudentFamilyChild extends StudentSummary {
   /** This session's fee: the class's session total from the fee structure, less approved concessions. */
   sessionFee: { gross: Rupees; concession: Rupees; net: Rupees };
   lastPayment?: { receiptNo: string; on: IsoDate; amount: Rupees };
+  /** How many student records the child holds. Absent from a backend older than 20-Nov-2026. */
+  recordCount?: number;
+  /** Each of the child's records, the one described above first. Absent from a backend older than 20-Nov-2026. */
+  records?: StudentFamilyChildRecord[];
 }
 
 export interface StudentFamilyEvent {

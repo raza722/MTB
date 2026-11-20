@@ -375,6 +375,20 @@ export function FamilyPage({ familyId }: { familyId: string }) {
                           <span className="mtb-mono">{c.grNo}</span> · {c.classSection} · roll {c.rollNo || "—"}
                         </span>
                         <span className="text-small text-ink-muted">{c.campusName}</span>
+                        {/* a child admitted again by the old software holds one G.R. number per admission */}
+                        {c.records && c.records.length > 1 && (
+                          <span className="text-small text-ink-muted">
+                            Other records:{" "}
+                            {c.records.slice(1).map((r, n) => (
+                              <span key={r.grNo}>
+                                {n > 0 && ", "}
+                                <Link to="/students/$grNo" params={{ grNo: r.grNo }} className="mtb-mono underline-offset-2 hover:underline" title={`${r.classSection || r.campusName} · ${r.session}`}>
+                                  {r.grNo}
+                                </Link>
+                              </span>
+                            ))}
+                          </span>
+                        )}
                       </div>
                       <EnrolmentBadge status={c.status} />
                     </div>
@@ -390,7 +404,7 @@ export function FamilyPage({ familyId }: { familyId: string }) {
                         Student record
                       </Link>
                       {canCollect && c.balance > 0 && c.campus === ctx.campus && (
-                        <Button size="sm" variant="primary" icon="fees" onClick={() => navigate({ to: "/fees/counter", search: (prev: Record<string, unknown>) => ({ ...prev, gr: c.grNo }) } as never)}>
+                        <Button size="sm" variant="primary" icon="fees" onClick={() => navigate({ to: "/fees/counter", search: (prev: Record<string, unknown>) => ({ ...prev, gr: c.records?.find((r) => (r.balance ?? 0) > 0)?.grNo ?? c.grNo }) } as never)}>
                           Collect fee
                         </Button>
                       )}
