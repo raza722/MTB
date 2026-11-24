@@ -1,11 +1,12 @@
-import { notificationsApi, notificationsQueries, reportsApi, reportsQueries, type ReportJob } from "@mtb/api";
+import { notificationsApi, notificationsQueries, reportsApi, reportsQueries, type ReportJob, type ReportResult } from "@mtb/api";
 import { formatCount, formatDate } from "@mtb/domain";
 import { Button, DataTable, EmptyState, Icon, Segmented, useToast, type Column } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useCtx } from "../../app/session";
 import { downloadExcel } from "./export";
+import { ReportDocument } from "./ReportDocument";
 import { errorText, FormatIcon, formatLabel, JobStatus, LoadError, ReportsShell, rowsText, slide, timeText } from "./shell";
 
 /** /reports/jobs — reports prepared in the background and exports: progress, download, retry. Kept 7 days. */
@@ -20,15 +21,39 @@ export function JobsPage() {
   const list = (jobs.data ?? []).filter((j) => show === "all" || (show === "ready" ? j.status === "READY" : j.status === "QUEUED" || j.status === "RUNNING"));
   const unread = (notes.data ?? []).filter((n) => !n.read).length;
 
+  const catalogue = useQuery(reportsQueries.catalogue(ctx));
+  // A PDF copy prints from here: its paper is put on the page (off screen) and the print dialog opens once it is laid
+  // out, so the list stays where it is; the button keeps its spinner until the dialog closes.
+  const [paper, setPaper] = useState<{ job: ReportJob; result: ReportResult } | null>(null);
+  useEffect(() => {
+    if (!paper) return;
+    const done = () => setPaper(null);
+    window.addEventListener("afterprint", done);
+    const t = setTimeout(() => {
+      try {
+        window.print();
+      } finally {
+        // browsers that return from print() before the dialog closes also fire afterprint; this is the fallback
+        setTimeout(done, 1000);
+      }
+    }, 300);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener("afterprint", done);
+    };
+  }, [paper]);
+  const paperDef = paper ? catalogue.data?.reports.find((r) => r.id === paper.job.reportId) : undefined;
+
   const refresh = () => queryClient.invalidateQueries({ queryKey: reportsQueries.jobs(ctx).queryKey });
   const get = useMutation({
     mutationFn: async (j: ReportJob) => {
       if (j.format === "EXCEL") downloadExcel(await reportsApi.jobResult(j.id), j.campus);
+      if (j.format === "PDF") setPaper({ job: j, result: await reportsApi.jobResult(j.id) });
       return j;
     },
     onSuccess: (j) => {
       if (j.format === "EXCEL") toast({ title: `Excel file saved · ${j.reportName}`, message: j.fileName ?? "" });
-      else void navigate({ to: "/reports/$reportId", params: { reportId: j.reportId }, search: { job: j.id, ...(j.format === "PDF" ? { print: 1 } : {}) } } as never);
+      else if (j.format === "SCREEN") void navigate({ to: "/reports/$reportId", params: { reportId: j.reportId }, search: { job: j.id } } as never);
     },
     onError: async (e) => {
       // An expired or removed copy: refresh the list so its status shows.
@@ -97,7 +122,7 @@ export function JobsPage() {
       render: (j) => (
         <span className="flex justify-end gap-2">
           {j.status === "READY" && (
-            <Button size="sm" variant="primary" icon={j.format === "SCREEN" ? "eye" : j.format === "PDF" ? "printer" : "download"} loading={get.isPending && get.variables?.id === j.id} loadingLabel="Getting…" onClick={() => get.mutate(j)}>
+            <Button size="sm" variant="primary" icon={j.format === "SCREEN" ? "eye" : j.format === "PDF" ? "printer" : "download"} loading={(get.isPending && get.variables?.id === j.id) || paper?.job.id === j.id} loadingLabel={j.format === "PDF" ? "Opening PDF…" : "Getting…"} onClick={() => get.mutate(j)}>
               {j.format === "SCREEN" ? "Open" : j.format === "PDF" ? "Open PDF" : "Download"}
             </Button>
           )}
@@ -184,6 +209,7 @@ export function JobsPage() {
           </ul>
         </section>
       )}
+      {paper && <ReportDocument result={paper.result} landscape={paperDef?.paper === "A4_LANDSCAPE"} campus={paper.job.campus ?? ctx.campus} {...(paperDef ? { filters: paperDef.filters } : {})} />}
     </ReportsShell>
   );
 }
