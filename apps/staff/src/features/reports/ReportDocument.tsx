@@ -371,7 +371,9 @@ export function ReportDocument({ result, landscape, campus, filters }: { result:
   const signatures = result.signatures?.length ? result.signatures : SIGNATURES[result.reportId];
   return (
     <div className={`rpt-print-only mtb-print-area ${landscape ? "rpt-landscape" : "rpt-portrait"}`} aria-hidden="true">
-      <style>{`@page { size: A4 ${landscape ? "landscape" : "portrait"}; margin: ${landscape ? "7mm 7mm 10mm" : "8mm 8mm 11mm"}; ${footer} }`}</style>
+      {/* A portrait report leaves the paper and its way round to the print dialog (A4 portrait unless changed there):
+          a fixed "A4 portrait" made the dialog's Landscape and Paper size do nothing. A landscape report keeps landscape. */}
+      <style>{`@page { size: ${landscape ? "landscape" : "auto"}; margin: ${landscape ? "7mm 7mm 10mm" : "8mm 8mm 11mm"}; ${footer} }`}</style>
       <div className={result.ruled ? "rpt-doc rpt-ruled" : "rpt-doc"}>
         {labels ? (
           <AddressLabels result={result} />
