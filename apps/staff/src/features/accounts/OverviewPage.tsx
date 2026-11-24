@@ -214,7 +214,7 @@ export function OverviewPage() {
                       <span className="grid min-w-0">
                         <span className="mtb-cell-primary truncate">{v.narration}</span>
                         <span className="mtb-cell-secondary">
-                          {v.voucherNo ?? "Not posted yet"} · {formatDate(v.date)}
+                          <span className="whitespace-nowrap">{v.voucherNo ?? "Not posted yet"}</span> · <span className="whitespace-nowrap">{formatDate(v.date)}</span>
                         </span>
                       </span>
                     ),

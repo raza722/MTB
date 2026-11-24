@@ -12,6 +12,6 @@ export const Route = createFileRoute("/_app/library/desk")({
   component: function DeskRoute() {
     const { accession } = Route.useSearch();
     const navigate = Route.useNavigate();
-    return <DeskPage accession={accession ?? ""} setAccession={(v) => void navigate({ search: (v ? { accession: v } : {}) as never, replace: true })} />;
+    return <DeskPage accession={accession ?? ""} setAccession={(v) => void navigate({ resetScroll: false, search: (v ? { accession: v } : {}) as never, replace: true })} />;
   },
 });

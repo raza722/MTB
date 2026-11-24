@@ -7,6 +7,6 @@ export const Route = createFileRoute("/_app/exams/history")({
   component: function HistoryRoute() {
     const { id } = Route.useSearch();
     const navigate = Route.useNavigate();
-    return <HistoryPage id={id} onPick={(next) => void navigate({ search: (prev) => ({ ...prev, id: next }) })} />;
+    return <HistoryPage id={id} onPick={(next) => void navigate({ resetScroll: false, search: (prev) => ({ ...prev, id: next }) })} />;
   },
 });

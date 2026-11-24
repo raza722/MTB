@@ -10,7 +10,7 @@ export const Route = createFileRoute("/_app/activities/certificates")({
     const navigate = Route.useNavigate();
     return (
       <RequirePermission permission="activities.view" page="Certificates">
-        <CertificatesPage eventId={event} onEvent={(id) => void navigate({ search: (prev) => ({ ...prev, event: id }), replace: true })} />
+        <CertificatesPage eventId={event} onEvent={(id) => void navigate({ resetScroll: false, search: (prev) => ({ ...prev, event: id }), replace: true })} />
       </RequirePermission>
     );
   },

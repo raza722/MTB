@@ -328,7 +328,7 @@ export function SectionsPage({ cls, setCls }: { cls: string; setCls: (c: string)
                       {s.students.length === 0 ? (
                         <EmptyState icon="students" title="No students" description={`Nobody is placed in ${s.classSection} yet.`} />
                       ) : (
-                        <ul className="m-0 grid list-none gap-0.5 p-0">
+                        <ul className="m-0 grid list-none gap-0.5 p-0 max-h-[320px] overflow-y-auto pr-1">
                           {editable && (
                             <li className="flex items-center gap-2 border-b border-border px-1 pb-1.5">
                               <Checkbox aria-label={`Select everyone in ${s.classSection}`} checked={allIn} onChange={() => setSelected((x) => { const n = new Set(x); s.students.forEach((st) => (allIn ? n.delete(st.grNo) : n.add(st.grNo))); return n; })} />

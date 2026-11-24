@@ -19,7 +19,7 @@ const saveSchema = z.object({
 const columns: Array<Column<ExamsMeritRow>> = [
   { key: "rank", header: "Rank", align: "right", width: 70, render: (r) => <span className="mtb-num font-semibold">{r.rank}</span> },
   { key: "name", header: "Student", render: (r) => <span className="grid"><span className="mtb-cell-primary">{r.name}</span><span className="mtb-cell-secondary"><span className="mtb-mono">{r.id}</span>{r.father ? ` · ${r.father}` : ""}</span></span> },
-  { key: "cs", header: "Section", width: 90, render: (r) => r.classSection },
+  { key: "cs", header: "Section", width: 90, render: (r) => <span className="whitespace-nowrap">{r.classSection}</span> },
   { key: "total", header: "Total", align: "right", width: 110, render: (r) => `${r.obtained} / ${r.max}` },
   { key: "pct", header: "%", align: "right", width: 90, render: (r) => <span className="mtb-num">{formatPercent(r.percent)}</span> },
   { key: "grade", header: "Grade", width: 70, render: (r) => r.grade ?? "—" },

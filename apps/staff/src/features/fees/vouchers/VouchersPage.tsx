@@ -242,7 +242,7 @@ export function VouchersPage({ initialRun }: { initialRun?: string }) {
         </span>
       ),
     },
-    { key: "class", header: "Class", width: 80, render: (v) => v.classSection },
+    { key: "class", header: "Class", width: 80, render: (v) => <span className="whitespace-nowrap">{v.classSection}</span> },
     { key: "month", header: "Month", width: 96, render: (v) => feeMonthLabel(v.month) },
     { key: "due", header: "Due", width: 116, render: (v) => <span className="mtb-num">{formatDate(v.dueDate)}</span> },
     { key: "amount", header: "Pay by due date", align: "right", width: 140, render: (v) => <span className="mtb-num">{formatRs(v.payableByDue)}</span> },

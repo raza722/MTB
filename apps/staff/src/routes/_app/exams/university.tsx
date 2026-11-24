@@ -20,7 +20,7 @@ export const Route = createFileRoute("/_app/exams/university")({
       <UniversityPage
         search={search}
         onSearch={(next) =>
-          void navigate({ search: (prev) => ({ ...prev, semester: next.semester, tab: next.tab, course: next.course, student: next.student, sheet: next.sheet, view: next.view }), replace: true })
+          void navigate({ resetScroll: false, search: (prev) => ({ ...prev, semester: next.semester, tab: next.tab, course: next.course, student: next.student, sheet: next.sheet, view: next.view }), replace: true })
         }
       />
     );

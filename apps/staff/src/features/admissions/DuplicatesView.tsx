@@ -129,6 +129,8 @@ export function DuplicatesView({ data, loading }: { data: AdmissionsDuplicates |
   const [merging, setMerging] = useState(false);
   const [keep, setKeep] = useState<Partial<Record<AdmissionsField, Side>>>({});
   const [confirm, setConfirm] = useState<null | "merge" | "not-same">(null);
+  // Up to 100 decisions: find one by name or by who decided.
+  const [logQ, setLogQ] = useState("");
   const [actionKey, setActionKey] = useState(newIdempotencyKey);
 
   const cases = data?.cases ?? [];
@@ -275,12 +277,18 @@ export function DuplicatesView({ data, loading }: { data: AdmissionsDuplicates |
         <header className="mtb-card-header">
           <h3 id="dup-log">Decision log</h3>
           <span className="text-small text-ink-muted">Every merge and every "not the same person" is recorded.</span>
+          {(data?.decisions.length ?? 0) > 8 && (
+            <div className="mtb-input-wrap has-icon mt-2" style={{ width: "min(320px, 100%)" }}>
+              <Icon name="search" />
+              <input className="mtb-input" type="search" aria-label="Search the decision log" placeholder="Name or who decided" value={logQ} onChange={(e) => setLogQ(e.target.value)} />
+            </div>
+          )}
         </header>
         {data.decisions.length === 0 ? (
           <p className="m-0 p-5 text-small text-ink-muted">No decisions yet.</p>
         ) : (
-          <ul className="m-0 grid list-none p-0">
-            {data.decisions.map((d) => (
+          <ul className="m-0 grid list-none p-0 max-h-[420px] overflow-y-auto pr-1">
+            {data.decisions.filter((d) => !logQ.trim() || `${d.summary} ${d.by}`.toLowerCase().includes(logQ.trim().toLowerCase())).map((d) => (
               <li key={d.id} className="flex items-start gap-3 border-b border-border px-5 py-3 last:border-b-0">
                 <span className={cx("mt-0.5 grid h-7 w-7 shrink-0 place-content-center rounded-full", d.decision === "MERGED" ? "bg-info-tint text-info-ink" : "bg-neutral-tint text-neutral-ink")} aria-hidden="true">
                   <Icon name={d.decision === "MERGED" ? "merge" : "split"} size={16} />

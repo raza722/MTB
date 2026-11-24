@@ -75,7 +75,7 @@ function Picker({ papers, exam, cls }: { papers: TeacherPaper[]; exam: string | 
 
       {!chosen ? (
         <Panel id="marks-exams" rise={0} title="1 · Choose the exam" flush>
-          <ul className="m-0 grid list-none p-0">
+          <ul className="m-0 grid list-none p-0 max-h-[480px] overflow-y-auto pr-1">
             {exams.map((e, i) => {
               const open = e.papers.filter((p) => !p.locked);
               return (

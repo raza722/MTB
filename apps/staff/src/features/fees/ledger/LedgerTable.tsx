@@ -254,7 +254,7 @@ export function LedgerTable({ grNo, defaultSession, student }: { grNo: string; d
                 {charges.map((e, i) => (
                   <tr key={e.id} className={cx(e.cancelled && "is-muted")}>
                     <td className="tabular-nums">{i + 1}</td>
-                    <td className="tabular-nums">{formatDate(e.dueDate ?? e.date)}</td>
+                    <td className="tabular-nums whitespace-nowrap">{formatDate(e.dueDate ?? e.date)}</td>
                     <td>
                       <span className={cx(e.cancelled && "mtb-strike")}>{e.description.replace(/ · due$/, "")}</span>
                       <OtherCampus e={e} home={student?.campus} />
@@ -270,7 +270,7 @@ export function LedgerTable({ grNo, defaultSession, student }: { grNo: string; d
                     <td>
                       <ChargeStatus e={e} />
                     </td>
-                    <td className="tabular-nums">{e.paidOn ? formatDate(e.paidOn) : ""}</td>
+                    <td className="tabular-nums whitespace-nowrap">{e.paidOn ? formatDate(e.paidOn) : ""}</td>
                     <td className="mtb-td-num">{!e.cancelled && e.charge - (e.due ?? 0) > 0 ? <Money value={e.charge - (e.due ?? 0)} /> : ""}</td>
                     <td className="mtb-td-num">{!e.cancelled && (e.due ?? 0) > 0 ? <Money value={e.due ?? 0} /> : ""}</td>
                     {showCancel && (
@@ -383,7 +383,7 @@ export function LedgerTable({ grNo, defaultSession, student }: { grNo: string; d
                             </span>
                           )}
                         </td>
-                        <td className="tabular-nums">{formatDate(e.date)}</td>
+                        <td className="tabular-nums whitespace-nowrap">{formatDate(e.date)}</td>
                         <td>
                           <DocCell e={e} />
                         </td>

@@ -21,11 +21,40 @@ export interface StatCardProps {
   loading?: boolean;
   /** Makes the whole card a link into its detail page. */
   onClick?: () => void;
+  /**
+   * After a click that changes a filter on this same page, bring the list below into view (default true): the list it
+   * filters is often far down the page, so the click seemed to do nothing (user report, 20-Nov-2026). False when the
+   * page scrolls by itself.
+   */
+  reveal?: boolean;
   children?: ReactNode;
 }
 
+/**
+ * The list a card's click filtered: the first element after the card marked `data-stat-target`, else the first table
+ * after it, with its panel's heading. Nothing happens when the click opened another page, when the page has already
+ * moved, or when the list is already in view.
+ */
+function revealResults(card: HTMLElement) {
+  const path = window.location.pathname;
+  const y = window.scrollY;
+  window.setTimeout(() => {
+    if (window.location.pathname !== path || Math.abs(window.scrollY - y) > 4 || !card.isConnected) return;
+    const after = [...document.querySelectorAll<HTMLElement>("[data-stat-target], .mtb-table-wrap")].filter(
+      (el) => card.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING && el.getClientRects().length > 0,
+    );
+    const target = after.find((el) => el.hasAttribute("data-stat-target")) ?? after[0];
+    if (!target) return;
+    const box = target.closest<HTMLElement>("section.mtb-card") ?? target;
+    const top = box.getBoundingClientRect().top;
+    if (top > 56 && top < window.innerHeight * 0.6) return;
+    const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    box.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "start" });
+  }, 80);
+}
+
 /** One figure per card on a dashboard; four to six in a row. */
-export function StatCard({ label, value, icon, tone, delta, deltaLabel, meter, meterTone, meterLabel, foot, loading, onClick, children }: StatCardProps) {
+export function StatCard({ label, value, icon, tone, delta, deltaLabel, meter, meterTone, meterLabel, foot, loading, onClick, reveal = true, children }: StatCardProps) {
   if (loading) {
     return (
       <div className="mtb-stat" aria-busy="true">
@@ -77,7 +106,15 @@ export function StatCard({ label, value, icon, tone, delta, deltaLabel, meter, m
     </>
   );
   return onClick ? (
-    <button type="button" className="mtb-stat" onClick={onClick}>
+    <button
+      type="button"
+      className="mtb-stat"
+      onClick={(e) => {
+        const card = e.currentTarget;
+        onClick();
+        if (reveal) revealResults(card);
+      }}
+    >
       {body}
       <Icon name="arrowRight" size={16} className="mtb-stat-go" aria-hidden="true" />
     </button>

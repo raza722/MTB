@@ -258,7 +258,7 @@ function FormBody({ campus, structure }: { campus: CampusCode; structure: FeeStr
                   density="dense"
                   maxHeight={320}
                   columns={[
-                    { key: "classSection", header: "Class", render: (c) => c.classSection },
+                    { key: "classSection", header: "Class", render: (c) => <span className="whitespace-nowrap">{c.classSection}</span> },
                     { key: "students", header: "Vouchers", align: "right", render: (c) => formatCount(c.students) },
                     { key: "total", header: "Payable", align: "right", render: (c) => formatRs(c.total) },
                   ]}
@@ -277,7 +277,7 @@ function FormBody({ campus, structure }: { campus: CampusCode; structure: FeeStr
                   }
                 >
                   {showSkipped ? (
-                    <ul className="m-0 grid list-none gap-1.5 p-0 text-small">
+                    <ul className="m-0 grid list-none gap-1.5 p-0 text-small max-h-[280px] overflow-y-auto pr-1">
                       {preview.skipped.slice(0, 40).map((s, i) => (
                         <li key={s.grNo} className="mtb-slide-in flex flex-wrap justify-between gap-2" style={slide(i)}>
                           <span>

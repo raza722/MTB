@@ -137,7 +137,7 @@ export function OffersPage() {
     },
     { key: "grNo", header: "G.R.", width: 120, render: (a) => (a.grNo ? <Link to="/students/$grNo" params={{ grNo: a.grNo }} className="mtb-mono text-brand-ink underline-offset-2 hover:underline">{a.grNo}</Link> : "—") },
     { key: "gender", header: "Gender", width: 80, render: (a) => (a.gender === "F" ? "Girl" : "Boy") },
-    { key: "admittedClassSection", header: "Class", width: 110, render: (a) => <span className="grid"><span>{a.admittedClassSection ?? a.classApplied}</span>{a.stream && <span className="mtb-cell-secondary">{a.stream}</span>}</span> },
+    { key: "admittedClassSection", header: "Class", width: 110, render: (a) => <span className="grid"><span className="whitespace-nowrap">{a.admittedClassSection ?? a.classApplied}</span>{a.stream && <span className="mtb-cell-secondary">{a.stream}</span>}</span> },
     { key: "admittedOn", header: "Admitted", width: 120, render: (a) => <span className="tabular-nums">{a.admittedOn ? formatDate(a.admittedOn) : "—"}</span> },
     { key: "previousSchool", header: "Previous school", width: 180, render: (a) => a.previousSchool ?? <span className="text-ink-subtle">—</span> },
     { key: "mobile", header: "Mobile", width: 130, render: (a) => <span className="tabular-nums">{mobileOrDash(a.mobile)}</span> },

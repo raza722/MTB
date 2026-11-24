@@ -6,6 +6,6 @@ export const Route = createFileRoute("/_app/admissions/merit")({
   component: function MeritRoute() {
     const { cls } = Route.useSearch();
     const navigate = Route.useNavigate();
-    return <MeritPage cls={cls ?? ""} setCls={(c) => navigate({ search: (prev) => ({ ...prev, cls: c || undefined }), replace: true })} />;
+    return <MeritPage cls={cls ?? ""} setCls={(c) => navigate({ resetScroll: false, search: (prev) => ({ ...prev, cls: c || undefined }), replace: true })} />;
   },
 });

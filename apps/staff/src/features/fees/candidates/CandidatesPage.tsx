@@ -246,7 +246,7 @@ export function CandidatesPage() {
         <span className="grid">
           <span className="font-medium">{r.name}</span>
           <span className="text-small text-ink-muted">
-            {r.applicationNo} · {r.father}
+            <span className="whitespace-nowrap">{r.applicationNo}</span> · {r.father}
             {ctx.campus === "ALL" ? ` · ${r.campusName}` : ""}
           </span>
         </span>
@@ -274,7 +274,15 @@ export function CandidatesPage() {
           <span className="grid">
             <StatusBadge status="paid" />
             <span className="text-small text-ink-muted">
-              {[r.receiptNo, r.paidOn ? formatDate(r.paidOn) : ""].filter(Boolean).join(" · ") || "—"}
+              {r.receiptNo || r.paidOn ? (
+                <>
+                  {r.receiptNo && <span className="whitespace-nowrap">{r.receiptNo}</span>}
+                  {r.receiptNo && r.paidOn ? " · " : ""}
+                  {r.paidOn && <span className="whitespace-nowrap">{formatDate(r.paidOn)}</span>}
+                </>
+              ) : (
+                "—"
+              )}
               {r.paymentMethod === "BANK" ? ` · challan ${r.bankChallanNo ?? ""}` : ""}
             </span>
           </span>

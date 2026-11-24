@@ -6,6 +6,6 @@ export const Route = createFileRoute("/_app/admissions/enquiries")({
   component: function EnquiriesRoute() {
     const search = Route.useSearch();
     const navigate = Route.useNavigate();
-    return <EnquiriesPage openNew={Boolean(search.new)} setOpenNew={(v) => navigate({ search: (prev) => ({ ...prev, new: v || undefined }), replace: true })} />;
+    return <EnquiriesPage openNew={Boolean(search.new)} setOpenNew={(v) => navigate({ resetScroll: false, search: (prev) => ({ ...prev, new: v || undefined }), replace: true })} />;
   },
 });

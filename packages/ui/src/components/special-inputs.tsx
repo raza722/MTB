@@ -190,6 +190,8 @@ export interface ComboboxOption {
   hint?: string;
   /** Extra search terms. */
   keywords?: string[];
+  /** Shown but can't be chosen (a long Select's disabled option). */
+  disabled?: boolean;
 }
 
 export interface ComboboxProps {
@@ -207,6 +209,9 @@ export interface ComboboxProps {
   className?: string;
   /** Called with the typed text, so a long list (students) can be searched on the server; the options are still filtered as typed. */
   onSearchChange?: (search: string) => void;
+  /** Names the box when it has no visible label (a filter in a toolbar). */
+  "aria-label"?: string;
+  title?: string;
 }
 
 /** The option's own value follows this mark in cmdk's item value, so it keeps items apart without being searched. */
@@ -240,6 +245,8 @@ export function Combobox({
   disabled,
   className,
   onSearchChange,
+  "aria-label": ariaLabel,
+  title,
 }: ComboboxProps) {
   const [open, setOpen] = useState(false);
   const current = options.find((o) => o.value === value);
@@ -257,6 +264,8 @@ export function Combobox({
               aria-describedby={c.describedBy}
               aria-haspopup="listbox"
               aria-expanded={open}
+              {...(ariaLabel ? { "aria-label": ariaLabel } : {})}
+              {...(title ? { title } : {})}
             >
               {current?.label ?? placeholder}
             </button>
@@ -264,7 +273,7 @@ export function Combobox({
           <Popover.Portal>
             <Popover.Content className="mtb-popover mtb-combobox" align="start" sideOffset={6}>
               {/* A list searched on the server (onSearchChange) is already the matches: a student found by the father's CNIC has no CNIC in its label. */}
-              <Command label={typeof label === "string" ? label : "Options"} filter={comboboxFilter} shouldFilter={!onSearchChange}>
+              <Command label={typeof label === "string" ? label : (ariaLabel ?? "Options")} filter={comboboxFilter} shouldFilter={!onSearchChange}>
                 <Command.Input className="mtb-input" placeholder={searchPlaceholder} autoFocus {...(onSearchChange ? { onValueChange: onSearchChange } : {})} />
                 <Command.List>
                   <Command.Empty>{emptyText}</Command.Empty>
@@ -274,6 +283,7 @@ export function Combobox({
                       value={`${o.label} ${o.hint ?? ""}${VALUE_MARK}${o.value}`}
                       {...(o.keywords ? { keywords: o.keywords } : {})}
                       data-checked={o.value === value}
+                      {...(o.disabled ? { disabled: true } : {})}
                       onSelect={() => {
                         onValueChange(o.value);
                         setOpen(false);

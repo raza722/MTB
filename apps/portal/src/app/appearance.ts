@@ -1,3 +1,4 @@
+import { withThemeTransition } from "@mtb/ui";
 import { useSyncExternalStore } from "react";
 
 /** Light or dark display, chosen on this device. "system" follows the phone or computer's own setting. */
@@ -47,8 +48,14 @@ export function setTheme(next: ThemeChoice) {
   } catch {
     /* this page only */
   }
-  apply();
-  listeners.forEach((l) => l());
+  // The same circle-reveal as the staff app when the look really changes; listeners hear of it inside the change.
+  const before = document.documentElement.getAttribute("data-theme");
+  const run = () => {
+    apply();
+    listeners.forEach((l) => l());
+  };
+  if (resolvedTheme() === before) run();
+  else withThemeTransition(run);
 }
 
 /** The choice and what it resolves to right now. */

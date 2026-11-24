@@ -1,6 +1,6 @@
 import { admissionsApi, admissionsPapersFor, admissionsQueries, ApiError, newIdempotencyKey, type AdmissionsApplicant, type AdmissionsTest, type AdmissionsTestSubject } from "@mtb/api";
 import { formatDate } from "@mtb/domain";
-import { Banner, Button, buttonClassName, Checkbox, cx, DatePicker, EmptyState, IconButton, Input, Modal, Panel, Segmented, Select, Skeleton, StatusBadge, useToast } from "@mtb/ui";
+import { Banner, Button, buttonClassName, Checkbox, cx, DatePicker, EmptyState, IconButton, Input, Menu, MenuItem, MenuLabel, Modal, Panel, Segmented, Select, Skeleton, StatusBadge, useToast } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
@@ -9,13 +9,16 @@ import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { PrintSheet, printNow } from "../students/documents/print";
 import { apiMessage, fieldError, LoadError, stagger } from "../students/shared";
 import { AdmissionsSubNav, DiamondMindsBadge, relationName, sittingWhen, sittingWhenWhere, today } from "./shared";
-import { AttendanceSheet, MarksSheetPrint, TestSlip, TestSlipSheet } from "./slips";
+import { AttendanceSheet, MarksSheetPrint, ResultSlip, TestSlip, TestSlipSheet } from "./slips";
 import "../students/students.css";
 
 type Row = { absent: boolean; marks: Record<string, string> };
 /** Where one candidate's row stands, for the status badge and the filter above the sheet (design of 19-Nov-2026). */
 type RowState = "due" | "absent" | "bad" | "marked" | "todo";
 type SheetFilter = "all" | "todo" | "marked" | "absent";
+type GenderFilter = "all" | "M" | "F";
+/** What the print preview shows: the sitting's papers, or one candidate's test slip or result ("slip", "result"). */
+type Printing = "slips" | "sheet" | "marks" | "slip" | "result";
 
 const STATUS: Record<AdmissionsTest["status"], { label: string; tone: "warning" | "info" | "success" }> = {
   MARKING: { label: "Marks to enter", tone: "warning" },
@@ -157,9 +160,14 @@ function MarksSheet({ testId }: { testId: string }) {
   const readOnly = useReadOnly();
   const sheet = useQuery(admissionsQueries.testSheet(testId));
   const [rows, setRows] = useState<Map<string, Row>>(new Map());
-  const [printing, setPrinting] = useState<null | "slips" | "sheet" | "marks">(null);
+  const [printing, setPrinting] = useState<null | Printing>(null);
+  /** The candidate whose own test slip or result is printed. */
+  const [soloId, setSoloId] = useState("");
   const [remarks, setRemarks] = useState("");
   const [filter, setFilter] = useState<SheetFilter>("all");
+  // Boys or girls only (user request, 20-Nov-2026): the list, the counts and the three prints follow it. It stays
+  // when another sitting is chosen, for the teacher who handles only the boys or only the girls.
+  const [gender, setGender] = useState<GenderFilter>("all");
   useEffect(() => setFilter("all"), [testId]);
   const t = sheet.data?.test;
   const list = sheet.data?.rows ?? [];
@@ -208,8 +216,24 @@ function MarksSheet({ testId }: { testId: string }) {
   const total = (a: AdmissionsApplicant, r: Row | undefined) =>
     r && !r.absent && papers(a).every((s) => isMark(r.marks[s.subject] ?? "")) ? Math.round(papers(a).reduce((x, s) => x + Number(r.marks[s.subject]), 0) * 100) / 100 : null;
   const maxFor = (a: AdmissionsApplicant) => papers(a).reduce((x, s) => x + s.max, 0);
-  const absentCount = [...rows.values()].filter((r) => r.absent).length;
-  const appearedCount = list.filter((a) => !rows.get(a.id)?.absent && total(a, rows.get(a.id)) !== null).length;
+  // The candidates on screen and on the prints: everyone, or only the boys or the girls. Saving still sends every row.
+  const pool = gender === "all" ? list : list.filter((a) => a.gender === gender);
+  const groupWord = gender === "M" ? "Boys" : gender === "F" ? "Girls" : undefined;
+  const boys = list.filter((a) => a.gender === "M").length;
+  const absentCount = pool.filter((a) => rows.get(a.id)?.absent).length;
+  const appearedCount = pool.filter((a) => !rows.get(a.id)?.absent && total(a, rows.get(a.id)) !== null).length;
+  /** Marks or absence typed for this candidate and not saved yet: the prints show saved marks only. */
+  const unsaved = (a: AdmissionsApplicant) => {
+    const r = rows.get(a.id);
+    if (!r) return false;
+    if (r.absent !== Boolean(a.absentFromTest)) return true;
+    return papers(a).some((s) => (r.marks[s.subject] ?? "") !== (a.marks?.[s.subject] != null ? String(a.marks[s.subject]) : ""));
+  };
+  const solo = list.find((a) => a.id === soloId);
+  const printSolo = (a: AdmissionsApplicant, what: "slip" | "result") => {
+    setSoloId(a.id);
+    setPrinting(what);
+  };
   const grouped = t.subjects.some((s) => s.stream);
   const set = (id: string, patch: Partial<Row> | ((r: Row) => Row)) =>
     setRows((m) => {
@@ -218,7 +242,7 @@ function MarksSheet({ testId }: { testId: string }) {
       n.set(id, typeof patch === "function" ? patch(cur) : { ...cur, ...patch });
       return n;
     });
-  const paid = list.filter((a) => a.fee?.status !== "DUE");
+  const paid = pool.filter((a) => a.fee?.status !== "DUE");
   const stateOf = (a: AdmissionsApplicant): RowState => {
     const r = rows.get(a.id);
     if (a.fee?.status === "DUE") return "due";
@@ -227,9 +251,9 @@ function MarksSheet({ testId }: { testId: string }) {
     return total(a, r) !== null ? "marked" : "todo";
   };
   const states = new Map(list.map((a) => [a.id, stateOf(a)]));
-  const countOf = (...which: RowState[]) => list.filter((a) => which.includes(states.get(a.id)!)).length;
-  const shown = filter === "all" ? list : list.filter((a) => (filter === "todo" ? ["todo", "bad"] : [filter]).includes(states.get(a.id)!));
-  const percents = list.map((a) => ({ tot: total(a, rows.get(a.id)), max: maxFor(a) })).filter((x): x is { tot: number; max: number } => x.tot !== null && x.max > 0);
+  const countOf = (...which: RowState[]) => pool.filter((a) => which.includes(states.get(a.id)!)).length;
+  const shown = filter === "all" ? pool : pool.filter((a) => (filter === "todo" ? ["todo", "bad"] : [filter]).includes(states.get(a.id)!));
+  const percents = pool.map((a) => ({ tot: total(a, rows.get(a.id)), max: maxFor(a) })).filter((x): x is { tot: number; max: number } => x.tot !== null && x.max > 0);
   const average = percents.length ? percents.reduce((x, y) => x + (y.tot / y.max) * 100, 0) / percents.length : null;
   const best = percents.length ? percents.reduce((x, y) => (y.tot / y.max > x.tot / x.max ? y : x)) : null;
   const settled = countOf("marked", "absent");
@@ -249,13 +273,13 @@ function MarksSheet({ testId }: { testId: string }) {
           <span className="stu-tile-pill">Total {t.max}</span>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" icon="printer" disabled={!list.length || upcoming} onClick={() => setPrinting("marks")}>
+          <Button size="sm" icon="printer" disabled={!pool.length || upcoming} onClick={() => setPrinting("marks")}>
             Print marks sheet
           </Button>
           <Button size="sm" icon="printer" disabled={!paid.length} onClick={() => setPrinting("slips")}>
             Test slips · {paid.length}
           </Button>
-          <Button size="sm" icon="printer" disabled={!list.length} onClick={() => setPrinting("sheet")}>
+          <Button size="sm" icon="printer" disabled={!pool.length} onClick={() => setPrinting("sheet")}>
             Attendance sheet
           </Button>
         </div>
@@ -268,11 +292,21 @@ function MarksSheet({ testId }: { testId: string }) {
         <div className="mtb-table-wrap">
           <div className="mtb-table-toolbar">
             <Segmented
+              aria-label="Boys or girls"
+              value={gender}
+              onChange={(v) => setGender(v as GenderFilter)}
+              options={[
+                { value: "all", label: `Boys & girls · ${list.length}` },
+                { value: "M", label: `Boys · ${boys}` },
+                { value: "F", label: `Girls · ${list.length - boys}` },
+              ]}
+            />
+            <Segmented
               aria-label="Show"
               value={filter}
               onChange={(v) => setFilter(v as SheetFilter)}
               options={[
-                { value: "all", label: `Everyone · ${list.length}` },
+                { value: "all", label: `Everyone · ${pool.length}` },
                 { value: "todo", label: `To mark · ${countOf("todo", "bad")}` },
                 { value: "marked", label: `Marked · ${countOf("marked")}` },
                 { value: "absent", label: `Absent · ${countOf("absent")}` },
@@ -296,13 +330,20 @@ function MarksSheet({ testId }: { testId: string }) {
                   ))}
                   <th scope="col" style={{ width: 180 }}>Total</th>
                   <th scope="col" className="mtb-th-num" style={{ width: 110 }}>Status</th>
+                  <th scope="col" style={{ width: 56 }}>
+                    <span className="mtb-sr-only">Print</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {shown.length === 0 && (
                   <tr>
-                    <td colSpan={5 + t.subjects.length} style={{ padding: 0 }}>
-                      <EmptyState icon="checkCircle" title={filter === "todo" ? "Nobody left to mark" : filter === "absent" ? "Nobody is marked absent" : "Nobody is marked yet"} description="Choose Everyone to see the whole sitting." />
+                    <td colSpan={6 + t.subjects.length} style={{ padding: 0 }}>
+                      {pool.length === 0 ? (
+                        <EmptyState icon="students" title={`No ${groupWord?.toLowerCase() ?? "candidates"} in this sitting`} description="Choose Boys & girls to see everyone." />
+                      ) : (
+                        <EmptyState icon="checkCircle" title={filter === "todo" ? "Nobody left to mark" : filter === "absent" ? "Nobody is marked absent" : "Nobody is marked yet"} description="Choose Everyone to see the whole sitting." />
+                      )}
                     </td>
                   </tr>
                 )}
@@ -378,6 +419,18 @@ function MarksSheet({ testId }: { testId: string }) {
                           <StatusBadge status="pending">To mark</StatusBadge>
                         )}
                       </td>
+                      <td>
+                        {/* One candidate's own papers: the test slip, and the result once the test is over. */}
+                        <Menu label={`Print for ${a.name}`} align="end" trigger={<Button size="sm" variant="quiet" icon="printer" aria-label={`Print for ${a.name}`} title="Print for this candidate" />}>
+                          <MenuLabel>{a.name}</MenuLabel>
+                          <MenuItem icon="printer" disabled={due} onSelect={() => printSolo(a, "slip")}>
+                            {due ? "Test slip (fee due)" : "Test slip"}
+                          </MenuItem>
+                          <MenuItem icon="file" disabled={due || upcoming} onSelect={() => printSolo(a, "result")}>
+                            {upcoming ? "Marks sheet (after the test)" : "Marks sheet"}
+                          </MenuItem>
+                        </Menu>
+                      </td>
                     </tr>
                   );
                 })}
@@ -387,10 +440,11 @@ function MarksSheet({ testId }: { testId: string }) {
           <div className="mtb-table-footer flex flex-wrap items-center justify-between gap-3">
             <span className="grid min-w-64 flex-1 gap-1.5">
               <span className="promo-att-bar" aria-hidden="true" style={{ height: 6 }}>
-                <span style={{ width: `${list.length ? (settled / list.length) * 100 : 0}%` }} />
+                <span style={{ width: `${pool.length ? (settled / pool.length) * 100 : 0}%` }} />
               </span>
               <span className="tabular-nums">
-                <b className="text-ink">{countOf("marked")}</b> of {list.length} marked · <b className="text-ink">{countOf("todo", "bad")}</b> left · appeared {appearedCount} · absent {absentCount}
+                <b className="text-ink">{countOf("marked")}</b> of {pool.length}
+                {groupWord ? ` ${groupWord.toLowerCase()}` : ""} marked · <b className="text-ink">{countOf("todo", "bad")}</b> left · appeared {appearedCount} · absent {absentCount}
                 {average !== null && best && (
                   <>
                     {" "}· average <b className="text-ink">{average.toFixed(1)}%</b> · highest <b className="text-ink">{best.tot} / {best.max}</b>
@@ -435,7 +489,13 @@ function MarksSheet({ testId }: { testId: string }) {
         open={printing !== null}
         onClose={() => setPrinting(null)}
         size="lg"
-        title={printing === "slips" ? `Test slips · ${t.name}` : printing === "marks" ? `Marks sheet · ${t.name}` : `Attendance sheet · ${t.name}`}
+        title={
+          printing === "slip"
+            ? `Test slip · ${solo?.name ?? ""}`
+            : printing === "result"
+              ? `Marks sheet · ${solo?.name ?? ""}`
+              : `${printing === "slips" ? "Test slips" : printing === "marks" ? "Marks sheet" : "Attendance sheet"} · ${t.name}${groupWord ? ` · ${groupWord}` : ""}`
+        }
         footer={
           <>
             <Button onClick={() => setPrinting(null)}>Close</Button>
@@ -445,6 +505,9 @@ function MarksSheet({ testId }: { testId: string }) {
           </>
         }
       >
+        {((printing === "marks" && pool.some(unsaved)) || (printing === "result" && solo && unsaved(solo))) && (
+          <Banner tone="warning">Some marks typed on the sheet are not saved yet, so they are not on this paper. Close this, press Save marks, then print again.</Banner>
+        )}
         {printing === "slips" ? (
           <PrintSheet paper="A4" label="Test slips" zoom={0.55}>
             <TestSlipSheet>
@@ -455,11 +518,21 @@ function MarksSheet({ testId }: { testId: string }) {
           </PrintSheet>
         ) : printing === "sheet" ? (
           <PrintSheet paper="A4" label="Attendance sheet" zoom={0.55}>
-            <AttendanceSheet test={t} rows={list} campusName={list[0]?.campusName ?? t.campus} />
+            <AttendanceSheet test={t} rows={pool} campusName={list[0]?.campusName ?? t.campus} {...(groupWord ? { group: groupWord } : {})} />
           </PrintSheet>
         ) : printing === "marks" ? (
           <PrintSheet paper="A4" label="Marks sheet" zoom={0.55}>
-            <MarksSheetPrint test={t} rows={list} campusName={list[0]?.campusName ?? t.campus} />
+            <MarksSheetPrint test={t} rows={pool} campusName={list[0]?.campusName ?? t.campus} {...(groupWord ? { group: groupWord } : {})} />
+          </PrintSheet>
+        ) : printing === "slip" && solo ? (
+          <PrintSheet paper="A4" label="Test slip" zoom={0.55}>
+            <TestSlipSheet>
+              <TestSlip a={solo} test={t} />
+            </TestSlipSheet>
+          </PrintSheet>
+        ) : printing === "result" && solo ? (
+          <PrintSheet paper="A5" label="Marks sheet" zoom={0.8}>
+            <ResultSlip a={solo} test={t} />
           </PrintSheet>
         ) : null}
       </Modal>

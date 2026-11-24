@@ -7,6 +7,6 @@ export const Route = createFileRoute("/_app/students/documents")({
   component: function DocumentsRoute() {
     const { type } = Route.useSearch();
     const navigate = Route.useNavigate();
-    return <DocumentsPage type={type ?? ""} setType={(next) => navigate({ search: (prev) => ({ ...prev, type: next || undefined }), replace: true })} />;
+    return <DocumentsPage type={type ?? ""} setType={(next) => navigate({ resetScroll: false, search: (prev) => ({ ...prev, type: next || undefined }), replace: true })} />;
   },
 });

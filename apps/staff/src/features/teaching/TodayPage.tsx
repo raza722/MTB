@@ -83,7 +83,7 @@ function TodayBody({ t }: { t: TeacherToday }) {
                   </Link>
                 }
               >
-                <ul className="m-0 grid list-none gap-2 p-0">
+                <ul className="m-0 grid list-none gap-2 p-0 max-h-[360px] overflow-y-auto pr-1">
                   {papers.map((p) => (
                     <li key={`${p.examId}-${p.classSection}-${p.subjectId}`}>
                       <PaperLink p={p} />
@@ -203,7 +203,7 @@ export function PaperLink({ p }: { p: TeacherPaper }) {
       <div className="min-w-0 flex-1">
         <p className="m-0 text-small text-ink-muted">{p.examName}</p>
         <p className="m-0 font-medium text-ink">
-          {p.subjectName} · {p.classSection} · Max marks {p.maxMarks}
+          {p.subjectName} · <span className="whitespace-nowrap">{p.classSection}</span> · Max marks {p.maxMarks}
         </p>
         <div className="mt-2 grid gap-1">
           <div className="h-2 overflow-hidden rounded-full bg-surface-sunken" role="progressbar" aria-valuemin={0} aria-valuemax={p.candidates} aria-valuenow={p.entered} aria-label="Marks entered">

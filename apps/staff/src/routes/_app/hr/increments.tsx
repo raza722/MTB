@@ -8,6 +8,6 @@ export const Route = createFileRoute("/_app/hr/increments")({
   component: function IncrementsRoute() {
     const { run } = Route.useSearch();
     const navigate = Route.useNavigate();
-    return <IncrementsPage runId={run} setRunId={(id) => void navigate({ search: (prev) => ({ ...prev, run: id }) })} />;
+    return <IncrementsPage runId={run} setRunId={(id) => void navigate({ resetScroll: false, search: (prev) => ({ ...prev, run: id }) })} />;
   },
 });

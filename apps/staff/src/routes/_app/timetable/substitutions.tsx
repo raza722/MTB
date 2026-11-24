@@ -9,6 +9,6 @@ export const Route = createFileRoute("/_app/timetable/substitutions")({
   component: function SubstitutionsRoute() {
     const { date } = Route.useSearch();
     const navigate = Route.useNavigate();
-    return <SubstitutionsPage date={date} onDate={(d) => void navigate({ search: (prev) => ({ ...prev, date: d }) })} />;
+    return <SubstitutionsPage date={date} onDate={(d) => void navigate({ resetScroll: false, search: (prev) => ({ ...prev, date: d }) })} />;
   },
 });

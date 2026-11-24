@@ -26,7 +26,7 @@ export const Route = createFileRoute("/_app/students/")({
     return (
       <StudentsPage
         search={{ ...(q ? { q } : {}), ...(cls ? { cls } : {}), ...(sec ? { sec } : {}), ...(grp ? { grp } : {}), ...(status ? { status } : {}), ...(fee ? { fee } : {}) }}
-        setSearch={(next) => navigate({ search: (prev) => ({ ...prev, q: next.q, cls: next.cls, sec: next.sec, grp: next.grp, status: next.status, fee: next.fee }) })}
+        setSearch={(next) => navigate({ resetScroll: false, search: (prev) => ({ ...prev, q: next.q, cls: next.cls, sec: next.sec, grp: next.grp, status: next.status, fee: next.fee }) })}
       />
     );
   },

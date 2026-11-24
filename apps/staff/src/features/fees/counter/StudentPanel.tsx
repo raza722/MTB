@@ -1,6 +1,6 @@
 import { studentsQueries, type StudentSummary, photoUrl } from "@mtb/api";
 import { formatMobile, formatRs } from "@mtb/domain";
-import { Avatar, Banner, Button, Icon, Input, Kbd, Skeleton, StatusBadge, Urdu } from "@mtb/ui";
+import { Avatar, Banner, Button, buttonClassName, Icon, Input, Kbd, Skeleton, StatusBadge, Urdu } from "@mtb/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState, type RefObject } from "react";
@@ -58,7 +58,7 @@ export function StudentSearch({ inputRef, onPick }: { inputRef: RefObject<HTMLIn
                 <span className="grid min-w-0 flex-1">
                   <span className="truncate font-medium">{s.name}</span>
                   <span className="truncate text-small text-ink-muted">
-                    <span className="mtb-mono">{s.grNo}</span> · {s.classSection} · {s.relation} {s.father}
+                    <span className="mtb-mono">{s.grNo}</span> · <span className="whitespace-nowrap">{s.classSection}</span> · {s.relation} {s.father}
                   </span>
                 </span>
                 <StatusBadge status={s.feeStatus} />
@@ -90,30 +90,49 @@ export function StudentSummaryCard({ grNo, onSwitch, onAddCharge }: { grNo: stri
       </div>
     );
   }
+  // One strip across the page (design of 20-Nov-2026): who, the guardian, the balance in large figures, the actions.
   return (
-    <section className="mtb-card grid gap-4 p-4" aria-label="Student">
-      <div className="flex items-start gap-3">
-        <Avatar src={photoUrl.student(p.grNo)} name={p.name} size="lg" />
-        <div className="grid min-w-0 gap-0.5">
-          <span className="text-title-2">{p.name}</span>
-          {p.nameUr && <Urdu size="small">{p.nameUr}</Urdu>}
-          <span className="text-small text-ink-muted">
-            <span className="mtb-mono text-ink">{p.grNo}</span> · {p.classSection} · {p.campusName}
+    <section className="mtb-card grid gap-3 p-4" aria-label="Student">
+      <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <Avatar src={photoUrl.student(p.grNo)} name={p.name} size="lg" />
+          <div className="grid min-w-0 gap-0.5">
+            <span className="flex flex-wrap items-baseline gap-x-3 text-title-2">
+              {p.name}
+              {p.nameUr && <Urdu size="small">{p.nameUr}</Urdu>}
+            </span>
+            <span className="text-small text-ink-muted">
+              <span className="mtb-mono text-ink">{p.grNo}</span> · <span className="whitespace-nowrap">{p.classSection}</span> · {p.campusName}
+            </span>
+          </div>
+        </div>
+        <div className="grid gap-0.5">
+          <span className="mtb-label">Father</span>
+          <span className="font-medium">{p.guardian.name}</span>
+        </div>
+        <div className="grid gap-0.5">
+          <span className="mtb-label">Mobile</span>
+          <span className="font-medium tabular-nums">{formatMobile(p.guardian.mobile)}</span>
+        </div>
+        <div className="grid justify-items-end gap-0.5 sm:ml-auto">
+          <span className="mtb-label">Balance due</span>
+          <span className="flex items-center gap-1 text-numeric-large tabular-nums">
+            {formatRs(p.balance)} <Icon name="lock" size={14} label="Calculated from the ledger" className="text-ink-subtle" />
           </span>
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link to="/students/$grNo" params={{ grNo: p.grNo }} search={(prev: Record<string, unknown>) => ({ ...prev, tab: "ledger" }) as never} className={buttonClassName({ size: "sm" })}>
+            Fee ledger
+          </Link>
+          {onAddCharge && p.status !== "LEFT" && p.status !== "EXPELLED" && p.status !== "PASSED_OUT" && (
+            <Button size="sm" icon="plus" onClick={onAddCharge}>
+              Add a charge
+            </Button>
+          )}
+        </div>
       </div>
-      <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-small">
-        <dt className="text-ink-muted">Father</dt>
-        <dd className="m-0">{p.guardian.name}</dd>
-        <dt className="text-ink-muted">Mobile</dt>
-        <dd className="m-0 tabular-nums">{formatMobile(p.guardian.mobile)}</dd>
-        <dt className="text-ink-muted">Balance</dt>
-        <dd className="m-0 flex items-center gap-1 tabular-nums">
-          {formatRs(p.balance)} <Icon name="lock" size={14} label="Calculated from the ledger" className="text-ink-subtle" />
-        </dd>
-      </dl>
       {p.siblings.length > 0 && (
-        <div className="grid gap-1">
+        <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
           <span className="mtb-label">Siblings</span>
           {p.siblings.map((s) => (
             <button
@@ -122,7 +141,7 @@ export function StudentSummaryCard({ grNo, onSwitch, onAddCharge }: { grNo: stri
               onClick={() => onSwitch(s.grNo)}
               disabled={s.campus !== p.campus}
               title={s.campus !== p.campus ? `${s.campusName}: collect at that campus` : `Switch to ${s.name}`}
-              className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left hover:bg-surface-hover disabled:cursor-default disabled:hover:bg-transparent"
+              className="flex items-center gap-2 rounded-md border border-border px-2.5 py-1.5 text-left hover:bg-surface-hover disabled:cursor-default disabled:hover:bg-transparent"
             >
               <span className="grid">
                 <span className="font-medium">{s.name}</span>
@@ -133,19 +152,9 @@ export function StudentSummaryCard({ grNo, onSwitch, onAddCharge }: { grNo: stri
               <StatusBadge status={s.feeStatus} />
             </button>
           ))}
-          <span className="text-small text-ink-muted">One receipt for several siblings is an open decision; today each child gets their own receipt.</span>
+          <span className="text-small text-ink-muted">Each child gets their own receipt for now.</span>
         </div>
       )}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <Link to="/students/$grNo" params={{ grNo: p.grNo }} search={(prev: Record<string, unknown>) => ({ ...prev, tab: "ledger" }) as never} className="text-small font-medium text-brand-ink underline-offset-2 hover:underline">
-          Open fee ledger
-        </Link>
-        {onAddCharge && p.status !== "LEFT" && p.status !== "EXPELLED" && p.status !== "PASSED_OUT" && (
-          <Button size="sm" icon="plus" onClick={onAddCharge}>
-            Add a charge
-          </Button>
-        )}
-      </div>
     </section>
   );
 }

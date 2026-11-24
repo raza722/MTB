@@ -13,6 +13,6 @@ export const Route = createFileRoute("/_app/reports/$reportId")({
   component: function ReportRoute() {
     const { reportId } = Route.useParams();
     const navigate = Route.useNavigate();
-    return <ReportViewerPage reportId={reportId} search={Route.useSearch()} setSearch={(next) => void navigate({ search: next as never })} />;
+    return <ReportViewerPage reportId={reportId} search={Route.useSearch()} setSearch={(next) => void navigate({ resetScroll: false, search: next as never })} />;
   },
 });

@@ -49,7 +49,7 @@ export function CertificatesPage({ eventId, onEvent }: { eventId: string | undef
         <span className="grid">
           <span className="mtb-cell-primary">{c.studentName}</span>
           <span className="mtb-cell-secondary">
-            <span className="mtb-num">{c.studentId}</span> · {c.classSection}
+            <span className="mtb-num">{c.studentId}</span> · <span className="whitespace-nowrap">{c.classSection}</span>
             {ctx.campus === "ALL" ? ` · ${campusLabel(c.campus)}` : ""}
           </span>
         </span>
@@ -269,7 +269,7 @@ function IssuePanel({ eventId, onEvent, onPrint }: { eventId: string | undefined
                         <Checkbox
                           label={
                             <span>
-                              {p.name} <span className="text-ink-muted">· {p.classSection} · {p.item}</span>
+                              {p.name} <span className="text-ink-muted">· <span className="whitespace-nowrap">{p.classSection}</span> · {p.item}</span>
                             </span>
                           }
                           checked={ticked.has(p.id)}

@@ -10,7 +10,7 @@ export const Route = createFileRoute("/_app/activities/tests/")({
     const navigate = Route.useNavigate();
     return (
       <RequirePermission permission="activities.view" page="Scholarship tests">
-        <TestsPage creating={Boolean(search.new)} onCreating={(open) => void navigate({ search: (prev) => ({ ...prev, new: open ? true : undefined }) })} />
+        <TestsPage creating={Boolean(search.new)} onCreating={(open) => void navigate({ resetScroll: false, search: (prev) => ({ ...prev, new: open ? true : undefined }) })} />
       </RequirePermission>
     );
   },

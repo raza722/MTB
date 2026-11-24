@@ -246,7 +246,8 @@ export function HeadsPanel({ structure, editable }: { structure: FeeStructure; e
         </div>
       }
     >
-      <ul className="m-0 grid list-none gap-2 p-0">
+      {/* scrolls inside the panel, so a long list (All shows every head) doesn't stretch the page (user request, 20-Nov-2026) */}
+      <ul className="m-0 grid max-h-[560px] list-none gap-2 overflow-y-auto p-0.5 pr-1.5">
         {heads.map((h, i) => {
           const body = (
             <>

@@ -379,6 +379,8 @@ export function ConcessionsPage() {
   const [cls, setCls] = useState("");
   const [section, setSection] = useState("");
   const [page, setPage] = useState(1);
+  // The search box on "Brothers and sisters without a sibling concession" (user request, 20-Nov-2026).
+  const [sibQ, setSibQ] = useState("");
   useEffect(() => {
     const t = setTimeout(() => setSearch(query.trim()), 250);
     return () => clearTimeout(t);
@@ -412,17 +414,25 @@ export function ConcessionsPage() {
   const canCreate = canRequest && !readOnly && ctx.campus !== "ALL";
   const sections = classList.sectionsOf(cls);
   const filtered = Boolean(query || type || status || cls || section);
+  // The cards at the top point at the panels below: a click brings the panel into view (user report, 20-Nov-2026:
+  // "Active concessions" only set the list's filter far down the page, so it looked as if nothing happened).
+  const showPanel = (id: string) => document.getElementById(`${id}-title`)?.closest("section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const listTitle = status === "APPROVED" ? "Active concessions" : status === "PENDING" ? "Waiting for approval" : status === "REJECTED" ? "Rejected concessions" : status === "STOPPED" ? "Stopped concessions" : "All concessions";
 
   const columns: Array<Column<FeeConcession>> = [
     {
       key: "student",
       header: "Student",
+      // Block lines, not a grid (see Runs): as a grid the column shrank to 83px and the G.R. line broke into many lines.
+      // At least 200px wide: a table too wide for the screen gives each column only its longest word, and a long class
+      // name then took six lines (a th width is only a wish there; a min-width on the content holds).
       render: (c) => (
-        <span className="grid">
-          <span className="font-medium">{c.studentName}</span>
-          <span className="text-small text-ink-muted">
-            {c.grNo} · {c.classSection}
-            {ctx.campus === "ALL" ? ` · ${c.campusName}` : ""}
+        <span className="block min-w-[200px]">
+          <span className="block font-medium">{c.studentName}</span>
+          {/* the G.R. no. kept whole; a long class name (some are 40+ letters) wraps instead of widening the column */}
+          <span className="block text-small text-ink-muted">
+            <span className="whitespace-nowrap">{c.grNo}</span> · <span className="whitespace-nowrap">{c.classSection}</span>
+            {ctx.campus === "ALL" ? <> · <span className="whitespace-nowrap">{c.campusName}</span></> : ""}
           </span>
         </span>
       ),
@@ -432,18 +442,29 @@ export function ConcessionsPage() {
       key: "type",
       header: "Concession",
       render: (c) => (
-        <span className="grid">
-          <span className="flex items-center gap-2">
+        <span className="block">
+          <span className="flex items-center gap-2 whitespace-nowrap">
             <span className="mtb-chart-key" style={{ background: TYPE_COLOR[c.type] }} aria-hidden="true" />
             {typeTitle(c.type)} {c.pct}%
           </span>
-          <span className="text-small text-ink-muted">{c.byHead.map((h) => h.title).join(", ")}</span>
+          <span className="block text-small text-ink-muted">{c.byHead.map((h) => h.title).join(", ")}</span>
         </span>
       ),
     },
     { key: "value", header: "Off a month (class fee)", align: "right", render: (c) => <span className="mtb-num">{formatRs(c.monthlyValue)}</span> },
     { key: "session", header: "Off while it runs (class fee)", align: "right", render: (c) => <span className="mtb-num">{formatRs(c.sessionValue)}</span> },
-    { key: "runs", header: "Runs", render: (c) => <span className="mtb-num text-small">{`${formatDate(c.validFrom)} – ${formatDate(c.validTo)}`}</span> },
+    // The two dates one under the other, each on one line: in a narrow column they broke into many short lines.
+    // Block lines, not a grid: the global `.grid` rule (responsive.css) lets a grid shrink to nothing in a table cell.
+    {
+      key: "runs",
+      header: "Runs",
+      render: (c) => (
+        <span className="mtb-num block whitespace-nowrap text-small">
+          <span className="block">{formatDate(c.validFrom)} –</span>
+          <span className="block">{formatDate(c.validTo)}</span>
+        </span>
+      ),
+    },
     { key: "status", header: "Status", render: (c) => <DecisionBadge status={c.status} /> },
     { key: "by", header: "Requested by", render: (c) => <span className="text-small">{c.requestedBy}</span> },
   ];
@@ -459,6 +480,9 @@ export function ConcessionsPage() {
   ];
 
   const active = rows.filter((c) => c.status === "APPROVED");
+  // Matches the child's name, G.R. no., class, father, or the brother or sister named in the reason.
+  const sibNeedle = sibQ.trim().toLowerCase();
+  const siblings = (d?.suggestions ?? []).filter((s) => !sibNeedle || [s.studentName, s.grNo, s.classSection, s.father, s.reason].some((v) => (v ?? "").toLowerCase().includes(sibNeedle)));
   const periodText = from && to ? `${formatDate(from)} to ${formatDate(to)}` : "";
   const headsText = sum ? (sumHeads.length ? sum.heads.map((h) => h.title).join(", ") : "every head a concession can reduce") : "";
 
@@ -487,15 +511,55 @@ export function ConcessionsPage() {
         </Banner>
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <StatCard label="Active concessions" icon="award" loading={q.isLoading} value={<AnimatedNumber value={d?.summary.active ?? 0} format={formatCount} />} foot={campusLabel(ctx.campus)} onClick={() => setStatus("APPROVED")} />
-          <StatCard label="Off tuition each month" icon="fees" loading={q.isLoading} value={<AnimatedNumber value={d?.summary.monthlyValue ?? 0} format={formatRs} />} foot="While they run" />
-          <StatCard label="Waiting for approval" icon="clock" tone={(d?.summary.pending ?? 0) > 0 ? "warning" : "neutral"} loading={q.isLoading} value={<AnimatedNumber value={d?.summary.pending ?? 0} format={formatCount} />} foot="The principal decides" onClick={() => setStatus("PENDING")} />
-          <StatCard label="Siblings without one" icon="students" tone={(d?.suggestions.length ?? 0) > 0 ? "info" : "neutral"} loading={q.isLoading} value={<AnimatedNumber value={d?.suggestions.length ?? 0} format={formatCount} />} foot="Found by father's CNIC" />
+          <StatCard
+            label="Active concessions"
+            reveal={false}
+            icon="award"
+            loading={q.isLoading}
+            value={<AnimatedNumber value={d?.summary.active ?? 0} format={formatCount} />}
+            foot={campusLabel(ctx.campus)}
+            onClick={() => {
+              setStatus("APPROVED");
+              showPanel("list");
+            }}
+          />
+          <StatCard
+            label="Off tuition each month"
+            reveal={false}
+            icon="fees"
+            loading={q.isLoading}
+            value={<AnimatedNumber value={d?.summary.monthlyValue ?? 0} format={formatRs} />}
+            foot="While they run"
+            {...(d && d.summary.byType.length > 0 ? { onClick: () => showPanel("by-type") } : {})}
+          />
+          <StatCard
+            label="Waiting for approval"
+            reveal={false}
+            icon="clock"
+            tone={(d?.summary.pending ?? 0) > 0 ? "warning" : "neutral"}
+            loading={q.isLoading}
+            value={<AnimatedNumber value={d?.summary.pending ?? 0} format={formatCount} />}
+            foot="The principal decides"
+            onClick={() => {
+              setStatus("PENDING");
+              showPanel("list");
+            }}
+          />
+          <StatCard
+            label="Siblings without one"
+            reveal={false}
+            icon="students"
+            tone={(d?.suggestions.length ?? 0) > 0 ? "info" : "neutral"}
+            loading={q.isLoading}
+            value={<AnimatedNumber value={d?.suggestions.length ?? 0} format={formatCount} />}
+            foot="Found by father's CNIC"
+            {...(d && d.suggestions.length > 0 ? { onClick: () => showPanel("suggest") } : {})}
+          />
         </div>
 
         <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           {d && d.summary.byType.length > 0 && (
-            <Panel id="by-type" title="Where the concession goes" description="Rupees off tuition each month, by kind." rise={1}>
+            <Panel id="by-type" title="Where the concession goes" description="Rupees off tuition each month, by kind." rise={1} style={{ scrollMarginTop: 80 }}>
               <div className="grid gap-4">
                 <SegmentedBar label="Monthly concession by kind" format={formatRs} segments={d.summary.byType.map((b) => ({ key: b.type, label: typeTitle(b.type), value: b.monthlyValue, color: TYPE_COLOR[b.type] }))} />
                 <ul className="m-0 grid list-none gap-1.5 p-0 text-small">
@@ -513,13 +577,27 @@ export function ConcessionsPage() {
             </Panel>
           )}
           {d && d.suggestions.length > 0 && (
-            <Panel id="suggest" title="Brothers and sisters without a sibling concession" description="The eldest child pays full fee; each younger one qualifies. Found by the father's CNIC across every campus." rise={2}>
-              <ul className="m-0 grid list-none gap-2 p-0">
-                {d.suggestions.map((s, i) => (
+            <Panel
+              id="suggest"
+              title="Brothers and sisters without a sibling concession"
+              description="The eldest child pays full fee; each younger one qualifies. Found by the father's CNIC across every campus."
+              rise={2}
+              style={{ scrollMarginTop: 80 }}
+              actions={<Input aria-label="Search brothers and sisters" icon="search" placeholder="Name, G.R. no., class or father" className="w-full sm:w-64" value={sibQ} onChange={(e) => setSibQ(e.target.value)} />}
+            >
+              {sibNeedle && (
+                <p className="m-0 mb-2 text-small text-ink-muted" aria-live="polite">
+                  {formatCount(siblings.length)} of {formatCount(d.suggestions.length)} match
+                </p>
+              )}
+              {siblings.length === 0 && <EmptyState icon="search" title="No brother or sister matches" description="Try part of the name, the G.R. no. or the class." />}
+              {/* scrolls inside the panel instead of stretching the page (user request, 20-Nov-2026) */}
+              <ul className="m-0 grid max-h-[520px] list-none gap-2 overflow-y-auto p-0.5 pr-1.5">
+                {siblings.map((s, i) => (
                   <li key={s.grNo} className="mtb-slide-in flex flex-wrap items-center justify-between gap-3 rounded-md border border-border px-3 py-2.5" style={slide(i)}>
                     <span className="grid min-w-0">
                       <span className="font-medium">
-                        {s.studentName} <span className="text-ink-muted">({s.classSection})</span>
+                        {s.studentName} <span className="text-ink-muted">(<span className="whitespace-nowrap">{s.classSection}</span>)</span>
                       </span>
                       <span className="text-small text-ink-muted">{s.reason}</span>
                     </span>
@@ -665,6 +743,14 @@ export function ConcessionsPage() {
           </div>
         </Panel>
 
+        <Panel
+          id="list"
+          title={listTitle}
+          description={d ? `${formatCount(d.total)} ${d.total === 1 ? "concession" : "concessions"}${filtered ? " match" : " this session"}${d.total > d.pageSize ? `, ${d.pageSize} to a page` : ""}. Choose one to see its details and history.` : "Every concession of this session."}
+          flush
+          rise={5}
+          style={{ scrollMarginTop: 80 }}
+        >
         <DataTable
           caption={`Concessions, ${campusLabel(ctx.campus)}, ${formatSession(ctx.session)}`}
           columns={columns}
@@ -735,6 +821,7 @@ export function ConcessionsPage() {
             />
           }
         />
+        </Panel>
 
         {d && (
           <div className="fees-print-only mtb-print-area fees-print-a4">

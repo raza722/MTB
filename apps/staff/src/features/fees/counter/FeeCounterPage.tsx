@@ -31,6 +31,33 @@ function paymentSummary(state: ReturnType<typeof useFeeCounter>): string {
   return `${PAYMENT_METHOD_LABEL.ONLINE} · ${p.transactionId}`;
 }
 
+/** The student's latest receipts of the session, from the fee ledger: answers "I already paid" without leaving the counter. */
+function LastReceipts({ grNo, session }: { grNo: string; session: number }) {
+  const ledger = useQuery(feesQueries.ledger(grNo, session));
+  const receipts = (ledger.data?.entries ?? [])
+    .filter((e) => e.receiptNo && e.payment > 0 && !e.cancelled)
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, 3);
+  if (receipts.length === 0) return null;
+  return (
+    <section className="mtb-card grid gap-3 p-4" aria-label="Last receipts">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="m-0 text-body-strong">Last receipts</h2>
+        <span className="text-small text-ink-muted">This session, newest first</span>
+      </div>
+      <ul className="m-0 grid list-none gap-2 p-0 sm:grid-cols-3">
+        {receipts.map((r) => (
+          <li key={r.id} className="grid gap-0.5 rounded-md border border-border px-3 py-2">
+            <b className="tabular-nums">{formatRs(r.payment)}</b>
+            <span className="text-small tabular-nums text-ink-muted">{formatDate(r.date)}</span>
+            <span className="mtb-mono text-small text-ink-muted">{r.receiptNo}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 function CounterBody({ grNo, setGr }: { grNo: string; setGr: (gr: string | undefined) => void }) {
   const ctx = useCtx();
   const readOnly = useReadOnly();
@@ -117,15 +144,17 @@ function CounterBody({ grNo, setGr }: { grNo: string; setGr: (gr: string | undef
 
   return (
     <div className="grid gap-4" data-counter>
-      <ShortcutHints items={SHORTCUTS} />
-      {/* Below 1680px the payment box sits under the student card so the charges table keeps room for every column. */}
-      <div className="grid items-start gap-4 lg:grid-cols-[300px_minmax(0,1fr)] min-[1680px]:grid-cols-[300px_minmax(0,1fr)_340px]">
-        <div className="grid gap-4">
+      {/* Design of 20-Nov-2026: search across the top, the student in one strip, then the charges with the payment box
+          beside them (under them below 1100px), so the wide screen is used and the payment form stays in view. */}
+      <div className="flex flex-wrap items-end gap-x-6 gap-y-2">
+        <div className="min-w-0 flex-1 basis-80">
           <StudentSearch inputRef={searchRef} onPick={(gr) => setGr(gr)} />
-          {grNo && <StudentSummaryCard grNo={grNo} onSwitch={(gr) => setGr(gr)} {...(canCharge && !readOnly && data.data ? { onAddCharge: () => setAddingCharge(true) } : {})} />}
         </div>
-
-        <div className="grid min-w-0 gap-4 lg:row-span-2 min-[1680px]:row-span-1">
+        <ShortcutHints items={SHORTCUTS} />
+      </div>
+      {grNo && <StudentSummaryCard grNo={grNo} onSwitch={(gr) => setGr(gr)} {...(canCharge && !readOnly && data.data ? { onAddCharge: () => setAddingCharge(true) } : {})} />}
+      <div className={data.data && data.data.charges.length > 0 ? "grid items-start gap-4 min-[1100px]:grid-cols-[minmax(0,1fr)_400px]" : "grid gap-4"}>
+        <div className="grid min-w-0 gap-4">
           {!grNo && (
             <div className="mtb-card">
               <EmptyState icon="fees" title="Find a student to start" description="Search by name, G.R. number or father's CNIC. Press F2 to jump to the search box from anywhere on this page." />
@@ -165,6 +194,7 @@ function CounterBody({ grNo, setGr }: { grNo: string; setGr: (gr: string | undef
             </div>
           )}
           {data.data && data.data.charges.length > 0 && <ChargeTable state={state} readOnly={readOnly} onContinue={continueToPayment} />}
+          {data.data && <LastReceipts grNo={grNo} session={ctx.session} />}
         </div>
 
         {data.data && data.data.charges.length > 0 && (

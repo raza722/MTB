@@ -10,7 +10,7 @@ export const Route = createFileRoute("/_app/activities/records")({
     const navigate = Route.useNavigate();
     return (
       <RequirePermission permission="activities.view" page="Student records">
-        <RecordsPage studentId={student} onStudent={(id) => void navigate({ search: (prev) => ({ ...prev, student: id }) })} />
+        <RecordsPage studentId={student} onStudent={(id) => void navigate({ resetScroll: false, search: (prev) => ({ ...prev, student: id }) })} />
       </RequirePermission>
     );
   },

@@ -16,6 +16,6 @@ export const Route = createFileRoute("/_app/timetable/teachers")({
   component: function TeacherTimetableRoute() {
     const search = Route.useSearch();
     const navigate = Route.useNavigate();
-    return <TeacherTimetablePage search={search} setSearch={(next) => void navigate({ search: (prev) => ({ ...prev, teacher: next.teacher, view: next.view, day: next.day, level: next.level, gender: next.gender }) })} />;
+    return <TeacherTimetablePage search={search} setSearch={(next) => void navigate({ resetScroll: false, search: (prev) => ({ ...prev, teacher: next.teacher, view: next.view, day: next.day, level: next.level, gender: next.gender }) })} />;
   },
 });

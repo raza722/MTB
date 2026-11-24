@@ -13,7 +13,7 @@ export const Route = createFileRoute("/_app/activities/tests/$testId")({
     const navigate = Route.useNavigate();
     return (
       <RequirePermission permission="activities.view" page="Scholarship test">
-        <TestDetailPage key={testId} id={testId} tab={tab} onTab={(t) => void navigate({ search: (prev) => ({ ...prev, tab: t }), replace: true })} />
+        <TestDetailPage key={testId} id={testId} tab={tab} onTab={(t) => void navigate({ resetScroll: false, search: (prev) => ({ ...prev, tab: t }), replace: true })} />
       </RequirePermission>
     );
   },

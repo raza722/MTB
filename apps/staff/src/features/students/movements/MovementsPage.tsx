@@ -111,7 +111,7 @@ export function MovementsPage({ kind, setKind }: { kind: StudentMovementKind | "
         <span className="grid">
           <span className="mtb-cell-primary">{m.name}</span>
           <span className="mtb-cell-secondary">
-            <span className="mtb-mono">{m.grNo}</span> · {m.classSection}
+            <span className="mtb-mono">{m.grNo}</span> · <span className="whitespace-nowrap">{m.classSection}</span>
             {ctx.campus === "ALL" ? ` · ${m.campusName}` : ""}
           </span>
         </span>

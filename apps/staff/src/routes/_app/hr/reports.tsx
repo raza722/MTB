@@ -9,6 +9,6 @@ export const Route = createFileRoute("/_app/hr/reports")({
   component: function ReportsRoute() {
     const { report } = Route.useSearch();
     const navigate = Route.useNavigate();
-    return <HrReportsPage report={report ?? "strength"} setReport={(r) => void navigate({ search: (prev) => ({ ...prev, report: r }) })} />;
+    return <HrReportsPage report={report ?? "strength"} setReport={(r) => void navigate({ resetScroll: false, search: (prev) => ({ ...prev, report: r }) })} />;
   },
 });

@@ -273,7 +273,7 @@ export function IncrementsPage({ runId, setRunId }: { runId: string | undefined;
             ) : runs.length === 0 ? (
               <EmptyState icon="trendUp" title="No increment runs this session" description={canPrepare && !readOnly ? "Prepare one to see the new salaries before approving." : undefined} />
             ) : (
-              <ul className="m-0 grid list-none gap-1 p-2">
+              <ul className="m-0 grid list-none gap-1 p-2 max-h-[280px] overflow-y-auto pr-1">
                 {runs.map((x, i) => (
                   <li key={x.id} className="mtb-slide-in" style={slide(i)}>
                     <button type="button" onClick={() => setRunId(x.id)} aria-current={x.id === selected ? "true" : undefined} className={`grid w-full gap-1 rounded-md px-3 py-2 text-left ${x.id === selected ? "bg-brand-tint" : "hover:bg-surface-hover"}`}>

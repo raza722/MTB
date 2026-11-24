@@ -140,7 +140,7 @@ export function ApprovalsCard() {
         </div>
       )}
       {approvals.data && list.length === 0 && <EmptyState icon="checkCircle" title="Nothing waiting for you" description="New corrections and cancellations will appear here." />}
-      <ul className="m-0 list-none p-0">
+      <ul className="m-0 list-none p-0 max-h-[360px] overflow-y-auto pr-1">
         {list.map((a) => (
           <li key={a.id} className="flex flex-wrap items-center gap-3 border-b border-border px-5 py-3 last:border-b-0">
             <span className={`grid h-9 w-9 place-content-center rounded-full ${isFee(a) ? "bg-warning-tint text-warning-ink" : "bg-info-tint text-info-ink"}`} aria-hidden="true">
@@ -148,7 +148,7 @@ export function ApprovalsCard() {
             </span>
             <button type="button" onClick={() => setDetail(a)} className="grid min-w-0 flex-1 text-left">
               <span className="font-medium text-ink">
-                {title(a)} · {a.student.name} <span className="font-normal text-ink-muted">({a.student.classSection})</span>
+                {title(a)} · {a.student.name} <span className="font-normal text-ink-muted">(<span className="whitespace-nowrap">{a.student.classSection}</span>)</span>
               </span>
               <span className="text-small text-ink-muted">
                 <Summary a={a} />

@@ -9,6 +9,6 @@ export const Route = createFileRoute("/_app/students/leaving")({
   component: function LeavingRoute() {
     const { kind } = Route.useSearch();
     const navigate = Route.useNavigate();
-    return <MovementsPage kind={kind ?? ""} setKind={(next) => navigate({ search: (prev) => ({ ...prev, kind: next || undefined }), replace: true })} />;
+    return <MovementsPage kind={kind ?? ""} setKind={(next) => navigate({ resetScroll: false, search: (prev) => ({ ...prev, kind: next || undefined }), replace: true })} />;
   },
 });

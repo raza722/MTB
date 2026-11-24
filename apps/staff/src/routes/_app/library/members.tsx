@@ -8,6 +8,6 @@ export const Route = createFileRoute("/_app/library/members")({
   component: function MembersRoute() {
     const search = Route.useSearch();
     const navigate = Route.useNavigate();
-    return <MembersPage search={search} setSearch={(next) => void navigate({ search: next as never })} />;
+    return <MembersPage search={search} setSearch={(next) => void navigate({ resetScroll: false, search: next as never })} />;
   },
 });

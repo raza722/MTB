@@ -19,6 +19,6 @@ export const Route = createFileRoute("/_app/accounts/ledger")({
   component: function LedgerRoute() {
     const search = Route.useSearch();
     const navigate = Route.useNavigate();
-    return <LedgerPage search={search} setSearch={(next) => void navigate({ search: next as never })} />;
+    return <LedgerPage search={search} setSearch={(next) => void navigate({ resetScroll: false, search: next as never })} />;
   },
 });

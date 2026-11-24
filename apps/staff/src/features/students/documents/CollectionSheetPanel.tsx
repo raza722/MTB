@@ -1,6 +1,6 @@
 import { metaQueries, studentDocsQueries, type StudentDocsCollectionQuery } from "@mtb/api";
 import { formatDateTime, formatSession } from "@mtb/domain";
-import { Banner, Button, EmptyState, Segmented, Select, SidePanel, Skeleton } from "@mtb/ui";
+import { Button, EmptyState, Segmented, Select, SidePanel, Skeleton } from "@mtb/ui";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useCtx, useSessionUser } from "../../../app/session";
@@ -12,19 +12,23 @@ import { CollectionSheet } from "./templates";
  * The board-document collection sheet (legacy "Documents Issuance" print): students of a class or group sign as
  * they collect roll no. slips, result cards and certificates. Board roll numbers come from the student records;
  * dates of hand-overs already in the register are filled in.
+ *
+ * Every class with sections at the campus is offered (20-Nov-2026; before, only the board classes): the server
+ * returns the sheet for any class, and a class that sits no board exam simply has empty board roll no. cells.
+ * The panel still opens on the first board class, where the sheet is used most.
  */
 export function CollectionSheetPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const ctx = useCtx();
   const user = useSessionUser();
   const classes = useQuery(metaQueries.classes(ctx.campus));
-  // Board documents belong to the classes that sit board exams: Setup's boardExamPart, or (until the server sends
-  // it) the classes with groups.
-  const boardClasses = (classes.data ?? []).filter((c) => isBoardClass(classes.data, c.short) ?? (c.groups?.length ?? 0) > 0);
+  const offered = (classes.data ?? []).filter((c) => c.sections.length > 0);
+  // The classes that sit board exams: Setup's boardExamPart, or (until the server sends it) the classes with groups.
+  const firstBoardClass = offered.find((c) => isBoardClass(classes.data, c.short) ?? (c.groups?.length ?? 0) > 0);
   const [q, setQ] = useState<StudentDocsCollectionQuery>({ className: "" });
   const [tried, setTried] = useState(false);
   useEffect(() => {
     if (open) {
-      setQ({ className: boardClasses[0]?.short ?? "" });
+      setQ({ className: (firstBoardClass ?? offered[0])?.short ?? "" });
       setTried(false);
     }
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -66,7 +70,7 @@ export function CollectionSheetPanel({ open, onClose }: { open: boolean; onClose
             value={q.className}
             error={tried && !q.className ? "Choose the class." : undefined}
             onChange={(e) => setQ((x) => ({ className: e.target.value, ...(x.gender ? { gender: x.gender } : {}) }))}
-            options={[{ value: "", label: "Choose…" }, ...boardClasses.map((c) => ({ value: c.short, label: c.name }))]}
+            options={[{ value: "", label: "Choose…" }, ...offered.map((c) => ({ value: c.short, label: c.name }))]}
           />
           <Select label="Section" value={q.section ?? ""} disabled={!cls} onChange={(e) => setQ((x) => ({ ...x, section: e.target.value || undefined }))} options={[{ value: "", label: "All sections" }, ...(cls?.sections ?? []).map((s) => ({ value: s, label: `${cls!.short}-${s}` }))]} />
           {(cls?.groups?.length ?? 0) > 0 && (
@@ -86,8 +90,7 @@ export function CollectionSheetPanel({ open, onClose }: { open: boolean; onClose
             />
           </div>
         </div>
-        <p className="m-0 text-small text-ink-muted">Board roll numbers come from each student's record (Edit on the profile). Dates of hand-overs already recorded are filled in; signature boxes stay empty.</p>
-        {boardClasses.length === 0 && classes.data && <Banner tone="info">No class at this campus has board groups set up. Groups are added in Setup → Subjects.</Banner>}
+        <p className="m-0 text-small text-ink-muted">Board roll numbers come from each student's record (Edit on the profile); a class that sits no board exam has none, and those boxes print empty. Dates of hand-overs already recorded are filled in; signature boxes stay empty.</p>
         {sheet.isError && <LoadError what="collection sheet" error={sheet.error} onRetry={() => void sheet.refetch()} />}
         {q.className && sheet.isLoading && <Skeleton height={360} />}
         {sheet.data && rows.length === 0 && <EmptyState icon="students" title="No students" description="Nobody enrolled matches these choices. Try all sections, all groups or everyone." />}

@@ -533,7 +533,7 @@ function Members({ houses, unassigned, canManage }: { houses: ActivitiesHouse[];
         </span>
       ),
     },
-    { key: "class", header: "Class", width: 100, render: (m) => m.classSection },
+    { key: "class", header: "Class", width: 100, render: (m) => <span className="whitespace-nowrap">{m.classSection}</span> },
     { key: "house", header: "House", width: 200, render: (m) => <HouseTag name={m.houseName} tone={tone(m.houseId)} /> },
     { key: "since", header: "Since", width: 130, render: (m) => (m.since ? <span className="mtb-num">{formatDate(m.since)}</span> : "—") },
     { key: "role", header: "Role", width: 140, render: (m) => (m.role ? <StatusBadge status="brand" dot={false}>{m.role === "CAPTAIN" ? "Captain" : "Vice-captain"}</StatusBadge> : null) },

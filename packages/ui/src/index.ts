@@ -4,6 +4,7 @@
 
 export { Icon, ICON_NAMES, type IconName, type IconProps } from "./icons";
 export { cx, initials } from "./lib/cx";
+export { withThemeTransition } from "./lib/theme-transition";
 export { contrastRatio, formatRatio, parseHex } from "./lib/contrast";
 export { PHONE_QUERY, useMediaQuery, WIDE_QUERY } from "./lib/use-media-query";
 
@@ -14,7 +15,6 @@ export {
   Input,
   Radio,
   Segmented,
-  Select,
   Switch,
   Textarea,
   type CheckboxProps,
@@ -39,6 +39,7 @@ export {
   type ComboboxProps,
   type DatePickerProps,
 } from "./components/special-inputs";
+export { LONG_SELECT_FROM, Select } from "./components/select";
 export {
   ATTENDANCE_LETTER,
   STATUS_LABEL,

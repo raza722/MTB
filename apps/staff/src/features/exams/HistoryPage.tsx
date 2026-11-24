@@ -338,7 +338,7 @@ function HistoryTable({ entries }: { entries: ExamsHistoryEntry[] }) {
             </span>
           ),
         },
-        { key: "cs", header: "Class", width: 80, render: (e) => e.classSection },
+        { key: "cs", header: "Class", width: 80, render: (e) => <span className="whitespace-nowrap">{e.classSection}</span> },
         { key: "total", header: "Total", align: "right", width: 110, render: (e) => `${e.obtained} / ${e.max}` },
         { key: "pct", header: "%", align: "right", width: 80, render: (e) => (e.percent === null ? "—" : formatPercent(e.percent)) },
         { key: "grade", header: "Grade", width: 70, render: (e) => e.grade ?? "—" },

@@ -253,7 +253,7 @@ function MeritTab({ test: t, canManage }: { test: ActivitiesTestDetail; canManag
         <span className="grid">
           <span className="mtb-cell-primary">{c.name}</span>
           <span className="mtb-cell-secondary">
-            {c.isApplicant ? `Applicant · ${c.previousSchool ?? ""}` : <span className="mtb-num">{c.id}</span>} · {c.classSection}
+            {c.isApplicant ? `Applicant · ${c.previousSchool ?? ""}` : <span className="mtb-num">{c.id}</span>} · <span className="whitespace-nowrap">{c.classSection}</span>
           </span>
         </span>
       ),
@@ -443,7 +443,7 @@ function CandidatesTab({ test: t, canManage }: { test: ActivitiesTestDetail; can
         </span>
       ),
     },
-    { key: "class", header: "Class", width: 180, render: (c) => c.classSection },
+    { key: "class", header: "Class", width: 180, render: (c) => <span className="whitespace-nowrap">{c.classSection}</span> },
     { key: "kind", header: "", width: 120, render: (c) => (c.isApplicant ? <StatusBadge status="info">Applicant</StatusBadge> : <StatusBadge status="neutral">Student</StatusBadge>) },
     ...(open ? [{ key: "x", header: "", width: 56, render: (c: ActivitiesCandidate) => <IconButton icon="trash" label={`Remove ${c.name}`} onClick={() => remove.mutate(c.id)} disabled={remove.isPending} /> }] : []),
   ];

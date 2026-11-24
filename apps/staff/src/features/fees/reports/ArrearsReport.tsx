@@ -112,8 +112,8 @@ export function ArrearsReport() {
     { key: "pct", header: "Arrear %", align: "right", render: (r) => <span className="mtb-num">{pctText(r.pct)}</span> },
   ];
   const studentCols: Array<Column<FeeDefaulter>> = [
-    { key: "student", header: "Student", render: (r) => <span className="grid"><span className="font-medium">{r.studentName}</span><span className="text-small text-ink-muted">{r.grNo} · {r.father}{r.enrolment !== "ACTIVE" ? " · left" : ""}</span></span> },
-    { key: "class", header: "Class", render: (r) => r.classSection },
+    { key: "student", header: "Student", render: (r) => <span className="grid"><span className="font-medium">{r.studentName}</span><span className="text-small text-ink-muted"><span className="whitespace-nowrap">{r.grNo}</span> · {r.father}{r.enrolment !== "ACTIVE" ? " · left" : ""}</span></span> },
+    { key: "class", header: "Class", render: (r) => <span className="whitespace-nowrap">{r.classSection}</span> },
     { key: "mobile", header: "Mobile", render: (r) => <span className="mtb-num">{formatMobile(r.mobile)}</span> },
     { key: "since", header: "Oldest unpaid", render: (r) => <span className="mtb-num">{formatDate(r.oldestDue)}</span> },
     { key: "session", header: "This session", align: "right", render: (r) => <span className="mtb-num text-ink-muted">{formatRs(r.sessionTotal)}</span> },

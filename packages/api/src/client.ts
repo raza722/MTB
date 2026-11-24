@@ -29,6 +29,7 @@ type QueryValue = string | number | boolean | null | undefined;
 
 export interface RequestOptions {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+  /** Sent as JSON. A Blob (a photo) is sent as it is, bytes and all, with its own type as Content-Type. */
   body?: unknown;
   query?: Record<string, QueryValue>;
   /** Sent as Idempotency-Key on posting requests so a retry or double-click can't create two documents. */
@@ -45,7 +46,9 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
     if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, String(v));
   }
   const headers: Record<string, string> = { Accept: "application/json" };
-  if (body !== undefined) headers["Content-Type"] = "application/json";
+  // A file goes as its own bytes (the photo endpoints take the image itself, not JSON and not a form).
+  const rawBody = typeof Blob !== "undefined" && body instanceof Blob ? body : null;
+  if (body !== undefined) headers["Content-Type"] = rawBody ? rawBody.type || "application/octet-stream" : "application/json";
   if (idempotencyKey) headers["Idempotency-Key"] = idempotencyKey;
 
   let res: Response;
@@ -54,7 +57,7 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
       method,
       credentials: "include",
       headers,
-      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+      ...(body !== undefined ? { body: rawBody ?? JSON.stringify(body) } : {}),
       ...(signal ? { signal } : {}),
     });
   } catch (e) {

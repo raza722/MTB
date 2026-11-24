@@ -16,6 +16,6 @@ export const Route = createFileRoute("/_app/attendance/monthly")({
   component: function MonthlyRoute() {
     const search = Route.useSearch();
     const navigate = Route.useNavigate();
-    return <MonthlySheetPage search={search} setSearch={(next) => void navigate({ search: (prev) => ({ ...prev, cls: next.cls, month: next.month }) })} />;
+    return <MonthlySheetPage search={search} setSearch={(next) => void navigate({ resetScroll: false, search: (prev) => ({ ...prev, cls: next.cls, month: next.month }) })} />;
   },
 });

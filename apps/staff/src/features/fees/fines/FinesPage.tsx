@@ -548,14 +548,14 @@ export function FinesPage() {
   });
 
   const waiverCols: Array<Column<FeeWaiver>> = [
-    { key: "student", header: "Student", render: (w) => <span className="grid"><span className="font-medium">{w.studentName}</span><span className="text-small text-ink-muted">{w.grNo} · {w.classSection}</span></span> },
+    { key: "student", header: "Student", render: (w) => <span className="grid"><span className="font-medium">{w.studentName}</span><span className="text-small text-ink-muted"><span className="whitespace-nowrap">{w.grNo}</span> · <span className="whitespace-nowrap">{w.classSection}</span></span></span> },
     { key: "charge", header: "Charge", render: (w) => <span className="grid"><span>{w.chargeHead}</span><span className="text-small text-ink-muted">Due {formatDate(w.dueDate)}</span></span> },
     { key: "ask", header: "Asked for", render: (w) => (w.kind === "WAIVE" ? `Waive ${formatRs(w.amount ?? 0)} of ${formatRs(w.fineToDate)}` : `Pay by ${formatDate(w.newDueDate ?? "")}`) },
     { key: "status", header: "Status", render: (w) => <DecisionBadge status={w.status} /> },
     { key: "by", header: "Requested", render: (w) => <span className="text-small">{w.requestedBy} · {formatDate(w.requestedAt)}</span> },
   ];
   const fineCols: Array<Column<FeeStudentFine>> = [
-    { key: "student", header: "Student", render: (f) => <span className="grid"><span className="font-medium">{f.studentName}</span><span className="text-small text-ink-muted">{f.grNo} · {f.classSection}</span></span> },
+    { key: "student", header: "Student", render: (f) => <span className="grid"><span className="font-medium">{f.studentName}</span><span className="text-small text-ink-muted"><span className="whitespace-nowrap">{f.grNo}</span> · <span className="whitespace-nowrap">{f.classSection}</span></span></span> },
     { key: "kind", header: "Fine", render: (f) => <span className="grid"><span>{FEE_STUDENT_FINE_LABEL[f.kind]}</span><span className="text-small text-ink-muted">{f.reason}</span></span> },
     { key: "amount", header: "Amount", align: "right", render: (f) => <span className="mtb-num">{formatRs(f.amount)}</span> },
     { key: "status", header: "Status", render: (f) => <DecisionBadge status={f.status} fine /> },

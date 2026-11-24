@@ -135,6 +135,7 @@ export function LibraryOverviewPage() {
               </ul>
               <div className="grid gap-2">
                 <h3 className="m-0 text-small font-semibold text-ink-muted">By subject</h3>
+                <div className="grid gap-2 max-h-[320px] overflow-y-auto pr-1">
                 {o.byCategory.map((c, i) => (
                   <div key={c.name} className="mtb-slide-in grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1" style={slide(i)}>
                     <span className="truncate text-small">{c.name}</span>
@@ -146,6 +147,7 @@ export function LibraryOverviewPage() {
                     </div>
                   </div>
                 ))}
+                </div>
               </div>
             </div>
           )}

@@ -19,9 +19,9 @@ export const Route = createFileRoute("/_app/library/catalogue")({
     return (
       <CataloguePage
         openTitle={title ?? ""}
-        setOpenTitle={(id) => void navigate({ search: { ...(id ? { title: id } : {}), ...(author ? { author } : {}) } as never })}
+        setOpenTitle={(id) => void navigate({ resetScroll: false, search: { ...(id ? { title: id } : {}), ...(author ? { author } : {}) } as never })}
         author={author ?? ""}
-        setAuthor={(a) => void navigate({ search: { ...(title ? { title } : {}), ...(a ? { author: a } : {}) } as never })}
+        setAuthor={(a) => void navigate({ resetScroll: false, search: { ...(title ? { title } : {}), ...(a ? { author: a } : {}) } as never })}
       />
     );
   },

@@ -3,6 +3,7 @@ import { queryOptions } from "@tanstack/react-query";
 import type { AdmissionsStage } from "./admissions";
 import { apiFetch } from "./client";
 import { ctxKey, ctxQuery, type CampusCode, type Ctx } from "./context";
+import { grCampus } from "./photos";
 
 export type FeeStatusCode = "paid" | "unpaid" | "overdue" | "cancelled";
 /**
@@ -347,7 +348,20 @@ export interface StudentStrength {
   duplicatesToReview: number;
 }
 
+/** What the photo endpoints answer after a change. `version` changes with every new picture; null when there is none. */
+export interface StudentPhotoState {
+  grNo: string;
+  hasPhoto: boolean;
+  version: number | null;
+}
+
 export const studentsApi = {
+  /**
+   * Adds or replaces the student's photo: the body is the image itself (JPEG or PNG, 2 MB at most), sent to the same
+   * address the photo is read from (photoUrl.student). Needs students.edit at the student's campus.
+   */
+  setPhoto: (grNo: string, photo: Blob) => apiFetch<StudentPhotoState>(`/students/${encodeURIComponent(grNo)}/photo`, { method: "PUT", query: { campus: grCampus(grNo) }, body: photo }),
+  removePhoto: (grNo: string) => apiFetch<StudentPhotoState>(`/students/${encodeURIComponent(grNo)}/photo`, { method: "DELETE", query: { campus: grCampus(grNo) } }),
   list: (ctx: Ctx, q: StudentListQuery) => apiFetch<{ items: StudentSummary[]; total: number; family?: Family }>("/students", { query: { ...ctxQuery(ctx), ...q } }),
   get: (grNo: string) => apiFetch<StudentProfile>(`/students/${encodeURIComponent(grNo)}`),
   attendance: (grNo: string, month: string) => apiFetch<StudentAttendance>(`/students/${encodeURIComponent(grNo)}/attendance`, { query: { month } }),

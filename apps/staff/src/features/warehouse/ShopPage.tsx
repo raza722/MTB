@@ -206,6 +206,10 @@ function Counter() {
   const canManage = useCan("warehouse.manage") && !readOnly;
   const shop = useQuery(warehouseQueries.shop(ctx));
   const today = useQuery(warehouseQueries.sales(ctx, opsToday()));
+  // Today's sales can run to hundreds at the start of a session: find one by name or receipt number.
+  const [saleQ, setSaleQ] = useState("");
+  const saleNeedle = saleQ.trim().toLowerCase();
+  const todaySales = (today.data ?? []).filter((s) => !saleNeedle || `${s.studentName} ${s.receiptNo}`.toLowerCase().includes(saleNeedle));
   const [student, setStudent] = useState<OperationsPerson | null>(null);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [pick, setPick] = useState<string | null>(null);
@@ -364,14 +368,23 @@ function Counter() {
             </div>
           )}
         </Panel>
-        <Panel id="shop-today" rise={2} title="Today's sales" description="Open a sale to reprint its receipt or cancel it the same day." flush>
+        <Panel
+          id="shop-today"
+          rise={2}
+          title="Today's sales"
+          description="Open a sale to reprint its receipt or cancel it the same day."
+          flush
+          {...((today.data ?? []).length > 8 ? { actions: <Input aria-label="Search today's sales" icon="search" placeholder="Name or receipt no." className="w-full sm:w-56" value={saleQ} onChange={(e) => setSaleQ(e.target.value)} /> } : {})}
+        >
           {today.isLoading ? (
             <Skeleton height={200} />
           ) : (today.data ?? []).length === 0 ? (
             <EmptyState icon="receipt" title="No sales yet today" />
+          ) : todaySales.length === 0 ? (
+            <EmptyState icon="search" title="No sale matches" description="Check the name or the receipt number." />
           ) : (
-            <ul className="m-0 list-none p-0">
-              {(today.data ?? []).map((s, i) => (
+            <ul className="m-0 list-none p-0 max-h-[480px] overflow-y-auto pr-1">
+              {todaySales.map((s, i) => (
                 <li key={s.id} className="mtb-slide-in border-b border-border last:border-b-0" style={slide(i)}>
                   <button type="button" className="flex w-full items-center gap-3 bg-transparent px-5 py-2.5 text-left text-ink hover:bg-surface-hover" onClick={() => setOpen(s)}>
                     <span className="grid min-w-0 flex-1">

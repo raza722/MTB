@@ -12,6 +12,6 @@ export const Route = createFileRoute("/_app/sms/outbox")({
   }),
   component: function OutboxRoute() {
     const navigate = Route.useNavigate();
-    return <OutboxPage search={Route.useSearch()} setSearch={(next) => void navigate({ search: next as never })} />;
+    return <OutboxPage search={Route.useSearch()} setSearch={(next) => void navigate({ resetScroll: false, search: next as never })} />;
   },
 });

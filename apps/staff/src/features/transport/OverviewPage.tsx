@@ -110,7 +110,7 @@ export function TransportOverviewPage() {
           ) : o.alerts.length === 0 ? (
             <EmptyState icon="checkCircle" title="Every vehicle's papers are in date" />
           ) : (
-            <ul className="m-0 list-none p-0">
+            <ul className="m-0 list-none p-0 max-h-[280px] overflow-y-auto pr-1">
               {o.alerts.map((a, i) => (
                 <li key={`${a.vehicleId}-${a.kind}`} className="mtb-slide-in grid gap-1 border-b border-border px-5 py-3 last:border-b-0" style={slide(i)}>
                   <span className="flex items-center justify-between gap-3">

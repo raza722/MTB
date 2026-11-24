@@ -1,7 +1,7 @@
 import { warehouseApi, warehouseQueries, type WarehouseCategory, type WarehouseDepartment, type WarehouseItem } from "@mtb/api";
 import { formatCount } from "@mtb/domain";
 import { formatRs } from "./money";
-import { AmountInput, Banner, Button, Checkbox, DataTable, EmptyState, IconButton, Input, Modal, Select, SidePanel, StatusBadge, Switch, TabPanel, Tabs, useToast, type Column } from "@mtb/ui";
+import { AmountInput, Banner, Button, Checkbox, Combobox, DataTable, EmptyState, IconButton, Input, Modal, Select, SidePanel, StatusBadge, Switch, TabPanel, Tabs, useToast, type Column } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Fragment, useState } from "react";
 import { z } from "zod";
@@ -395,7 +395,7 @@ export function ItemsPage() {
               <div className="min-w-[220px] flex-1">
                 <Input label="Search" icon="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Name, code or family" />
               </div>
-              <Select label="Category" value={cat} onChange={(e) => setCat(e.target.value)} options={[{ value: "", label: "All categories" }, ...(setup.data?.categories ?? []).map((c) => ({ value: c.id, label: c.name }))]} />
+              <Combobox className="w-full sm:w-56" label="Category" searchPlaceholder="Find a category" value={cat} onValueChange={setCat} options={[{ value: "", label: "All categories" }, ...(setup.data?.categories ?? []).map((c) => ({ value: c.id, label: c.name }))]} />
               <Checkbox label="Show items not in use" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} />
             </div>
           }

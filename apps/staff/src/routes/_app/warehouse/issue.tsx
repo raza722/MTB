@@ -14,9 +14,9 @@ export const Route = createFileRoute("/_app/warehouse/issue")({
     return (
       <IssuePage
         tab={tab}
-        setTab={(t) => void navigate({ search: (t === "issues" ? {} : { tab: t }) as never, replace: true })}
+        setTab={(t) => void navigate({ resetScroll: false, search: (t === "issues" ? {} : { tab: t }) as never, replace: true })}
         openNew={search.new === 1}
-        setOpenNew={(v) => void navigate({ search: { ...(tab === "issues" ? {} : { tab }), ...(v ? { new: 1 } : {}) } as never, replace: true })}
+        setOpenNew={(v) => void navigate({ resetScroll: false, search: { ...(tab === "issues" ? {} : { tab }), ...(v ? { new: 1 } : {}) } as never, replace: true })}
       />
     );
   },

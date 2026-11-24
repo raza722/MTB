@@ -58,19 +58,8 @@ export function SearchTrigger({ onOpen }: { onOpen: () => void }) {
       window.removeEventListener(OPEN_SEARCH, onOpen);
     };
   }, [onOpen]);
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="flex h-8 w-full items-center gap-2 rounded-md border border-border-strong bg-surface px-3 text-left text-ink-subtle hover:border-ink-muted"
-      aria-keyshortcuts="Control+K"
-    >
-      <Icon name="search" size={16} />
-      <span className="flex-1 truncate">Search name, G.R., father's CNIC or receipt</span>
-      <Kbd>Ctrl</Kbd>
-      <Kbd>K</Kbd>
-    </button>
-  );
+  // Draws nothing since 20-Nov-2026 (the user asked for the bar to go): it only listens for Ctrl+K and openGlobalSearch.
+  return null;
 }
 
 export function GlobalSearch({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {

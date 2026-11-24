@@ -20,6 +20,6 @@ export const Route = createFileRoute("/_app/accounts/trial-balance")({
   component: function TrialRoute() {
     const search = Route.useSearch();
     const navigate = Route.useNavigate();
-    return <TrialBalancePage search={search} setSearch={(next) => void navigate({ search: next as never })} />;
+    return <TrialBalancePage search={search} setSearch={(next) => void navigate({ resetScroll: false, search: next as never })} />;
   },
 });

@@ -40,6 +40,13 @@
 .grid:not([class*="grid-cols"], [class*="place-content-"], [class*="justify-center"], [class*="justify-end"], [class*="justify-between"], [class*="justify-around"], [class*="justify-evenly"]) {
   grid-template-columns: minmax(0, 1fr);
 }
+/* Not inside a table cell, though: there the shrinkable column told the table the cell needs no width, so when a wide
+   table had to share the screen its columns shrank to their headings ("Student" 83px) and rows grew 200px tall with
+   one word a line (Fees → Concessions, user report 20-Nov-2026). A table already scrolls sideways when it is too wide,
+   so a cell's grid keeps the width of its longest word. */
+.mtb-table :is(td, th) .grid:not([class*="grid-cols"]) {
+  grid-template-columns: none;
+}
 
 /* Checkbox and switch labels wrap even inside a long word with no spaces (a real subject reads
    "Software Pakages(MAPLE/MALTAB/MATHEMATICA)"), instead of running past the card on a tablet. */

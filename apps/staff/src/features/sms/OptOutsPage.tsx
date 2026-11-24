@@ -67,7 +67,7 @@ export function OptOutsPage() {
             <span key={s.grNo}>
               {s.name}{" "}
               <span className="mtb-cell-secondary">
-                · {s.classSection} · <span className="mtb-mono">{s.grNo}</span>
+                · <span className="whitespace-nowrap">{s.classSection}</span> · <span className="mtb-mono">{s.grNo}</span>
               </span>
             </span>
           ))}

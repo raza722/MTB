@@ -11,6 +11,6 @@ export const Route = createFileRoute("/_app/sms/notices")({
   }),
   component: function NoticesRoute() {
     const navigate = Route.useNavigate();
-    return <NoticesPage search={Route.useSearch()} setSearch={(next) => void navigate({ search: next as never })} />;
+    return <NoticesPage search={Route.useSearch()} setSearch={(next) => void navigate({ resetScroll: false, search: next as never })} />;
   },
 });

@@ -28,6 +28,6 @@ export const Route = createFileRoute("/_app/accounts/vouchers/")({
   component: function VouchersRoute() {
     const search = Route.useSearch();
     const navigate = Route.useNavigate();
-    return <VouchersPage search={search} setSearch={(next) => void navigate({ search: next as never })} />;
+    return <VouchersPage search={search} setSearch={(next) => void navigate({ resetScroll: false, search: next as never })} />;
   },
 });

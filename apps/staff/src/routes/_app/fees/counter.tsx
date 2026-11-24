@@ -11,6 +11,6 @@ export const Route = createFileRoute("/_app/fees/counter")({
     const view = useCan("fees.view");
     // Only the cashier takes payments; other fee office roles land on /fees (reports or vouchers).
     if (!collect && view) return <Navigate to="/fees" replace />;
-    return <FeeCounterPage grNo={gr ?? ""} setGr={(next) => navigate({ search: (prev) => ({ ...prev, gr: next }) })} />;
+    return <FeeCounterPage grNo={gr ?? ""} setGr={(next) => navigate({ resetScroll: false, search: (prev) => ({ ...prev, gr: next }) })} />;
   },
 });

@@ -22,7 +22,7 @@ import {
   type SmsVariable,
 } from "@mtb/api";
 import { formatCount, formatDate, formatRs, formatSession, normalizeMobile, pakistanToday, type IsoDate } from "@mtb/domain";
-import { AmountInput, Banner, Button, ConfirmDialog, DataTable, DatePicker, EmptyState, Field, Icon, Input, Panel, Segmented, Select, Skeleton, StatusBadge, Textarea, useToast, type Column } from "@mtb/ui";
+import { AmountInput, Banner, Button, Checkbox, ConfirmDialog, DataTable, DatePicker, EmptyState, Field, Icon, Input, Panel, Segmented, Select, Skeleton, StatusBadge, Textarea, useToast, type Column } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -139,44 +139,119 @@ function Figure({ label, value, note, good }: { label: string; value: string; no
   );
 }
 
-/** Class chips: click a class for all its sections, or pick sections one by one. */
+/**
+ * The class and section picker (design of 20-Nov-2026, replacing a wall of some 150 chips): classes on the left with a
+ * tick for the whole class and how many of its sections are chosen; the open class's sections as tick tiles on the
+ * right; what is chosen summed up below as chips that can be removed. A search box finds a class or a section.
+ */
 function ClassPicker({ classes, loading, value, onChange, label, help, error }: { classes: ClassInfo[]; loading: boolean; value: string[]; onChange: (next: string[]) => void; label: string; help: string; error?: string }) {
-  const toggle = (cs: string) => onChange(value.includes(cs) ? value.filter((x) => x !== cs) : [...value, cs]);
-  const toggleClass = (all: string[]) => onChange(all.every((cs) => value.includes(cs)) ? value.filter((cs) => !all.includes(cs)) : [...new Set([...value, ...all])]);
+  const [openShort, setOpenShort] = useState("");
+  const [query, setQuery] = useState("");
+  // A class with no sections this session has nobody to message, and showed as chosen (test run F-131).
+  const list = classes.filter((c) => c.sections.length > 0).map((c) => ({ ...c, all: c.sections.map((s) => `${c.short}-${s}`) }));
+  const chosen = new Set(value);
+  const q = query.trim().toLowerCase();
+  const hit = (text: string) => text.toLowerCase().includes(q);
+  const shown = q ? list.filter((c) => hit(c.name) || c.all.some(hit)) : list;
+  const open = shown.find((c) => c.short === openShort) ?? shown[0];
+  const tiles = open ? (q && !hit(open.name) ? open.all.filter(hit) : open.all) : [];
+  const add = (all: string[]) => onChange([...new Set([...value, ...all])]);
+  const remove = (all: string[]) => onChange(value.filter((cs) => !all.includes(cs)));
+  const toggle = (cs: string) => (chosen.has(cs) ? remove([cs]) : add([cs]));
+  const picked = list.map((c) => ({ c, on: c.all.filter((cs) => chosen.has(cs)) })).filter((x) => x.on.length > 0);
   return (
     <Field label={label} help={help} {...(error ? { error } : {})}>
       {() =>
         loading ? (
-          <Skeleton height={160} />
+          <Skeleton height={320} />
         ) : (
-          <div className="grid gap-2">
-            {/* A class with no sections this session has nobody to message, and showed as chosen (test run F-131). */}
-            {classes.filter((c) => c.sections.length > 0).map((c) => {
-              const all = c.sections.map((s) => `${c.short}-${s}`);
-              const allOn = all.every((cs) => value.includes(cs));
-              return (
-                <div key={c.short} className="sms-class-row">
-                  <button type="button" className="sms-chip" aria-pressed={allOn} onClick={() => toggleClass(all)}>
-                    {c.name}
-                  </button>
-                  <div className="sms-chips">
-                    {all.map((cs) => (
-                      <button key={cs} type="button" className="sms-chip" aria-pressed={value.includes(cs)} onClick={() => toggle(cs)}>
-                        {cs}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-            {value.length > 0 && (
-              <div className="flex items-center gap-2 text-small text-ink-muted">
-                {formatCount(value.length)} {value.length === 1 ? "section" : "sections"} chosen
-                <Button size="sm" variant="ghost" onClick={() => onChange([])}>
-                  Clear
-                </Button>
+          <div className="sms-picker">
+            <div className="sms-picker-bar">
+              <div className="w-full sm:w-72">
+                <Input aria-label="Find a class or section" icon="search" placeholder="Find a class or section" value={query} onChange={(e) => setQuery(e.target.value)} />
               </div>
-            )}
+              <Button size="sm" onClick={() => add(list.flatMap((c) => c.all))}>
+                Select every class
+              </Button>
+            </div>
+            <div className="sms-picker-body">
+              <ul className="sms-picker-classes" aria-label="Classes">
+                {shown.map((c) => {
+                  const n = c.all.filter((cs) => chosen.has(cs)).length;
+                  const allOn = n === c.all.length;
+                  return (
+                    <li key={c.short} className={c.short === open?.short ? "is-open" : undefined}>
+                      <Checkbox aria-label={`${allOn ? "Remove" : "Choose"} every section of ${c.name}`} checked={allOn} indeterminate={n > 0 && !allOn} onChange={() => (allOn ? remove(c.all) : add(c.all))} />
+                      <button type="button" aria-pressed={c.short === open?.short} onClick={() => setOpenShort(c.short)}>
+                        <span className={n ? "font-semibold" : "font-medium"}>{c.name}</span>
+                        <span className={n ? "sms-picker-count is-on" : "sms-picker-count"}>{allOn ? `All ${n}` : `${n} of ${c.all.length}`}</span>
+                        <Icon name="chevronRight" />
+                      </button>
+                    </li>
+                  );
+                })}
+                {shown.length === 0 && <li className="sms-picker-none">No class or section matches. Check the spelling.</li>}
+              </ul>
+              <div className="sms-picker-sections">
+                {open && (
+                  <>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="grid">
+                        <b className="text-body-strong">{open.name} sections</b>
+                        <span className="text-small text-ink-muted">
+                          {open.all.filter((cs) => chosen.has(cs)).length} of {open.all.length} chosen
+                        </span>
+                      </span>
+                      <span className="flex gap-2">
+                        <Button size="sm" onClick={() => add(open.all)}>
+                          Select all sections
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => remove(open.all)}>
+                          Clear
+                        </Button>
+                      </span>
+                    </div>
+                    <div className="sms-picker-tiles">
+                      {tiles.map((cs) => (
+                        <button key={cs} type="button" className="sms-tile" aria-pressed={chosen.has(cs)} onClick={() => toggle(cs)}>
+                          <span className="sms-tile-box" aria-hidden="true">
+                            {chosen.has(cs) && <Icon name="check" />}
+                          </span>
+                          <span className="truncate">{cs}</span>
+                        </button>
+                      ))}
+                    </div>
+                    {tiles.length === 0 && <p className="m-0 text-small text-ink-muted">No section of this class matches the search.</p>}
+                  </>
+                )}
+              </div>
+            </div>
+            <div className="sms-picker-sum">
+              <span className="grid flex-none">
+                <span className="mtb-label">Chosen</span>
+                <b className="tabular-nums">{value.length ? `${formatCount(value.length)} ${value.length === 1 ? "section" : "sections"} in ${picked.length} ${picked.length === 1 ? "class" : "classes"}` : "Nothing yet"}</b>
+              </span>
+              <span className="sms-picker-chosen">
+                {picked.flatMap(({ c, on }) =>
+                  on.length === c.all.length
+                    ? [{ key: c.short, text: `${c.name} · all ${on.length}`, drop: c.all }]
+                    : on.map((cs) => ({ key: cs, text: cs, drop: [cs] })),
+                ).map((p) => (
+                  <span key={p.key} className="sms-picked">
+                    {p.text}
+                    <button type="button" aria-label={`Remove ${p.text}`} onClick={() => remove(p.drop)}>
+                      <Icon name="x" />
+                    </button>
+                  </span>
+                ))}
+                {value.length === 0 && <span className="text-small text-ink-muted">Tick a class, or open one and pick its sections.</span>}
+              </span>
+              {value.length > 0 && (
+                <Button size="sm" onClick={() => onChange([])}>
+                  Clear all
+                </Button>
+              )}
+            </div>
           </div>
         )
       }
@@ -666,7 +741,7 @@ function ComposeForm({ search }: { search: ComposeSearch }) {
                 <DatePicker label="Entry test on" value={testDate} onValueChange={setTestDate} today={today} help="Leave empty for every test date." />
               </div>
             )}
-            {kind === "CLASS" && <ClassPicker classes={classList} loading={classes.isPending} value={sections} onChange={setSections} label="Classes and sections" help="Click a class to choose all its sections." {...(errors.sections ? { error: errors.sections } : {})} />}
+            {kind === "CLASS" && <ClassPicker classes={classList} loading={classes.isPending} value={sections} onChange={setSections} label="Classes and sections" help="Tick a class for all its sections, or open it to pick some." {...(errors.sections ? { error: errors.sections } : {})} />}
             {kind === "LEFT" && (
               <>
                 <div className="grid gap-3 sm:grid-cols-2">

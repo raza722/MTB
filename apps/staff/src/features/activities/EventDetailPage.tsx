@@ -190,7 +190,7 @@ function EventView({ ev }: { ev: ActivitiesEventDetail }) {
                                       <span className="grid">
                                         <span className="font-medium">{p.name}</span>
                                         <span className="text-small text-ink-muted">
-                                          <span className="mtb-num">{p.studentId}</span> · {p.classSection} · {ACTIVITIES_ROLE_LABEL[p.role]}
+                                          <span className="mtb-num">{p.studentId}</span> · <span className="whitespace-nowrap">{p.classSection}</span> · {ACTIVITIES_ROLE_LABEL[p.role]}
                                         </span>
                                       </span>
                                     </td>

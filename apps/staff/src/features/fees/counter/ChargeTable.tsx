@@ -1,5 +1,5 @@
 import { describeDue, formatDate, formatRs } from "@mtb/domain";
-import { Checkbox, cx, Money, StatusBadge, Switch, Tooltip } from "@mtb/ui";
+import { Button, Checkbox, cx, Money, StatusBadge, Switch, Tooltip } from "@mtb/ui";
 import { useRef, type KeyboardEvent } from "react";
 import type { FeeCounterState } from "./useFeeCounter";
 
@@ -34,7 +34,24 @@ export function ChargeTable({ state, onContinue, readOnly }: { state: FeeCounter
           <h2 className="m-0 text-title-3">Unpaid charges</h2>
           <span className="text-small text-ink-muted">Oldest first. Select what the parent is paying now.</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {!readOnly && lines.some((l) => l.fine.daysOverdue > 0) && (
+            <Button
+              size="sm"
+              onClick={() => {
+                // With "Oldest first" on, everything up to the newest overdue charge goes together, as a tick would do.
+                const last = lines.reduce((at, l, i) => (l.fine.daysOverdue > 0 ? i : at), -1);
+                state.setSelected(new Set(lines.filter((l, i) => (state.oldestFirst ? i <= last : l.fine.daysOverdue > 0)).map((l) => l.charge.id)));
+              }}
+            >
+              Select overdue
+            </Button>
+          )}
+          {!readOnly && lines.length > 1 && (
+            <Button size="sm" onClick={() => state.setSelected(new Set(lines.map((l) => l.charge.id)))}>
+              Select all
+            </Button>
+          )}
           <Switch label="Oldest first" checked={state.oldestFirst} onChange={(e) => state.setOldestFirst(e.target.checked)} />
           <StatusBadge status="neutral" dot={false}>
             Rule not yet decided
@@ -91,7 +108,7 @@ export function ChargeTable({ state, onContinue, readOnly }: { state: FeeCounter
                     {l.charge.session !== lines[lines.length - 1]?.charge.session && <span className="mtb-cell-secondary block">Previous session</span>}
                     {l.charge.settledAmount > 0 && <span className="mtb-cell-secondary block">Part paid: {formatRs(l.charge.settledAmount)} of {formatRs(l.charge.amount)}</span>}
                   </td>
-                  <td className="tabular-nums">{formatDate(l.charge.dueDate)}</td>
+                  <td className="tabular-nums whitespace-nowrap">{formatDate(l.charge.dueDate)}</td>
                   <td>{overdue ? <StatusBadge status="overdue">{describeDue(l.fine)} days</StatusBadge> : <StatusBadge status="unpaid">{describeDue(l.fine)}</StatusBadge>}</td>
                   <td className="mtb-td-num">
                     <Money value={l.outstanding} />

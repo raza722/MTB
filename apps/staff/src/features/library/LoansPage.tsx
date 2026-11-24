@@ -94,6 +94,8 @@ export function LoansPage() {
     {
       key: "who",
       header: "Borrower",
+      // The second name column: Book gets the table's default name width, this one needs its own.
+      minWidth: 180,
       render: (l) => (
         <span className="grid">
           <MemberLink type={l.borrowerType} id={l.borrowerId}>

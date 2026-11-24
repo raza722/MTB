@@ -12,6 +12,6 @@ export const Route = createFileRoute("/_app/sms/delivery")({
   }),
   component: function DeliveryRoute() {
     const navigate = Route.useNavigate();
-    return <DeliveryPage search={Route.useSearch()} setSearch={(next) => void navigate({ search: next as never })} />;
+    return <DeliveryPage search={Route.useSearch()} setSearch={(next) => void navigate({ resetScroll: false, search: next as never })} />;
   },
 });

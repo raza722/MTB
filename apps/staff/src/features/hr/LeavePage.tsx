@@ -415,7 +415,7 @@ export function LeavePage() {
         </div>
         {d && d.summary.onLeaveToday.length > 0 && (
           <Panel id="today" title="Away today" description="Approved leave; the timetable's cover list shows their periods." rise={1}>
-            <ul className="m-0 flex list-none flex-wrap gap-2 p-0">
+            <ul className="m-0 flex list-none flex-wrap gap-2 p-0 max-h-[140px] overflow-y-auto pr-1">
               {d.summary.onLeaveToday.map((x, i) => (
                 <li key={x.staffId} className="mtb-slide-in rounded-md bg-surface-sunken px-3 py-2 text-small" style={slide(i)}>
                   <span className="font-medium">{x.name}</span> · {x.typeName}

@@ -104,7 +104,7 @@ export function UniversityPage({ search, onSearch }: { search: UniversitySearch;
                 {p.semesters.length === 0 ? (
                   <p className="m-0 text-small text-ink-muted">No semesters yet. Add the first one to start entering marks.</p>
                 ) : (
-                  <ul className="m-0 grid list-none gap-2 p-0">
+                  <ul className="m-0 grid list-none gap-2 p-0 max-h-[320px] overflow-y-auto pr-1">
                     {p.semesters.map((s, i) => (
                       <li key={s.id} className="mtb-slide-in" style={{ "--i": i } as CSSProperties}>
                         <button

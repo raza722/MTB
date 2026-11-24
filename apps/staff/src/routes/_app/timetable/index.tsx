@@ -15,6 +15,6 @@ export const Route = createFileRoute("/_app/timetable/")({
   component: function ClassTimetableRoute() {
     const search = Route.useSearch();
     const navigate = Route.useNavigate();
-    return <ClassTimetablePage search={search} setSearch={(next) => void navigate({ search: (prev) => ({ ...prev, cls: next.cls, view: next.view, day: next.day, klass: next.klass }) })} />;
+    return <ClassTimetablePage search={search} setSearch={(next) => void navigate({ resetScroll: false, search: (prev) => ({ ...prev, cls: next.cls, view: next.view, day: next.day, klass: next.klass }) })} />;
   },
 });

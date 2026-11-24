@@ -526,15 +526,11 @@ function StaffShell({ children }: { children?: ReactNode }) {
           <div className="hidden sm:block">
             <SessionSwitcher />
           </div>
-          {canSearch ? (
-            <div className="mx-auto hidden w-full min-w-0 max-w-md md:block">
-              <SearchTrigger onOpen={() => setSearchOpen(true)} />
-            </div>
-          ) : (
-            <div className="mx-auto hidden md:block" aria-hidden="true" />
-          )}
+          {/* No search bar in the header (user request, 20-Nov-2026): search opens from the icon on the right, or Ctrl+K. */}
+          {canSearch && <SearchTrigger onOpen={() => setSearchOpen(true)} />}
+          <div className="mx-auto hidden md:block" aria-hidden="true" />
           <div className="ml-auto flex shrink-0 items-center gap-1 md:ml-0 md:gap-3">
-            {canSearch && <IconButton icon="search" label="Search" className="md:hidden" onClick={() => setSearchOpen(true)} />}
+            {canSearch && <IconButton icon="search" label="Search (Ctrl+K)" aria-keyshortcuts="Control+K" onClick={() => setSearchOpen(true)} />}
             <Notifications />
             <UserMenu />
           </div>

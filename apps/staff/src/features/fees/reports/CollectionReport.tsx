@@ -47,7 +47,7 @@ const METHOD_COLOR: Record<FeeCollectionMethod, string> = { CASH: "var(--chart-1
 
 function GroupList({ groups, total }: { groups: FeeCollectionGroup[]; total: number }) {
   return (
-    <ul className="m-0 grid list-none gap-2.5 p-0">
+    <ul className="m-0 grid list-none gap-2.5 p-0 max-h-[440px] overflow-y-auto pr-1">
       {groups.map((g, i) => {
         const pct = total ? (g.amount / total) * 100 : 0;
         return (
@@ -245,7 +245,7 @@ export function CollectionReport({ search = {} }: { search?: CollectionSearch })
         <span className="grid">
           <span className="font-medium">{x.studentName}</span>
           <span className="text-small text-ink-muted">
-            {x.grNo} · {x.classSection}
+            <span className="whitespace-nowrap">{x.grNo}</span> · <span className="whitespace-nowrap">{x.classSection}</span>
             {ctx.campus === "ALL" ? ` · ${campusLabel(x.campus)}` : ""}
           </span>
         </span>
@@ -306,7 +306,7 @@ export function CollectionReport({ search = {} }: { search?: CollectionSearch })
     { key: "grNo", header: "G.R. No.", width: 110, render: (x) => <span className="mtb-mono">{x.grNo}</span> },
     { key: "student", header: "Student", render: (x) => <span className="font-medium">{x.studentName}</span> },
     { key: "class", header: "Class", render: (x) => classList.nameOf(x.classSection.split("-")[0] ?? "") },
-    { key: "section", header: "Section", render: (x) => x.classSection },
+    { key: "section", header: "Section", render: (x) => <span className="whitespace-nowrap">{x.classSection}</span> },
     { key: "at", header: "Payment date", render: (x) => <span className="mtb-num">{formatDate(x.at)}</span> },
     {
       key: "receiptNo",
@@ -529,7 +529,7 @@ export function CollectionReport({ search = {} }: { search?: CollectionSearch })
                 {cancelledItems.length === 0 ? (
                   <p className="m-0 text-small text-ink-muted">None of {cashier}'s receipts were cancelled in this period.</p>
                 ) : (
-                  <ul className="m-0 grid list-none gap-2 p-0 text-small">
+                  <ul className="m-0 grid list-none gap-2 p-0 text-small max-h-[320px] overflow-y-auto pr-1">
                     {cancelledItems.map((c, i) => (
                       <li key={c.receiptNo} className="mtb-slide-in flex flex-wrap justify-between gap-2 rounded-md border border-border px-3 py-2" style={slide(i)}>
                         <span className="grid">
@@ -552,7 +552,7 @@ export function CollectionReport({ search = {} }: { search?: CollectionSearch })
             )}
             {r.closings.length > 0 && (
               <Panel id="closings" title="Cash closings" description="Cash counted by each cashier at the end of the day." rise={6}>
-                <ul className="m-0 grid list-none gap-2 p-0 text-small">
+                <ul className="m-0 grid list-none gap-2 p-0 text-small max-h-[320px] overflow-y-auto pr-1">
                   {r.closings.map((c, i) => (
                     <li key={c.id} className="mtb-slide-in grid gap-0.5 rounded-md border border-border px-3 py-2" style={slide(i)}>
                       <span className="flex flex-wrap items-center justify-between gap-2">
@@ -767,7 +767,7 @@ export function CollectionReport({ search = {} }: { search?: CollectionSearch })
                             <td>{x.receiptNo}</td>
                             <td>{x.grNo}</td>
                             <td>
-                              {x.studentName} ({x.classSection})
+                              {x.studentName} (<span className="whitespace-nowrap">{x.classSection}</span>)
                             </td>
                             {heads.map((h) => (
                               <td key={h.code} className="n">

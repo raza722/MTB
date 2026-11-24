@@ -740,7 +740,8 @@ function CampusStructure({ campus }: { campus: CampusCode }) {
           ) : undefined
         }
       >
-        <DataTable caption={`Fees by class, ${s.campusName}, ${formatSession(session)}`} columns={columns} rows={s.classes} rowKey="classShort" onRowClick={(c) => setEditing(c.classShort)} />
+        {/* no search box: one row per class, all in view (user request, 20-Nov-2026) */}
+        <DataTable caption={`Fees by class, ${s.campusName}, ${formatSession(session)}`} columns={columns} rows={s.classes} rowKey="classShort" onRowClick={(c) => setEditing(c.classShort)} searchable={false} />
       </Panel>
 
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">

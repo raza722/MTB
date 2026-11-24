@@ -20,7 +20,7 @@ export const Route = createFileRoute("/_app/activities/scholarships")({
     const navigate = Route.useNavigate();
     return (
       <RequirePermission permission="activities.view" page="Scholarships">
-        <ScholarshipsPage search={search} onSearch={(patch) => void navigate({ search: (prev) => ({ ...prev, ...patch }) })} />
+        <ScholarshipsPage search={search} onSearch={(patch) => void navigate({ resetScroll: false, search: (prev) => ({ ...prev, ...patch }) })} />
       </RequirePermission>
     );
   },

@@ -146,7 +146,7 @@ export function ApplicantPanel({ id, onClose, onAdmit }: { id: string | null; on
                   <Link to="/students/$grNo" params={{ grNo: s.grNo }} className="text-brand-ink underline-offset-2 hover:underline">
                     {s.name}
                   </Link>{" "}
-                  ({s.classSection}, {s.campusName})
+                  (<span className="whitespace-nowrap">{s.classSection}</span>, {s.campusName})
                 </span>
               ))}
               . The child joins the same family record when admitted.

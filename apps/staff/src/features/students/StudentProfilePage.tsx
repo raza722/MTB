@@ -30,6 +30,7 @@ import {
   Button,
   buttonClassName,
   CnicInput,
+  ConfirmDialog,
   DataTable,
   DatePicker,
   EmptyState,
@@ -58,7 +59,7 @@ import {
 } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { Page, PageHeader, RequirePermission } from "../../app/shell/page";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
@@ -538,7 +539,7 @@ function FamilyTab({ p }: { p: StudentProfile }) {
                     {c.name} {c.grNo === p.grNo && <span className="text-small text-ink-muted">(this student)</span>}
                   </span>
                   <span className="text-small text-ink-muted">
-                    <span className="mtb-mono">{c.grNo}</span> · {c.classSection} · {c.campusName}
+                    <span className="mtb-mono">{c.grNo}</span> · <span className="whitespace-nowrap">{c.classSection}</span> · {c.campusName}
                   </span>
                 </span>
                 <EnrolmentBadge status={c.status} />
@@ -725,7 +726,7 @@ function SiblingsCard({ p }: { p: StudentProfile }) {
                 <span className="grid min-w-0 flex-1">
                   <span className="font-medium text-ink">{s.name}</span>
                   <span className="text-small text-ink-muted">
-                    <span className="mtb-mono">{s.grNo}</span> · {s.classSection} · {s.campusName}
+                    <span className="mtb-mono">{s.grNo}</span> · <span className="whitespace-nowrap">{s.classSection}</span> · {s.campusName}
                   </span>
                 </span>
                 {/* the fee badge only for accounts with fee rights (the API leaves feeStatus out for the others) */}
@@ -999,6 +1000,34 @@ function ChangeSectionModal({ p, open, onClose }: { p: StudentProfile; open: boo
 
 /* ---------------------------------------------------------------- The page */
 
+/**
+ * A chosen picture made ready to send: drawn on a canvas and saved as a JPEG that fits inside 600 x 720 (never
+ * enlarged), so a phone photo of several megabytes goes up as some tens of kilobytes, well under the 2 MB limit.
+ */
+async function photoForUpload(file: File): Promise<Blob> {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error("This file is not a picture the browser can open. Choose a JPEG or PNG photo."));
+      el.src = url;
+    });
+    const scale = Math.min(1, 600 / img.naturalWidth, 720 / img.naturalHeight);
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+    const g = canvas.getContext("2d");
+    if (!g) throw new Error("The browser could not prepare the picture. Try another browser.");
+    g.fillStyle = "#fff"; // a transparent PNG gets a white ground, not black
+    g.fillRect(0, 0, canvas.width, canvas.height);
+    g.drawImage(img, 0, 0, canvas.width, canvas.height);
+    return await new Promise<Blob>((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("The browser could not prepare the picture."))), "image/jpeg", 0.85));
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 export function StudentProfilePage({ grNo, tab, setTab }: { grNo: string; tab: ProfileTab; setTab: (t: ProfileTab) => void }) {
   const ctx = useCtx();
   const navigate = useNavigate();
@@ -1018,6 +1047,51 @@ export function StudentProfilePage({ grNo, tab, setTab }: { grNo: string; tab: P
   const [issueType, setIssueType] = useState<StudentDocType | null>(null);
   const [labelOpen, setLabelOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
+  // The student's photo: add, replace or remove (the API takes the image itself; 20-Nov-2026).
+  const toast = useToast();
+  const queryClient = useQueryClient();
+  const photoInput = useRef<HTMLInputElement>(null);
+  const [photoKey, setPhotoKey] = useState(0);
+  const [hasPhoto, setHasPhoto] = useState<boolean | null>(null);
+  const [removingPhoto, setRemovingPhoto] = useState(false);
+  // The profile does not say whether a photo exists (only the list does): ask the photo address once.
+  useEffect(() => {
+    let live = true;
+    setHasPhoto(null);
+    const src = photoUrl.student(grNo);
+    if (src)
+      fetch(src, { credentials: "include" })
+        .then((r) => live && setHasPhoto(r.ok))
+        .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [grNo]);
+  const afterPhotoChange = async (state: { hasPhoto: boolean }) => {
+    // The browser keeps the old picture for an hour: fetch it again so the stored copy is the new one, then
+    // re-mount the avatar and refresh what shows photos (the list carries hasPhoto).
+    const src = photoUrl.student(grNo);
+    if (src) await fetch(src, { cache: "reload", credentials: "include" }).catch(() => undefined);
+    setHasPhoto(state.hasPhoto);
+    setPhotoKey((k) => k + 1);
+    void queryClient.invalidateQueries({ queryKey: studentsQueries.all() });
+  };
+  const setPhoto = useMutation({
+    mutationFn: async (file: File) => studentsApi.setPhoto(grNo, await photoForUpload(file)),
+    onSuccess: async (state) => {
+      await afterPhotoChange(state);
+      toast({ title: "Photo saved", message: "It now shows on the record, the lists and the printouts." });
+    },
+    onError: (e) => toast({ tone: "danger", title: "Photo not saved", message: e instanceof ApiError ? apiMessage(e) : e instanceof Error ? e.message : "Try again." }),
+  });
+  const removePhoto = useMutation({
+    mutationFn: () => studentsApi.removePhoto(grNo),
+    onSuccess: async (state) => {
+      setRemovingPhoto(false);
+      await afterPhotoChange(state);
+      toast({ title: "Photo removed" });
+    },
+  });
   const p = profile.data;
   const classes = useQuery({ ...metaQueries.classes(p?.campus ?? ctx.campus), enabled: Boolean(p) });
   const boardClass = p ? isBoardClass(classes.data, classShortOf(p.classSection)) : undefined;
@@ -1132,7 +1206,50 @@ export function StudentProfilePage({ grNo, tab, setTab }: { grNo: string; tab: P
           <HeaderSkeleton />
         ) : (
           <section className="mtb-card mtb-rise flex flex-wrap items-center gap-5 p-5" style={stagger(0)} aria-label="Student">
-            <Avatar src={photoUrl.student(p.grNo)} name={p.name} size="xl" />
+            <div className="grid justify-items-center gap-2">
+              <Avatar key={photoKey} src={photoUrl.student(p.grNo)} name={p.name} size="xl" />
+              {editable && (
+                <div className="flex flex-wrap justify-center gap-1">
+                  <input
+                    ref={photoInput}
+                    type="file"
+                    accept="image/jpeg,image/png"
+                    className="mtb-sr-only"
+                    aria-label={`Photo of ${p.name}`}
+                    tabIndex={-1}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = ""; // the same file can be chosen again after an error
+                      if (file) setPhoto.mutate(file);
+                    }}
+                  />
+                  <Button size="sm" variant="ghost" icon="upload" loading={setPhoto.isPending} onClick={() => photoInput.current?.click()}>
+                    {hasPhoto === false ? "Add photo" : "Change photo"}
+                  </Button>
+                  {hasPhoto && (
+                    <Button size="sm" variant="ghost" icon="trash" disabled={setPhoto.isPending} onClick={() => setRemovingPhoto(true)}>
+                      Remove photo
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+            <ConfirmDialog
+              open={removingPhoto}
+              onClose={() => {
+                setRemovingPhoto(false);
+                removePhoto.reset();
+              }}
+              onConfirm={() => removePhoto.mutate()}
+              icon="trash"
+              title={`Remove the photo of ${p.name}?`}
+              message="The record, the lists and the printouts will show no photo until a new one is added. This cannot be undone."
+              details={[["Student", `${p.name} · ${p.grNo}`]]}
+              confirmLabel="Remove photo"
+              loading={removePhoto.isPending}
+              loadingLabel="Removing…"
+              error={removePhoto.error ? apiMessage(removePhoto.error) : undefined}
+            />
             <div className="grid min-w-0 flex-1 gap-1">
               <div className="flex flex-wrap items-baseline gap-x-4">
                 <span className="text-title-1">{p.name}</span>

@@ -19,7 +19,7 @@ function UsersRoute() {
   const navigate = Route.useNavigate();
   return (
     <RequirePermission permission="users.manage" page="Users">
-      <UsersPage filter={filter ?? "ALL"} onFilter={(f) => void navigate({ search: (prev) => ({ ...prev, filter: f === "ALL" ? undefined : f }) })} />
+      <UsersPage filter={filter ?? "ALL"} onFilter={(f) => void navigate({ resetScroll: false, search: (prev) => ({ ...prev, filter: f === "ALL" ? undefined : f }) })} />
     </RequirePermission>
   );
 }

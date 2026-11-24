@@ -87,7 +87,7 @@ export function JobsPage() {
       key: "size",
       header: "Size",
       width: 140,
-      render: (j) => (j.status === "READY" ? <span className="grid text-small"><span className="mtb-num">{rowsText(j.rowCount ?? 0)}{j.sizeKb ? ` · ${formatCount(j.sizeKb)} KB` : ""}</span>{j.expiresAt && <span className="mtb-cell-secondary">Kept until {formatDate(j.expiresAt)}</span>}</span> : j.status === "FAILED" ? <span className="text-small text-danger-ink">{j.error}</span> : <span className="text-small text-ink-subtle">—</span>),
+      render: (j) => (j.status === "READY" ? <span className="grid text-small"><span className="mtb-num">{rowsText(j.rowCount ?? 0)}{j.sizeKb ? ` · ${formatCount(j.sizeKb)} KB` : ""}</span>{j.expiresAt && <span className="mtb-cell-secondary">Kept until <span className="whitespace-nowrap">{formatDate(j.expiresAt)}</span></span>}</span> : j.status === "FAILED" ? <span className="text-small text-danger-ink">{j.error}</span> : <span className="text-small text-ink-subtle">—</span>),
     },
     {
       key: "actions",

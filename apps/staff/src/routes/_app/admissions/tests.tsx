@@ -6,6 +6,6 @@ export const Route = createFileRoute("/_app/admissions/tests")({
   component: function TestsRoute() {
     const { test } = Route.useSearch();
     const navigate = Route.useNavigate();
-    return <TestsPage testId={test ?? ""} setTestId={(id) => navigate({ search: (prev) => ({ ...prev, test: id || undefined }), replace: true })} />;
+    return <TestsPage testId={test ?? ""} setTestId={(id) => navigate({ resetScroll: false, search: (prev) => ({ ...prev, test: id || undefined }), replace: true })} />;
   },
 });

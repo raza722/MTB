@@ -179,7 +179,7 @@ export function ExamAnalysis() {
           maxHeight={420}
           columns={[
             { key: "subject", header: "Subject", render: (s) => <span className="mtb-cell-primary">{s.subjectName}</span> },
-            { key: "cs", header: "Section", width: 90, render: (s) => s.classSection },
+            { key: "cs", header: "Section", width: 90, render: (s) => <span className="whitespace-nowrap">{s.classSection}</span> },
             { key: "teacher", header: "Teacher", render: (s) => s.teacher ?? "—" },
             { key: "avg", header: "Average", align: "right", width: 110, render: (s) => pct(s.averagePercent) },
             { key: "pass", header: "Pass rate", align: "right", width: 110, render: (s) => <span className={s.passRate !== null && s.passRate < 70 ? "font-semibold text-danger-ink" : undefined}>{pct(s.passRate)}</span> },

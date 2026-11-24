@@ -57,7 +57,7 @@ function ClashList({ idx, onOpen }: { idx: BoardIndex; onOpen: (c: TimetableClas
   }
   const groups = [...new Set(warn.map((c) => c.kind))];
   return (
-    <ul className="tt-list">
+    <ul className="tt-list max-h-[360px] overflow-y-auto pr-1">
       {block.map((c, i) => (
         <li key={`b${i}`} className="mtb-slide-in" style={{ "--i": i } as CSSProperties}>
           <Icon name="alertCircle" className="text-danger-ink" />

@@ -10,6 +10,6 @@ export const Route = createFileRoute("/_app/accounts/bank")({
   component: function BankRoute() {
     const search = Route.useSearch();
     const navigate = Route.useNavigate();
-    return <BankRecPage search={search} setSearch={(next) => void navigate({ search: next as never })} />;
+    return <BankRecPage search={search} setSearch={(next) => void navigate({ resetScroll: false, search: next as never })} />;
   },
 });

@@ -1,0 +1,16 @@
+/* Fee counter payment box (design of 20-Nov-2026). */
+.fee-pay-hero { display: grid; gap: var(--space-1); padding: var(--space-4) var(--space-5); background: var(--brand-tint); color: var(--brand-ink); }
+.fee-pay-hero .mtb-label { color: inherit; }
+.fee-pay-total { font-size: 34px; line-height: 40px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.fee-method { min-height: 44px; padding: 0 var(--space-3); border: 1px solid var(--border-strong); border-radius: var(--radius-md); background: var(--surface-raised); color: var(--ink); font: inherit; font-weight: 500; cursor: pointer; transition: background var(--motion-fast) ease, border-color var(--motion-fast) ease; }
+.fee-method:hover { background: var(--surface-hover); }
+.fee-method[aria-pressed="true"] { border-color: var(--brand); background: var(--brand-tint); color: var(--brand-ink); font-weight: 600; }
+fieldset:disabled .fee-method { opacity: 0.55; cursor: not-allowed; }
+
+.fee-quick { height: 32px; padding: 0 var(--space-3); border: 1px solid var(--border-strong); border-radius: var(--radius-full); background: var(--surface-raised); color: var(--ink); font: inherit; font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; cursor: pointer; }
+.fee-quick:hover { background: var(--surface-hover); }
+
+.fee-change { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3); border-radius: var(--radius-md); background: var(--surface-sunken); font-variant-numeric: tabular-nums; }
+.fee-change b { font-size: 18px; line-height: 24px; font-weight: 600; }
+.fee-change.is-short { background: var(--warning-tint); color: var(--warning-ink); }

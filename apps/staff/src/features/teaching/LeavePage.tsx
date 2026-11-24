@@ -97,7 +97,7 @@ function LeaveBody({ d }: { d: HrMyLeave }) {
         {d.requests.length === 0 ? (
           <EmptyState icon="calendar" title="No leave requests yet" description="Use Ask for leave; the principal decides and you're told in Notifications." />
         ) : (
-          <ul className="m-0 grid list-none p-0">
+          <ul className="m-0 grid list-none p-0 max-h-[420px] overflow-y-auto pr-1">
             {d.requests.map((r) => (
               <li key={r.id} className="grid gap-1 border-t border-border px-5 py-3 first:border-t-0">
                 <span className="flex items-center justify-between gap-2">

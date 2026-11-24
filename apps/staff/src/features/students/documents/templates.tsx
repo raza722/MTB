@@ -74,7 +74,10 @@ function Marks({ d }: { d: DocInput }) {
   );
 }
 
-/** A grey head-and-shoulders outline where the old card and certificates printed the photo. */
+/**
+ * A grey head-and-shoulders outline where the old card and certificates printed the photo. It is what a student
+ * without a photo gets; `StudentPhoto` below puts the real photo in its place when the record has one.
+ */
 function Silhouette() {
   return (
     <svg viewBox="0 0 60 60" className="od-silhouette" aria-hidden="true">
@@ -82,6 +85,16 @@ function Silhouette() {
       <path d="M8 60 C8 44 16 36 30 36 C44 36 52 44 52 60 Z" />
     </svg>
   );
+}
+
+/**
+ * The student's photo from the record, where a printout has a photo space; the outline when there is none.
+ * The ID card back, the leaving certificate and the admission form drew only the outline, so their photo space
+ * printed empty even for a student with a photo (user report, 20-Nov-2026). The blank admission form keeps its
+ * empty boxes: a photo is pasted on that one by hand.
+ */
+function StudentPhoto({ grNo, className }: { grNo: string; className: string }) {
+  return <PhotoBox src={photoUrl.student(grNo)} className={className} fallback={<Silhouette />} />;
 }
 
 /* ---------------------------------------------------------------- ID card (CR80): "Students Identity Card" */
@@ -124,7 +137,7 @@ export function IdCardBack({ d }: { d: DocInput }) {
     <article className="mtb-idcard od-card od-card-back" aria-label={`ID card back ${s.name}`}>
       {d.cancelled && <span className="mtb-doc-mark" style={{ fontSize: "20pt" }}>CANCELLED</span>}
       <div className="od-card-pics">
-        <Silhouette />
+        <StudentPhoto grNo={s.grNo} className="od-card-photo" />
         <img src={CREST_SRC} alt="" className="od-card-crest" />
       </div>
       <div className="od-card-foot">
@@ -256,7 +269,7 @@ export function LeavingCertificate({ d }: { d: DocInput }) {
             </div>
           </div>
           <span className="od-photo od-slc-photo" aria-label="Photo">
-            <Silhouette />
+            <StudentPhoto grNo={s.grNo} className="od-photo-img" />
           </span>
         </header>
         <h1 className="od-slc-title">School/College Leaving Certificate For Class {classWord(s.className)}</h1>
@@ -1077,7 +1090,7 @@ export function StudentRecordForm({ s, printedOn }: { s: StudentDocSnapshot; pri
           </span>
         </div>
         <span className="od-photo od-rec-photo" aria-label="Photo">
-          <Silhouette />
+          <StudentPhoto grNo={s.grNo} className="od-photo-img" />
         </span>
       </div>
       <RecBar>Personal Information</RecBar>

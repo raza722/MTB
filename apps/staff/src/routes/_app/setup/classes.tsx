@@ -18,7 +18,7 @@ function ClassesRoute() {
   const first: ClassesTab = useCan("setup.manage") ? "classes" : "sections";
   return (
     <RequireAny any={["setup.manage", "setup.campus"]} page="Classes and sections">
-      <ClassesPage tab={tab ?? first} onTab={(t) => void navigate({ search: (prev) => ({ ...prev, tab: t === first ? undefined : t }) })} />
+      <ClassesPage tab={tab ?? first} onTab={(t) => void navigate({ resetScroll: false, search: (prev) => ({ ...prev, tab: t === first ? undefined : t }) })} />
     </RequireAny>
   );
 }

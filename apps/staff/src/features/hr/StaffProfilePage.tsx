@@ -612,7 +612,7 @@ function PayTab({ s, canEdit, onEdit, onPrintSlip }: { s: HrStaffProfile; canEdi
         </Panel>
         <Panel id="salary-history" title="Salary history" description="Every change to basic pay, with the reason. Increments come from approved increment runs." rise={2}>
           {hist.length > 1 && <Sparkline values={hist.map((h) => h.basic)} label={`Basic pay from ${formatRs(hist[0]!.basic)} to ${formatRs(hist.at(-1)!.basic)}`} height={40} />}
-          <ul className="m-0 mt-3 grid list-none gap-1.5 p-0 text-small">
+          <ul className="m-0 mt-3 grid list-none gap-1.5 p-0 text-small max-h-[280px] overflow-y-auto pr-1">
             {p.history.map((h, i) => (
               <li key={h.id} className="mtb-slide-in flex flex-wrap justify-between gap-2" style={slide(i)}>
                 <span>
@@ -676,7 +676,7 @@ function PayTab({ s, canEdit, onEdit, onPrintSlip }: { s: HrStaffProfile; canEdi
               {p.children.map((c) => (
                 <li key={c.grNo} className="flex items-center justify-between gap-2">
                   <span>
-                    <span className="font-medium">{c.name}</span> · {c.grNo} · {c.classSection}
+                    <span className="font-medium">{c.name}</span> · <span className="whitespace-nowrap">{c.grNo}</span> · <span className="whitespace-nowrap">{c.classSection}</span>
                   </span>
                   <span className="flex items-center gap-2">
                     <span className="tabular-nums">{formatRs(c.monthlyFee)}</span>

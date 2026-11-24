@@ -14,7 +14,7 @@ export const Route = createFileRoute("/_app/transport/riders")({
       const next = { ...search, ...patch };
       if (!next.route) delete next.route;
       if (!next.assign) delete next.assign;
-      void navigate({ search: next as never, replace: true });
+      void navigate({ resetScroll: false, search: next as never, replace: true });
     };
     return (
       <RidersPage

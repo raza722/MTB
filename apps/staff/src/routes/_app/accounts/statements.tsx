@@ -19,6 +19,6 @@ export const Route = createFileRoute("/_app/accounts/statements")({
   component: function StatementsRoute() {
     const search = Route.useSearch();
     const navigate = Route.useNavigate();
-    return <StatementsPage search={search} setSearch={(next) => void navigate({ search: next as never })} />;
+    return <StatementsPage search={search} setSearch={(next) => void navigate({ resetScroll: false, search: next as never })} />;
   },
 });

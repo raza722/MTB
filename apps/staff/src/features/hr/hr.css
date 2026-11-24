@@ -24,7 +24,13 @@
 .hr-times { display: inline-grid; min-width: 38px; padding: 1px 3px; border-radius: var(--radius-sm); font-size: 10.5px; line-height: 1.2; font-variant-numeric: tabular-nums; }
 .hr-times > span + span { opacity: 0.8; }
 
-.hr-sheet-scroll { overflow-x: auto; }
+/* Scrolls down as well as across, with the dates on top and the names on the left (user request, 20-Nov-2026). */
+.hr-sheet-scroll { overflow: auto; max-height: min(640px, 78vh); }
+.hr-sheet thead th { position: sticky; top: 0; z-index: 2; background: var(--surface-raised); }
+.hr-sheet thead th.hr-name { z-index: 3; }
+@media print {
+  .hr-sheet-scroll { max-height: none !important; overflow: visible !important; }
+}
 .hr-sheet { border-collapse: separate; border-spacing: 2px; font-size: 12px; min-width: 100%; }
 .hr-sheet th { font-weight: 500; color: var(--ink-muted); padding: 2px; text-align: center; white-space: nowrap; }
 .hr-sheet th.hr-name, .hr-sheet td.hr-name { text-align: left; position: sticky; left: 0; background: var(--surface-raised); padding: 2px 8px 2px 0; min-width: 190px; z-index: 1; }

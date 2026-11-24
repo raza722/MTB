@@ -11,6 +11,6 @@ export const Route = createFileRoute("/_app/exams/programmes")({
   component: function ProgrammesRoute() {
     const search = Route.useSearch();
     const navigate = Route.useNavigate();
-    return <ProgrammesPage search={search} onSearch={(next) => void navigate({ search: () => next, replace: true })} />;
+    return <ProgrammesPage search={search} onSearch={(next) => void navigate({ resetScroll: false, search: () => next, replace: true })} />;
   },
 });

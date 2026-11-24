@@ -11,6 +11,6 @@ export const Route = createFileRoute("/_app/reports/")({
   }),
   component: function CatalogueRoute() {
     const navigate = Route.useNavigate();
-    return <CataloguePage search={Route.useSearch()} setSearch={(next) => void navigate({ search: Object.fromEntries(Object.entries(next).filter(([, v]) => v !== undefined && v !== "")) as never, replace: true })} />;
+    return <CataloguePage search={Route.useSearch()} setSearch={(next) => void navigate({ resetScroll: false, search: Object.fromEntries(Object.entries(next).filter(([, v]) => v !== undefined && v !== "")) as never, replace: true })} />;
   },
 });

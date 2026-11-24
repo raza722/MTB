@@ -16,7 +16,7 @@ function SubjectsRoute() {
   const navigate = Route.useNavigate();
   return (
     <RequirePermission permission="setup.manage" page="Subjects and marks">
-      <SubjectsPage tab={tab ?? "classes"} onTab={(t) => void navigate({ search: (prev) => ({ ...prev, tab: t === "classes" ? undefined : t }) })} />
+      <SubjectsPage tab={tab ?? "classes"} onTab={(t) => void navigate({ resetScroll: false, search: (prev) => ({ ...prev, tab: t === "classes" ? undefined : t }) })} />
     </RequirePermission>
   );
 }

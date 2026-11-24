@@ -1,3 +1,4 @@
+import { withThemeTransition } from "@mtb/ui";
 import { useCallback, useSyncExternalStore } from "react";
 
 export type Theme = "light" | "dark";
@@ -28,7 +29,8 @@ export function useAppearance() {
   const value = useSyncExternalStore(subscribe, snapshot, () => "light|green");
   const [theme, accent] = value.split("|") as [Theme, Accent];
   const setTheme = useCallback((t: Theme) => {
-    root().setAttribute("data-theme", t);
+    if (root().getAttribute("data-theme") === t) return;
+    withThemeTransition(() => root().setAttribute("data-theme", t));
     remember("mtb.theme", t);
   }, []);
   const setAccent = useCallback((a: Accent) => {

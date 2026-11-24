@@ -131,7 +131,7 @@ export function NoticesPage({ search, setSearch }: { search: NoticesSearch; setS
           <EmptyState icon="flag" title={all.length ? "No notices match" : "No notices yet"} description={all.length ? "Try another filter or clear the search." : "Write the first one with “New notice”. Families see it in the portal and the MTB app."} />
         </div>
       ) : (
-        <ul className="m-0 grid list-none gap-3 p-0 lg:grid-cols-2">
+        <ul className="m-0 grid list-none gap-3 p-0.5 lg:grid-cols-2 max-h-[min(720px,80vh)] overflow-y-auto pr-1">
           {rows.map((n, i) => (
             <li key={n.id} className="sms-notice mtb-slide-in" style={slide(i)}>
               <div className="flex flex-wrap items-center gap-2">

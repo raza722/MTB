@@ -1088,7 +1088,7 @@ function ImportModal({ campus, deviceName, onClose, onDone }: { campus: CampusCo
                   {preview.sample.map((x) => (
                     <tr key={`${x.staffId}${x.date}`} className="border-t border-border">
                       <td className="py-1">{x.name}</td>
-                      <td className="py-1">{formatDate(x.date)}</td>
+                      <td className="whitespace-nowrap py-1">{formatDate(x.date)}</td>
                       <td className="py-1 tabular-nums">{x.firstIn}</td>
                       <td className="py-1 tabular-nums">{x.lastOut ?? "—"}</td>
                       <td className="py-1">{x.lateMinutes ? `${x.lateMinutes} min` : "—"}</td>

@@ -5,6 +5,10 @@
 
 /* ---------- Money never breaks across lines ("Rs" / "3,000") ---------- */
 .mtb-money, .mtb-td-num, .mtb-th-num { white-space: nowrap; }
+/* Short values in a table never break at a hyphen or space: plain short cells (DataTable adds mtb-td-short), dates
+   (DateText's <time>), figures marked mtb-num, codes in mtb-mono (G.R., CNIC, receipt no.) and mobiles in <bdi>.
+   "SY-Rushd-II", "25-Apr-2018" and "31304-3297878-1" broke at their hyphens in narrow columns (23-Nov-2026). */
+.mtb-td-short, .mtb-table td :is(time, .mtb-num, .mtb-mono, bdi) { white-space: nowrap; }
 
 /* ---------- Spinner and busy button ("Posting…") ---------- */
 .mtb-spinner { display: inline-block; width: 16px; height: 16px; flex: none; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: mtb-spin 700ms linear infinite; }
@@ -154,3 +158,22 @@
    disabled rule sets the `background` shorthand, which resets repeat and position, and its dark-mode rule then puts
    the arrow image back. Keep one arrow at the right edge. */
 .mtb-select:disabled { background-repeat: no-repeat; background-position: right 12px center; }
+
+/* A panel or table brought into view (a card's click, a jump link) stops below the sticky top bar, not under it. */
+.mtb-card, .mtb-table-wrap, [data-stat-target] { scroll-margin-top: 72px; }
+
+/* Long tables scroll inside their frame (user request, 20-Nov-2026: "vertical scroll on the long tables in the whole
+   project"). The frame already scrolls sideways (overflow-x: auto, which makes it a scroll box both ways); a height cap
+   makes a long table scroll down inside it too, and the design system's sticky header row stays on top. A table shorter
+   than the cap looks exactly as before. A page's own height (DataTable maxHeight, an inline max-height) still wins. */
+.mtb-table-scroll { max-height: min(640px, 78vh); }
+/* Every th is sticky at top 0 in the design system, row labels in the body and the totals row included: while the rows
+   scroll they must move with their row (a sticky-left one keeps its left). */
+.mtb-table tbody th, .mtb-table tfoot th { top: auto; }
+/* The header row above the rows scrolling under it, and above a sticky first column. */
+.mtb-table thead th { z-index: 2; }
+/* A paper preview shows the whole table, and a printed page never cuts one off. */
+.mtb-doc .mtb-table-scroll, .mtb-print-area .mtb-table-scroll { max-height: none; }
+@media print {
+  .mtb-table-scroll { max-height: none !important; overflow: visible !important; }
+}

@@ -78,7 +78,7 @@ function Overview({ o }: { o: TeacherRegisterOverview }) {
           {o.changes.length === 0 ? (
             <EmptyState icon="checkCircle" title="No change requests" description="To correct a submitted register, open it and choose the student." />
           ) : (
-            <ul className="m-0 grid list-none p-0">
+            <ul className="m-0 grid list-none p-0 max-h-[320px] overflow-y-auto pr-1">
               {o.changes.map((c) => (
                 <li key={c.id} className="border-t border-border first:border-t-0">
                   <Link

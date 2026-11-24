@@ -7,6 +7,6 @@ export const Route = createFileRoute("/_app/students/$grNo")({
     const { grNo } = Route.useParams();
     const { tab } = Route.useSearch();
     const navigate = Route.useNavigate();
-    return <StudentProfilePage grNo={grNo.toUpperCase()} tab={tab ?? "enrolment"} setTab={(t) => navigate({ search: (prev) => ({ ...prev, tab: t === "enrolment" ? undefined : t }), replace: true })} />;
+    return <StudentProfilePage grNo={grNo.toUpperCase()} tab={tab ?? "enrolment"} setTab={(t) => navigate({ resetScroll: false, search: (prev) => ({ ...prev, tab: t === "enrolment" ? undefined : t }), replace: true })} />;
   },
 });

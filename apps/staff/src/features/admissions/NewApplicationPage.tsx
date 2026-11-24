@@ -372,7 +372,7 @@ export function NewApplicationPage({ enquiryId }: { enquiryId: string }) {
                           <li key={c.grNo} className="flex items-center gap-2 text-small">
                             <Avatar src={photoUrl.student(c.grNo)} name={c.name} size="sm" />
                             <span className="flex-1">
-                              {c.name} <span className="text-ink-muted">· {c.classSection} · {c.campusName}</span>
+                              {c.name} <span className="text-ink-muted">· <span className="whitespace-nowrap">{c.classSection}</span> · {c.campusName}</span>
                             </span>
                           </li>
                         ))}

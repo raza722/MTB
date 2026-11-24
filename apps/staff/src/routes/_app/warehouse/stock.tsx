@@ -7,6 +7,6 @@ export const Route = createFileRoute("/_app/warehouse/stock")({
   component: function StockRoute() {
     const { status } = Route.useSearch();
     const navigate = Route.useNavigate();
-    return <StockPage status={status ?? ""} setStatus={(v) => void navigate({ search: (v ? { status: v } : {}) as never, replace: true })} />;
+    return <StockPage status={status ?? ""} setStatus={(v) => void navigate({ resetScroll: false, search: (v ? { status: v } : {}) as never, replace: true })} />;
   },
 });

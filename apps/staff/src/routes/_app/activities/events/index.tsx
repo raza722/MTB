@@ -20,7 +20,7 @@ export const Route = createFileRoute("/_app/activities/events/")({
     const navigate = Route.useNavigate();
     return (
       <RequirePermission permission="activities.view" page="Events">
-        <EventsPage view={search.view ?? "calendar"} month={search.month} creating={Boolean(search.new)} onSearch={(patch) => void navigate({ search: (prev) => ({ ...prev, ...patch }) })} />
+        <EventsPage view={search.view ?? "calendar"} month={search.month} creating={Boolean(search.new)} onSearch={(patch) => void navigate({ resetScroll: false, search: (prev) => ({ ...prev, ...patch }) })} />
       </RequirePermission>
     );
   },

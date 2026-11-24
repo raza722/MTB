@@ -1,5 +1,5 @@
 import { formatCount, formatDate, formatRs, type IsoDate, type Rupees } from "@mtb/domain";
-import { useState, type CSSProperties, type ReactNode } from "react";
+import { isValidElement, useState, type CSSProperties, type ReactNode } from "react";
 import { Icon } from "../icons";
 import { cx } from "../lib/cx";
 import { Button } from "./button";
@@ -12,10 +12,33 @@ export interface Column<Row> {
   /** 'right' for every money and count column. */
   align?: "left" | "right";
   width?: number | string;
+  /**
+   * The column never gets narrower than this, even when the table is wider than its frame. By default the first text
+   * column without a width (the name column) keeps 180px; 0 switches that off.
+   */
+  minWidth?: number | string;
   render?: (row: Row, index: number) => ReactNode;
   /** With `onSortChange` the page sorts (true shows the arrow). Without it the table sorts by itself on every column whose key is a plain value of the row; false switches that off for a column. */
   sortable?: boolean;
   className?: string;
+}
+
+/**
+ * A plain value this short stays on one line. In a narrow column the browser broke "SY-Rushd-II", "25-Apr-2018" or
+ * "FAM-1016" at their hyphens into two or three lines (seen 23-Nov-2026). Longer text still wraps.
+ */
+const SHORT_VALUE = 24;
+/** The name column's least width: two words of a name on the first line. */
+const NAME_MIN_WIDTH = 180;
+function isShortValue(v: ReactNode): boolean {
+  if (typeof v === "number") return true;
+  if (typeof v === "string") return v.length <= SHORT_VALUE;
+  // One element around a short value: a G.R. link, a <span className="mtb-mono">, a class name in a span.
+  if (isValidElement<{ children?: ReactNode }>(v)) {
+    const c = v.props.children;
+    return typeof c === "number" || (typeof c === "string" && c.length <= SHORT_VALUE);
+  }
+  return false;
 }
 
 export interface SortState {
@@ -47,7 +70,12 @@ export interface DataTableProps<Row> {
   caption?: string;
   sort?: SortState;
   onSortChange?: (sort: SortState) => void;
+  /**
+   * No longer used: the header row always stays on top. Long tables scroll inside their frame since 20-Nov-2026, and a
+   * header that scrolled away with the rows would leave the columns unnamed. Kept so older pages still compile.
+   */
   stickyHeader?: boolean;
+  /** The frame's height before the rows scroll; by default min(640px, 78vh) (components-ext.css). */
   maxHeight?: number | string;
   toolbar?: ReactNode;
   pagination?: ReactNode;
@@ -151,8 +179,13 @@ export function DataTable<Row extends object>({
     // The table's own sort: ascending, then descending, then back to the order the page gave.
     setOwnSort((cur) => (cur?.key !== key ? { key, dir: "asc" } : cur.dir === "asc" ? { key, dir: "desc" } : null));
   };
-  const headStyle = (extra?: CSSProperties): CSSProperties | undefined => (stickyHeader ? extra : { ...extra, position: "static" });
+  void stickyHeader; // see the prop: the header always stays on top now
+  const headStyle = (extra?: CSSProperties): CSSProperties | undefined => extra;
   const colCount = columns.length + (selectable ? 1 : 0);
+  // The first text column without a width is the row's name (student, book, staff). When the table is wider than its
+  // frame the browser squeezed it to 95px, one word per line (seen 23-Nov-2026), so it keeps NAME_MIN_WIDTH.
+  const nameKey = columns.find((c) => c.width === undefined && c.minWidth === undefined && c.align !== "right")?.key;
+  const minWidthOf = (c: Column<Row>) => (c.minWidth !== undefined ? c.minWidth || undefined : c.key === nameKey ? NAME_MIN_WIDTH : undefined);
 
   return (
     <div className="mtb-table-wrap">
@@ -170,7 +203,7 @@ export function DataTable<Row extends object>({
           )}
         </div>
       )}
-      <div className="mtb-table-scroll" style={maxHeight ? { maxHeight, overflowY: "auto" } : undefined}>
+      <div className="mtb-table-scroll" style={maxHeight ? { maxHeight } : undefined}>
         <table className={cx("mtb-table", density && `mtb-table-${density}`)} aria-busy={loading || undefined}>
           {caption && <caption className="mtb-sr-only">{caption}</caption>}
           <thead>
@@ -185,7 +218,7 @@ export function DataTable<Row extends object>({
                   key={c.key}
                   scope="col"
                   className={cx(c.align === "right" && "mtb-th-num", c.className)}
-                  style={headStyle({ width: c.width })}
+                  style={headStyle({ width: c.width, minWidth: minWidthOf(c) })}
                   aria-sort={shownSort?.key === c.key ? (shownSort.dir === "asc" ? "ascending" : "descending") : undefined}
                 >
                   {canSort(c) ? (
@@ -254,11 +287,14 @@ export function DataTable<Row extends object>({
                         <Checkbox checked={isSel} disabled={!canSelect} onChange={() => toggle(id)} aria-label={rowLabel ? `Select ${rowLabel(r)}` : `Select row ${i + 1}`} />
                       </td>
                     )}
-                    {columns.map((c) => (
-                      <td key={c.key} className={cx(c.align === "right" && "mtb-td-num", c.className)}>
-                        {c.render ? c.render(r, i) : (r[c.key as keyof Row] as ReactNode)}
-                      </td>
-                    ))}
+                    {columns.map((c) => {
+                      const content = c.render ? c.render(r, i) : (r[c.key as keyof Row] as ReactNode);
+                      return (
+                        <td key={c.key} className={cx(c.align === "right" && "mtb-td-num", isShortValue(content) && "mtb-td-short", c.className)}>
+                          {content}
+                        </td>
+                      );
+                    })}
                   </tr>
                 );
               })

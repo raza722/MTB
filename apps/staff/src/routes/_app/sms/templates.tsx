@@ -8,6 +8,6 @@ export const Route = createFileRoute("/_app/sms/templates")({
   component: function TemplatesRoute() {
     const navigate = Route.useNavigate();
     const { id } = Route.useSearch();
-    return <TemplatesPage selected={id ?? null} onSelect={(next) => void navigate({ search: (next ? { id: next } : {}) as never })} />;
+    return <TemplatesPage selected={id ?? null} onSelect={(next) => void navigate({ resetScroll: false, search: (next ? { id: next } : {}) as never })} />;
   },
 });

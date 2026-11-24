@@ -11,7 +11,7 @@ import {
 } from "@mtb/api";
 import { formatCount, formatDate, formatDateTime, formatSession, pakistanDate } from "@mtb/domain";
 import { AnimatedNumber, Banner, Button, buttonClassName, ConfirmDialog, cx, DataTable, EmptyState, Icon, Modal, Panel, Segmented, Select, Skeleton, StatCard, StatusBadge, useToast, type Column } from "@mtb/ui";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Page, PageHeader, RequirePermission, RequireSingleCampus } from "../../../app/shell/page";
@@ -477,7 +477,10 @@ export function PromotionPage({ cls, setCls }: { cls: string; setCls: (cs: strin
   const overview = useQuery({ ...studentPromotionQueries.overview(ctx), enabled: ctx.campus !== "ALL" });
   const o = overview.data;
   const selected = cls || o?.classes.find((c) => c.status === "NOT_STARTED")?.classSection || o?.classes[0]?.classSection || "";
-  const detail = useQuery({ ...studentPromotionQueries.classDetail(ctx, selected), enabled: ctx.campus !== "ALL" && Boolean(selected) });
+  // The last class stays on screen (greyed, locked) while the next one loads, so the page keeps its height and does not
+  // jump when a class is picked in the list.
+  const detail = useQuery({ ...studentPromotionQueries.classDetail(ctx, selected), enabled: ctx.campus !== "ALL" && Boolean(selected), placeholderData: keepPreviousData });
+  const switching = detail.isPlaceholderData;
   const doneCount = o?.totals.classesDone ?? 0;
   const total = o?.classes.length ?? 0;
   const nextOpen = useMemo(() => o?.classes.find((c) => c.status === "NOT_STARTED" && c.classSection !== selected)?.classSection, [o, selected]);
@@ -505,7 +508,8 @@ export function PromotionPage({ cls, setCls }: { cls: string; setCls: (cs: strin
             </div>
           </div>
           <div className="grid items-start gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
-            <Panel id="promo-classes" rise={5} title="Classes" description="Promote one class at a time" flush>
+            {/* The class list stays in view beside a long decisions table, so the next class is one click away. */}
+            <Panel id="promo-classes" rise={5} title="Classes" description="Promote one class at a time" flush className="lg:sticky lg:top-20">
               {!o ? (
                 <div className="grid gap-2 p-4">
                   {[0, 1, 2, 3, 4].map((i) => (
@@ -524,7 +528,7 @@ export function PromotionPage({ cls, setCls }: { cls: string; setCls: (cs: strin
                       <span style={{ width: `${total ? (doneCount / total) * 100 : 0}%` }} />
                     </span>
                   </div>
-                  <ul className="m-0 grid max-h-[640px] list-none gap-1 overflow-y-auto p-2">
+                  <ul className="m-0 grid max-h-[min(640px,calc(100vh-240px))] list-none gap-1 overflow-y-auto p-2">
                   {o.classes.map((c, i) => {
                     const active = c.classSection === selected;
                     return (
@@ -559,13 +563,15 @@ export function PromotionPage({ cls, setCls }: { cls: string; setCls: (cs: strin
                   <Skeleton height={320} />
                 </div>
               ) : (
-                <ClassDetail cs={selected} detail={detail.data} onDone={() => nextOpen && setCls(nextOpen)} />
+                <div className={cx("transition-opacity duration-150", switching && "opacity-50")} aria-busy={switching || undefined} inert={switching}>
+                  <ClassDetail cs={switching ? detail.data.classSection : selected} detail={detail.data} onDone={() => nextOpen && setCls(nextOpen)} />
+                </div>
               )}
             </Panel>
           </div>
           {o && o.batches.length > 0 && (
             <Panel id="promo-log" rise={7} title="Promotion log" description="Every class promoted this session, who did it and when">
-              <ul className="m-0 grid list-none gap-1 p-0">
+              <ul className="m-0 grid list-none gap-1 p-0 max-h-[360px] overflow-y-auto pr-1">
                 {o.batches.map((b, i) => (
                   <li key={b.id} className="mtb-slide-in flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-border py-2 text-small last:border-b-0" style={stagger(i)}>
                     <StatusBadge status="success" icon="arrowUp">

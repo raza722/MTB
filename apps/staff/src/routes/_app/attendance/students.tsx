@@ -27,7 +27,7 @@ export const Route = createFileRoute("/_app/attendance/students")({
     return (
       <StudentReportPage
         search={search}
-        setSearch={(next) => void navigate({ search: (prev) => ({ ...prev, view: next.view, grNo: next.grNo, cls: next.cls, from: next.from, to: next.to, below: next.below }) })}
+        setSearch={(next) => void navigate({ resetScroll: false, search: (prev) => ({ ...prev, view: next.view, grNo: next.grNo, cls: next.cls, from: next.from, to: next.to, below: next.below }) })}
       />
     );
   },

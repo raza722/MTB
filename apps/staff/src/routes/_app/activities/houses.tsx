@@ -10,7 +10,7 @@ export const Route = createFileRoute("/_app/activities/houses")({
     const navigate = Route.useNavigate();
     return (
       <RequirePermission permission="activities.view" page="Houses">
-        <HousesScreen tab={tab ?? "standings"} onTab={(t) => void navigate({ search: (prev) => ({ ...prev, tab: t === "members" ? ("members" as const) : undefined }), replace: true })} />
+        <HousesScreen tab={tab ?? "standings"} onTab={(t) => void navigate({ resetScroll: false, search: (prev) => ({ ...prev, tab: t === "members" ? ("members" as const) : undefined }), replace: true })} />
       </RequirePermission>
     );
   },

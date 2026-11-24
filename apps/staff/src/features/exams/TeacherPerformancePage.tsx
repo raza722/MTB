@@ -389,7 +389,7 @@ function DetailTable({ rows, print }: { rows: ExamsTeacherPerfRow[]; print?: boo
           { key: "teacher", header: "Teacher", width: 170, render: (r) => (r.teacher ? <span className="mtb-cell-primary">{r.teacher}</span> : <span className="text-ink-muted">—</span>) },
           { key: "subject", header: "Subject", width: 130, render: (r) => r.subjectName },
           { key: "exam", header: "Exam", render: (r) => <span className="grid"><span>{r.examName}</span><span className="mtb-cell-secondary">{r.examType}{r.status === "DRAFT" ? " · provisional" : ""}</span></span> },
-          { key: "cs", header: "Section", width: 80, render: (r) => r.classSection },
+          { key: "cs", header: "Section", width: 80, render: (r) => <span className="whitespace-nowrap">{r.classSection}</span> },
           { key: "pass", header: "Pass %", align: "right", width: 90, render: (r) => <span className={r.passRate < 70 ? "font-semibold text-danger-ink" : undefined}>{formatPercent(r.passRate)}</span> },
           { key: "abs", header: "Absents", align: "right", width: 80, render: (r) => r.absent },
           { key: "failed", header: "Failed", align: "right", width: 70, render: (r) => r.failed },

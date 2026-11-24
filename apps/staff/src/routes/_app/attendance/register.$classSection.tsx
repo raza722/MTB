@@ -10,6 +10,6 @@ export const Route = createFileRoute("/_app/attendance/register/$classSection")(
     const { classSection } = Route.useParams();
     const { date } = Route.useSearch();
     const navigate = Route.useNavigate();
-    return <RegisterPage key={`${classSection}|${date ?? ""}`} classSection={classSection} date={date} onDate={(d) => void navigate({ search: (prev) => ({ ...prev, date: d }) })} />;
+    return <RegisterPage key={`${classSection}|${date ?? ""}`} classSection={classSection} date={date} onDate={(d) => void navigate({ resetScroll: false, search: (prev) => ({ ...prev, date: d }) })} />;
   },
 });

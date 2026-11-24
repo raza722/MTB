@@ -70,7 +70,7 @@ export function ScholarshipsPage({ search, onSearch }: { search: ScholarshipsSea
         <span className="grid">
           <span className="mtb-cell-primary">{a.studentName}</span>
           <span className="mtb-cell-secondary">
-            <span className="mtb-num">{a.studentId}</span> · {a.classSection}
+            <span className="mtb-num">{a.studentId}</span> · <span className="whitespace-nowrap">{a.classSection}</span>
             {ctx.campus === "ALL" ? ` · ${campusLabel(a.campus)}` : ""}
           </span>
         </span>

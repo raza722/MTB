@@ -451,7 +451,7 @@ export function DocumentsPage({ type, setType }: { type: StudentDocType | ""; se
         <span className="grid">
           <span className="mtb-cell-primary">{d.studentName}</span>
           <span className="mtb-cell-secondary">
-            <span className="mtb-mono">{d.grNo}</span> · {d.classSection}
+            <span className="mtb-mono">{d.grNo}</span> · <span className="whitespace-nowrap">{d.classSection}</span>
           </span>
         </span>
       ),

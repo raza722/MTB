@@ -300,13 +300,13 @@ export function DefaultersPage() {
             )}
           </span>
           <span className="text-small text-ink-muted">
-            {r.grNo} · {r.father}
+            <span className="whitespace-nowrap">{r.grNo}</span> · {r.father}
             {ctx.campus === "ALL" ? ` · ${r.campusName}` : ""}
           </span>
         </span>
       ),
     },
-    { key: "class", header: "Class", width: 72, render: (r) => r.classSection },
+    { key: "class", header: "Class", width: 72, render: (r) => <span className="whitespace-nowrap">{r.classSection}</span> },
     { key: "mobile", header: "Mobile", width: 130, render: (r) => <span className="mtb-num">{formatMobile(r.mobile)}</span> },
     {
       key: "since",

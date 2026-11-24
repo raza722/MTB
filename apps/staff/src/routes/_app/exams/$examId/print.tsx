@@ -34,6 +34,6 @@ export const Route = createFileRoute("/_app/exams/$examId/print")({
     const search = Route.useSearch();
     const navigate = Route.useNavigate();
     // Every option lives in the address, so a print can be bookmarked or shared.
-    return <ExamPrint search={search} onSearch={(next) => void navigate({ search: () => ({ ...next }), replace: true })} />;
+    return <ExamPrint search={search} onSearch={(next) => void navigate({ resetScroll: false, search: () => ({ ...next }), replace: true })} />;
   },
 });

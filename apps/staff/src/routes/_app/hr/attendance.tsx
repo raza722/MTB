@@ -20,6 +20,6 @@ export const Route = createFileRoute("/_app/hr/attendance")({
   component: function AttendanceRoute() {
     const search = Route.useSearch();
     const navigate = Route.useNavigate();
-    return <StaffAttendancePage search={search} setSearch={(next) => void navigate({ search: (prev) => ({ ...prev, view: next.view, date: next.date, month: next.month, from: next.from, to: next.to, staff: next.staff }) })} />;
+    return <StaffAttendancePage search={search} setSearch={(next) => void navigate({ resetScroll: false, search: (prev) => ({ ...prev, view: next.view, date: next.date, month: next.month, from: next.from, to: next.to, staff: next.staff }) })} />;
   },
 });

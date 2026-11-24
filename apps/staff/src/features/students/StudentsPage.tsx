@@ -461,7 +461,7 @@ export function StudentsPage({ search, setSearch }: { search: StudentsSearch; se
                   <span className="grid min-w-0 flex-1">
                     <span className="font-medium">{m.name}</span>
                     <span className="text-small text-ink-muted">
-                      <span className="mtb-mono">{m.grNo}</span> · {m.classSection} · {m.campusName}
+                      <span className="mtb-mono">{m.grNo}</span> · <span className="whitespace-nowrap">{m.classSection}</span> · {m.campusName}
                     </span>
                   </span>
                   {canFees && <StatusBadge status={m.feeStatus} />}

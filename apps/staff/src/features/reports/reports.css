@@ -41,7 +41,11 @@
 .rpt-group-head span { font-weight: 400; color: var(--ink-subtle); font-size: 13px; }
 
 /* Filter bar on a report. */
-.rpt-filters { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); align-items: end; }
+/* Filters line up on their labels and boxes (top). They used to line up on the bottom edge, so the date range, which
+   has quick-range chips under its boxes, pushed every other filter down by a row (user report, 20-Nov-2026). */
+.rpt-filters { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); align-items: start; }
+/* a filter without a label above it (a switch or tick box) sits level with the boxes */
+.rpt-filters > :is(.mtb-switch, .mtb-check) { margin-top: 22px; min-height: var(--space-10); }
 .rpt-filters-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
 
 /* Summary chips over the table. */

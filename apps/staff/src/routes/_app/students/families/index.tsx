@@ -6,6 +6,6 @@ export const Route = createFileRoute("/_app/students/families/")({
   component: function FamiliesRoute() {
     const { q } = Route.useSearch();
     const navigate = Route.useNavigate();
-    return <FamiliesPage q={q ?? ""} setQ={(next) => navigate({ search: (prev) => ({ ...prev, q: next || undefined }), replace: true })} />;
+    return <FamiliesPage q={q ?? ""} setQ={(next) => navigate({ resetScroll: false, search: (prev) => ({ ...prev, q: next || undefined }), replace: true })} />;
   },
 });

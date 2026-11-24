@@ -10,6 +10,6 @@ export const Route = createFileRoute("/_app/hr/staff/$staffId")({
     const { staffId } = Route.useParams();
     const { tab } = Route.useSearch();
     const navigate = Route.useNavigate();
-    return <StaffProfilePage key={staffId} staffId={staffId} tab={tab ?? "overview"} setTab={(t) => void navigate({ search: (prev) => ({ ...prev, tab: t === "overview" ? undefined : t }), replace: true })} />;
+    return <StaffProfilePage key={staffId} staffId={staffId} tab={tab ?? "overview"} setTab={(t) => void navigate({ resetScroll: false, search: (prev) => ({ ...prev, tab: t === "overview" ? undefined : t }), replace: true })} />;
   },
 });

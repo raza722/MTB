@@ -167,6 +167,10 @@ function FamilySheetPanel({ f, open, onClose }: { f: StudentFamilyDetail; open: 
 
 function FeesPanel({ f }: { f: StudentFamilyDetail }) {
   const [view, setView] = useState<"chart" | "table">("chart");
+  // A large family's payments run to dozens: find one by receipt number, child or date.
+  const [payQ, setPayQ] = useState("");
+  const payNeedle = payQ.trim().toLowerCase();
+  const payments = f.fees.payments.filter((pm) => !payNeedle || `${pm.receiptNo} ${pm.studentName} ${formatDate(pm.on)}`.toLowerCase().includes(payNeedle));
   const withDues = f.children.filter((c) => c.balance > 0);
   return (
     <Panel
@@ -203,7 +207,7 @@ function FeesPanel({ f }: { f: StudentFamilyDetail }) {
                   <li key={c.grNo} className="flex items-center gap-2 text-small">
                     <span className="mtb-chart-key" style={{ background: CHILD_COLOURS[i % CHILD_COLOURS.length] }} aria-hidden="true" />
                     <span className="flex-1 text-ink">
-                      {c.name} <span className="text-ink-muted">· {c.classSection}</span>
+                      {c.name} <span className="text-ink-muted">· <span className="whitespace-nowrap">{c.classSection}</span></span>
                     </span>
                     <StatusBadge status={c.feeStatus} />
                     <b className="w-28 text-right tabular-nums text-ink">{formatRs(c.balance)}</b>
@@ -242,12 +246,15 @@ function FeesPanel({ f }: { f: StudentFamilyDetail }) {
           />
         )}
         <div className="grid gap-2">
-          <span className="mtb-label">Recent payments</span>
+          <span className="flex flex-wrap items-center justify-between gap-2">
+            <span className="mtb-label">Recent payments</span>
+            {f.fees.payments.length > 8 && <Input aria-label="Search the family's payments" icon="search" placeholder="Receipt no., child or date" className="w-full sm:w-64" value={payQ} onChange={(e) => setPayQ(e.target.value)} />}
+          </span>
           {f.fees.payments.length === 0 ? (
             <p className="m-0 text-small text-ink-muted">No payments recorded this session.</p>
           ) : (
-            <ul className="m-0 grid list-none gap-1 p-0">
-              {f.fees.payments.map((pm, i) => (
+            <ul className="m-0 grid list-none gap-1 p-0 max-h-[360px] overflow-y-auto pr-1">
+              {payments.map((pm, i) => (
                 <li key={pm.receiptNo} className="mtb-slide-in flex flex-wrap items-center gap-x-3 border-b border-border py-1.5 text-small last:border-b-0" style={stagger(i)}>
                   <Link to="/fees/receipts/$receiptNo" params={{ receiptNo: pm.receiptNo }} className="mtb-mono text-brand-ink underline-offset-2 hover:underline">
                     {pm.receiptNo}
@@ -257,6 +264,7 @@ function FeesPanel({ f }: { f: StudentFamilyDetail }) {
                   <b className="tabular-nums text-ink">{formatRs(pm.amount)}</b>
                 </li>
               ))}
+              {payments.length === 0 && <li className="py-2 text-small text-ink-muted">No payment matches the search.</li>}
             </ul>
           )}
         </div>
@@ -372,7 +380,7 @@ export function FamilyPage({ familyId }: { familyId: string }) {
                         </Link>
                         {c.nameUr && <Urdu size="small">{c.nameUr}</Urdu>}
                         <span className="text-small text-ink-muted">
-                          <span className="mtb-mono">{c.grNo}</span> · {c.classSection} · roll {c.rollNo || "—"}
+                          <span className="mtb-mono">{c.grNo}</span> · <span className="whitespace-nowrap">{c.classSection}</span> · roll {c.rollNo || "—"}
                         </span>
                         <span className="text-small text-ink-muted">{c.campusName}</span>
                         {/* a child admitted again by the old software holds one G.R. number per admission */}

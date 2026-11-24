@@ -1,7 +1,7 @@
 import { WAREHOUSE_MOVEMENT_LABEL, warehouseQueries, type WarehouseItem, type WarehouseItemDetail, type WarehouseMovement, type WarehouseRoomStock } from "@mtb/api";
 import { formatCount, formatDate, type IsoDate } from "@mtb/domain";
 import { formatRs } from "./money";
-import { AnimatedNumber, Button, DataTable, DatePicker, EmptyState, Input, KeyValue, Pagination, Segmented, Select, SidePanel, Skeleton, StatCard, type Column } from "@mtb/ui";
+import { AnimatedNumber, Button, Combobox, DataTable, DatePicker, EmptyState, Input, KeyValue, Pagination, Segmented, Select, SidePanel, Skeleton, StatCard, type Column } from "@mtb/ui";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useCtx } from "../../app/session";
@@ -291,7 +291,7 @@ function RoomStockView() {
             <div className="flex w-full flex-wrap items-end gap-3">
               <Select label="Department" value={departmentId} onChange={(e) => { setDept(e.target.value); setRoom(""); }} options={[{ value: "", label: "All departments" }, ...departments.map((d) => ({ value: d.id, label: d.name }))]} />
               <Select label="Room" value={room} onChange={(e) => setRoom(e.target.value)} options={[{ value: "", label: "All rooms" }, ...roomChoices.map((r) => ({ value: r.name, label: r.roomNo ? `${r.name} · room ${r.roomNo}` : r.name }))]} />
-              <Select label="Category" value={categoryId} onChange={(e) => setCat(e.target.value)} options={[{ value: "", label: "All categories" }, ...(setup.data?.categories ?? []).filter((c) => !c.forSale).map((c) => ({ value: c.id, label: c.name }))]} />
+              <Combobox className="w-full sm:w-56" label="Category" searchPlaceholder="Find a category" value={categoryId} onValueChange={setCat} options={[{ value: "", label: "All categories" }, ...(setup.data?.categories ?? []).filter((c) => !c.forSale).map((c) => ({ value: c.id, label: c.name }))]} />
               <Select label="Family" value={family} onChange={(e) => setFamily(e.target.value)} options={[{ value: "", label: "All families" }, ...familyChoices.map((f) => ({ value: f, label: f }))]} />
               <Segmented
                 aria-label="Kind"
@@ -414,7 +414,9 @@ function StoreStock({ status, setStatus, toggle }: { status: string; setStatus: 
             <div className="min-w-[220px] flex-1">
               <Input label="Search" icon="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Item name or code" />
             </div>
-            <Select label="Category" value={cat} onChange={(e) => setCat(e.target.value)} options={[{ value: "", label: "All categories" }, ...(setup.data?.categories ?? []).map((c) => ({ value: c.id, label: c.name }))]} />
+            {/* The app's own list, not the browser's: a long category list opened upward over the page header and ran
+                the height of the screen (user report, 20-Nov-2026). This one opens below, 264px high, and can be searched. */}
+            <Combobox className="w-full sm:w-56" label="Category" searchPlaceholder="Find a category" value={cat} onValueChange={setCat} options={[{ value: "", label: "All categories" }, ...(setup.data?.categories ?? []).map((c) => ({ value: c.id, label: c.name }))]} />
             <Segmented
               aria-label="Stock level"
               value={status}

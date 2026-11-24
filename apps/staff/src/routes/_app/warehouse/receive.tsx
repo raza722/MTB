@@ -7,6 +7,6 @@ export const Route = createFileRoute("/_app/warehouse/receive")({
   component: function ReceiveRoute() {
     const search = Route.useSearch();
     const navigate = Route.useNavigate();
-    return <ReceivePage openNew={search.new === 1} setOpenNew={(v) => void navigate({ search: (v ? { new: 1 } : {}) as never, replace: true })} />;
+    return <ReceivePage openNew={search.new === 1} setOpenNew={(v) => void navigate({ resetScroll: false, search: (v ? { new: 1 } : {}) as never, replace: true })} />;
   },
 });

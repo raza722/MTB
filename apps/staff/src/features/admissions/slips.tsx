@@ -360,14 +360,20 @@ export function MeritListPrint({ m, campus, campusName, title }: { m: Admissions
   );
 }
 
-/** The marks sheet of one sitting: per-paper marks, total, percentage and absentees, with the sitting's remarks. */
-export function MarksSheetPrint({ test, rows, campusName }: { test: AdmissionsTest; rows: AdmissionsApplicant[]; campusName: string }) {
+/** "Class 4 entrance test · Test 3 · Girls only · 15-Jan-2026": the sitting line under a print's title. */
+const sittingLine = (test: AdmissionsTest, group?: string) => `${test.name}${group ? ` · ${group} only` : ""} · ${sittingWhenWhere(test)}`;
+
+/**
+ * The marks sheet of one sitting: per-paper marks, total, percentage and absentees, with the sitting's remarks.
+ * `group` ("Boys" or "Girls") is printed under the title when the sheet is for one of them.
+ */
+export function MarksSheetPrint({ test, rows, campusName, group }: { test: AdmissionsTest; rows: AdmissionsApplicant[]; campusName: string; group?: string }) {
   const appeared = rows.filter((a) => !a.absentFromTest && a.testScore !== null).length;
   const absent = rows.filter((a) => a.absentFromTest).length;
   return (
     <article className="mtb-doc mtb-doc-a4 flex flex-col" aria-label={`Marks sheet ${test.name}`}>
       <PageFoot />
-      <Header campus={test.campus} campusName={campusName} title="Entrance test result" sub={`${test.name} · ${sittingWhenWhere(test)}`} />
+      <Header campus={test.campus} campusName={campusName} title="Entrance test result" sub={sittingLine(test, group)} />
       <table className="mt-5 w-full border-collapse text-[9pt]">
         <thead>
           <tr>
@@ -453,11 +459,86 @@ export function AdmittedListPrint({ rows, campus, campusName, scope }: { rows: A
   );
 }
 
-export function AttendanceSheet({ test, rows, campusName }: { test: AdmissionsTest; rows: AdmissionsApplicant[]; campusName: string }) {
+/**
+ * One candidate's entrance-test result, the marks sheet a family takes home (user request, 20-Nov-2026): the same
+ * heading as the sitting's marks sheet, the candidate's details, then only the papers they sat, each with its total
+ * and the marks obtained, the total and the percentage. A paper not marked yet prints "—"; an absent candidate prints
+ * "Absent". It shows the saved marks. A5 portrait.
+ */
+export function ResultSlip({ a, test }: { a: AdmissionsApplicant; test: AdmissionsTest }) {
+  const papers = admissionsPapersFor(test.subjects, a.stream);
+  const max = a.testMax ?? papers.reduce((x, s) => x + s.max, 0);
+  const pct = meritPercent(a);
+  const cell = "border border-border px-2 py-1.5";
+  return (
+    <article className="mtb-doc mtb-doc-a5 flex flex-col" aria-label={`Test result ${a.name}`}>
+      <PageFoot />
+      <Header campus={a.campus} campusName={a.campusName} title="Entrance test result" sub={`Admission test for class: ${a.classApplied}`} refNo={a.applicationNo} date={test.date} />
+      <Table
+        rows={[
+          ["Name", <span className="flex flex-wrap items-baseline justify-between gap-2 font-semibold">{a.name}{a.nameUr && <span lang="ur" dir="rtl" className="urdu-small">{a.nameUr}</span>}</span>],
+          ["Father's name", orDash(a.father)],
+          ["Seat no.", <span className="mtb-mono">{a.testRollNo ?? "—"}</span>],
+          ["Class applied for", `${a.classApplied}${a.stream ? ` · ${a.stream}` : ""}`],
+          ["Test", sittingWhenWhere(test)],
+        ]}
+      />
+      <table className="mt-4 w-full border-collapse text-[9.5pt]">
+        <thead>
+          <tr>
+            <th className={`${cell} bg-surface-sunken text-left`}>Paper</th>
+            <th className={`${cell} w-[26mm] bg-surface-sunken text-right`}>Total marks</th>
+            <th className={`${cell} w-[30mm] bg-surface-sunken text-right`}>Marks obtained</th>
+          </tr>
+        </thead>
+        <tbody>
+          {papers.map((s) => (
+            <tr key={s.subject}>
+              <td className={cell}>
+                {s.subject}
+                {s.stream && <span className="text-ink-muted"> · {s.stream}</span>}
+              </td>
+              <td className={`${cell} text-right tabular-nums`}>{s.max}</td>
+              <td className={`${cell} text-right tabular-nums`}>{a.absentFromTest ? "Absent" : (a.marks?.[s.subject] ?? "—")}</td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr>
+            <th scope="row" className={`${cell} text-left`}>
+              Total
+            </th>
+            <td className={`${cell} text-right font-semibold tabular-nums`}>{max}</td>
+            <td className={`${cell} text-right font-semibold tabular-nums`}>{a.absentFromTest ? "Absent" : (a.testScore ?? "—")}</td>
+          </tr>
+          <tr>
+            <th scope="row" className={`${cell} text-left`}>
+              Percentage
+            </th>
+            <td colSpan={2} className={`${cell} text-right font-semibold tabular-nums`}>
+              {a.absentFromTest || pct === null ? "—" : `${pct.toFixed(1)}%`}
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+      {!a.absentFromTest && a.testScore === null && <p className="mt-2 text-[8.5pt] text-ink-muted">Not every paper is marked yet: the total shows once all are.</p>}
+      <div className="mt-4 grid gap-1 text-[9pt]">
+        <span className="text-ink-muted">Remarks</span>
+        <span className="block h-[12mm] border border-border" />
+      </div>
+      <footer className="mt-auto flex items-end justify-between gap-6 pt-10">
+        <div className="mtb-doc-sign">Examiner</div>
+        <div className="mtb-doc-sign">Principal</div>
+      </footer>
+    </article>
+  );
+}
+
+export function AttendanceSheet({ test, rows, campusName, group }: { test: AdmissionsTest; rows: AdmissionsApplicant[]; campusName: string; group?: string }) {
   return (
     <article className="mtb-doc mtb-doc-a4 flex flex-col" aria-label={`Attendance sheet ${test.name}`}>
       <PageFoot />
-      <Header campus={test.campus} campusName={campusName} title="Entrance test attendance sheet" sub={`${test.name} · ${sittingWhenWhere(test)}`} />
+      <Header campus={test.campus} campusName={campusName} title="Entrance test attendance sheet" sub={sittingLine(test, group)} />
       <table className="mt-5 w-full border-collapse text-[10pt]">
         <thead>
           <tr>

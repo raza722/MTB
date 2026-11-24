@@ -170,7 +170,7 @@ export function staffOptions(staff: HrStaffSummary[] | undefined, filter: (s: Hr
 export function CampusTags({ campus, others }: { campus: CampusCode; others: CampusCode[] }) {
   return (
     <span className="flex flex-wrap items-center gap-1">
-      <span className="text-small">{campusLabel(campus)}</span>
+      <span className="whitespace-nowrap text-small">{campusLabel(campus)}</span>
       {others.map((c) => (
         <StatusBadge key={c} status="info" dot={false}>
           Also {campusLabel(c)}

@@ -9,6 +9,6 @@ export const Route = createFileRoute("/_app/attendance/")({
   component: function AttendanceTodayRoute() {
     const { date } = Route.useSearch();
     const navigate = Route.useNavigate();
-    return <AttendancePage date={date} onDate={(d) => void navigate({ search: (prev) => ({ ...prev, date: d }) })} />;
+    return <AttendancePage date={date} onDate={(d) => void navigate({ resetScroll: false, search: (prev) => ({ ...prev, date: d }) })} />;
   },
 });
