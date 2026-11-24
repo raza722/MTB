@@ -52,9 +52,12 @@ ${themes
   .slice(1)
   .map(
     (theme) => `
+/* Screen only: paper is white, so a print taken in the dark theme uses the light colours (grey-on-white text otherwise). */
+@media screen {
 [data-theme="${theme}"] {
   color-scheme: ${theme === "dark" ? "dark" : "light"};
 ${themeBlock(theme)}
+}
 }
 `,
   )
@@ -133,13 +136,16 @@ const navy = alternatives.navy;
 const navyBlock = (theme) => Object.entries(navy[theme]).map(([k, v]) => `  --${k}: ${v};`).join("\n");
 const accentCss = `${HEADER}/* ${alternatives.note} */
 
-:root[data-accent="navy"]:not([data-theme="dark"]),
+:root[data-accent="navy"],
 [data-theme="light"][data-accent="navy"] {
 ${navyBlock("light")}
 }
 
+/* Screen only, as the dark theme: prints use the light navy. Later in the file, so it wins on screen. */
+@media screen {
 [data-theme="dark"][data-accent="navy"] {
 ${navyBlock("dark")}
+}
 }
 `;
 

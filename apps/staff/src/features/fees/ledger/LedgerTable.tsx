@@ -74,6 +74,129 @@ function ChargeStatus({ e }: { e: LedgerEntry }) {
   return (e.dueDate ?? e.date) < feeToday() ? <StatusBadge status="overdue">Payable · overdue</StatusBadge> : <StatusBadge status="unpaid">Payable</StatusBadge>;
 }
 
+/** "Tuition fee – 1 of 4" / "Annual charges 2026–27 (part 1 of 4)": the installment a charge belongs to. */
+const INSTALLMENT = /(?:[–-]\s*(\d+) of (\d+)|\(part (\d+) of (\d+)\))\s*$/;
+
+interface CardRow {
+  key: string;
+  head: string;
+  due: IsoDate;
+  status: "Paid" | "Part paid" | "Payable";
+  payable: number;
+  paidOn?: IsoDate;
+  paid: number;
+}
+
+/**
+ * The old Student Annual Fee Card's rows: the parts of one installment (tuition fee, annual charges) as one
+ * "n - Installment" line with their total, every other charge on its own line; cancelled charges left out.
+ */
+function cardRows(charges: LedgerEntry[]): CardRow[] {
+  const groups = new Map<string, LedgerEntry[]>();
+  for (const e of charges) {
+    if (e.cancelled) continue;
+    const head = e.description.replace(/ · due$/, "");
+    const m = INSTALLMENT.exec(head);
+    const due = e.dueDate ?? e.date;
+    const key = m ? `I|${m[1] ?? m[3]}|${due}` : `C|${e.id}`;
+    groups.set(key, [...(groups.get(key) ?? []), e]);
+  }
+  return [...groups.entries()]
+    .map(([key, items]) => {
+      const first = items[0]!;
+      const charge = items.reduce((a, e) => a + e.charge, 0);
+      const payable = items.reduce((a, e) => a + (e.due ?? 0), 0);
+      const paidOn = items.map((e) => e.paidOn).filter((d): d is IsoDate => Boolean(d)).sort().at(-1);
+      return {
+        key,
+        head: key.startsWith("I|") ? `${key.split("|")[1]} - Installment` : first.description.replace(/ · due$/, ""),
+        due: first.dueDate ?? first.date,
+        status: payable <= 0 ? "Paid" : payable < charge ? "Part paid" : "Payable",
+        payable,
+        ...(paidOn && payable < charge ? { paidOn } : {}),
+        paid: charge - payable,
+      } satisfies CardRow;
+    })
+    .sort((a, b) => (a.due < b.due ? -1 : a.due > b.due ? 1 : 0));
+}
+
+/** The printed Student Annual Fee Card, laid out as the old software's: black lines, one A4 page. */
+function FeeCardPaper({ student, session, charges }: { student: LedgerStudent; session: number; charges: LedgerEntry[] }) {
+  const rows = cardRows(charges);
+  const payable = rows.reduce((a, r) => a + r.payable, 0);
+  const paid = rows.reduce((a, r) => a + r.paid, 0);
+  return (
+    <div className="fees-doc fees-card">
+      <FeesDocHead campus={student.campus} campusName={student.campusName} title="Student Annual Fee Card" />
+      <dl className="fees-card-info">
+        <dt>Session:</dt>
+        <dd>{`${session}-${session + 1}`}</dd>
+        <dt>Class:</dt>
+        <dd>{student.classSection}</dd>
+        <dt>GR No:</dt>
+        <dd>{student.grNo}</dd>
+        <dt>Name:</dt>
+        <dd>{student.name}</dd>
+        <dt>Father Name:</dt>
+        <dd>{student.father}</dd>
+      </dl>
+      <table>
+        <thead>
+          <tr>
+            <th className="n" style={{ width: "9mm" }}>
+              Sr.#
+            </th>
+            <th>Fee Type</th>
+            <th style={{ width: "27mm" }}>Fee Due Date</th>
+            <th style={{ width: "18mm" }}>Status</th>
+            <th className="n" style={{ width: "22mm" }}>
+              P/A Amount
+            </th>
+            <th style={{ width: "27mm" }}>Date if Paid</th>
+            <th className="n" style={{ width: "22mm" }}>
+              Paid Amount
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={r.key}>
+              <td className="n">{i + 1}</td>
+              <td>{r.head}</td>
+              <td className="nowrap">{formatDate(r.due)}</td>
+              <td>{r.status}</td>
+              <td className="n">{r.payable > 0 ? formatRs(r.payable).replace(/^Rs\s*/, "") : ""}</td>
+              <td className="nowrap">{r.paidOn ? formatDate(r.paidOn) : ""}</td>
+              <td className="n">{r.paid > 0 ? formatRs(r.paid).replace(/^Rs\s*/, "") : ""}</td>
+            </tr>
+          ))}
+          {rows.length === 0 && (
+            <tr>
+              <td colSpan={7}>Nothing has been charged in this session.</td>
+            </tr>
+          )}
+        </tbody>
+        {rows.length > 0 && (
+          <tfoot>
+            <tr>
+              <td />
+              <td colSpan={3} className="b">
+                Total
+              </td>
+              <td className="n b">{formatRs(payable).replace(/^Rs\s*/, "")}</td>
+              <td />
+              <td className="n b">{formatRs(paid).replace(/^Rs\s*/, "")}</td>
+            </tr>
+          </tfoot>
+        )}
+      </table>
+      <p className="fees-card-note">
+        <strong>Note:</strong> Fine and other charges can be included during the session due to any rule violation.
+      </p>
+    </div>
+  );
+}
+
 const cancellable = (e: LedgerEntry) => e.docType === "CHARGE" && !e.cancelled && !e.cancelPending && e.settled === "PAYABLE" && (e.coveredBy?.length ?? 0) === 0;
 
 /**
@@ -134,11 +257,18 @@ export function LedgerTable({ grNo, defaultSession, student }: { grNo: string; d
   const due = live.reduce((a, e) => a + (e.due ?? 0), 0);
   const sessionText = session === "ALL" ? "All sessions" : `Session ${formatSession(Number(session))}`;
   const cardView = docType === "CHARGE";
+  // The fee card of one session prints as the old Student Annual Fee Card; the screen's figures and table stay off paper.
+  const paperCard = Boolean(student) && cardView && session !== "ALL";
 
   return (
     <div className="mtb-print-area grid gap-4">
       {printing && <PaperSize size="A4" />}
-      {student && (
+      {student && paperCard && (
+        <div className="fees-print-only">
+          <FeeCardPaper student={student} session={Number(session)} charges={charges} />
+        </div>
+      )}
+      {student && !paperCard && (
         <div className="fees-print-only">
           <FeesDocHead campus={student.campus} campusName={student.campusName} title={cardView ? "Student Fee Card" : "Student Fee Statement"} sub={<>{sessionText}</>} />
           <dl className="m-0 mb-3 grid grid-cols-[auto_1fr_auto_1fr] gap-x-4 gap-y-1">
@@ -157,7 +287,7 @@ export function LedgerTable({ grNo, defaultSession, student }: { grNo: string; d
           </dl>
         </div>
       )}
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className={cx("flex flex-wrap items-end justify-between gap-4", paperCard && "mtb-no-print")}>
         {ledger.data ? (
           <div className="flex flex-wrap gap-8">
             <Calculated label="Balance" value={ledger.data.balance} />
@@ -202,7 +332,7 @@ export function LedgerTable({ grNo, defaultSession, student }: { grNo: string; d
       </p>
 
       {cardView ? (
-        <div className="mtb-table-wrap">
+        <div className={cx("mtb-table-wrap", paperCard && "mtb-no-print")}>
           <div className="mtb-table-scroll">
             <table className="mtb-table mtb-table-dense" aria-busy={ledger.isLoading || undefined}>
               <caption className="mtb-sr-only">Fee card: charges with status</caption>
@@ -431,7 +561,7 @@ export function LedgerTable({ grNo, defaultSession, student }: { grNo: string; d
         </div>
       )}
 
-      {student && (
+      {student && !paperCard && (
         <div className="fees-print-only">
           <p className="m-0 text-small">
             <strong>Note:</strong> Fines and other charges can be added during the session when a rule is broken. Fee once paid is not refundable.

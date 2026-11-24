@@ -1,7 +1,7 @@
 /* MTB Campus — generated from tokens.json by scripts/build-tokens.mjs. Do not edit. */
 /* Not part of the MTB Campus design system. The brief asks for a navy brand on the design-system page so management can choose between green and navy. Applied with data-accent="navy" on the same element as data-theme. Only brand-derived tokens change; focus-ring and every status token stay as the design system defines them. */
 
-:root[data-accent="navy"]:not([data-theme="dark"]),
+:root[data-accent="navy"],
 [data-theme="light"][data-accent="navy"] {
   --brand: #1e3a5f;
   --brand-hover: #172e4c;
@@ -13,6 +13,8 @@
   --chart-1: #1e3a5f;
 }
 
+/* Screen only, as the dark theme: prints use the light navy. Later in the file, so it wins on screen. */
+@media screen {
 [data-theme="dark"][data-accent="navy"] {
   --brand: #8db2e2;
   --brand-hover: #a5c3ea;
@@ -22,4 +24,5 @@
   --on-brand: #0a1729;
   --surface-selected: #19283c;
   --chart-1: #8db2e2;
+}
 }

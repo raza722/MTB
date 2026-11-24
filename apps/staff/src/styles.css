@@ -97,6 +97,56 @@
   body:has(> .mtb-print-area) > .mtb-print-area {
     position: static !important;
   }
+  /*
+   * A print area inside the page itself (the fee ledger and fee card on a student's profile, report and register
+   * pages), when no dialog or print job holds one. It was placed at the top of the page section around it, below
+   * the profile header and tabs that stayed in the layout unseen, so page 1 came out blank with the heading at its
+   * foot. Everything that does not hold the print area leaves the layout and the boxes around it stop being
+   * positioned, so the paper starts at the top of page 1.
+   */
+  body:not(:has([role="dialog"] .mtb-print-area)):not(:has(> .mtb-print-area)):has(.mtb-print-area)
+    :not(:has(.mtb-print-area)):not(.mtb-print-area):not(.mtb-print-area *) {
+    display: none !important;
+  }
+  body:not(:has([role="dialog"] .mtb-print-area)):not(:has(> .mtb-print-area)):has(.mtb-print-area) :has(.mtb-print-area) {
+    position: static !important;
+    display: block !important;
+    overflow: visible !important;
+    width: auto !important;
+    max-width: none !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: none !important;
+    box-shadow: none !important;
+    transform: none !important;
+    zoom: 1 !important;
+  }
+  body:not(:has([role="dialog"] .mtb-print-area)):not(:has(> .mtb-print-area)) .mtb-print-area {
+    position: static !important;
+  }
+  /*
+   * On-screen tables printed as they are (ledgers, registers, lists): the column widths set for the screen add up to
+   * more than the paper, so the last columns were cut off at the right edge. On paper they share the page width.
+   */
+  .mtb-print-area .mtb-table-wrap,
+  .mtb-print-area .mtb-table-scroll {
+    overflow: visible !important;
+    max-width: 100% !important;
+  }
+  .mtb-print-area .mtb-table {
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: auto !important;
+  }
+  .mtb-print-area .mtb-table th,
+  .mtb-print-area .mtb-table td {
+    width: auto !important;
+    min-width: 0 !important;
+  }
 }
 @page {
   size: A5 portrait;
