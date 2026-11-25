@@ -1,12 +1,13 @@
 import { libraryApi, libraryQueries, type LibraryCabinet, type LibraryCategory, type LibraryFinePolicy, type LibraryLibrary, type LibraryNameCount, type LibraryTitle } from "@mtb/api";
 import { formatCount, formatDate, formatDateTime, formatRs } from "@mtb/domain";
-import { AmountInput, Banner, Button, Combobox, DataTable, EmptyState, Input, KeyValue, Modal, Panel, Select, SidePanel, Skeleton, StatusBadge, Switch, TabPanel, Tabs, Textarea, Urdu, useToast } from "@mtb/ui";
+import { AmountInput, Banner, Button, Combobox, DataTable, EmptyState, Input, KeyValue, Modal, Panel, Segmented, Select, SidePanel, Skeleton, StatusBadge, Switch, TabPanel, Tabs, Textarea, Urdu, useToast } from "@mtb/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { Fragment, useState } from "react";
 import { z } from "zod";
 import { useCan, useCtx, useReadOnly } from "../../app/session";
 import { campusLabel } from "../../app/shell/campus";
+import { CabinetsView } from "./Cabinets";
 import { CampusNote, DocHead, errorCode, errorField, errorText, LoadError, slide, StaleNote, usePrinter, validate } from "./common";
 import { LibraryShell } from "./shared";
 
@@ -207,41 +208,6 @@ function CabinetList({ cabinets, subtitle, campus }: { cabinets: LibraryCabinet[
         </tbody>
       </table>
     </div>
-  );
-}
-
-function CabinetCard({ c, i, edit }: { c: LibraryCabinet; i: number; edit?: () => void }) {
-  const ctx = useCtx();
-  return (
-    <Panel
-      id={`cab-${c.id}`}
-      rise={i}
-      title={`${c.code} · ${c.title}`}
-      description={`${formatCount(c.copies)} of about ${formatCount(c.capacity)} books${ctx.campus === "ALL" ? ` · ${campusLabel(c.campus)}` : ""}`}
-      actions={
-        edit ? (
-          <Button size="sm" variant="quiet" icon="edit" onClick={edit}>
-            Edit
-          </Button>
-        ) : !c.active ? (
-          <StatusBadge status="neutral">Not in use</StatusBadge>
-        ) : undefined
-      }
-    >
-      <div className="grid gap-2">
-        <div className="ops-meter" role="img" aria-label={`${pctFull(c)}% full`}>
-          <span style={{ width: `${Math.min(100, pctFull(c))}%` }} />
-        </div>
-        <ul className="m-0 grid list-none gap-1 p-0 text-small">
-          {c.shelves.map((sh) => (
-            <li key={sh.id} className="flex justify-between">
-              <span>{sh.label}</span>
-              <span className="mtb-num text-ink-muted">{sh.copies} copies</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </Panel>
   );
 }
 
@@ -478,8 +444,10 @@ export function LibrarySetupPage() {
   const [author, setAuthor] = useState("");
   const printer = usePrinter();
   const campus = campusLabel(ctx.campus);
+  const [cabQ, setCabQ] = useState("");
+  const [cabView, setCabView] = useState("cards");
   const cabinets = (s?.cabinets ?? []).filter((c) => !libFilter || c.libraryId === libFilter);
-  const libGroups = (s?.libraries ?? []).filter((l) => !libFilter || l.id === libFilter).map((l) => ({ l, cabs: cabinets.filter((c) => c.libraryId === l.id) }));
+  const libraries = (s?.libraries ?? []).filter((l) => !libFilter || l.id === libFilter);
 
   return (
     <LibraryShell title="Shelves and rules">
@@ -505,9 +473,16 @@ export function LibrarySetupPage() {
               <div className="flex flex-wrap items-end justify-between gap-3">
                 <div className="flex flex-wrap items-end gap-3">
                   <Select label="Library" value={libFilter} onChange={(e) => setLibFilter(e.target.value)} options={[{ value: "", label: "All libraries" }, ...s.libraries.map((l) => ({ value: l.id, label: ctx.campus === "ALL" ? `${l.name} · ${campusLabel(l.campus)}` : l.name }))]} />
-                  <p className="m-0 self-center text-small text-ink-muted">
-                    Next accession number: <span className="mtb-mono text-ink">{s.nextAccessionNo}</span>. Numbers are given in order and never reused.
-                  </p>
+                  <Input label="Find a cabinet or shelf" type="search" icon="search" className="w-[260px] max-w-full" value={cabQ} onChange={(e) => setCabQ(e.target.value)} placeholder="Code, name or shelf" />
+                  <Segmented
+                    aria-label="Show cabinets as"
+                    value={cabView}
+                    onChange={setCabView}
+                    options={[
+                      { value: "cards", label: "Cards" },
+                      { value: "list", label: "List" },
+                    ]}
+                  />
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button icon="printer" disabled={!cabinets.length} onClick={() => printer.print(<CabinetList cabinets={cabinets} subtitle={`${s.libraries.find((l) => l.id === libFilter)?.name ?? "All libraries"} · ${cabinets.length} cabinets`} campus={campus} />)}>
@@ -520,27 +495,10 @@ export function LibrarySetupPage() {
                   )}
                 </div>
               </div>
-              {libGroups.map(({ l, cabs }) => (
-                <section key={l.id} className="grid gap-3">
-                  <h3 className="m-0 text-body font-semibold">
-                    {l.name}
-                    <span className="ml-2 text-small font-normal text-ink-muted">
-                      {formatCount(cabs.length)} {cabs.length === 1 ? "cabinet" : "cabinets"} · {formatCount(cabs.reduce((a, c) => a + c.copies, 0))} {cabs.reduce((a, c) => a + c.copies, 0) === 1 ? "copy" : "copies"}{ctx.campus === "ALL" ? ` · ${campusLabel(l.campus)}` : ""}
-                      {l.active ? "" : " · not in use"}
-                    </span>
-                  </h3>
-                  {cabs.length === 0 ? (
-                    <p className="m-0 text-small text-ink-muted">No cabinets in this library yet.</p>
-                  ) : (
-                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                      {cabs.map((c, i) => (
-                        <CabinetCard key={c.id} c={c} i={i} {...(canManage && singleCampus ? { edit: () => setCabinet(c) } : {})} />
-                      ))}
-                    </div>
-                  )}
-                </section>
-              ))}
-              {libGroups.length === 0 && <EmptyState icon="building" title="No libraries yet" description="Add a library first, then its cabinets." />}
+              {libraries.length > 0 && (
+                <CabinetsView libraries={libraries} cabinets={cabinets} nextAccessionNo={s.nextAccessionNo} query={cabQ} view={cabView} showCampus={ctx.campus === "ALL"} onEdit={canManage && singleCampus ? (c) => setCabinet(c) : undefined} />
+              )}
+              {libraries.length === 0 && <EmptyState icon="building" title="No libraries yet" description="Add a library first, then its cabinets." />}
               <CampusNote />
             </div>
           </TabPanel>
