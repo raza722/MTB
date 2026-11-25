@@ -65,6 +65,118 @@ button.tt-cell:focus-visible { outline: 2px solid var(--focus-ring); outline-off
 .tt-c6 { --tt-c: var(--brand); background: color-mix(in srgb, var(--brand) 7%, var(--surface-raised)); }
 .tt-c7 { --tt-c: var(--warning); background: color-mix(in srgb, var(--warning) 8%, var(--surface-raised)); }
 
+/* ---------- One class view (redesign 24-Nov-2026) ----------
+   Picker: class, search, All / Needs work, then the sections. Summary of the section. The week as a CSS grid where a
+   double period is one wide cell, full subject names, warnings only on request. Tints are the subject classes above
+   (tt-c0…7); the cell edge is a darker mix of the same colour instead of the old left bar. */
+/* The section list sits beside the week only when the week still has room for every period at a readable width;
+   otherwise it moves above the week as a row of section buttons (the app's sidebar decides how much room there is,
+   so this asks the page's own width, not the window's). */
+.tt-class-wrap { container-type: inline-size; }
+.tt-class-layout { display: grid; gap: var(--space-4); grid-template-columns: minmax(0, 1fr); align-items: start; }
+@container (min-width: 1260px) { .tt-class-layout { grid-template-columns: 264px minmax(0, 1fr); } }
+.tt-picker { overflow: hidden; }
+.tt-picker-head { display: grid; gap: var(--space-3); padding: var(--space-4); border-bottom: 1px solid var(--border); }
+.tt-picker-seg { width: 100%; }
+.tt-picker-seg > button { flex: 1 1 auto; white-space: nowrap; }
+.tt-picker-empty { margin: 0; padding: var(--space-4); font-size: 13px; line-height: 18px; color: var(--ink-muted); }
+.tt-picker .tt-sections button { min-height: 48px; }
+.tt-picker .tt-sections small { font-size: 13px; line-height: 18px; }
+.tt-picker-name { display: block; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@container (max-width: 1259.98px) {
+  .tt-picker-head { grid-template-columns: minmax(150px, 220px) minmax(180px, 320px) auto; align-items: end; border-bottom: 0; padding-bottom: 0; }
+  .tt-picker-seg { width: auto; }
+  .tt-picker .tt-sections { display: flex; flex-wrap: wrap; gap: 6px; max-height: none; padding: var(--space-3) var(--space-4) var(--space-4); }
+  .tt-picker .tt-sections button { width: auto; min-height: 40px; padding: 6px 10px; border: 1px solid var(--border); }
+  .tt-picker .tt-sections button[aria-current="true"] { border-color: color-mix(in srgb, var(--brand) 45%, var(--surface-raised)); }
+  .tt-picker .tt-sections small { display: none; }
+}
+@container (max-width: 720px) { .tt-picker-head { grid-template-columns: minmax(0, 1fr); } }
+
+.tt-summary { display: grid; gap: var(--space-4); padding: var(--space-5); }
+.tt-summary-top { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.tt-summary-top h2 { margin: 0; font-size: 18px; line-height: 24px; font-weight: 600; }
+.tt-facts { margin: 0; display: grid; gap: var(--space-3) var(--space-6); grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+.tt-facts > div { display: grid; gap: 4px; align-content: start; min-width: 0; }
+.tt-facts dt { font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.02em; text-transform: uppercase; color: var(--ink-muted); }
+.tt-facts dd { margin: 0; }
+.tt-fact-meter { display: flex; align-items: center; gap: 10px; }
+.tt-fact-meter .mtb-meter { flex: 1; max-width: 140px; }
+.tt-fact-link { color: var(--brand-ink); font-weight: 500; text-decoration: underline; text-underline-offset: 2px; }
+
+.tt-week { display: grid; gap: var(--space-4); padding: var(--space-5); min-width: 0; }
+.tt-week-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--space-3); }
+.tt-week-head h3, .tt-side-card h3 { margin: 0; font-size: 15px; line-height: 20px; font-weight: 600; }
+.tt-week-head p, .tt-side-card p { margin: 0; }
+.tt-warn-switch { display: inline-flex; align-items: center; gap: var(--space-2); white-space: nowrap; }
+
+/* The chosen lesson. */
+.tt-pick { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-6); padding: var(--space-3) var(--space-4); border-radius: var(--radius-lg); background: var(--surface-sunken); }
+.tt-pick.is-empty { gap: var(--space-2); }
+.tt-pick-item { display: grid; gap: 2px; min-width: 150px; }
+.tt-pick-issues { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-width: 420px; font-size: 13px; line-height: 18px; }
+.tt-pick-issues li { display: flex; align-items: flex-start; gap: 6px; }
+.tt-pick-issues li svg { margin-top: 1px; }
+.tt-pick-actions { margin-left: auto; display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+/* The week. */
+.tt-week-scroll { overflow-x: auto; padding: 4px; margin: -4px; }
+.tt-week-grid { display: grid; gap: 6px; }
+.tt-week-row { display: grid; gap: 6px; }
+.tt-week-headrow { align-items: end; }
+.tt-week-cap { font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.02em; text-transform: uppercase; color: var(--ink-muted); }
+.tt-week-headrow > .tt-week-cap { padding: 0 10px 6px; }
+.tt-week-period { display: grid; justify-items: center; padding-bottom: 6px; text-align: center; }
+.tt-week-period b { font-size: 15px; line-height: 20px; font-weight: 600; }
+.tt-week-period .mtb-num { font-size: 12px; line-height: 16px; color: var(--ink-muted); white-space: nowrap; }
+.tt-week-break { grid-row: 1; background: var(--surface-sunken); border-radius: var(--radius-sm); }
+.tt-week-break.is-head { align-self: stretch; display: flex; align-items: center; justify-content: center; min-height: 64px; }
+.tt-week-break.is-head span { writing-mode: vertical-rl; transform: rotate(180deg); font-size: 11px; line-height: 12px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-muted); }
+.tt-week-day { display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 8px 10px; border-radius: var(--radius-md); }
+.tt-week-day b { font-weight: 600; }
+.tt-week-day.is-today { background: var(--brand-tint); color: var(--brand-ink); }
+.tt-week-today { font-size: 12px; line-height: 16px; font-weight: 500; }
+.tt-week-group { align-self: center; justify-self: center; font-size: 12px; font-weight: 600; color: var(--ink-muted); text-align: center; }
+
+.tt-wk {
+  position: relative; box-sizing: border-box; min-width: 0; min-height: 60px; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 1px;
+  padding: 8px 10px; border: 1px solid color-mix(in srgb, var(--tt-c, var(--border-strong)) 38%, var(--surface-raised)); border-radius: var(--radius-md);
+  color: var(--ink); font: inherit; text-align: left; overflow: hidden; cursor: pointer; transition: border-color 120ms ease, box-shadow 160ms ease;
+}
+.tt-wk b { max-width: 100%; font-size: 13px; line-height: 18px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* A one-period cell shows the subject's code ("MATH") until it is wide enough for the name ("Mathematics"). */
+.tt-wk.has-code { container-type: inline-size; }
+.tt-wk .tt-wk-long { display: none; }
+@container (min-width: 104px) { .tt-wk .tt-wk-long { display: block; } .tt-wk .tt-wk-code { display: none; } }
+.tt-wk > span { max-width: 100%; font-size: 12px; line-height: 16px; color: var(--ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tt-wk .tt-wk-time { font-size: 11px; line-height: 14px; }
+.tt-wk:hover { border-color: color-mix(in srgb, var(--tt-c, var(--border-strong)) 70%, var(--surface-raised)); box-shadow: var(--shadow-sm); }
+.tt-wk:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.tt-wk[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--surface-raised), 0 0 0 4px var(--brand); }
+.tt-wk.is-free { background: var(--surface-raised); border: 1px dashed var(--border-strong); }
+.tt-wk-free { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--ink-muted); }
+.tt-wk.is-closed { justify-content: center; align-items: center; background: var(--surface-sunken); border-color: transparent; color: var(--ink-subtle); cursor: default; }
+.tt-wk.is-warn { border-color: var(--warning); }
+.tt-wk.is-clash { border-color: var(--danger); box-shadow: inset 0 0 0 1px var(--danger); }
+.tt-wk.is-clash[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--danger), 0 0 0 2px var(--surface-raised), 0 0 0 4px var(--brand); }
+.tt-wk .tt-wk-flag { position: absolute; top: 6px; right: 6px; color: var(--warning-ink); }
+.tt-wk.is-clash .tt-wk-flag { color: var(--danger-ink); }
+
+/* Subjects and the section's checks, side by side. */
+.tt-side-row { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: flex-start; }
+.tt-side-row > :first-child { flex: 3 1 440px; }
+.tt-side-row > :last-child { flex: 2 1 300px; }
+.tt-side-card { display: grid; gap: var(--space-3); padding: var(--space-5); min-width: 0; }
+.tt-subjects { width: 100%; border-collapse: collapse; font-size: 14px; }
+.tt-subjects th { padding: 8px 12px; background: var(--surface-sunken); font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.02em; text-transform: uppercase; color: var(--ink-muted); text-align: left; }
+.tt-subjects th:first-child { border-radius: var(--radius-md) 0 0 var(--radius-md); }
+.tt-subjects th:last-child { border-radius: 0 var(--radius-md) var(--radius-md) 0; }
+.tt-subjects td { padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.tt-subjects tr:last-child td { border-bottom: 0; }
+.tt-subject-meter { width: 80px; flex: none; }
+.tt-swatch { display: inline-block; flex: none; width: 14px; height: 14px; border-radius: var(--radius-sm); border: 1px solid color-mix(in srgb, var(--tt-c) 38%, var(--surface-raised)); }
+.tt-side-card .tt-list > li { align-items: flex-start; }
+
 /* ---------- Requirement chips ---------- */
 .tt-reqs { display: grid; gap: var(--space-2); grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
 .tt-req { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-raised); }

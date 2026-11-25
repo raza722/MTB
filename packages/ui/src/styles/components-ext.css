@@ -9,6 +9,12 @@
    (DateText's <time>), figures marked mtb-num, codes in mtb-mono (G.R., CNIC, receipt no.) and mobiles in <bdi>.
    "SY-Rushd-II", "25-Apr-2018" and "31304-3297878-1" broke at their hyphens in narrow columns (23-Nov-2026). */
 .mtb-td-short, .mtb-table td :is(time, .mtb-num, .mtb-mono, bdi) { white-space: nowrap; }
+/* Centred figures (DataTable align "center"): the value sits in the middle of its column, under its heading. In a wide
+   report a right-aligned count ended beside the next column's heading and read as that column's (24-Nov-2026). The
+   sort arrow's room (14px icon + 4px gap) is mirrored on the left, so the heading's words are centred over the value. */
+.mtb-td-mid, .mtb-th-mid { text-align: center; white-space: nowrap; }
+.mtb-td-mid { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
+.mtb-table th.mtb-th-mid button { padding-inline-start: 18px; }
 
 /* ---------- Spinner and busy button ("Posting…") ---------- */
 .mtb-spinner { display: inline-block; width: 16px; height: 16px; flex: none; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: mtb-spin 700ms linear infinite; }

@@ -1,23 +1,22 @@
-import { clockTime, CLASH_LABEL, dayPlanOf, periodsInWeek, placedBySubject, reqKey, scheduleOf, sectionPeriodsOn, streamShort, TIMETABLE_DAYS, type TimetableBoard, type TimetableClash, type TimetableDay, type TimetableSection, type TimetableSlot } from "@mtb/api";
+import { clockTime, CLASH_LABEL, dayPlanOf, placedBySubject, reqKey, scheduleOf, sectionPeriodsOn, streamShort, TIMETABLE_DAYS, type TimetableBoard, type TimetableClash, type TimetableDay, type TimetableSection, type TimetableSlot } from "@mtb/api";
 import { formatDateTime } from "@mtb/domain";
 import { Banner, Button, EmptyState, Icon, Panel, Segmented, Select, Skeleton, StatusBadge } from "@mtb/ui";
 import { useState, type CSSProperties } from "react";
 import { RequireSingleCampus } from "../../app/shell/page";
 import { useCtx } from "../../app/session";
 import { campusLabel } from "../../app/shell/campus";
+import { classLabel, classOf, ClassWeek, SectionChecks, SectionPicker, SectionSummary, SubjectsTable } from "./ClassWeek";
 import {
   cellSlots,
   collapseDays,
   dayLong,
   isSplit,
-  LessonCell,
   PrintArea,
   PrintMatrix,
   PrintTimetable,
   printSoon,
   QueryError,
   teacherShort,
-  TimetableGrid,
   TimetableShell,
   useBoard,
   useBoardIndex,
@@ -35,10 +34,6 @@ export interface ClassTimetableSearch {
   /** Class for the whole-week master sheet: "9", "Prep". */
   klass?: string;
 }
-
-/** "7-B" → "7"; a long section name keeps its class: "ADP Computer Science – Batch 2026" → "ADP Computer Science". */
-const classOf = (cs: string) => (cs.includes(" – ") ? cs.split(" – ")[0]! : cs.split("-")[0]!);
-const classLabel = (k: string) => (k === "Prep" ? "Prep" : `Class ${k}`);
 
 function sectionStatus(board: TimetableBoard, idx: BoardIndex, s: TimetableSection) {
   const placed = placedBySubject(board, s.classSection);
@@ -225,11 +220,6 @@ function WeekSheet({ board, idx, sections, periods }: { board: TimetableBoard; i
   );
 }
 
-/** "Normal timings", "Timings 13" — a bell-timings name, with "timings" added only when the name lacks it. */
-const timingsName = (name: string) => (/timings/i.test(name) ? name : `${name} timings`);
-/** "a 72-period week", "an 84-period week", "an 11-period week". */
-const aPeriodWeek = (n: number) => `${/^8/.test(String(n)) || n === 11 || n === 18 ? "an" : "a"} ${n}-period week`;
-
 /** Build each class's week period by period, with clashes shown as you choose; print one class or all of them. */
 export function ClassTimetablePage({ search, setSearch }: { search: ClassTimetableSearch; setSearch: (s: ClassTimetableSearch) => void }) {
   const ctx = useCtx();
@@ -333,104 +323,24 @@ export function ClassTimetablePage({ search, setSearch }: { search: ClassTimetab
                 {classSections.length === 0 ? <EmptyState icon="layers" title="No sections" description="This class has no sections at this campus." /> : <WeekSheet board={board} idx={idx} sections={classSections} periods={weekPeriods} />}
               </Panel>
             ) : (
-              <div className="tt-split">
-                <div className="mtb-card p-0">
-                  <ul className="tt-sections" aria-label="Classes">
-                    {board.sections.map((s) => {
-                      const x = sectionStatus(board, idx, s);
-                      return (
-                        <li key={s.classSection}>
-                          <button type="button" aria-current={s.classSection === section?.classSection} onClick={() => setSearch({ ...search, cls: s.classSection })}>
-                            <span>
-                              {s.classSection}
-                              <small>
-                                {x.have} of {x.need} periods
-                                {s.streams.length ? ` · ${s.streams.length} groups` : ""}
-                              </small>
-                            </span>
-                            {x.clashes > 0 ? <StatusBadge status="danger">{x.clashes}</StatusBadge> : x.short > 0 ? <StatusBadge status="warning">{x.short} to place</StatusBadge> : <Icon name="checkCircle" size={16} className="text-success" label="Complete" />}
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
+              <div className="tt-class-wrap">
+               <div className="tt-class-layout">
+                <SectionPicker board={board} current={section?.classSection ?? ""} statusOf={(s) => sectionStatus(board, idx, s)} onPick={(cs) => setSearch({ ...search, cls: cs })} />
                 {section && st && (
-                  <div className="grid gap-4">
-                    <Panel
-                      id="tt-class"
-                      rise={0}
-                      title={`${section.classSection} timetable`}
-                      description={`Class teacher ${idx.teacher(section.classTeacherId)?.name ?? "not set"} · ${section.room ? `${section.room} · ` : ""}${section.strength} students · ${timingsName(scheduleOf(board, section.classSection).name)} · ${st.have} of ${st.need} curriculum periods placed, ${periodsInWeek(scheduleOf(board, section.classSection)) - new Set(board.slots.filter((s) => s.classSection === section.classSection).map((s) => `${s.day}|${s.period}`)).size} free in ${aPeriodWeek(periodsInWeek(scheduleOf(board, section.classSection)))}.${section.streams.length ? ` G: the class's groups (${section.streams.join(", ")}); a split period has one lesson per group.` : ""}${canEdit ? " Choose a period to change it." : ""}`}
-                    >
-                      <TimetableGrid
-                        board={board}
-                        caption={`${section.classSection} weekly timetable`}
-                        {...classGrid(section)}
-                        cell={(d, p, stream) => {
-                          const list = cellSlots(board, section.classSection, d, p);
-                          const slot = stream ? list.find((s) => s.stream === stream) : list.find((s) => !s.stream);
-                          const clashes = slot ? idx.clashOf(slot.id) : [];
-                          const sev = clashes.some((c) => c.severity === "BLOCK") ? "BLOCK" : clashes.some((c) => c.kind !== "TEACHER_OVER_WEEK") ? "WARN" : undefined;
-                          const open = canEdit ? () => setTarget({ section, day: d, period: p, stream }) : undefined;
-                          const who = stream ? ` (${stream})` : "";
-                          if (!slot)
-                            return {
-                              className: "is-free",
-                              label: `${dayLong(d)}, period ${p}${who}: free${canEdit ? ". Choose to add a lesson." : ""}`,
-                              content: canEdit ? (
-                                <>
-                                  <Icon name="plus" size={16} />
-                                  <span>Free</span>
-                                </>
-                              ) : (
-                                <span>Free</span>
-                              ),
-                              ...(open ? { onClick: open } : {}),
-                            };
-                          const subj = idx.subject(slot.subjectId);
-                          const teacher = idx.teacher(slot.teacherId)?.name ?? "No teacher";
-                          return {
-                            className: `tt-c${subj.tint} ${sev === "BLOCK" ? "is-clash" : sev === "WARN" ? "is-warn" : ""}`,
-                            label: `${dayLong(d)}, period ${p}${who}: ${subj.name} with ${teacher}${slot.room !== section.room ? ` in ${slot.room}` : ""}${clashes.length ? `. ${clashes.map((c) => c.message).join(" ")}` : ""}`,
-                            content: <LessonCell title={subj.short} line={teacherShort(teacher)} {...(slot.room !== section.room ? { sub: slot.room } : {})} {...(sev ? { flag: sev } : {})} />,
-                            ...(open ? { onClick: open } : {}),
-                          };
-                        }}
-                      />
-                    </Panel>
-                    <Panel id="tt-reqs" rise={1} title="Periods this week by subject" description={section.streams.length ? "From the class's subjects in Setup. Group subjects are counted for their group. Short subjects still need periods; extra ones are flagged." : "From the class's subjects in Setup. Short subjects still need periods; extra ones are flagged."}>
-                      <div className="tt-reqs">
-                        {section.requirements.map((r, i) => {
-                          const placed = placedBySubject(board, section.classSection).get(reqKey(r.subjectId, r.stream)) ?? 0;
-                          const pct = Math.min(100, (placed / Math.max(1, r.periodsPerWeek)) * 100);
-                          const teacher = idx.teacher(r.teacherId)?.name;
-                          return (
-                            <div key={reqKey(r.subjectId, r.stream)} className="tt-req mtb-slide-in" style={{ "--i": i } as CSSProperties}>
-                              <div className="tt-req-top">
-                                <b>
-                                  {idx.subject(r.subjectId).name}
-                                  {r.stream && <span className="block text-small font-normal text-ink-muted">{r.stream} group</span>}
-                                </b>
-                                <span className={`mtb-num ${placed > r.periodsPerWeek ? "text-danger-ink" : placed < r.periodsPerWeek ? "text-warning-ink" : "text-success-ink"}`}>
-                                  {placed} / {r.periodsPerWeek}
-                                </span>
-                              </div>
-                              <span className={`mtb-meter ${placed > r.periodsPerWeek ? "tone-danger" : placed < r.periodsPerWeek ? "tone-warning" : ""}`} role="img" aria-label={`${placed} of ${r.periodsPerWeek} periods`}>
-                                <span style={{ width: `${pct}%` }} />
-                              </span>
-                              <small>{teacher ?? "No teacher allotted in Setup"}</small>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </Panel>
+                  <div className="grid min-w-0 gap-4">
+                    <SectionSummary board={board} idx={idx} section={section} st={st} />
+                    <ClassWeek key={section.classSection} board={board} idx={idx} section={section} canEdit={canEdit} onEdit={setTarget} />
+                    <div className="tt-side-row">
+                      <SubjectsTable board={board} idx={idx} section={section} />
+                      <SectionChecks board={board} idx={idx} section={section} onOpen={openClash} />
+                    </div>
                   </div>
                 )}
+               </div>
               </div>
             )}
 
-            <Panel id="tt-clashes" rise={2} title="Clashes and warnings" description="Checked across the whole campus every time a period is saved, by clock time across bell timings. Red ones must be fixed or kept with a reason.">
+            <Panel id="tt-clashes" rise={2} title="Clashes and warnings, whole campus" description="Checked across the whole campus every time a period is saved, by clock time across bell timings. Red ones must be fixed or kept with a reason.">
               <ClashList idx={idx} onOpen={openClash} />
             </Panel>
 

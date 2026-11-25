@@ -9,8 +9,11 @@ import { EmptyState, Skeleton } from "./feedback";
 export interface Column<Row> {
   key: string;
   header: ReactNode;
-  /** 'right' for every money and count column. */
-  align?: "left" | "right";
+  /**
+   * 'right' for every money and count column. 'center' puts the value, and its heading, in the middle of the column:
+   * for counts and percentages in a wide table, where a right-aligned value reads as the next column's.
+   */
+  align?: "left" | "right" | "center";
   width?: number | string;
   /**
    * The column never gets narrower than this, even when the table is wider than its frame. By default the first text
@@ -184,7 +187,7 @@ export function DataTable<Row extends object>({
   const colCount = columns.length + (selectable ? 1 : 0);
   // The first text column without a width is the row's name (student, book, staff). When the table is wider than its
   // frame the browser squeezed it to 95px, one word per line (seen 23-Nov-2026), so it keeps NAME_MIN_WIDTH.
-  const nameKey = columns.find((c) => c.width === undefined && c.minWidth === undefined && c.align !== "right")?.key;
+  const nameKey = columns.find((c) => c.width === undefined && c.minWidth === undefined && (c.align ?? "left") === "left")?.key;
   const minWidthOf = (c: Column<Row>) => (c.minWidth !== undefined ? c.minWidth || undefined : c.key === nameKey ? NAME_MIN_WIDTH : undefined);
 
   return (
@@ -217,7 +220,7 @@ export function DataTable<Row extends object>({
                 <th
                   key={c.key}
                   scope="col"
-                  className={cx(c.align === "right" && "mtb-th-num", c.className)}
+                  className={cx(c.align === "right" && "mtb-th-num", c.align === "center" && "mtb-th-mid", c.className)}
                   style={headStyle({ width: c.width, minWidth: minWidthOf(c) })}
                   aria-sort={shownSort?.key === c.key ? (shownSort.dir === "asc" ? "ascending" : "descending") : undefined}
                 >
@@ -248,8 +251,8 @@ export function DataTable<Row extends object>({
                   {columns.map((c) => (
                     <td key={c.key}>
                       <Skeleton
-                        width={c.align === "right" ? 70 : `${55 + ((i * 17 + c.key.length * 7) % 40)}%`}
-                        style={c.align === "right" ? { marginLeft: "auto" } : undefined}
+                        width={c.align === "right" || c.align === "center" ? 70 : `${55 + ((i * 17 + c.key.length * 7) % 40)}%`}
+                        style={c.align === "right" ? { marginLeft: "auto" } : c.align === "center" ? { marginInline: "auto" } : undefined}
                       />
                     </td>
                   ))}
@@ -290,7 +293,7 @@ export function DataTable<Row extends object>({
                     {columns.map((c) => {
                       const content = c.render ? c.render(r, i) : (r[c.key as keyof Row] as ReactNode);
                       return (
-                        <td key={c.key} className={cx(c.align === "right" && "mtb-td-num", isShortValue(content) && "mtb-td-short", c.className)}>
+                        <td key={c.key} className={cx(c.align === "right" && "mtb-td-num", c.align === "center" && "mtb-td-mid", isShortValue(content) && "mtb-td-short", c.className)}>
                           {content}
                         </td>
                       );
@@ -305,7 +308,7 @@ export function DataTable<Row extends object>({
               <tr>
                 {selectable && <td />}
                 {columns.map((c) => (
-                  <td key={c.key} className={cx(c.align === "right" && "mtb-td-num")}>
+                  <td key={c.key} className={cx(c.align === "right" && "mtb-td-num", c.align === "center" && "mtb-td-mid")}>
                     {footer[c.key] ?? ""}
                   </td>
                 ))}

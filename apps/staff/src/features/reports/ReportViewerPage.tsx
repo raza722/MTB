@@ -561,7 +561,9 @@ function ResultView({ result, def, busy }: { result: ReportResult; def: ReportCa
     key: c.key,
     header: c.label,
     sortable: true,
-    ...(c.kind === "money" || c.kind === "count" || c.kind === "percent" ? { align: "right" as const } : {}),
+    // As on the printed report: counts and percentages in the middle of the column, under their heading (on the right
+    // they read as the next column's in a wide table, 24-Nov-2026); money on the right so the rupees line up.
+    ...(c.kind === "money" ? { align: "right" as const } : c.kind === "count" || c.kind === "percent" ? { align: "center" as const } : {}),
     // Subtotal lines leave empty cells empty (no dash).
     render: (r) => (r[REPORT_SUBTOTAL_KEY] && (r[c.key] ?? "") === "" ? null : renderCell(c, r[c.key] ?? null)),
   }));
