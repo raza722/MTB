@@ -2,8 +2,8 @@ import { WAREHOUSE_MOVEMENT_LABEL, warehouseQueries, type WarehouseItem, type Wa
 import { formatCount, formatDate, type IsoDate } from "@mtb/domain";
 import { formatRs } from "./money";
 import { AnimatedNumber, Button, Combobox, DataTable, DatePicker, EmptyState, Input, KeyValue, Pagination, Segmented, Select, SidePanel, Skeleton, StatCard, type Column } from "@mtb/ui";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useCtx } from "../../app/session";
 import { campusLabel } from "../../app/shell/campus";
 import { DocHead, inRange, LoadError, periodText, SignLines, slide, usePrinter } from "../library/common";
@@ -254,6 +254,9 @@ function RoomStockList({ rows, subtitle, campus }: { rows: WarehouseRoomStock[];
   );
 }
 
+/** Every room, every item: what "In rooms" opens on (and what hovering the switch loads ahead). */
+const ALL_ROOMS = { departmentId: "", room: "", categoryId: "" };
+
 function RoomStockView() {
   const ctx = useCtx();
   const setup = useQuery(warehouseQueries.setup(ctx));
@@ -262,14 +265,20 @@ function RoomStockView() {
   const [categoryId, setCat] = useState("");
   const [family, setFamily] = useState("");
   const [kind, setKind] = useState("");
+  const [page, setPage] = useState(1);
+  const [size, setSize] = useState(25);
   const q = useQuery({ ...warehouseQueries.roomStock(ctx, { departmentId, room, categoryId }), placeholderData: keepPreviousData });
   const printer = usePrinter();
   const departments = setup.data?.departments ?? [];
   const dep = departments.find((d) => d.id === departmentId);
   const roomChoices = [...new Map((dep ? dep.rooms : departments.flatMap((d) => d.rooms)).map((r) => [r.name, r])).values()];
-  const all = q.data ?? [];
-  const familyChoices = [...new Set(all.map((r) => r.group))].sort();
-  const rows = all.filter((r) => (!family || r.group === family) && (!kind || (kind === "USED") === r.consumable)).map((r) => ({ ...r, id: `${r.departmentId}|${r.room}|${r.itemId}` }));
+  const all = useMemo(() => q.data ?? [], [q.data]);
+  const familyChoices = useMemo(() => [...new Set(all.map((r) => r.group))].sort(), [all]);
+  const rows = useMemo(() => all.filter((r) => (!family || r.group === family) && (!kind || (kind === "USED") === r.consumable)).map((r) => ({ ...r, id: `${r.departmentId}|${r.room}|${r.itemId}` })), [all, family, kind]);
+  useEffect(() => setPage(1), [departmentId, room, categoryId, family, kind, ctx.campus]);
+  // One page at a time: a campus holds thousands of lines (6,510 at KC), and drawing them all at once froze the
+  // switch from "In the store" for seconds (user report, 25-Nov-2026). The print still lists every line.
+  const shown = rows.slice((page - 1) * size, page * size);
   const narrowed = [dep?.name, room || undefined, setup.data?.categories.find((c) => c.id === categoryId)?.name, family || undefined, kind ? (kind === "USED" ? "used-up items" : "kept items") : undefined].filter(Boolean).join(" · ");
   const columns: Array<Column<WarehouseRoomStock>> = [
     { key: "where", header: "Department · room", render: (r) => <span className="grid"><span className="font-medium">{r.room}</span><span className="text-small text-ink-muted">{r.department}</span></span> },
@@ -283,7 +292,7 @@ function RoomStockView() {
       {q.isError && <LoadError what="Stock in rooms" error={q.error} onRetry={() => void q.refetch()} />}
       <DataTable
         caption="Stock held in departments and rooms"
-        rows={rows}
+        rows={shown}
         loading={q.isLoading}
         columns={columns}
         toolbar={
@@ -313,6 +322,7 @@ function RoomStockView() {
           </div>
         }
         footer={rows.length ? { where: <span className="font-semibold">{formatCount(rows.length)} lines</span> } : undefined}
+        pagination={rows.length > size ? <Pagination page={page} pageSize={size} total={rows.length} onPageChange={setPage} onPageSizeChange={(s) => { setSize(s); setPage(1); }} /> : undefined}
         empty={<EmptyState icon="building" title="Nothing held in these rooms" description="Change the filters, or issue stock to a room." />}
       />
       {printer.element}
@@ -320,30 +330,60 @@ function RoomStockView() {
   );
 }
 
+/**
+ * "In the store" and "In rooms" stay mounted once opened and the switch only hides one, so going back and forth is
+ * instant: nothing is drawn again, refetched or re-animated. "In rooms" is first drawn on its first visit, and its
+ * list starts loading when the pointer or focus reaches the switch.
+ */
 export function StockPage({ status, setStatus }: { status: string; setStatus: (s: string) => void }) {
+  const ctx = useCtx();
+  const qc = useQueryClient();
   const [view, setView] = useState("store");
-  if (view === "rooms") {
-    return (
-      <WarehouseShell title="Stock">
-        <StockViewToggle value={view} onChange={setView} />
-        <RoomStockView />
-      </WarehouseShell>
-    );
-  }
-  return <StoreStock status={status} setStatus={setStatus} toggle={<StockViewToggle value={view} onChange={setView} />} />;
+  const [roomsOpened, setRoomsOpened] = useState(false);
+  const refocus = useRef(false);
+  const show = (v: string) => {
+    refocus.current = !!document.activeElement?.closest('[aria-label="Stock to show"]');
+    if (v === "rooms") setRoomsOpened(true);
+    setView(v);
+  };
+  // The pressed button is in the copy now hidden: keep the keyboard on the switch, in the copy now shown.
+  useEffect(() => {
+    if (!refocus.current) return;
+    refocus.current = false;
+    document.querySelector<HTMLElement>(`[data-stock-view="${view}"] [aria-label="Stock to show"] [aria-pressed="true"]`)?.focus();
+  }, [view]);
+  const toggle = <StockViewToggle value={view} onChange={show} onIntent={() => void qc.prefetchQuery(warehouseQueries.roomStock(ctx, ALL_ROOMS))} />;
+  const pane = (v: string) => ({ "data-stock-view": v, hidden: view !== v, style: view === v ? { display: "contents" } : undefined });
+  return (
+    <>
+      <div {...pane("store")}>
+        <StoreStock status={status} setStatus={setStatus} toggle={toggle} />
+      </div>
+      {roomsOpened && (
+        <div {...pane("rooms")}>
+          <WarehouseShell title="Stock">
+            {toggle}
+            <RoomStockView />
+          </WarehouseShell>
+        </div>
+      )}
+    </>
+  );
 }
 
-function StockViewToggle({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function StockViewToggle({ value, onChange, onIntent }: { value: string; onChange: (v: string) => void; onIntent: () => void }) {
   return (
-    <Segmented
-      aria-label="Stock to show"
-      value={value}
-      onChange={onChange}
-      options={[
-        { value: "store", label: "In the store" },
-        { value: "rooms", label: "In rooms" },
-      ]}
-    />
+    <div className="flex justify-self-start" onPointerOver={onIntent} onFocus={onIntent}>
+      <Segmented
+        aria-label="Stock to show"
+        value={value}
+        onChange={onChange}
+        options={[
+          { value: "store", label: "In the store" },
+          { value: "rooms", label: "In rooms" },
+        ]}
+      />
+    </div>
   );
 }
 
